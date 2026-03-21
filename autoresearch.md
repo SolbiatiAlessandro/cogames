@@ -61,11 +61,11 @@ The experiment runs on a dedicated branch (e.g. cogames/mar5 or cogames/mar5-gpu
 LOOP FOREVER:
 
 1. Look at the git state: the current branch/commit we're on
-2. Tune skills and LLM policy with experimental idea by directly hacking the code.
-3. git commit
+2. Tune skills and LLM policy with experimental idea by directly hacking the code - consult previous commits in the results file and see what they tried/worked didn't work
+3. git commit - in the commit description explain what you are trying, and what you are expecting to see in the experiments
 4. Run the experiment
 5. Read out the results
-6. Record the results in the tsv and commit the results
+6. Record the results in the tsv and commit the results - in the commit comment what you saw in the results and what you think the good and bad things are about the experiments
 7. If reward improved you "advance" the branch, keeping the git commit
 8. If reward is equal or worse, you git reset back to where you started
 
