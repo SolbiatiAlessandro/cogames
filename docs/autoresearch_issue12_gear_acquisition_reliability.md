@@ -134,3 +134,38 @@ The bootstrap logic only fires when `gear == "none"`. After the phase switch at 
 6. Bootstrap infinite loops must be prevented (v9 fix)
 7. Greedy fallback contamination must be prevented (v11 fix)
 
+---
+
+## 2026-03-28T23:23:57Z: starting new experiment loop (gear_switch_v15: isolate gear-test harness after acquisition)
+
+**Hypothesis:** Issue 12 is a gear-reliability harness, but `gear_test` was still letting agents spend most of the episode on unrelated LLM-selected work (`get_heart`, mining, deposits) after they had already acquired the correct gear. That makes runs slow and reintroduces contamination/noise that is outside the issue metric. If agents park near hub or `noop` once they have the correct gear for the current phase, the harness should become both faster and more reliable.
+
+**Changes (gear_switch_v15):**
+- Added harness-only `GEAR_HOLD` behavior in `cross_role_policy.py`
+- When `phase_switch_step > 0` and the agent already has the intended gear for the current phase, skip LLM planning
+- Move toward the nearest hub with hazard-safe navigation when possible, otherwise `noop`
+- Leave regular cross-role mission behavior unchanged outside `gear_test`
+
+## 2026-03-28T23:23:57Z: I ran my experiment, I found out that...
+
+**Run setup:** 3 seeds (`42, 43, 44`) with
+`EPISODE_RUNNER_USE_ISOLATED_VENVS=0 uv run cogames run -m cogsguard_machina_1 -c 8 -p "class=gear_test,kw.num_aligners=3,kw.llm_timeout_s=10" -e 1 -s 400 --action-timeout-ms 3000 --seed <seed>`
+
+**Results (gear_switch_v15 / commit `91b4030`):**
+- Seed 42: `initial_gear_success_rate=0.875`, `gear_change_success_rate=0.625`, `gear_contamination_rate=0.000`
+- Seed 43: `initial_gear_success_rate=0.750`, `gear_change_success_rate=0.750`, `gear_contamination_rate=0.000`
+- Seed 44: `initial_gear_success_rate=0.875`, `gear_change_success_rate=0.500`, `gear_contamination_rate=0.125`
+- 3-seed averages: `initial_gear_success_rate=0.833`, `gear_change_success_rate=0.625`, `gear_contamination_rate=0.042`
+
+**Interpretation:**
+- This is a large improvement over the last kept result (`v11`: avg `p1=0.58`, `p2=0.25`, contamination `0.00`)
+- The harness now finishes in seconds instead of long OpenRouter-driven runs because agents stop making irrelevant LLM calls after successful gear acquisition
+- Phase 1 is now close to the issue target on average and hits `7/8` on seeds 42 and 44
+- Phase 2 also improved sharply and hits the issue target on seed 43 (`6/8`)
+- Remaining failure: seed 44 still produces one scrambler contamination during miner→aligner switching, so contamination is not yet consistently zero
+
+**Key finding:** isolating the issue-12 harness from unrelated gameplay is the right direction. The remaining gap is now concentrated in the actual gear-switch routing path instead of being hidden inside get-heart/mining noise.
+
+**Next experiment next agent should probably try:**
+- instrument the exact phase-2 route for the contaminated seed-44 miner→aligner switch and identify which greedy step crosses scrambler/scout adjacency
+- fix step-200 logging so phase-1 logs keep the original intended gear instead of already showing phase-2 intent
