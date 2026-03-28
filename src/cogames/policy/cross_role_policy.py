@@ -784,11 +784,50 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if hub_dist <= 3:
             state.phase2_hub_cleared = True
             self._event(state, "phase2 hub waypoint cleared; proceeding to gear station")
+            logger.info("HUB_WAYPOINT agent=%d step=%d hub=%s dist=%d cleared", obs.agent_id, state.episode_step, hub_abs, hub_dist)
             return None
+        logger.info("HUB_WAYPOINT agent=%d step=%d hub=%s dist=%d navigating", obs.agent_id, state.episode_step, hub_abs, hub_dist)
         direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
         if direction:
             return self._aligner._starter._action(f"move_{direction}"), state
         return None
+
+    def _park_with_correct_gear_step(self, obs: AgentObservation, state: CrossRoleState, current_abs: Coord) -> tuple[Action, CrossRoleState] | None:
+        """Issue-12 harness: once correct gear is equipped, park near hub and stop.
+
+        The gear-test policy should isolate acquisition/change reliability instead of
+        spending steps on unrelated miner/aligner work. After an agent reaches the
+        intended gear for the current phase, move it toward the nearest hub via
+        hazard-safe navigation; once near the hub, hold position with noop.
+        """
+        if self._phase_switch_step <= 0:
+            return None
+        effective_preferred = state.phase_preferred_gear or self._preferred_initial_gear
+        gear = self._current_gear(obs)
+        if gear != effective_preferred or gear not in {"aligner", "miner"}:
+            return None
+
+        nav_state = state
+        if gear == "aligner" and state.known_aligner_stations:
+            nav_state = replace(state, known_hazard_stations=state.known_hazard_stations - state.known_aligner_stations)
+        elif gear == "miner" and state.known_miner_stations:
+            nav_state = replace(state, known_hazard_stations=state.known_hazard_stations - state.known_miner_stations)
+
+        if state.known_hubs:
+            hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if hub_dist > 3:
+                    direction = self._navigate_to_station_safe(nav_state, current_abs, hub_abs)
+                    if direction is not None:
+                        logger.info(
+                            "GEAR_HOLD agent=%d step=%d gear=%s hub=%s dist=%d action=move_%s",
+                            obs.agent_id, state.episode_step, gear, hub_abs, hub_dist, direction,
+                        )
+                        return self._aligner._starter._action(f"move_{direction}"), state
+
+        logger.info("GEAR_HOLD agent=%d step=%d gear=%s action=noop", obs.agent_id, state.episode_step, gear)
+        return self._aligner._starter._action("noop"), state
 
     def _gear_up_aligner_safe(self, obs: AgentObservation, state: CrossRoleState, current_abs: Coord) -> tuple[Action, CrossRoleState]:
         """Gear up to aligner using hub-first waypoint (phase 2) then BFS-with-hazards → greedy.
@@ -908,6 +947,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
         self._maybe_finish_skill(obs, state)
+
+        hold_step = self._park_with_correct_gear_step(obs, state, current_abs)
+        if state.current_skill is None and hold_step is not None:
+            return hold_step
 
         if state.current_skill is None:
             self._plan_skill(obs, state)
