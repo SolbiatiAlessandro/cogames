@@ -238,6 +238,9 @@ class CrossRoleState:
     phase: int = 1  # 1 = initial gear acquisition, 2 = switched gear acquisition
     phase_preferred_gear: str = ""  # overrides preferred_initial_gear in phase 2
     phase2_hub_cleared: bool = False  # True after agent passes through hub in phase 2 (hub-first waypoint)
+    phase2_hub_last_target: Coord | None = None
+    phase2_hub_last_dist: int | None = None
+    phase2_hub_stall_steps: int = 0
 
 
 class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
@@ -830,10 +833,30 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if hub_abs is None:
             return None
         hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+        if state.phase2_hub_last_target == hub_abs and state.phase2_hub_last_dist == hub_dist:
+            state.phase2_hub_stall_steps += 1
+        else:
+            state.phase2_hub_last_target = hub_abs
+            state.phase2_hub_last_dist = hub_dist
+            state.phase2_hub_stall_steps = 0
         if hub_dist <= 3:
             state.phase2_hub_cleared = True
+            state.phase2_hub_last_target = None
+            state.phase2_hub_last_dist = None
+            state.phase2_hub_stall_steps = 0
             self._event(state, "phase2 hub waypoint cleared; proceeding to gear station")
             logger.info("HUB_WAYPOINT agent=%d step=%d hub=%s dist=%d cleared", obs.agent_id, state.episode_step, hub_abs, hub_dist)
+            return None
+        if state.phase2_hub_stall_steps >= 8:
+            state.phase2_hub_cleared = True
+            state.phase2_hub_last_target = None
+            state.phase2_hub_last_dist = None
+            state.phase2_hub_stall_steps = 0
+            self._event(state, f"phase2 hub waypoint stalled at dist={hub_dist}; bypassing hub")
+            logger.info(
+                "HUB_WAYPOINT agent=%d step=%d hub=%s dist=%d stalled_bypass",
+                obs.agent_id, state.episode_step, hub_abs, hub_dist,
+            )
             return None
         logger.info("HUB_WAYPOINT agent=%d step=%d hub=%s dist=%d navigating", obs.agent_id, state.episode_step, hub_abs, hub_dist)
         direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
@@ -957,6 +980,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.gear_up_failures = 0
         state.current_skill = None
         state.phase2_hub_cleared = False  # v13: reset hub waypoint for hub-first navigation
+        state.phase2_hub_last_target = None
+        state.phase2_hub_last_dist = None
+        state.phase2_hub_stall_steps = 0
 
     def step_with_state(self, obs: AgentObservation, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
         state.episode_step += 1
@@ -1009,6 +1035,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 last_pos=getattr(base_state, 'last_pos', state.last_pos),
                 last_move_target=getattr(base_state, 'last_move_target', state.last_move_target),
                 phase2_hub_cleared=base_state.phase2_hub_cleared,  # v13: persist hub waypoint state
+                phase2_hub_last_target=base_state.phase2_hub_last_target,
+                phase2_hub_last_dist=base_state.phase2_hub_last_dist,
+                phase2_hub_stall_steps=base_state.phase2_hub_stall_steps,
             ))
 
         elif skill == "gear_up_miner":
@@ -1027,6 +1056,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 last_pos=base_state.last_pos,
                 last_move_target=getattr(base_state, 'last_move_target', state.last_move_target),
                 phase2_hub_cleared=base_state.phase2_hub_cleared,  # v13: persist hub waypoint state
+                phase2_hub_last_target=base_state.phase2_hub_last_target,
+                phase2_hub_last_dist=base_state.phase2_hub_last_dist,
+                phase2_hub_stall_steps=base_state.phase2_hub_stall_steps,
             ))
 
         elif skill == "get_heart":
