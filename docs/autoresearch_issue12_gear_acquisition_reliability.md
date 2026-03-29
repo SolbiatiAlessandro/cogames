@@ -192,3 +192,25 @@ Additionally, `_gear_up_via_hub_step` calls `_navigate_to_station(avoid_hazards=
 - Add `_safe_move_toward` helper: BFS-with-hazards → if None, compute greedy direction → check if greedy lands on hazard station → if safe use greedy, if hazardous explore_near_hub
 - Replace 4 greedy-fallback patterns in `_gear_up_aligner_safe` and `_gear_up_miner_safe` with `_safe_move_toward`
 - Also add hazard check in `_gear_up_via_hub_step` for hub navigation direction
+
+## 2026-03-28: v16 results
+
+- Seed 42: p1=0.875, p2=0.500, contamination=0.000
+- Seed 43: p1=0.750, p2=0.750, contamination=0.000
+- Seed 44: p1=0.875, p2=0.625, contamination=0.000
+- Averages: p1=0.833, p2=0.625, contamination=0.000
+
+Key finding: contamination is now 0 across all seeds. Phase-2-only check is the right approach.
+Root cause of the earlier v16 all-gear=none bug: the miner station is in `known_hazard_stations` (it's classified as a non-aligner hazard station), so when agents are adjacent to the miner station, `_navigate_to_station_safe` returns None AND the greedy direction points at the miner station (also "hazard").
+The fix (`state.phase == 2` check) prevents this from happening in phase 1 (allows greedy through any station in phase 1, same as v15). In phase 2, when greedy would land on a non-target hazard, we explore near hub.
+
+Limitation: the explore_near_hub fallback in phase 2 is slow (random walk). Some agents that previously navigated via greedy now explore instead, which is why p2 for seed 42 went from 0.625 to 0.500.
+
+## 2026-03-28: starting experiment v17 (perpendicular directions in phase 2)
+
+**Hypothesis:** Instead of exploring_near_hub when phase-2 greedy is blocked, try perpendicular directions first. This gives agents a chance to navigate around the hazard station without wandering randomly. When a hazard blocks the primary greedy direction, a perpendicular move gets the agent "beside" the hazard, from where BFS can find a path.
+
+**Changes (gear_switch_v17):**
+- In `_safe_move_toward` phase-2 hazard case: try greedy, then perpendicular1, perpendicular2
+- Only fall back to explore_near_hub if ALL perpendiculars also lead to hazard stations
+- Phase 1 behavior unchanged (no hazard check, same as v15)

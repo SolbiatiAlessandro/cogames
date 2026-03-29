@@ -787,11 +787,26 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         greedy_dir = ("south" if dr > 0 else "north") if abs(dr) >= abs(dc) else ("east" if dc > 0 else "west")
         # Phase 2 only: check if greedy direction leads to a contaminating hazard station.
         # Target station is allowed (it's the goal). Only block non-target hazards.
+        # v17: when greedy is blocked by non-target hazard, try perpendicular directions before
+        # falling back to explore_near_hub. Perpendicular moves navigate around the hazard
+        # without random wandering.
         if state.phase == 2 and state.known_hazard_stations:
             gdr, gdc = self._DIR_DELTA[greedy_dir]
             next_cell = (current_abs[0] + gdr, current_abs[1] + gdc)
             if next_cell in state.known_hazard_stations and next_cell != target_abs:
-                # Greedy would contaminate in phase 2 — explore near hub to find a clear path
+                # Greedy blocked — try perpendicular directions
+                if abs(dr) >= abs(dc):
+                    perp1 = "east" if dc >= 0 else "west"
+                    perp2 = "west" if dc >= 0 else "east"
+                else:
+                    perp1 = "south" if dr >= 0 else "north"
+                    perp2 = "north" if dr >= 0 else "south"
+                for candidate in (perp1, perp2):
+                    cdr, cdc = self._DIR_DELTA[candidate]
+                    cand_cell = (current_abs[0] + cdr, current_abs[1] + cdc)
+                    if cand_cell not in state.known_hazard_stations or cand_cell == target_abs:
+                        return self._aligner._starter._action(f"move_{candidate}"), state
+                # All useful directions blocked — explore near hub as last resort
                 if state.known_hubs:
                     action, base_state = self._aligner._explore_near_hub(obs, state)
                     return action, self._copy_with_shared(replace(state,
