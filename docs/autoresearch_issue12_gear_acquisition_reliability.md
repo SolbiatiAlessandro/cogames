@@ -169,3 +169,26 @@ The bootstrap logic only fires when `gear == "none"`. After the phase switch at 
 **Next experiment next agent should probably try:**
 - instrument the exact phase-2 route for the contaminated seed-44 miner→aligner switch and identify which greedy step crosses scrambler/scout adjacency
 - fix step-200 logging so phase-1 logs keep the original intended gear instead of already showing phase-2 intent
+
+---
+
+## 2026-03-28: new autoresearch session starting — picking up from v15
+
+Current state:
+- v15 is the best kept result: p1=0.833, p2=0.625, contamination=0.042 (seed 44 has 1 contamination)
+- Branch: autoresearch/issue-12-gear-acquisition-and-change-reliability
+- Latest commit: e9a13d5
+
+**Root cause of remaining contamination (from code analysis):**
+In `_gear_up_aligner_safe` and `_gear_up_miner_safe`, when `_navigate_to_station_safe` returns None (BFS blocked by hazards), the code falls back to `_greedy_move_toward_abs`. This greedy fallback computes a raw cardinal direction (north/south/east/west) toward the target without any hazard checking. If the target station is in a direction that requires passing through/near a scout or scrambler station, the greedy step will contaminate.
+
+Additionally, `_gear_up_via_hub_step` calls `_navigate_to_station(avoid_hazards=True)` which itself has a greedy fallback inside it that doesn't check hazards.
+
+## 2026-03-28: starting new experiment loop (gear_switch_v16: hazard-safe greedy fallback)
+
+**Hypothesis:** The remaining contamination comes from `_greedy_move_toward_abs` being called when `_navigate_to_station_safe` returns None. The greedy fallback ignores all hazard knowledge. If we check whether the greedy direction leads directly to a known hazard station and, if so, explore_near_hub instead, we should eliminate the remaining contamination.
+
+**Changes (gear_switch_v16):**
+- Add `_safe_move_toward` helper: BFS-with-hazards → if None, compute greedy direction → check if greedy lands on hazard station → if safe use greedy, if hazardous explore_near_hub
+- Replace 4 greedy-fallback patterns in `_gear_up_aligner_safe` and `_gear_up_miner_safe` with `_safe_move_toward`
+- Also add hazard check in `_gear_up_via_hub_step` for hub navigation direction
