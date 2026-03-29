@@ -46,6 +46,53 @@ Implement element-aware balanced mining. The core insight is that make_heart nee
 
 The tricky part is knowing what element an extractor produces - need to read it from observation tokens.
 
+## 2026-03-29T01:30: Experiment A results
+
+Ran 3 configurations with `nvidia/nemotron-nano-9b-v2:free` at 1000 steps, seed=42, 2A1M:
+
+1. WRONG baseline (2A+scout, not 2A+miner): reward=0.66 (but agent 2 was scout not miner!)
+2. Element-aware LLM mining (2A+1LLM_miner): reward=0.51, germanium.gained=3.67
+3. Scripted miners (2A+1scripted_miner): reward=0.68, silicon.gained=4.33, junction.aligned=2.67
+
+Key findings:
+- Scripted miners outperform LLM miners (0.68 vs 0.51) because LLM adds latency
+- The miner IS depositing with element-aware code, but only single element types
+- The deposit is still unbalanced: germanium deposited but not other elements
+- Scripted miners also only deposit silicon (not balanced)
+- Neither approach crafts hearts from deposits (need 7 of EACH element)
+
+The element-aware targeting IS working (we saw `known_extractors_by_element: carbon=4, oxygen=2, germanium=3, silicon=7`
+and the miner targeting the rarest element). But 1000 steps + large map means the miner
+can only do 1-2 complete mine+deposit cycles. Not enough to get 7 of each element.
+
+ROOT CAUSE: The return_load=40 means miner mines 40 items total per cycle. With 4 elements,
+that's on average 10 per element per cycle. After 1 deposit cycle, deposit counts might be
+carbon=10, oxygen=10, germanium=10, silicon=10 (balanced, totaling 40).
+But make_heart needs 7 of each = 28 total. So 1 cycle SHOULD be enough if balanced!
+
+The real issue: the miner is targeting the LEAST-deposited element, which is correct logic.
+But the miner can only carry 40 items total, and the hub needs 7 of each (28 total).
+If the miner fills all 40 slots with the same element (because that element's extractor
+is closest), we only deposit 40 of one type but 0 of others.
+
+Wait - the miner is using `mine_until_full` which navigates to ONE extractor and mines until full (40 items).
+All 40 items will be the SAME element type. So a single full load = 40 of one element.
+We need at least 7 deposits (one per element * 4, but 4 half-loads) to get 28 total balanced.
+
+CRITICAL INSIGHT: The element-balance target selection only works at the SKILL SELECTION level
+(which extractor to go mine at). But the miner mines 40 items of the SAME type per trip.
+To get 7 of each, the miner needs 4 separate trips (one to each element type), carrying
+at most 40 items per trip.
+
+For make_heart to work: 4 separate mining trips minimum (one per element type).
+At ~200-300 steps per trip (gear up + navigate + mine + return), that's 800-1200 steps minimum.
+1000 steps is barely enough for one cycle to work.
+
+Better approach: Lower the `return_load` threshold to 10 items (trigger deposit after 10 items)
+so the miner makes MORE trips but carries LESS, depositing more diverse elements over time.
+
+OR: Implement multi-element collection (mine different elements in one trip before depositing).
+
 ---
 
 ## 2026-03-29T00:05: starting to run baseline
@@ -72,6 +119,13 @@ This means balanced mining is moot if the miner can't even deposit.
 
 Looking at the issue success criteria: "Total reward > 0.80/agent at 1000 steps with 2A1M configuration"
 This is actually a hard target given current 0.66.
+
+IMPORTANT NOTE: The baseline command `class=machina_llm_roles,kw.num_aligners=2` was WRONG.
+The 3rd agent was being assigned as a SCOUT, not a MINER. The scout earns 0 reward.
+Correct 2A1M config: `class=machina_llm_roles,kw.num_aligners=2,kw.num_scouts=0`
+
+ALSO: The paid OpenRouter model `nvidia/llama-3.3-nemotron-super-49b-v1.5` is giving 402 errors.
+Using free model `nvidia/nemotron-nano-9b-v2:free` instead.
 
 ## 2026-03-29T00:20: starting new experiment loop - Experiment A: Element-Aware Mining
 

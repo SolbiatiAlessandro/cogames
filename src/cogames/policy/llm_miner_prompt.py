@@ -25,6 +25,7 @@ def build_llm_miner_prompt(
     recent_events: list[str],
     element_deposited_counts: dict[str, int] | None = None,
     known_extractors_by_element: dict[str, int] | None = None,
+    round_robin_target_element: str | None = None,
 ) -> str:
     skills = "\n".join(f"- {name}: {description}" for name, description in SKILL_DESCRIPTIONS.items())
     events = "\n".join(f"- {event}" for event in recent_events[-6:]) or "- none"
@@ -37,11 +38,13 @@ def build_llm_miner_prompt(
         counts_str = ", ".join(f"{e}={element_deposited_counts.get(e, 0)}" for e in ("carbon", "oxygen", "germanium", "silicon"))
         element_balance_text = (
             f"- element_deposited_counts: {counts_str}\n"
-            f"  (make_heart needs 7 of EACH element; mine whichever has lowest count)\n"
+            f"  (make_heart needs 7 of EACH element; system auto-targets least-deposited)\n"
         )
     if known_extractors_by_element is not None:
         by_elem_str = ", ".join(f"{e}={known_extractors_by_element.get(e, 0)}" for e in ("carbon", "oxygen", "germanium", "silicon"))
         element_balance_text += f"- known_extractors_by_element: {by_elem_str}\n"
+    if round_robin_target_element is not None:
+        element_balance_text += f"- round_robin_target_element: {round_robin_target_element} (mine THIS element next for balance)\n"
     return (
         "You control one miner cog in CoGames. Maximize deposited resources to craft hearts.\n"
         "The hub needs 7 of EACH element (carbon, oxygen, germanium, silicon) to craft 1 heart.\n"

@@ -1,0 +1,4 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+baseline	0.660000	junction=2.33/agent held=5550 german.w=2 carbon.w=2	1000	discard	baseline 2A+scout (WRONG - agent2 was scout not miner!) nemotron-super paid model
+428c193	0.510000	junction=1.67/agent germanium.gained=3.67/agent max_stuck=128	1000	discard	element-aware LLM mining 2A+1LLM_miner num_scouts=0 nemotron-nano-free
+428c193	0.680000	junction=2.67/agent silicon.gained=4.33/agent max_stuck=18	1000	keep	scripted miners 2A+1scripted_miner nemotron-nano-free (best so far)

@@ -208,6 +208,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             known_extractors_by_element=sm.known_extractors_by_element if sm else {k: set(v) for k, v in base.known_extractors_by_element.items()},
             element_deposited_counts=sm.element_deposited_counts if sm else dict(base.element_deposited_counts),
             last_inventory_by_element=dict(base.last_inventory_by_element),
+            round_robin_element_idx=base.round_robin_element_idx,
             current_skill=state.current_skill,
             current_reason=state.current_reason,
             skill_steps=state.skill_steps,
@@ -305,6 +306,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 recent_events=state.recent_events,
                 element_deposited_counts=dict(state.element_deposited_counts),
                 known_extractors_by_element={e: len(s) for e, s in state.known_extractors_by_element.items()},
+                round_robin_target_element=self._target_element_for_balance(state),
             )
             logger.info("agent=%s llm_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
             started_at = time.perf_counter()

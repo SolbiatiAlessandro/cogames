@@ -49,6 +49,8 @@ class MinerSkillState(StarterCogState):
     last_inventory_by_element: dict[str, int] = field(
         default_factory=lambda: {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0}
     )
+    # Round-robin element target index (cycles through all 4 elements)
+    round_robin_element_idx: int = 0
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -441,22 +443,30 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         return action, replace(next_state, last_mode=state.last_mode)
 
     def _target_element_for_balance(self, state: MinerSkillState) -> str | None:
-        """Return the element that is most under-deposited, or None if no element extractors known.
+        """Return the element to mine next using round-robin strategy.
 
-        Logic: pick the element with the fewest total deposited units.
-        Ties broken by element order (carbon, oxygen, germanium, silicon).
-        Falls back to None if no per-element extractor data available.
+        Cycles through all 4 elements in order (carbon -> oxygen -> germanium -> silicon -> carbon...)
+        to guarantee balanced collection. Advances to next element only after a deposit occurs.
+        Falls back to least-deposited if the round-robin target has no known extractors.
         """
-        # Find elements we have known extractors for
+        # Try round-robin target first
+        elem_sequence = list(ELEMENTS)  # carbon, oxygen, germanium, silicon
+        rr_idx = state.round_robin_element_idx % len(elem_sequence)
+        rr_elem = elem_sequence[rr_idx]
+        if state.known_extractors_by_element.get(rr_elem):
+            return rr_elem
+        # Round-robin target has no known extractors yet - fall back to any available
         available = [elem for elem in ELEMENTS if state.known_extractors_by_element.get(elem)]
         if not available:
             return None
-        # Pick the element with the fewest deposits
+        # Pick the element with the fewest deposits among available
         return min(available, key=lambda e: (state.element_deposited_counts.get(e, 0), ELEMENTS.index(e)))
 
     def _update_deposit_tracking(self, obs: AgentObservation, state: MinerSkillState) -> None:
-        """Detect deposits by comparing current inventory to last known inventory."""
+        """Detect deposits by comparing current inventory to last known inventory.
+        Also advances the round-robin element index when any deposit occurs."""
         current_inv = self._inventory_counts(obs)
+        any_deposited = False
         for elem in ELEMENTS:
             prev = state.last_inventory_by_element.get(elem, 0)
             curr = current_inv.get(elem, 0)
@@ -466,6 +476,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 state.element_deposited_counts[elem] = state.element_deposited_counts.get(elem, 0) + deposited
                 logger.debug("agent=%s element_deposited %s=%d (total=%d)",
                              obs.agent_id, elem, deposited, state.element_deposited_counts[elem])
+                any_deposited = True
+        # Advance round-robin element after each deposit event
+        if any_deposited:
+            state.round_robin_element_idx = (state.round_robin_element_idx + 1) % len(ELEMENTS)
+            logger.debug("agent=%s round_robin advanced to element_idx=%d (%s)",
+                         obs.agent_id, state.round_robin_element_idx, list(ELEMENTS)[state.round_robin_element_idx % len(ELEMENTS)])
         # Update last known inventory
         for elem in ELEMENTS:
             state.last_inventory_by_element[elem] = current_inv.get(elem, 0)
