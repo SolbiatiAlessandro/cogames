@@ -557,7 +557,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 # Stations are placed 4 rows below hub center; aligner is leftmost (3 cols west of center).
                 hub_center = self._nearest_known(current_abs, state.known_hubs)
                 expected_station = (hub_center[0] + 4, hub_center[1] - 3)
-                direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=False)
+                direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=True)
                 if direction is not None:
                     return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             return self._explore(obs, state)
