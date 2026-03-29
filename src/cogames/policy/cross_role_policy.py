@@ -844,19 +844,13 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             logger.info("HUB_WAYPOINT agent=%d step=%d hub=%s dist=%d cleared", obs.agent_id, state.episode_step, hub_abs, hub_dist)
             return None
         logger.info("HUB_WAYPOINT agent=%d step=%d hub=%s dist=%d navigating", obs.agent_id, state.episode_step, hub_abs, hub_dist)
-        direction = self._navigate_to_station_safe(state, current_abs, hub_abs)
+        # v18: revert to v15 hub navigation (_navigate_to_station with avoid_hazards=True, with greedy fallback)
+        # v16's _navigate_to_station_safe was too strict for hub navigation — it could return None
+        # even when a safe path exists (hub is not a hazard itself), causing hub waypoint failures
+        # and degrading p2. The original avoid_hazards=True BFS with greedy fallback works better here.
+        direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
         if direction:
             return self._aligner._starter._action(f"move_{direction}"), state
-        # v16: BFS fails for hub navigation — use safe greedy (won't contaminate toward hub)
-        # Hub itself is never a hazard station, so greedy toward hub is generally safe
-        # unless a hazard station is directly between current pos and hub.
-        dr = hub_abs[0] - current_abs[0]
-        dc = hub_abs[1] - current_abs[1]
-        greedy_dir = ("south" if dr > 0 else "north") if abs(dr) >= abs(dc) else ("east" if dc > 0 else "west")
-        gdr, gdc = self._DIR_DELTA[greedy_dir]
-        next_cell = (current_abs[0] + gdr, current_abs[1] + gdc)
-        if next_cell not in state.known_hazard_stations:
-            return self._aligner._starter._action(f"move_{greedy_dir}"), state
         return None
 
     def _park_with_correct_gear_step(self, obs: AgentObservation, state: CrossRoleState, current_abs: Coord) -> tuple[Action, CrossRoleState] | None:
