@@ -1,1 +1,2 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+d75feb1	0.586193	hearts=9/aligned=9/held=4862/germanium=12	1000	keep	baseline: issue-16 merged (hub-depletion+make_heart+element-aware), scripted-fallback mode (LLM 402)
