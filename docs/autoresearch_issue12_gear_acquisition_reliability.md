@@ -230,3 +230,46 @@ Run set:
 **Next experiment next agent should probably try:**
 - Instrument hub-waypoint deadlocks and detect "distance not decreasing" so the agent can abandon the hub waypoint after N stuck steps
 - Prefer a direct safe gear-station route when the hub waypoint repeats the same move target without reducing Manhattan distance
+
+---
+
+## 2026-03-29T05:27:47Z: starting new experiment loop (gear_switch_v19: hub-waypoint stall bypass)
+
+**Hypothesis:**
+The restored frontier still loses seed 42 because one phase-2 miner stays pinned on the hub waypoint forever at distance 4. If we detect repeated non-progress on the same hub target/distance and bypass the hub after a short stall window, the agent should resume direct gear-station routing and recover one more phase-2 switch without reintroducing contamination.
+
+**Changes:**
+- Added per-agent phase-2 hub waypoint stall tracking (`last_target`, `last_dist`, `stall_steps`)
+- If the same hub waypoint distance repeats for 8 consecutive phase-2 steps, mark the hub waypoint as cleared and continue straight to the target gear station
+- Fixed state propagation so the hub-waypoint counters persist through `gear_up_aligner` / `gear_up_miner` helper returns
+
+## 2026-03-29T05:27:47Z: starting to run baseline
+
+Run set:
+- `EPISODE_RUNNER_USE_ISOLATED_VENVS=0 cogames run -m cogsguard_machina_1 -c 8 -p "class=gear_test,kw.num_aligners=3,kw.llm_timeout_s=30" -e 1 -s 400 --action-timeout-ms 3000 --seed 42`
+- same command with `--seed 43`
+- same command with `--seed 44`
+
+## 2026-03-29T05:27:47Z: I ran my experiment, I found out that...
+
+**Experiment:** `gear_switch_v19`
+
+3-seed results:
+- seed 42: `initial_gear_success_rate=0.875`, `gear_change_success_rate=0.625`, `gear_contamination_rate=0.000`, reward `0.04`
+- seed 43: `initial_gear_success_rate=0.750`, `gear_change_success_rate=0.750`, `gear_contamination_rate=0.000`, reward `0.04`
+- seed 44: `initial_gear_success_rate=0.875`, `gear_change_success_rate=0.625`, `gear_contamination_rate=0.000`, reward `0.04`
+- average: `initial_gear_success_rate=0.833`, `gear_change_success_rate=0.667`, `gear_contamination_rate=0.000`
+
+**Interpretation:**
+- This is a real improvement over `gear_switch_v18_restore` on the primary issue-12 switch metric: average `p2` improved from `0.625` to `0.667`
+- The seed-42 hub deadlock was genuine: after restoring the stall counters, agent 3 logged `stalled_bypass` at step 208 and then completed the miner→aligner switch
+- Seeds 43 and 44 did not regress
+- Contamination remains `0` across all 3 seeds
+
+**Remaining blocker:**
+- We still miss the issue target because phase 1 remains `0.750` on seed 43 and phase 2 remains `0.625` on seeds 42 and 44
+- Seed 44 still loses two miner→aligner switches without contamination, so the remaining failure is safe routing efficiency, not contamination control
+
+**Next experiment next agent should probably try:**
+- Add a direct gear-station stale detector analogous to the hub bypass: if the target gear station distance is flat for N steps, try a bounded alternate route or temporarily drop the hub waypoint entirely
+- Inspect seed-44 miner→aligner failures specifically; they now look like pure path inefficiency after contamination has been eliminated
