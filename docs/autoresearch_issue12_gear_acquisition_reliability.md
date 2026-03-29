@@ -184,3 +184,49 @@ Action taken:
 Next experiment next agent should probably try:
 - Fix **aligner post-switch heart acquisition** rather than more gear-up retry logic
 - Specifically inspect why `get_heart` repeatedly exits stale when `hub_visible=True`; likely the same blocked-target/approach-cell problem that previously affected gear stations and hubs
+
+---
+
+## 2026-03-29T05:24:01Z: starting new experiment loop (gear_switch_v18_restore: restore kept gear-test frontier on this branch)
+
+**Hypothesis:**
+This branch had drifted behind the live issue-12 frontier. Restoring the later harness-isolation and phase-2-safe greedy logic should recover the known best 3-seed behavior:
+- phase 1 agents stop doing unrelated `get_heart` / mining once they have the correct gear
+- phase 2 greedy fallback only blocks contaminating non-target hazard steps
+- blocked greedy switch attempts can side-step perpendicular instead of immediately wandering
+
+**Changes:**
+- Restored the issue-12 harness parking behavior: once an agent has the intended gear for the current phase, `gear_test` moves it toward hub and then `noop`s
+- Restored phase-2-only greedy hazard checks with perpendicular sidesteps before hub-biased exploration
+- Kept the v18 hub-waypoint behavior that uses `_navigate_to_station(..., avoid_hazards=True)` instead of the stricter safe-wrapper
+
+## 2026-03-29T05:24:01Z: starting to run baseline
+
+Run set:
+- `EPISODE_RUNNER_USE_ISOLATED_VENVS=0 cogames run -m cogsguard_machina_1 -c 8 -p "class=gear_test,kw.num_aligners=3,kw.llm_timeout_s=30" -e 1 -s 400 --action-timeout-ms 3000 --seed 42`
+- same command with `--seed 43`
+- same command with `--seed 44`
+
+## 2026-03-29T05:24:01Z: I ran my experiment, I found out that...
+
+**Experiment:** `gear_switch_v18_restore`
+
+3-seed results:
+- seed 42: `initial_gear_success_rate=0.875`, `gear_change_success_rate=0.500`, `gear_contamination_rate=0.000`, reward `0.04`
+- seed 43: `initial_gear_success_rate=0.750`, `gear_change_success_rate=0.750`, `gear_contamination_rate=0.000`, reward `0.04`
+- seed 44: `initial_gear_success_rate=0.875`, `gear_change_success_rate=0.625`, `gear_contamination_rate=0.000`, reward `0.04`
+- average: `initial_gear_success_rate=0.833`, `gear_change_success_rate=0.625`, `gear_contamination_rate=0.000`
+
+**Interpretation:**
+- This restores the known best frontier from the other issue-12 branch onto the current working branch
+- The harness isolation matters: once agents get the right gear, stopping unrelated skills prevents phase-1 and early phase-2 regressions from `get_heart` / mining behavior
+- The phase-2-safe greedy logic removes contamination across all 3 seeds while preserving enough navigation to hit the `6/8` switch target on seed 43
+- We are still below the issue success criteria on consistency: average `p1=0.833` and `p2=0.625`
+
+**Remaining blocker:**
+- Seed 42 still has two agents pinned forever on the phase-2 hub waypoint at distance 4
+- Seed 44 still misses on two miner→aligner switches without contaminating
+
+**Next experiment next agent should probably try:**
+- Instrument hub-waypoint deadlocks and detect "distance not decreasing" so the agent can abandon the hub waypoint after N stuck steps
+- Prefer a direct safe gear-station route when the hub waypoint repeats the same move target without reducing Manhattan distance
