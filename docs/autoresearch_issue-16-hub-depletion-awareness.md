@@ -193,3 +193,72 @@ cogames play -m cogsguard_machina_1 -c 3 -p class=cross_role,kw.num_aligners=2,k
 
 **Results:** avg 0.652 (+16%), best 0.77 (+37%), 0 get_heart stale exits (was 83)
 **Target 0.92:** achievable at 2000 steps (1.08 best). At 1000 steps, needs HP retreat + better navigation.
+
+---
+
+## 2026-03-29T07:00:00Z: New session starting (continuing from ef8bd11)
+
+Prior best: gemma-3-12b avg 0.700 (reported). Confirmed baseline on seeds 42-44: 42=0.52, 43=0.57, 44=0.61. Avg=0.567.
+Note: "0.700 avg" was measured on seeds that happened to be better (46-50). Variance is HIGH.
+
+**v18 experiment: hub deposit tracking (DISCARDED)**
+- Added SharedMap.hub_deposits_by_element, tracking per-element deposits in _update_progress
+- Added hub_deposits context to miner LLM prompt for smarter decisions
+- Result: seeds 42=0.52, 43=0.57, 44=0.61. Avg=0.567. No improvement.
+- Issue: hub_deposit signal doesn't help when scarce element extractors are unknown/far
+- The prompt context alone doesn't change LLM behavior meaningfully
+- Decision: discarded, reset to ef8bd11
+
+**Key finding:** LLM variance (timing-based randomness in agent positions) is the main noise source.
+True mean reward with gemma-3-12b is ~0.57 avg (seeds 42-44).
+
+## 2026-03-29T08:00:00Z: Starting experiment v19 - force miner to explore more
+
+**Hypothesis:** The miner spends most time mining the SAME nearby extractors (1 element type) and the make_heart cycle fails because it lacks oxygen/silicon/germanium diversity. If we force the miner to explore FURTHER from hub after each deposit, it discovers diverse extractor locations and the element imbalance is fixed over time.
+
+Approach: After deposit_to_hub completes, send miner to explore a RANDOM quadrant (not near hub) for 50 steps before returning to mine. This diversifies the extractors it visits.
+
+Actually - even better: Look at what specific extractors are known and target the most distant unexplored area. But this is complex. Let me try a simpler fix:
+
+**v19 plan:** After each successful deposit_to_hub, set a "post-deposit-explore" flag. The miner then explores specifically toward the map quadrant LEAST visited. This gives it a chance to discover different element types.
+
+Wait - actually the existing code already has: "After depositing, explore briefly to find new extractor types". And the LLM sometimes chooses explore after deposit. The problem is the explore doesn't go far enough.
+
+Better approach: **Target distant extractors first**. When `mine_until_full` is called, instead of targeting the nearest extractor, target the FARTHEST extractor of the scarce element type, or a random distant extractor. This forces the miner to traverse more of the map.
+
+No - targeting the farthest would waste navigation steps.
+
+**Actually the real fix:** The problem is that the miner only mines the same 26-40 nearby extractors, all of which may be one type. If we add a "must diversify" precondition to mine_until_full - e.g., "mine near a known extractor of the NEEDED element" - the miner would skip nearby carbon extractors when hub needs silicon.
+
+This is exactly what extractors_by_element should fix. Let me check why it's not working better.
+
+Looking at the `_scarce_element` in v16/baseline: it uses CARGO imbalance. When the miner has lots of carbon and little oxygen (cargo imbalance), it targets an oxygen extractor. But this only works AFTER the cargo starts being imbalanced - i.e., after mining 10+ carbon. By then, the miner has already committed to the carbon area.
+
+**New v19 approach:** Instead of cargo-based scarce element detection, use a `target_element` that cycles through the 4 elements over consecutive mine cycles. This ensures the miner mines ALL 4 element types regardless of cargo balance.
+
+Cycle: carbon → oxygen → germanium → silicon → carbon → ...
+Each mine cycle = one element. After return_load resources of that element, deposit and switch.
+
+This guarantees diverse deposits in ~4 cycles (4×400=1600 steps for full cycle).
+
+Wait - 1600 steps for 4 cycles is too long (we only have 1000 steps).
+
+What if return_load=10 (very small)? Then:
+- Each cycle: navigate (50 steps) + mine 10 resources + deposit (50 steps) = ~120 steps
+- 1000 steps / 120 = 8 cycles = 2 cycles of each element
+- Total deposited: 4×10×2 = 80 resources balanced!
+- make_heart needs 28 (7×4). So 80/28 = ~2.8 make_hearts from mining!
+
+But navigation overhead per cycle is fixed. With small return_load, the ratio of navigation:mining is worse. Let me estimate:
+- Navigation to extractor: ~20-50 steps
+- Mining to fill 10: ~10 steps
+- Navigation back to hub: ~20-50 steps
+- Deposit: ~10 steps
+Total: ~60-120 steps per cycle
+
+With return_load=10, each cycle brings 10 resources. That's 10 resources / 120 steps = 0.083 resources/step.
+With return_load=40, each cycle brings 40 resources. That's 40 resources / 400 steps = 0.1 resources/step.
+
+Actually similar efficiency, but return_load=10 gives more diverse deposits.
+
+Let me try return_load=10 with element cycling!

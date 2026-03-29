@@ -262,6 +262,8 @@ class CrossRoleState:
     # Miner LLM tracking
     last_carried_total: int = 0
     explore_start_extractors: int = 0
+    # v19: element cycle index for diverse mining (cycles through carbon→oxygen→germanium→silicon)
+    mine_cycle_index: int = 0
 
     # Gear acquisition tracking (for retry + fallback logic)
     gear_up_failures: int = 0
@@ -732,6 +734,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried >= self._return_load:
             self._event(state, f"mine_until_full completed: cargo={carried}")
+            state.mine_cycle_index = (state.mine_cycle_index + 1) % 4  # v19: advance element cycle
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried == 0:
             self._event(state, "deposit_to_hub completed")
