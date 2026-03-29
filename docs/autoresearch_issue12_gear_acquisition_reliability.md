@@ -134,3 +134,53 @@ The bootstrap logic only fires when `gear == "none"`. After the phase switch at 
 6. Bootstrap infinite loops must be prevented (v9 fix)
 7. Greedy fallback contamination must be prevented (v11 fix)
 
+---
+
+## 2026-03-29T04:28:28Z: starting new experiment loop (merge_main_snapshot baseline)
+
+**Context:**
+- Issue branch had drifted behind `main` and did not contain the live issue-12 harness.
+- Merged `main` into `autoresearch/issue-12-gear-acquisition-reliability` to recover:
+  - `GearTestPolicy`
+  - contamination re-bootstrap logic
+  - phase-2 hub waypoint navigation (`v13`)
+
+**Hypothesis:**
+The current merged head should outperform logged `v11` on phase-2 switching because hub-first routing gives agents a safer, more central staging path before re-targeting the opposite gear station.
+
+## 2026-03-29T04:28:28Z: starting to run baseline
+
+Run set:
+- `EPISODE_RUNNER_USE_ISOLATED_VENVS=0 cogames run -m cogsguard_machina_1 -c 8 -p "class=gear_test,kw.num_aligners=3,kw.llm_timeout_s=30" -e 1 -s 400 --action-timeout-ms 3000 --seed 42`
+- same command with `--seed 43`
+- same command with `--seed 44`
+
+## 2026-03-29T04:45:12Z: I ran my experiment, I found out that...
+
+**Experiment:** merge-fix + phase1 persistent retry for intended gear
+
+Changes tried:
+- Restored `SharedMap.agent_gears` after the branch merge dropped it, which was pinning prompt team counts at zero
+- Tried two gear-acquisition tweaks locally:
+  - longer `gear_up_*` stale threshold (40 instead of 20)
+  - no opposite-gear fallback during the issue-12 gear test (always retry intended gear)
+
+Result over 3 seeds:
+- seed 42: `p1=0.75`, `p2=0.00`, `contamination=0.00`, reward `0.04`
+- seed 43: `p1=0.50`, `p2=0.625`, `contamination=0.125`, reward `0.13`
+- seed 44: `p1=0.50`, `p2=0.00`, `contamination=0.00`, reward `0.04`
+- average: `p1=0.58`, `p2=0.21`, `contamination=0.04`
+
+Interpretation:
+- This is **worse than kept v11** (`p1=0.58`, `p2=0.25`, `contamination=0.00`)
+- Removing the wrong-gear fallback did clean up one bad behavior (aligners no longer "succeed" by becoming miners in phase 1), but it did not improve the headline metric
+- The dominant remaining failure is now clearer: **phase-2 agents often reach aligner gear, then get stuck on `get_heart` retries**, so switching gear alone is not enough
+- Seed 43 shows the current hub-first phase-2 route can produce real switching progress (`5/8`), but contamination reappears (`scrambler`) and seed variance remains large
+
+Action taken:
+- Discarded the local `cross_role_policy.py` behavior tweaks
+- Kept only the merge repair that restores `SharedMap.agent_gears`, because without it the harness prompts were materially wrong after the branch merge
+
+Next experiment next agent should probably try:
+- Fix **aligner post-switch heart acquisition** rather than more gear-up retry logic
+- Specifically inspect why `get_heart` repeatedly exits stale when `hub_visible=True`; likely the same blocked-target/approach-cell problem that previously affected gear stations and hubs

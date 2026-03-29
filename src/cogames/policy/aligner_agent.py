@@ -53,6 +53,8 @@ class SharedMap:
         self.known_neutral_junctions: set[Coord] = set()
         self.known_friendly_junctions: set[Coord] = set()
         self.known_enemy_junctions: set[Coord] = set()
+        # Cross-role policies use this for shared team gear counts in prompts.
+        self.agent_gears: dict[int, str] = {}
 
 
 @dataclass
