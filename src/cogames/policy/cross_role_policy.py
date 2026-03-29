@@ -767,24 +767,31 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         return direction
 
     def _safe_move_toward(self, obs: AgentObservation, state: CrossRoleState, current_abs: Coord, target_abs: Coord) -> tuple[Action, CrossRoleState]:
-        """Navigate toward target with hazard safety: BFS-with-hazards → safe greedy → explore_near_hub.
+        """Navigate toward target with hazard safety: BFS-with-hazards → greedy (hazard-checked in phase 2).
 
-        v16 fix: when BFS-with-hazards fails and greedy would step directly onto a known hazard
-        station, explore near hub instead of contaminating. This prevents the last remaining
-        contamination path where _greedy_move_toward_abs blindly crosses scout/scrambler stations.
+        v16 fix: in phase 2 only, when BFS-with-hazards fails and greedy would step directly onto
+        a contaminating hazard station (not the target itself), explore near hub instead.
+        In phase 1, use same greedy fallback as v15 (no extra check) to avoid slowing down
+        initial gear acquisition.
+
+        Rationale: seeds 42/43 have contamination=0 in v15 even with unchecked greedy, meaning
+        the greedy fallback causes contamination ONLY in phase 2 (seed 44 miner→aligner switch).
+        Phase-2-only check eliminates that contamination without breaking phase-1 navigation.
         """
         direction = self._navigate_to_station_safe(state, current_abs, target_abs)
         if direction is not None:
             return self._aligner._starter._action(f"move_{direction}"), state
-        # BFS blocked — compute greedy direction and check if it's safe
+        # BFS blocked — compute greedy direction
         dr = target_abs[0] - current_abs[0]
         dc = target_abs[1] - current_abs[1]
         greedy_dir = ("south" if dr > 0 else "north") if abs(dr) >= abs(dc) else ("east" if dc > 0 else "west")
-        if state.known_hazard_stations:
+        # Phase 2 only: check if greedy direction leads to a contaminating hazard station.
+        # Target station is allowed (it's the goal). Only block non-target hazards.
+        if state.phase == 2 and state.known_hazard_stations:
             gdr, gdc = self._DIR_DELTA[greedy_dir]
             next_cell = (current_abs[0] + gdr, current_abs[1] + gdc)
-            if next_cell in state.known_hazard_stations:
-                # Greedy is hazardous — explore near hub to find a clear path
+            if next_cell in state.known_hazard_stations and next_cell != target_abs:
+                # Greedy would contaminate in phase 2 — explore near hub to find a clear path
                 if state.known_hubs:
                     action, base_state = self._aligner._explore_near_hub(obs, state)
                     return action, self._copy_with_shared(replace(state,
