@@ -37,6 +37,18 @@ class MinerSkillState(StarterCogState):
     # Move-failure tracking (same mechanism as AlignerState)
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
+    # Per-element extractor tracking for balanced mining
+    known_extractors_by_element: dict[str, set[Coord]] = field(
+        default_factory=lambda: {"carbon": set(), "oxygen": set(), "germanium": set(), "silicon": set()}
+    )
+    # Shared deposit counts (points to SharedMap.element_deposited_counts when shared map available)
+    element_deposited_counts: dict[str, int] = field(
+        default_factory=lambda: {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0}
+    )
+    # Last inventory per element (to detect deposits)
+    last_inventory_by_element: dict[str, int] = field(
+        default_factory=lambda: {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0}
+    )
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -54,6 +66,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._return_load = return_load
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
+        # Per-element extractor tags for balanced mining
+        self._extractor_tags_by_element: dict[str, set[int]] = {
+            elem: self._starter._resolve_tag_ids([f"{elem}_extractor"])
+            for elem in ELEMENTS
+        }
 
     def _miner_station_names(self, policy_env_info: PolicyEnvInterface) -> list[str]:
         names = {"miner_station"}
@@ -89,6 +106,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         state.known_miner_stations = sm.known_miner_stations
         state.known_extractors = sm.known_extractors
         state.known_hazard_stations = sm.known_hazard_stations
+        # Bind per-element extractor sets to SharedMap
+        state.known_extractors_by_element = sm.known_extractors_by_element
+        # Bind element deposit count tracking to SharedMap
+        state.element_deposited_counts = sm.element_deposited_counts
 
     def initial_agent_state(self) -> MinerSkillState:
         starter_state = self._starter.initial_agent_state()
@@ -181,6 +202,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         extractors_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
 
+        extractors_now_by_element: dict[str, set[Coord]] = {elem: set() for elem in ELEMENTS}
+
         for token in obs.tokens:
             if token.feature.name != "tag" or token.location is None:
                 continue
@@ -195,6 +218,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 extractors_now.add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+            # Track per-element extractor locations
+            for elem, elem_tags in self._extractor_tags_by_element.items():
+                if token.value in elem_tags:
+                    extractors_now_by_element[elem].add(abs_cell)
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
@@ -209,6 +236,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._remember_static_objects(state.known_miner_stations, miner_stations_now)
         self._remember_static_objects(state.known_extractors, extractors_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
+        # Update per-element extractor locations
+        for elem in ELEMENTS:
+            self._remember_static_objects(state.known_extractors_by_element[elem], extractors_now_by_element[elem])
         self._remember_visible_hub(obs, state)
 
     def _neighbors(self, cell: Coord) -> list[tuple[str, Coord]]:
@@ -410,11 +440,60 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         action, next_state = self._move_toward_target(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    def _target_element_for_balance(self, state: MinerSkillState) -> str | None:
+        """Return the element that is most under-deposited, or None if no element extractors known.
+
+        Logic: pick the element with the fewest total deposited units.
+        Ties broken by element order (carbon, oxygen, germanium, silicon).
+        Falls back to None if no per-element extractor data available.
+        """
+        # Find elements we have known extractors for
+        available = [elem for elem in ELEMENTS if state.known_extractors_by_element.get(elem)]
+        if not available:
+            return None
+        # Pick the element with the fewest deposits
+        return min(available, key=lambda e: (state.element_deposited_counts.get(e, 0), ELEMENTS.index(e)))
+
+    def _update_deposit_tracking(self, obs: AgentObservation, state: MinerSkillState) -> None:
+        """Detect deposits by comparing current inventory to last known inventory."""
+        current_inv = self._inventory_counts(obs)
+        for elem in ELEMENTS:
+            prev = state.last_inventory_by_element.get(elem, 0)
+            curr = current_inv.get(elem, 0)
+            if curr < prev:
+                # Some of this element was deposited
+                deposited = prev - curr
+                state.element_deposited_counts[elem] = state.element_deposited_counts.get(elem, 0) + deposited
+                logger.debug("agent=%s element_deposited %s=%d (total=%d)",
+                             obs.agent_id, elem, deposited, state.element_deposited_counts[elem])
+        # Update last known inventory
+        for elem in ELEMENTS:
+            state.last_inventory_by_element[elem] = current_inv.get(elem, 0)
+
     def _mine_until_full(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "mine_until_full":
             logger.info("agent=%s mode=mine_until_full", obs.agent_id)
             state.last_mode = "mine_until_full"
         current_abs = self._current_abs(obs)
+
+        # Element-aware mining: prefer extractors of the most under-deposited element
+        target_element = self._target_element_for_balance(state)
+        if target_element is not None:
+            elem_tags = self._extractor_tags_by_element[target_element]
+            visible_target = self._closest_visible_location(obs, elem_tags)
+            if visible_target is not None:
+                target_abs = self._visible_abs_cell(current_abs, visible_target)
+                action, next_state = self._move_toward_target(state, current_abs, target_abs)
+                return action, replace(next_state, last_mode=state.last_mode)
+            # Check known extractors of this element type
+            known_elem_extractors = state.known_extractors_by_element.get(target_element, set())
+            if known_elem_extractors:
+                target_abs = self._nearest_known(current_abs, known_elem_extractors)
+                if target_abs is not None:
+                    action, next_state = self._move_toward_target(state, current_abs, target_abs)
+                    return action, replace(next_state, last_mode=state.last_mode)
+
+        # Fallback: any visible extractor
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
@@ -454,6 +533,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     def step_with_state(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         self._update_map_memory(obs, state)
+        self._update_deposit_tracking(obs, state)
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
         if gear != "miner":
             return self._gear_up(obs, state)

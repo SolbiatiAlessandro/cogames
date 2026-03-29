@@ -49,6 +49,20 @@ class SharedMap:
         self.known_miner_stations: set[Coord] = set()
         self.known_hazard_stations: set[Coord] = set()
         self.known_extractors: set[Coord] = set()
+        # Per-element extractor tracking for balanced mining
+        self.known_extractors_by_element: dict[str, set[Coord]] = {
+            "carbon": set(),
+            "oxygen": set(),
+            "germanium": set(),
+            "silicon": set(),
+        }
+        # Per-element deposit counts for balance tracking (shared across miners)
+        self.element_deposited_counts: dict[str, int] = {
+            "carbon": 0,
+            "oxygen": 0,
+            "germanium": 0,
+            "silicon": 0,
+        }
         # Junctions (dynamic — refreshed per visible area)
         self.known_neutral_junctions: set[Coord] = set()
         self.known_friendly_junctions: set[Coord] = set()

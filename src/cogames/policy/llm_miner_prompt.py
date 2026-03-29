@@ -23,6 +23,8 @@ def build_llm_miner_prompt(
     no_move_steps: int,
     no_progress_on_target_steps: int = 0,
     recent_events: list[str],
+    element_deposited_counts: dict[str, int] | None = None,
+    known_extractors_by_element: dict[str, int] | None = None,
 ) -> str:
     skills = "\n".join(f"- {name}: {description}" for name, description in SKILL_DESCRIPTIONS.items())
     events = "\n".join(f"- {event}" for event in recent_events[-6:]) or "- none"
@@ -30,8 +32,20 @@ def build_llm_miner_prompt(
     remembered_hub_text = (
         "unknown" if hub_row is None or hub_col is None else f"spawn_relative_row={hub_row}, spawn_relative_col={hub_col}"
     )
+    element_balance_text = ""
+    if element_deposited_counts is not None:
+        counts_str = ", ".join(f"{e}={element_deposited_counts.get(e, 0)}" for e in ("carbon", "oxygen", "germanium", "silicon"))
+        element_balance_text = (
+            f"- element_deposited_counts: {counts_str}\n"
+            f"  (make_heart needs 7 of EACH element; mine whichever has lowest count)\n"
+        )
+    if known_extractors_by_element is not None:
+        by_elem_str = ", ".join(f"{e}={known_extractors_by_element.get(e, 0)}" for e in ("carbon", "oxygen", "germanium", "silicon"))
+        element_balance_text += f"- known_extractors_by_element: {by_elem_str}\n"
     return (
-        "You control one miner cog in CoGames. Maximize deposited resources.\n"
+        "You control one miner cog in CoGames. Maximize deposited resources to craft hearts.\n"
+        "The hub needs 7 of EACH element (carbon, oxygen, germanium, silicon) to craft 1 heart.\n"
+        "Prioritize mining whichever element has the fewest deposits to keep element counts balanced.\n"
         "Choose exactly one next skill from the available skills.\n"
         "Valid skill names are exactly: gear_up, mine_until_full, deposit_to_hub, explore, unstuck. Do not invent new names.\n"
         "Preconditions:\n"
@@ -51,6 +65,7 @@ def build_llm_miner_prompt(
         f"- frontier_count: {frontier_count}\n"
         f"- current_skill: {current_skill or 'none'}\n"
         f"- no_move_steps: {no_move_steps}\n"
-        f"- no_progress_on_target_steps: {no_progress_on_target_steps}\n\n"
-        f"Recent events:\n{events}\n"
+        f"- no_progress_on_target_steps: {no_progress_on_target_steps}\n"
+        f"{element_balance_text}"
+        f"\nRecent events:\n{events}\n"
     )

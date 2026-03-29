@@ -204,6 +204,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             known_hazard_stations=sm.known_hazard_stations if sm else set(base.known_hazard_stations),
             last_pos=base.last_pos,
             last_move_target=base.last_move_target,
+            # Per-element extractor and deposit tracking
+            known_extractors_by_element=sm.known_extractors_by_element if sm else {k: set(v) for k, v in base.known_extractors_by_element.items()},
+            element_deposited_counts=sm.element_deposited_counts if sm else dict(base.element_deposited_counts),
+            last_inventory_by_element=dict(base.last_inventory_by_element),
             current_skill=state.current_skill,
             current_reason=state.current_reason,
             skill_steps=state.skill_steps,
@@ -299,6 +303,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 no_move_steps=state.no_move_steps,
                 no_progress_on_target_steps=state.no_progress_on_target_steps,
                 recent_events=state.recent_events,
+                element_deposited_counts=dict(state.element_deposited_counts),
+                known_extractors_by_element={e: len(s) for e, s in state.known_extractors_by_element.items()},
             )
             logger.info("agent=%s llm_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
             started_at = time.perf_counter()
@@ -387,6 +393,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
 
     def step_with_state(self, obs: AgentObservation, state: LLMMinerState) -> tuple[Action, LLMMinerState]:
         self._update_map_memory(obs, state)
+        self._update_deposit_tracking(obs, state)
         self._update_progress(obs, state)
 
         self._maybe_finish_skill(obs, state)
