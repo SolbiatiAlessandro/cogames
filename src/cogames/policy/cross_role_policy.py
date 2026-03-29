@@ -744,6 +744,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 expanded.add((hs[0] + dr, hs[1] + dc))
         return replace(state, known_hazard_stations=expanded)
 
+    _DIR_DELTA = {"north": (-1, 0), "south": (1, 0), "east": (0, 1), "west": (0, -1)}
+
     def _navigate_to_station_safe(self, state: CrossRoleState, current_abs: Coord, target_abs: Coord) -> str | None:
         """Navigate to target station, returning None if next step would enter a hazard station.
 
@@ -757,13 +759,60 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if direction is None:
             return None
         # Verify the immediate next step doesn't land on a known hazard station
-        _DIR_DELTA = {"north": (-1, 0), "south": (1, 0), "east": (0, 1), "west": (0, -1)}
-        if direction in _DIR_DELTA:
-            dr, dc = _DIR_DELTA[direction]
+        if direction in self._DIR_DELTA:
+            dr, dc = self._DIR_DELTA[direction]
             next_cell = (current_abs[0] + dr, current_abs[1] + dc)
             if next_cell in state.known_hazard_stations:
                 return None  # Would contaminate; caller should explore instead
         return direction
+
+    def _safe_move_toward(
+        self, obs: AgentObservation, state: CrossRoleState, current_abs: Coord, target_abs: Coord
+    ) -> tuple[Action, CrossRoleState]:
+        """Navigate toward target with hazard safety: BFS-with-hazards then guarded greedy.
+
+        In phase 1, keep the original greedy fallback so initial gear acquisition stays fast.
+        In phase 2, block greedy steps that would contaminate on a non-target hazard station
+        and try a perpendicular sidestep before falling back to hub-biased exploration.
+        """
+        direction = self._navigate_to_station_safe(state, current_abs, target_abs)
+        if direction is not None:
+            return self._aligner._starter._action(f"move_{direction}"), state
+
+        dr = target_abs[0] - current_abs[0]
+        dc = target_abs[1] - current_abs[1]
+        greedy_dir = ("south" if dr > 0 else "north") if abs(dr) >= abs(dc) else ("east" if dc > 0 else "west")
+        if state.phase == 2 and state.known_hazard_stations:
+            gdr, gdc = self._DIR_DELTA[greedy_dir]
+            next_cell = (current_abs[0] + gdr, current_abs[1] + gdc)
+            if next_cell in state.known_hazard_stations and next_cell != target_abs:
+                if abs(dr) >= abs(dc):
+                    perp1 = "east" if dc >= 0 else "west"
+                    perp2 = "west" if dc >= 0 else "east"
+                else:
+                    perp1 = "south" if dr >= 0 else "north"
+                    perp2 = "north" if dr >= 0 else "south"
+                for candidate in (perp1, perp2):
+                    cdr, cdc = self._DIR_DELTA[candidate]
+                    cand_cell = (current_abs[0] + cdr, current_abs[1] + cdc)
+                    if cand_cell not in state.known_hazard_stations or cand_cell == target_abs:
+                        return self._aligner._starter._action(f"move_{candidate}"), state
+                if state.known_hubs:
+                    action, base_state = self._aligner._explore_near_hub(obs, state)
+                    return action, self._copy_with_shared(replace(
+                        state,
+                        wander_direction_index=base_state.wander_direction_index,
+                        wander_steps_remaining=base_state.wander_steps_remaining,
+                        last_mode=base_state.last_mode,
+                    ))
+                action, base_state = self._aligner._explore(obs, state)
+                return action, self._copy_with_shared(replace(
+                    state,
+                    wander_direction_index=base_state.wander_direction_index,
+                    wander_steps_remaining=base_state.wander_steps_remaining,
+                    last_mode=base_state.last_mode,
+                ))
+        return self._aligner._starter._action(f"move_{greedy_dir}"), state
 
     def _gear_up_via_hub_step(self, obs: AgentObservation, state: CrossRoleState, current_abs: Coord) -> tuple[Action, CrossRoleState] | None:
         """v13: In phase 2, navigate to hub first before targeting gear station.
@@ -784,14 +833,50 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if hub_dist <= 3:
             state.phase2_hub_cleared = True
             self._event(state, "phase2 hub waypoint cleared; proceeding to gear station")
+            logger.info("HUB_WAYPOINT agent=%d step=%d hub=%s dist=%d cleared", obs.agent_id, state.episode_step, hub_abs, hub_dist)
             return None
+        logger.info("HUB_WAYPOINT agent=%d step=%d hub=%s dist=%d navigating", obs.agent_id, state.episode_step, hub_abs, hub_dist)
         direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
         if direction:
             return self._aligner._starter._action(f"move_{direction}"), state
         return None
 
+    def _park_with_correct_gear_step(
+        self, obs: AgentObservation, state: CrossRoleState, current_abs: Coord
+    ) -> tuple[Action, CrossRoleState] | None:
+        """Issue-12 harness: once correct gear is equipped, park near hub and stop."""
+        if self._phase_switch_step <= 0:
+            return None
+
+        effective_preferred = state.phase_preferred_gear or self._preferred_initial_gear
+        gear = self._current_gear(obs)
+        if gear != effective_preferred or gear not in {"aligner", "miner"}:
+            return None
+
+        nav_state = state
+        if gear == "aligner" and state.known_aligner_stations:
+            nav_state = replace(state, known_hazard_stations=state.known_hazard_stations - state.known_aligner_stations)
+        elif gear == "miner" and state.known_miner_stations:
+            nav_state = replace(state, known_hazard_stations=state.known_hazard_stations - state.known_miner_stations)
+
+        if state.known_hubs:
+            hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if hub_dist > 3:
+                    direction = self._navigate_to_station_safe(nav_state, current_abs, hub_abs)
+                    if direction is not None:
+                        logger.info(
+                            "GEAR_HOLD agent=%d step=%d gear=%s hub=%s dist=%d action=move_%s",
+                            obs.agent_id, state.episode_step, gear, hub_abs, hub_dist, direction,
+                        )
+                        return self._aligner._starter._action(f"move_{direction}"), state
+
+        logger.info("GEAR_HOLD agent=%d step=%d gear=%s action=noop", obs.agent_id, state.episode_step, gear)
+        return self._aligner._starter._action("noop"), state
+
     def _gear_up_aligner_safe(self, obs: AgentObservation, state: CrossRoleState, current_abs: Coord) -> tuple[Action, CrossRoleState]:
-        """Gear up to aligner using hub-first waypoint (phase 2) then BFS-with-hazards → greedy.
+        """Gear up to aligner using hub-first waypoint (phase 2) then BFS-with-hazards → safe greedy.
 
         v6 fix: when BFS-with-hazards fails (path blocked by scout/scrambler), try
         BFS-without-hazards. Crossing other stations en route is acceptable since the
@@ -804,11 +889,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         visible_target = self._aligner._starter._closest_tag_location(obs, self._aligner._aligner_station_tags)
         if visible_target is not None:
             target_abs = self._aligner._visible_abs_cell(current_abs, visible_target)
-            direction = self._navigate_to_station_safe(state, current_abs, target_abs)
-            if direction is not None:
-                return self._aligner._starter._action(f"move_{direction}"), state
-            action, next_state = self._aligner._greedy_move_toward_abs(state, current_abs, target_abs)
-            return action, state
+            return self._safe_move_toward(obs, state, current_abs, target_abs)
         target_abs = self._aligner._nearest_known(current_abs, state.known_aligner_stations)
         if target_abs is None:
             if state.known_hubs:
@@ -824,14 +905,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 wander_steps_remaining=base_state.wander_steps_remaining,
                 last_mode=base_state.last_mode,
             ))
-        direction = self._navigate_to_station_safe(state, current_abs, target_abs)
-        if direction is not None:
-            return self._aligner._starter._action(f"move_{direction}"), state
-        action, next_state = self._aligner._greedy_move_toward_abs(state, current_abs, target_abs)
-        return action, state
+        return self._safe_move_toward(obs, state, current_abs, target_abs)
 
     def _gear_up_miner_safe(self, obs: AgentObservation, state: CrossRoleState, current_abs: Coord) -> tuple[Action, CrossRoleState]:
-        """Gear up to miner using hub-first waypoint (phase 2) then BFS-with-hazards → greedy.
+        """Gear up to miner using hub-first waypoint (phase 2) then BFS-with-hazards → safe greedy.
 
         Issue-12 fix: the original miner._gear_up uses _move_toward_target which falls back
         to optimistic BFS without hazard avoidance when the primary BFS fails. This causes
@@ -847,11 +924,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         visible_target = self._miner._closest_visible_location(obs, self._miner._miner_station_tags)
         if visible_target is not None:
             target_abs = self._miner._visible_abs_cell(current_abs, visible_target)
-            direction = self._navigate_to_station_safe(state, current_abs, target_abs)
-            if direction is not None:
-                return self._aligner._starter._action(f"move_{direction}"), state
-            action, next_state = self._aligner._greedy_move_toward_abs(state, current_abs, target_abs)
-            return action, state
+            return self._safe_move_toward(obs, state, current_abs, target_abs)
         target_abs = self._aligner._nearest_known(current_abs, state.known_miner_stations)
         if target_abs is None:
             if state.known_hubs:
@@ -867,11 +940,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 wander_steps_remaining=base_state.wander_steps_remaining,
                 last_mode=base_state.last_mode,
             ))
-        direction = self._navigate_to_station_safe(state, current_abs, target_abs)
-        if direction is not None:
-            return self._aligner._starter._action(f"move_{direction}"), state
-        action, next_state = self._aligner._greedy_move_toward_abs(state, current_abs, target_abs)
-        return action, state
+        return self._safe_move_toward(obs, state, current_abs, target_abs)
 
     def _handle_phase_switch(self, obs: AgentObservation, state: CrossRoleState) -> None:
         """At phase switch step, flip preferred gear and reset gear acquisition state."""
@@ -908,6 +977,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
         self._maybe_finish_skill(obs, state)
+
+        hold_step = self._park_with_correct_gear_step(obs, state, current_abs)
+        if state.current_skill is None and hold_step is not None:
+            return hold_step
 
         if state.current_skill is None:
             self._plan_skill(obs, state)
