@@ -322,15 +322,26 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _best_approach_cell(self, state: AlignerState, current_abs: Coord, blocked_target: Coord) -> Coord | None:
         """Find the best adjacent cell to a blocked target (e.g., a station object) to navigate toward.
 
-        Returns the adjacent cell closest to current_abs that is not in blocked_cells."""
-        candidates = [
+        Returns the adjacent cell closest to current_abs that is not in blocked_cells.
+        If ALL adjacent cells are blocked (e.g., due to accumulated move failures), falls back
+        to ignoring move_blocked_cells (only avoids true walls) so agents can still access stations."""
+        all_adjacent = [
             (blocked_target[0] + dr, blocked_target[1] + dc)
             for _, (dr, dc) in _DIRECTION_DELTAS
-            if (blocked_target[0] + dr, blocked_target[1] + dc) not in state.blocked_cells
         ]
-        if not candidates:
-            return None
-        return min(candidates, key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
+        # First try: avoid blocked cells (includes move_blocked_cells)
+        candidates = [c for c in all_adjacent if c not in state.blocked_cells]
+        if candidates:
+            return min(candidates, key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
+        # Fallback: all approaches blocked by move failures; ignore move_blocked_cells, only avoid true walls
+        # This ensures stations remain accessible even when congested by multiple agents
+        move_blocked_only_candidates = [
+            c for c in all_adjacent
+            if c not in state.blocked_cells or c in state.move_blocked_cells
+        ]
+        if move_blocked_only_candidates:
+            return min(move_blocked_only_candidates, key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
+        return None
 
     def _navigate_to_station(self, state: AlignerState, current_abs: Coord, station_abs: Coord, avoid_hazards: bool = True) -> str | None:
         """Navigate toward a station object (which is in blocked_cells).
