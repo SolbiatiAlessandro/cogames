@@ -483,20 +483,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         # If we tried to move last step but didn't move, the target cell blocks movement.
         # Add to move_blocked_cells (persists across observation updates) so BFS avoids it.
-        # EXCEPT: don't add junction/hub/station cells - these are "use" targets where movement
-        # "fails" because the use handler fires (align/equip/pickup) but agent stays adjacent.
         if state.last_pos is not None and state.last_move_target is not None:
             if current_abs == state.last_pos:
-                target = state.last_move_target
-                is_use_target = (
-                    target in state.known_neutral_junctions
-                    or target in state.known_friendly_junctions
-                    or target in state.known_enemy_junctions
-                    or target in state.known_hubs
-                    or target in state.known_aligner_stations
-                )
-                if not is_use_target:
-                    state.move_blocked_cells.add(target)
+                state.move_blocked_cells.add(state.last_move_target)
         state.last_pos = current_abs
         state.last_move_target = None  # reset; set by callers before returning a move action
 
