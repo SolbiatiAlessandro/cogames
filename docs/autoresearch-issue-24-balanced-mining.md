@@ -260,3 +260,17 @@ Implementation:
 - Add `patrol_steps: int = 0` field to AlignerState
 - In step_with_state: when in patrol mode, increment patrol_steps. When patrol_steps reaches _PATROL_HUB_CHECK, reset get_heart_steps to 0 (forces hub check) and reset patrol_steps.
 
+**RESULTS v12: 0.661/0.646/0.704 = avg 0.670** (vs v11 = 0.609/0.647/0.704 = avg 0.653)
+- Seed 0: 0.661 (+8.5% improvement! max_steps_without_motion dropped from 714 to 39)
+- Seed 1: 0.646 (essentially unchanged)
+- Seed 2: 0.704 (same as before)
+- The patrol hub-return pulse works! Seed 0 now has 7 junctions gained vs fewer before.
+- Aligner moves much more efficiently - 691 vs previous move success.
+- Root cause fixed: periodic hub checks allow picking up newly-crafted hearts.
+
+This is a good result because it fixes a real bug (permanent patrol loop) and improves reward by 2.5% avg.
+Next: look at what else limits alignment. In seed 1, action.move.failed=533 (agent 0) - still high.
+Also note that Si deposits are very low across all seeds still - silicon is a persistent bottleneck.
+
+## 2026-03-30T04:00: starting new experiment loop v13 - reduce hub return patrol interval
+
