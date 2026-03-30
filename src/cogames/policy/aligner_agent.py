@@ -491,8 +491,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         # If we tried to move last step but didn't move, the target cell blocks movement.
         # Add to move_blocked_cells (persists across observation updates) so BFS avoids it.
+        # Cap at 30 entries to prevent permanent hub-area blockage from accumulated stale entries.
+        # When the cap is reached, the block list has likely become stale (agents moved away), so clear it.
         if state.last_pos is not None and state.last_move_target is not None:
             if current_abs == state.last_pos:
+                if len(state.move_blocked_cells) >= 30:
+                    state.move_blocked_cells.clear()
                 state.move_blocked_cells.add(state.last_move_target)
         state.last_pos = current_abs
         state.last_move_target = None  # reset; set by callers before returning a move action
