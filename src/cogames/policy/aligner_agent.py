@@ -613,12 +613,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
-        # avoid_hazards=True prevents accidental gear changes via wrong gear stations during navigation
-        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
+        # avoid_hazards=False: allow traversal through gear stations when aligning junctions.
+        # Gear station avoidance causes BFS failures in maps where junction paths go through station areas.
+        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # BFS failed: try optimistic BFS (treat unknown cells as traversable)
-        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
+        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # Last resort: greedy absolute navigation toward known junction position
