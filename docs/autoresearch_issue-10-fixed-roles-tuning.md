@@ -112,6 +112,30 @@ Changes:
 1. Remove v19 cycling block from _mine_until_full in llm_skills.py
 2. Remove mine_cycle_index advancement from _maybe_finish_skill in cross_role_policy.py
 
+### 2026-03-29T22:00: v4 RESULT - KEEP (0.7244 >> baseline 0.5862)
+
+v4 results: 0.7244/agent - MASSIVE improvement over baseline!
+Stats:
+- aligned junctions at end: 5 (gained 8 during episode vs 7 in baseline)
+- cogs/aligned.junction.held = 6244 (vs 4862 in baseline - 28% more!)
+- Hearts withdrawn: 8 (vs 9 in baseline)
+- Carbon deposited: 22, germanium: 20, oxygen: 1, silicon: 4
+- Agent deaths: 1 (vs 2 - fewer deaths!)
+- Miner agent: only 2 failed moves (vs 95-368 in baseline!)
+
+Root cause of improvement:
+- Removing v19 cycling returned to pure scarce_element() logic
+- Miner now goes to nearest extractor and adapts based on inventory balance
+- More efficient mining routes (almost no failed moves for miner)
+- More held junctions earlier in episode → higher held-steps score
+
+LESSON: The v19 element cycling was harmful. Pure scarce logic handles element balance better.
+
+NEXT: Investigate remaining bottlenecks:
+1. Oxygen only 1 deposited (agent 0 has oxygen=10 in inventory at end!)
+2. Silicon only 4 deposited
+3. Agent 1 died, lost resources
+
 ---
 
 ## Results Summary
