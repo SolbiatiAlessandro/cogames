@@ -249,3 +249,14 @@ Actually, the simplest improvement: go to 2 junctions at once (if close), hold b
 
 Conclusion: Aligner improvements are hard without knowing enemy spawn positions. Focus on current approach and accept ~0.653 avg for seeds 0-2 as the ceiling.
 
+## 2026-03-30T03:00: starting new experiment loop - v12 patrol hub-return pulse
+
+In this experiment I want to try: fix a critical bug in patrol mode. When aligner's `get_heart_steps >= _GET_HEART_TIMEOUT (50)`, it switches to patrol_junctions mode. But once in patrol, `get_heart_steps` NEVER resets unless the aligner has a heart in inventory. The only way to get a heart is to visit the hub. But in patrol mode, aligner is GOING AWAY FROM HUB. So the aligner is permanently stuck in patrol mode with no hearts and can never align!
+
+My hypothesis: adding a "patrol hub check" every 40 steps of patrol will allow aligners to pick up newly-crafted hearts (from miner's element deposits triggering make_heart). This will let aligners that previously patrolled forever to resume aligning junctions, improving held junction time and thus reward.
+
+Implementation:
+- Add `_PATROL_HUB_CHECK = 40` constant (steps between hub checks during patrol)
+- Add `patrol_steps: int = 0` field to AlignerState
+- In step_with_state: when in patrol mode, increment patrol_steps. When patrol_steps reaches _PATROL_HUB_CHECK, reset get_heart_steps to 0 (forces hub check) and reset patrol_steps.
+

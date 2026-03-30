@@ -30,6 +30,8 @@ _HP_RETREAT_THRESHOLD = 0.50
 _FRIENDLY_TERRITORY_DISTANCE = 15
 # Max steps waiting for a heart before giving up and aligning junctions heartlessly
 _GET_HEART_TIMEOUT = 50
+# Steps between hub-return checks during heartless patrol (miner may have deposited elements, enabling make_heart)
+_PATROL_HUB_CHECK = 40
 
 
 class SharedMap:
@@ -86,6 +88,8 @@ class AlignerState(StarterCogState):
     get_heart_steps: int = 0
     # Counter for periodic reset of move_blocked_cells (to remove stale dynamic obstacles)
     move_blocked_reset_counter: int = 0
+    # Steps spent in heartless patrol mode (for periodic hub-return check)
+    patrol_steps: int = 0
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -453,15 +457,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             state.last_mode = mode
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
-        """Read current HP from observation tokens."""
-        center = self._starter._center
-        for token in obs.tokens:
-            if token.location != center:
-                continue
-            name = token.feature.name
-            if name in ("hp", "energy", "hp:cogs", "hp:agent", "current_hp"):
-                return int(token.value)
-        return None
+        """Read current HP from observation tokens.
+        HP is stored as 'inv:hp' in the agent's inventory (at center location)."""
+        return self._inventory_count(obs, "hp")
 
     def _in_friendly_territory(self, current_abs: Coord, state: AlignerState) -> bool:
         """Check if agent is near hub or a friendly junction (safe from HP drain)."""
@@ -681,18 +679,31 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if self._current_gear(obs) != "aligner":
             action, state = self._gear_up(obs, state, current_abs)
             state.get_heart_steps = 0
+            state.patrol_steps = 0
         elif self._inventory_count(obs, "heart") <= 0 and state.get_heart_steps < _GET_HEART_TIMEOUT:
             state.get_heart_steps += 1
+            state.patrol_steps = 0
             action, state = self._get_heart(obs, state, current_abs)
         elif self._inventory_count(obs, "heart") <= 0:
             # Heart timeout: navigate toward nearest junction to keep moving
             # (hub may have no hearts yet; miner will eventually deposit elements for make_heart)
-            logger.info("agent=%s get_heart_timeout=%d patrolling_junctions",
-                        obs.agent_id, state.get_heart_steps)
-            action, state = self._navigate_to_any_junction(obs, state, current_abs)
+            # Periodically return to hub to check if make_heart has triggered
+            state.patrol_steps += 1
+            if state.patrol_steps >= _PATROL_HUB_CHECK:
+                # Reset: go back to hub-check mode so we can pick up newly-crafted hearts
+                logger.info("agent=%s patrol_hub_check: resetting to get_heart after %d patrol steps",
+                            obs.agent_id, state.patrol_steps)
+                state.get_heart_steps = 0
+                state.patrol_steps = 0
+                action, state = self._get_heart(obs, state, current_abs)
+            else:
+                logger.info("agent=%s get_heart_timeout=%d patrolling_junctions patrol_step=%d",
+                            obs.agent_id, state.get_heart_steps, state.patrol_steps)
+                action, state = self._navigate_to_any_junction(obs, state, current_abs)
         else:
             # Have heart: reset timeout counter and align
             state.get_heart_steps = 0
+            state.patrol_steps = 0
             action, state = self._align_neutral(obs, state, current_abs)
         action_name = action.name if hasattr(action, "name") else ""
         if action_name.startswith("move_"):
