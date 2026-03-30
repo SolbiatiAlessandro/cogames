@@ -40,6 +40,33 @@ class MachinaRolesPolicy(MultiAgentPolicy):
         return self._agent_policies[agent_id]
 
 
+class FourAlignersPolicy(MultiAgentPolicy):
+    """4 independent scripted aligners, no SharedMap, no miners.
+
+    Each agent acts completely independently. Useful for testing whether
+    parallel alignment (4 agents × 1 junction each) beats 1 aligner + 3 miners.
+    """
+    short_names = ["four_aligners"]
+
+    def __init__(
+        self,
+        policy_env_info: PolicyEnvInterface,
+        device: str = "cpu",
+    ):
+        super().__init__(policy_env_info, device=device)
+        self._agent_policies: dict[int, StatefulAgentPolicy[AlignerState]] = {}
+
+    def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[AlignerState]:
+        if agent_id not in self._agent_policies:
+            impl = AlignerPolicyImpl(self._policy_env_info, agent_id)  # no SharedMap
+            self._agent_policies[agent_id] = StatefulAgentPolicy(
+                impl,
+                self._policy_env_info,
+                agent_id=agent_id,
+            )
+        return self._agent_policies[agent_id]
+
+
 class PartitionedMachinaRolesPolicy(MultiAgentPolicy):
     """Scripted aligner policy with spatial partitioning for improved coverage.
 
@@ -64,17 +91,17 @@ class PartitionedMachinaRolesPolicy(MultiAgentPolicy):
         num_aligners: int | str = 4,
         quadrant_assign: bool | str = False,
         repulsion_radius: int | str = 0,
-        share_move_blocked: bool | str = False,
-        share_terrain: bool | str = False,
+        share_move_blocked: bool | str = True,
+        share_terrain: bool | str = True,
     ):
         super().__init__(policy_env_info, device=device)
         self._num_aligners = int(num_aligners)
         self._quadrant_assign = str(quadrant_assign).lower() in ("true", "1", "yes")
         self._repulsion_radius = int(repulsion_radius)
-        # share_move_blocked=False by default: agent collisions contaminate shared move_blocked_cells
+        # share_move_blocked=True by default: shared BFS map improves navigation for all agents
+        # Consistent with LLMAlignerPolicyImpl which also defaults to share_move_blocked=True
         self._share_move_blocked = str(share_move_blocked).lower() in ("true", "1", "yes")
-        # share_terrain=False by default: independent exploration gives better coverage diversity
-        # while still sharing junction/structure knowledge
+        # share_terrain=True by default: shared terrain enables faster BFS for all agents
         self._share_terrain = str(share_terrain).lower() in ("true", "1", "yes")
         self._shared_map = SharedMap()
         self._agent_policies: dict[int, StatefulAgentPolicy[AlignerState]] = {}
