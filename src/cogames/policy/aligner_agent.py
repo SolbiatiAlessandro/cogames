@@ -98,6 +98,9 @@ class AlignerState(StarterCogState):
     # Junctions that were previously friendly but became enemy (CLIPS scrambled our junctions)
     # These get top priority for re-alignment over neutral junctions
     previously_friendly_junctions: set[Coord] = field(default_factory=set)
+    # Consecutive steps spent in gear_up phase (without aligner gear).
+    # Used to detect and recover from infinite gear_up loops.
+    gear_up_steps: int = 0
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -736,7 +739,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-            # All adjacents also blocked - fall back to greedy toward station
+            # Hazard-free path blocked: fall back to ignoring hazard stations to reach aligner station
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
+            if direction is not None:
+                return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_aligner_stations)
@@ -749,12 +755,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=True)
                 if direction is not None:
                     return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+                direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=False)
+                if direction is not None:
+                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             return self._explore(obs, state)
         # Station known but not visible - navigate to approach cell
         direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # All adjacents blocked - greedy toward station
+        # Hazard-free path blocked: try without hazard avoidance to reach aligner station
+        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        # All navigation failed: greedy toward station
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
@@ -924,6 +937,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     _ALIGN_TIMEOUT = 200   # steps trying to reach a junction before blacklisting
     # How long to wait at hub before giving up and going to defend
     _HEART_WAIT_TIMEOUT = 50  # steps before switching from get_heart to defend/explore
+    # Gear-up timeout: if stuck trying to get aligner gear this many steps, reset station knowledge
+    _GEAR_UP_TIMEOUT = 150  # steps without aligner gear before resetting to re-discover station
 
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         current_abs = self._update_map_memory(obs, state)
@@ -993,8 +1008,26 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             state.steps_in_phase = 0
 
         if self._current_gear(obs) != "aligner":
+            state.gear_up_steps += 1
+            if state.gear_up_steps >= self._GEAR_UP_TIMEOUT:
+                # Stuck in gear_up for too long: reset station knowledge and move_blocked_cells
+                # to force re-discovery. Fixes infinite loop where known_aligner_stations coords
+                # are wrong or the approach cell is permanently blocked.
+                logger.info(
+                    "agent=%s gear_up_timeout=%d: resetting station knowledge",
+                    self._agent_id, state.gear_up_steps,
+                )
+                state.gear_up_steps = 0
+                state.move_blocked_cells.clear()
+                # Clear personal (non-shared) station knowledge so agent re-discovers from scratch.
+                # Only clear if we're using shared map (state.known_aligner_stations is shared,
+                # clearing it would hurt all agents); otherwise clear directly.
+                if self._shared_map is None:
+                    state.known_aligner_stations.clear()
+                # If shared map, just clear move_blocked_cells (shared ones can't be cleared safely)
             action, state = self._gear_up(obs, state, current_abs)
         elif self._inventory_count(obs, "heart") <= 0:
+            state.gear_up_steps = 0  # Have aligner gear now - reset counter
             # No heart: try to get one, but don't spin forever if hub is depleted.
             # After _HEART_WAIT_TIMEOUT steps without a heart, switch to defend or explore.
             if state.steps_in_phase <= self._HEART_WAIT_TIMEOUT:
@@ -1013,6 +1046,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 else:
                     action, state = self._explore_for_alignment(obs, state)
         else:
+            state.gear_up_steps = 0  # Have aligner gear - reset counter
             # Have heart: align a neutral junction (will explore if none known)
             action, state = self._align_neutral(obs, state, current_abs)
         action_name = action.name if hasattr(action, "name") else ""
