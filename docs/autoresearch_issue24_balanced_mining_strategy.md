@@ -321,6 +321,28 @@ Expected outcome: reward > 0.90 (combining 4A alignment power with miner heart e
 
 Note: The cloud LLM is responding (~1.5-2.5s latency per call, 4 aligners = ~6-10s per planning cycle)
 
+## 2026-03-30T: RESULT - 4A+1M: 0.74 reward (WORSE - DISCARD)
+
+Results:
+- Mission reward: **0.74** (vs 0.81 for 3A+1M - WORSE)
+- heart.withdrawn: 5 (no make_heart cycle! Only 5 initial hearts used)
+- carbon/silicon/germanium/oxygen deposited: only 10 each (vs 20 for 3A+1M!)
+- aligned.junction.held: 6383 (vs 7091 for 3A+1M)
+
+ANALYSIS: 4A+1M is worse because:
+1. The miner (agent 4) earns 0 junction-held steps, diluting per-agent reward by 20%
+2. The miner only deposited 10 of each element (vs 20 for 3A+1M) - possibly because
+   the 4 aligners' movement patterns compete more with the miner for space/paths
+3. The make_heart cycle didn't trigger (need 7 of each = 28 total; only 40 total deposited
+   but unbalanced: 10*4=40 barely exceeds threshold)
+4. The reward penalty for having the miner as a 5th agent is greater than the benefit
+   of 1 more aligner
+
+CONCLUSION: 3A+1M is the optimal configuration. The miner earns 0 reward so adding a 4th aligner
+would give more reward per agent than having the miner+4th aligner.
+
+DISCARD - revert to 3A+1M (0.81).
+
 
 
 
