@@ -75,7 +75,14 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
     """
 
     # Steps to search for target element before falling back to any extractor
-    _SEARCH_TIMEOUT = 80
+    # Germanium and silicon are harder to find (far from hub), so they get more search budget
+    _SEARCH_TIMEOUT_BY_ELEMENT: dict[str, int] = {
+        "carbon": 80,
+        "oxygen": 80,
+        "germanium": 160,
+        "silicon": 160,
+    }
+    _SEARCH_TIMEOUT = 80  # fallback for elements not in dict
 
     def __init__(
         self,
@@ -299,18 +306,34 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
                 return action, self._copy_balanced_with(state, base_state)
 
         # Unknown: use full map exploration to find target element type
+        search_timeout = self._SEARCH_TIMEOUT_BY_ELEMENT.get(target_elem, self._SEARCH_TIMEOUT)
         state.target_search_steps += 1
-        if state.target_search_steps <= self._SEARCH_TIMEOUT:
+        if state.target_search_steps <= search_timeout:
             logger.debug("agent=%s searching_%s step=%d", obs.agent_id, target_elem, state.target_search_steps)
             action, base_state = self._explore(obs, state)
             return action, self._copy_balanced_with(state, base_state)
         else:
-            # Timeout: fall back to mine_until_full (any element) to ensure deposits happen
-            logger.info("agent=%s search_timeout_%s falling_back_to_any search_steps=%d",
-                        obs.agent_id, target_elem, state.target_search_steps)
-            state.target_search_steps = 0
-            action, base_state = self._mine_until_full(obs, state)
-            return action, self._copy_balanced_with(state, base_state)
+            # Timeout: check if we have enough of other elements to deposit early
+            # If we carry >= 7 of each OTHER element (even though deficit is 0),
+            # deposit now rather than accumulating more of the easy elements
+            counts = self._inventory_counts(obs)
+            other_elements = [e for e in _ELEMENTS_LIST if e != target_elem]
+            other_min = min(counts.get(e, 0) for e in other_elements) if other_elements else 0
+            if other_min >= _BALANCED_TARGET_PER_ELEMENT and self._carried_total(obs) >= 14:
+                # Deposit the partial load (7+7+7+0) - still useful for replenishing hub
+                logger.info("agent=%s search_timeout_%s early_deposit carried=%d counts=%s",
+                            obs.agent_id, target_elem, self._carried_total(obs), counts)
+                state.target_search_steps = 0
+                state.current_target_element = None  # Reset target after deposit
+                action, next_state = self._deposit_to_hub(obs, state)
+                return action, next_state
+            else:
+                # Fall back to mine_until_full (any element) to ensure deposits happen
+                logger.info("agent=%s search_timeout_%s falling_back_to_any search_steps=%d",
+                            obs.agent_id, target_elem, state.target_search_steps)
+                state.target_search_steps = 0
+                action, base_state = self._mine_until_full(obs, state)
+                return action, self._copy_balanced_with(state, base_state)
 
     def _should_deposit_balanced(self, obs: AgentObservation) -> bool:
         """Return True if we have enough of all elements to make a heart (7 of each)."""

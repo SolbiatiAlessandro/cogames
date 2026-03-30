@@ -136,3 +136,22 @@ Hypothesis: this will increase O deposits from ~8-10 to ~15-20, improving reward
 
 Added constant: _SAFE_SEARCH_AFTER_UNREACHABLE = 40
 
+---
+
+## 2026-03-30T00:00: Session 3 continues - experiment v9 per-element search timeouts
+
+Resuming autoresearch session. Last session found:
+- v8 baseline: avg 0.653 over seeds 0-2
+- Multiple v9 variants discarded: weighted carbon, lower return_load=16, early deposit
+- Key insight: silicon is consistently under-deposited (Si.dep=4 in seed 0 vs C.dep=10, O.dep=10, Ge.dep=10)
+- Germanium also takes long to find in some seeds
+
+Plan for v9: per-element search timeouts
+- Carbon and oxygen: fast to find, keep _SEARCH_TIMEOUT=80
+- Germanium and silicon: hard to find, increase to 160 steps
+- Hypothesis: miner will spend more time searching for Si/Ge instead of giving up and doing mine_until_full (which might get O or C again)
+
+Implementation:
+- Replace `_SEARCH_TIMEOUT = 80` with dict `_SEARCH_TIMEOUT_BY_ELEMENT = {"carbon": 80, "oxygen": 80, "germanium": 160, "silicon": 160}`
+- Update `_mine_balanced` to use `self._SEARCH_TIMEOUT_BY_ELEMENT.get(target_elem, 80)` instead
+
