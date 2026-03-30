@@ -881,6 +881,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         friendly_count = len(state.known_friendly_junctions)
 
         # Detect personal junction alignment: heart was held last step but not this step → alignment spent it
+        prev_has_heart = state.last_has_heart  # save before overwriting
         if (state.last_has_heart and not has_heart and has_aligner and not state.has_aligned_junction):
             # This agent just spent a heart to align a junction - claim it as "my junction"
             # The junction nearest to us is the one we just aligned
@@ -893,7 +894,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         # Track phase steps and blacklist stuck junctions
         if has_aligner and has_heart:
             # Align phase: track steps, reset on new junction, blacklist if stuck
-            if friendly_count > state.last_junction_count:
+            # Also reset when just got heart (transition from get_heart phase)
+            if not prev_has_heart:
+                state.steps_in_phase = 0  # just got a heart, fresh start for align phase
+            elif friendly_count > state.last_junction_count:
                 state.last_junction_count = friendly_count
                 state.steps_in_phase = 0  # just aligned a junction
             else:
