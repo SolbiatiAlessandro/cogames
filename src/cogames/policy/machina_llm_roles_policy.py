@@ -321,12 +321,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, "align_neutral completed after spending heart")
             state.current_skill = None
             state.align_neutral_timeouts = 0
-        elif state.current_skill == "align_neutral" and has_heart and state.skill_steps > 0:
-            current_abs = self._spawn_offset(obs)
-            if current_abs in state.known_friendly_junctions:
-                self._event(state, f"align_neutral exited early: already at friendly junction {current_abs}")
-                state.current_skill = None
-                state.align_neutral_timeouts = 0
         elif state.current_skill == "explore" and len(state.known_neutral_junctions) > state.explore_start_junctions:
             new_junctions = len(state.known_neutral_junctions) - state.explore_start_junctions
             self._event(state, f"explore completed after discovering {new_junctions} new neutral junction(s)")
