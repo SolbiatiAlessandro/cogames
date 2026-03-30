@@ -84,6 +84,11 @@ class AlignerState(StarterCogState):
     steps_in_phase: int = 0  # steps in current gear/heart/align phase
     last_heart_count: int = 0  # hearts gained so far (to detect new heart acquisition)
     last_junction_count: int = 0  # friendly junctions so far (to detect new alignment)
+    last_has_heart: bool = False  # whether this agent had a heart last step (for alignment detection)
+    # Personal junction that this agent aligned and is responsible for defending
+    my_junction: Coord | None = None
+    # True once this agent has aligned at least one junction
+    has_aligned_junction: bool = False
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -784,9 +789,36 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    def _defend_junction(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
+        """Navigate to personal junction (or nearest friendly) and stand on it to defend from recapture."""
+        self._log_mode(obs, state, "defend")
+        if current_abs in state.known_friendly_junctions:
+            # Already on a friendly junction - hold position (noop)
+            return self._starter._action("noop"), state
+        # Prefer personal junction (the one this agent aligned), fall back to nearest friendly
+        if state.my_junction is not None and state.my_junction in state.known_friendly_junctions:
+            target = state.my_junction
+        elif state.known_friendly_junctions:
+            target = self._nearest_known(current_abs, state.known_friendly_junctions)
+        else:
+            # All friendly junctions recaptured: explore to find new ones
+            return self._explore(obs, state)
+        direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), state
+        # BFS failed: try optimistic
+        direction = self._bfs_optimistic_direction(state, current_abs, target, avoid_hazards=False)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), state
+        # Greedy fallback
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target)
+        return action, next_state
+
     # Timeout threshold (steps) before blacklisting a stuck junction
     # Only for align phase - gear_up and get_heart no longer have timeouts to prevent explore loops
     _ALIGN_TIMEOUT = 200   # steps trying to reach a junction before blacklisting
+    # How long to wait at hub before giving up and going to defend
+    _HEART_WAIT_TIMEOUT = 150  # steps before switching from get_heart to defend
 
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         current_abs = self._update_map_memory(obs, state)
@@ -817,8 +849,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         has_heart = self._inventory_count(obs, "heart") > 0
         friendly_count = len(state.known_friendly_junctions)
 
-        # Only blacklist stuck junctions in the align phase
+        # Detect personal junction alignment: heart was held last step but not this step → alignment spent it
+        if (state.last_has_heart and not has_heart and has_aligner and not state.has_aligned_junction):
+            # This agent just spent a heart to align a junction - claim it as "my junction"
+            # The junction nearest to us is the one we just aligned
+            if state.known_friendly_junctions:
+                state.my_junction = self._nearest_known(current_abs, state.known_friendly_junctions)
+                state.has_aligned_junction = True
+                logger.info("agent=%s claimed my_junction=%s", self._starter._agent_id, state.my_junction)
+        state.last_has_heart = has_heart
+
+        # Track phase steps and blacklist stuck junctions
         if has_aligner and has_heart:
+            # Align phase: track steps, reset on new junction, blacklist if stuck
             if friendly_count > state.last_junction_count:
                 state.last_junction_count = friendly_count
                 state.steps_in_phase = 0  # just aligned a junction
@@ -833,15 +876,33 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                     if stuck_junction is not None:
                         state.blacklisted_junctions.add(stuck_junction)
                         state.known_neutral_junctions.discard(stuck_junction)
+        elif has_aligner and not has_heart:
+            # Get_heart phase: count steps waiting for heart (for defend timeout)
+            state.steps_in_phase += 1
         else:
-            # Reset phase counter when not in align phase
+            # Gear_up phase: reset
             state.steps_in_phase = 0
 
         if self._current_gear(obs) != "aligner":
             action, state = self._gear_up(obs, state, current_abs)
         elif self._inventory_count(obs, "heart") <= 0:
-            action, state = self._get_heart(obs, state, current_abs)
+            # No heart:
+            # - If we have a personal junction already aligned, defend it immediately.
+            #   This prevents CLIPS from recapturing while we wait at hub.
+            # - Only go get heart if hub has a heart available (first _HEART_WAIT_TIMEOUT steps)
+            if (state.my_junction is not None):
+                # Already aligned a junction - defend it, only briefly try for more hearts
+                if state.steps_in_phase <= self._HEART_WAIT_TIMEOUT:
+                    # Give hub a chance to refill before defending
+                    action, state = self._get_heart(obs, state, current_abs)
+                else:
+                    # Hub depleted or too long wait: defend personal junction
+                    action, state = self._defend_junction(obs, state, current_abs)
+            else:
+                # Haven't aligned yet: keep trying to get heart
+                action, state = self._get_heart(obs, state, current_abs)
         else:
+            # Have heart: align a neutral junction (will explore if none known)
             action, state = self._align_neutral(obs, state, current_abs)
         action_name = action.name if hasattr(action, "name") else ""
         if action_name.startswith("move_"):

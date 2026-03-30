@@ -62,7 +62,7 @@ class PartitionedMachinaRolesPolicy(MultiAgentPolicy):
         policy_env_info: PolicyEnvInterface,
         device: str = "cpu",
         num_aligners: int | str = 4,
-        quadrant_assign: bool | str = True,
+        quadrant_assign: bool | str = False,
         repulsion_radius: int | str = 0,
         share_move_blocked: bool | str = False,
         share_terrain: bool | str = False,

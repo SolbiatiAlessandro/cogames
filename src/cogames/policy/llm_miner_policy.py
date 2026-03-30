@@ -80,6 +80,12 @@ class LLMMinerPlannerClient:
             raise RuntimeError("LLM planner response missing non-empty 'text'")
         return text
 
+    # Free model fallback: used when paid model returns 402 (insufficient credits)
+    _FREE_MODEL_FALLBACK = "liquid/lfm-2.5-1.2b-instruct:free"
+    # Max retries on rate-limit (429)
+    _MAX_RETRIES = 6
+    _RETRY_DELAY_S = 5.0
+
     def _complete_openrouter(self, prompt: str, api_key: str | None) -> str:
         if not api_key:
             raise RuntimeError(f"Missing API key in environment variable {self._api_key_env}")
@@ -90,49 +96,91 @@ class LLMMinerPlannerClient:
         }
         if self._site_url:
             headers["HTTP-Referer"] = self._site_url
-        payload = {
-            "model": self._model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "/no_think\n"
-                        "You are a planner for one miner cog in CoGames. "
-                        "Respond with a single JSON object and no extra text."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.0,
-            "max_tokens": 120,
-        }
-        with httpx.Client(timeout=self._timeout_s) as client:
-            response = client.post(
-                self._api_url or "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            response.raise_for_status()
-            data = response.json()
-        choices = data.get("choices")
-        if not isinstance(choices, list) or not choices:
-            raise RuntimeError("OpenRouter response missing choices")
-        message = choices[0].get("message")
-        if not isinstance(message, dict):
-            raise RuntimeError("OpenRouter response missing message")
-        content = message.get("content")
-        if isinstance(content, str) and content.strip():
-            return content
-        if isinstance(content, list):
-            text_parts: list[str] = []
-            for part in content:
-                if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str):
-                    text_parts.append(part["text"])
-            text = "".join(text_parts).strip()
-            if text:
-                return text
-        raise RuntimeError("OpenRouter response missing non-empty assistant content")
+
+        # Try primary model first, fall back to free model on 402 (insufficient credits)
+        models_to_try = [self._model]
+        if self._model != self._FREE_MODEL_FALLBACK:
+            models_to_try.append(self._FREE_MODEL_FALLBACK)
+
+        last_error: Exception | None = None
+        for model in models_to_try:
+            # Paid model supports json_object format; free models don't
+            is_free_model = model.endswith(":free")
+            payload: dict = {
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "/no_think\n"
+                            "You are a planner for one miner cog in CoGames. "
+                            "Respond with a single JSON object and no extra text."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.0,
+                "max_tokens": 120,
+            }
+            if not is_free_model:
+                payload["response_format"] = {"type": "json_object"}
+
+            for attempt in range(self._MAX_RETRIES):
+                try:
+                    with httpx.Client(timeout=self._timeout_s) as client:
+                        response = client.post(
+                            self._api_url or "https://openrouter.ai/api/v1/chat/completions",
+                            headers=headers,
+                            json=payload,
+                        )
+                    if response.status_code == 429:
+                        # Rate limited: wait and retry
+                        wait_s = self._RETRY_DELAY_S * (attempt + 1)
+                        logger.warning("OpenRouter rate limited (429), waiting %.1fs before retry %d/%d",
+                                       wait_s, attempt + 1, self._MAX_RETRIES)
+                        time.sleep(wait_s)
+                        last_error = RuntimeError(f"Rate limited after {self._MAX_RETRIES} retries")
+                        continue
+                    if response.status_code == 402:
+                        # Insufficient credits: try next model
+                        logger.warning("OpenRouter 402 (insufficient credits) for model %s, trying fallback", model)
+                        last_error = RuntimeError(f"Insufficient credits for model {model}")
+                        break  # break inner retry loop, try next model
+                    response.raise_for_status()
+                    data = response.json()
+                    choices = data.get("choices")
+                    if not isinstance(choices, list) or not choices:
+                        raise RuntimeError("OpenRouter response missing choices")
+                    message = choices[0].get("message")
+                    if not isinstance(message, dict):
+                        raise RuntimeError("OpenRouter response missing message")
+                    content = message.get("content")
+                    if content is None:
+                        # Some models (reasoning) put output in "reasoning" field
+                        content = message.get("reasoning", "")
+                    if isinstance(content, str) and content.strip():
+                        if model != self._model:
+                            logger.info("Used fallback model %s successfully", model)
+                        return content
+                    if isinstance(content, list):
+                        text_parts: list[str] = []
+                        for part in content:
+                            if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str):
+                                text_parts.append(part["text"])
+                        text = "".join(text_parts).strip()
+                        if text:
+                            return text
+                    raise RuntimeError(f"OpenRouter model {model} response missing non-empty content")
+                except RuntimeError:
+                    raise
+                except Exception as exc:
+                    last_error = exc
+                    if attempt < self._MAX_RETRIES - 1:
+                        time.sleep(self._RETRY_DELAY_S)
+                    continue
+            # After retries, continue to next model
+
+        raise RuntimeError(f"All OpenRouter models exhausted: {last_error}")
 
 
 def _parse_skill_choice(text: str) -> tuple[str | None, str]:

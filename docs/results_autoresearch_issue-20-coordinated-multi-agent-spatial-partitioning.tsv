@@ -1,1 +1,4 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+92df25b	0.720000	move.failed=1608/align=1.50/cells=21623/stuck=1219	2000	keep	scripted baseline: 4 aligners no SharedMap no nav shake seed=42
+8436577	0.520000	move.failed=1919/align=1.25/cells=6661/stuck=1916	2000	discard	quadrant-hard-bias: hard penalty 1000 for out-of-quadrant cells; agents stuck rushing to far quadrant frontiers; BFS fails
+2a35f4f	0.890000	move.failed=1486/align=1.50/cells=5655/stuck=9.75	2000	keep	SharedMap+NavShake+share_move_blocked=False: shared junction knowledge + nav shake after 5 stuck; +23% over baseline; max_stuck near zero
