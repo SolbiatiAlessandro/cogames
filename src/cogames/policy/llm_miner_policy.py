@@ -173,11 +173,15 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         stuck_threshold: int,
         unstuck_horizon: int,
         shared_map=None,
+        fast_mine_abandon_threshold: int = 3,
     ) -> None:
         super().__init__(policy_env_info, agent_id, return_load=return_load, shared_map=shared_map)
         self._planner = planner
         self._stuck_threshold = stuck_threshold
         self._unstuck_horizon = unstuck_horizon
+        # Fast abandon depleted extractors: after this many steps without inventory increase, move on
+        # Default 3 vs stuck_threshold=20, saves ~17 steps per depleted extractor
+        self._fast_mine_abandon_threshold = fast_mine_abandon_threshold
 
     def initial_agent_state(self) -> LLMMinerState:
         base = super().initial_agent_state()
@@ -384,6 +388,17 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.current_skill = None
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
+            state.current_skill = None
+        elif state.current_skill == "mine_until_full" and state.no_progress_on_target_steps >= self._fast_mine_abandon_threshold:
+            # Fast abandon: extractor yielded nothing for fast_mine_abandon_threshold steps — likely depleted.
+            # With remove_when_empty=True extractors, a depleted extractor disappears immediately.
+            # We don't need to wait the full stuck_threshold (20 steps) to detect this.
+            current_abs = self._current_abs(obs)
+            if current_abs in state.known_extractors:
+                state.known_extractors.discard(current_abs)
+                self._event(state, f"fast-abandoned depleted extractor at {current_abs} after {state.no_progress_on_target_steps} steps")
+            else:
+                self._event(state, f"mine_until_full fast-abandoned after {state.no_progress_on_target_steps} no-progress steps (target not in known_extractors)")
             state.current_skill = None
         elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
             current_abs = self._current_abs(obs)

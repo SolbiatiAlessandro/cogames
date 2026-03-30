@@ -133,3 +133,91 @@ Focus areas for improvement:
 NEXT EXPERIMENT IDEA: Try 2A+2M to see if double miner improves hearts even further,
 or try with make_heart skill explicitly triggering when 7 of each are available.
 
+---
+
+## 2026-03-30T: autoresearch continuing (new session), my plan is to...
+
+Picking up from previous session. The branch is at commit 992e01a which has an unfinished
+experiment [retry-get-heart-at-hub]. Previous best was 0.72 on seed 42 (element-aware mining).
+The issue target is >0.80/agent at 1000 steps with 2A1M.
+
+Previous experiments tried (from git log):
+- Element-aware mining: 0.72 (KEEP - significant improvement)
+- Sticky element targeting: 0.55 (DISCARD - worse)
+- Defend on hub empty: 0.685 (DISCARD - worse than 0.720)
+- Stale exit timeout increment: 0.685 (DISCARD - worse)
+- Early exit friendly junction: 0.476 (DISCARD - much worse)
+- Shared deposit tracking: reverted (no effect)
+- Early miner return: reverted (no effect)
+- Fast hub-empty exit: 0.520-0.677 (DISCARD - worse)
+- Retry get-heart-at-hub: STARTED, not yet run
+
+Current gap: 0.72 actual vs 0.80 target = 11% improvement needed.
+
+Key insight from previous session: The bottleneck is now heart economy. With 3A+1M:
+- Hub starts with 5 hearts
+- Miner deposits resources but make_heart requires 7 of EACH element (28 total)
+- Even with balanced element mining, the miner needs enough time to accumulate 28 resources
+- After hub depletes, aligners get stuck waiting for hearts
+
+My plan for this session:
+1. First run the pending retry-get-heart-at-hub experiment to see if it helps
+2. Analyze the hub depletion pattern more carefully
+3. Try strategies to squeeze more from the 3A+1M configuration
+4. Consider whether aligner timing changes can improve held-step count
+
+## 2026-03-30T: starting new experiment loop - fast-extractor-abandon
+
+In this experiment I want to try: fast extractor abandonment when at depleted extractor.
+
+Analysis: The miner is spending ~590 steps stuck at depleted extractors (20 steps each * ~29 extractors).
+Each extractor starts with 100 units, miner takes 10 per use = depleted after 10 uses.
+After depositing trip 1, trip 2's nearby extractors are depleted. The miner navigates
+to each known extractor, waits 20 steps for no_progress detection, then moves on.
+This wastes ~580 steps per episode!
+
+My hypothesis: Reducing the no_progress detection threshold from 20 to 3 steps for
+mine_until_full would save ~17 steps per depleted extractor * ~29 extractors = ~493 steps.
+That's roughly 50% more miner efficiency, potentially enabling 2+ deposit trips.
+With 2+ trips and element balance, we'd get 2 make_heart cycles = 7 total hearts = 7 alignments!
+
+Implementation: Add fast_mine_abandon_threshold to LLMMinerPolicyImpl.
+When current_skill="mine_until_full" and current_abs in known_extractors and
+no_progress_on_target_steps >= fast_mine_abandon_threshold (3), abandon immediately.
+
+## 2026-03-30T: starting new experiment loop - retry-get-heart-at-hub
+
+In this experiment I want to try: The retry-get-heart-at-hub approach - when hub is empty and
+aligner stalls, instead of triggering "stuck" message (which causes switch to explore), use
+a different message so scripted fallback retries get_heart immediately.
+
+My hypothesis is: When hub refills (after miner deposits), aligner should retry get_heart
+immediately rather than wandering away. This wastes fewer steps on exploration when hub
+refills quickly. The 0.72 result already has balanced mining, so heart supply should be
+steady. The bottleneck might be the delay between hub refill and aligner getting a heart.
+
+## 2026-03-30T: I run retry-get-heart-at-hub, result and findings
+
+Results (3 episodes seed 42): reward=0.719, held=6820, hearts=6.33/ep, C=20 Ge=14 Si=11 O=18
+vs previous best: reward=0.720, held=6190, hearts=6/ep, C=20 Ge=20 Si=13 O=20
+
+This is basically unchanged from the element-aware mining baseline (0.72). The retry-get-heart
+change slightly increases held steps (6820 vs 6190) but the reward mean is similar.
+
+CONCLUSION: This is a marginal/neutral change. The hub-empty pause and retry pattern doesn't
+significantly help because the hub doesn't refill that quickly (the miner needs many more steps
+to deposit enough resources for another heart via make_heart).
+
+KEY INSIGHT: Looking at the deposits, silicon is the bottleneck: 13 Si vs 20 C/Ge/O.
+To craft 2 hearts from make_heart (vs current ~1), we need min(elements) >= 14.
+To craft 3 hearts, need min >= 21.
+Silicon only has 33 extractors vs 37-40 for others, and appears harder to reach.
+
+NEXT DIRECTION: Focus on getting more silicon deposited.
+Options:
+1. Explicitly target silicon extractors more aggressively
+2. Check if silicon extractors are located in harder-to-reach areas
+3. Try forcing the miner to always include some silicon before depositing
+   (deposit threshold: only deposit when carrying at least 1 silicon)
+
+
