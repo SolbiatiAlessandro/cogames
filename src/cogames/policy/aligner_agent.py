@@ -776,7 +776,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         visible_target = self._starter._closest_tag_location(obs, self._hub_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
-            # Hub is a blocked object; navigate to adjacent approach cell then step into hub
+            # Hub is a blocked object; navigate to adjacent approach cell then step into hub.
+            # Use avoid_hazards=True to prevent losing aligner gear on the way to hub.
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+            if direction is not None:
+                return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+            # Fallback: no hazard-free path to hub; proceed anyway (hub access is critical)
             direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
@@ -786,6 +791,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if target_abs is None:
             return self._explore(obs, state)
         # Hub known but not visible - navigate to approach cell via BFS/optimistic-BFS/greedy
+        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)

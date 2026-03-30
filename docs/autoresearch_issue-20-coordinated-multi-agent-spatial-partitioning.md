@@ -182,3 +182,23 @@ The scripted baseline without move-failure-tracking gets 0.72. The previous expe
 - Scripted: simpler but same navigation
 
 Wait - let me re-read. The scripted 4A baseline from issue-22 experiments got 1.190 using `machina_llm_roles` with 4 LLM agents. The `machina_roles` scripted version never got tested with SharedMap or move-failure-tracking. Let me first check: does `machina_roles` have SharedMap + move-failure-tracking?
+
+## 2026-03-30T05:00: Session 4 - New experiment loop
+
+**Previous best**: 10-ep avg = 0.798 (3650668)
+**Proactive hazard marking experiments**: aeb1acf - neutral (same results); reverted
+
+**Session 4 plan**:
+Experiments involving the proactive hazard marking (aeb1acf) had zero effect on seed 45.
+Analysis shows seed 45 is fundamentally broken: ALL 4 agents enter scrambler loop regardless.
+
+**New hypothesis**: The scrambler_gained metric (3.75 avg over 10 eps) indicates agents often 
+lose aligner gear DURING alignment or heart navigation. The `get_heart` phase uses `avoid_hazards=False`,
+which could cause gear loss on the way to hub. Changing `_get_heart` to use `avoid_hazards=True` 
+(with fallback) should reduce gear loss during hub navigation.
+
+Additionally: try reducing `_HEART_WAIT_TIMEOUT` to zero (agents should always try get_heart 
+from hub, not give up and explore) - or experiment with waiting longer.
+
+### Starting experiment: avoid-hazards-get-heart
+
