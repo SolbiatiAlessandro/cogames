@@ -441,29 +441,14 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.last_mode = "mine_until_full"
         current_abs = self._current_abs(obs)
 
-        # v19: element cycle — target a specific element based on mine_cycle_index if set
-        cycle_target = None
-        if hasattr(state, "mine_cycle_index") and hasattr(state, "extractors_by_element"):
-            cycle_element = ELEMENTS[getattr(state, "mine_cycle_index", 0) % len(ELEMENTS)]
-            known_cycle = state.extractors_by_element.get(cycle_element, set())
-            if known_cycle:
-                # Try to find the cycle element's extractor
-                visible_cycle = None
-                if cycle_element in self._extractor_tags_by_element:
-                    visible_cycle = self._closest_visible_location(obs, self._extractor_tags_by_element[cycle_element])
-                if visible_cycle is not None:
-                    target_abs = self._visible_abs_cell(current_abs, visible_cycle)
-                    action, next_state = self._move_toward_target(state, current_abs, target_abs)
-                    return action, replace(next_state, last_mode=state.last_mode)
-                target_abs = self._nearest_known(current_abs, known_cycle)
-                if target_abs is not None:
-                    action, next_state = self._move_toward_target(state, current_abs, target_abs)
-                    return action, replace(next_state, last_mode=state.last_mode)
-                cycle_target = cycle_element  # Flag: we know the element but can't navigate yet
+        # v4-exp: Removed v19 element cycling (mine_cycle_index).
+        # Cycling was creating bottlenecks by overproducing one element while starving others.
+        # Return to pure issue-16 scarce_element() logic: mine nearest extractor,
+        # but redirect to scarce element when inventory becomes unbalanced.
+        # This is what gave 0.652 with working LLM in issue-16 experiments.
 
         # Issue-16: prefer scarce element extractors for make_heart balance
-        # Only use cargo-based scarce if cycle target is unknown (no known extractors for that element)
-        scarce = None if cycle_target else self._scarce_element(obs)
+        scarce = self._scarce_element(obs)
         if scarce and scarce in self._extractor_tags_by_element:
             scarce_tags = self._extractor_tags_by_element[scarce]
             visible_scarce = self._closest_visible_location(obs, scarce_tags)

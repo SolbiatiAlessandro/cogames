@@ -734,7 +734,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried >= self._return_load:
             self._event(state, f"mine_until_full completed: cargo={carried}")
-            state.mine_cycle_index = (state.mine_cycle_index + 1) % 4  # v19: advance element cycle
+            # v4-exp: removed mine_cycle_index advance (v19 cycling removed)
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried == 0:
             self._event(state, "deposit_to_hub completed")

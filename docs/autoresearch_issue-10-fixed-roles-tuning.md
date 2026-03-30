@@ -89,6 +89,29 @@ That's why the issue-16 run with working LLM at 2s/call outperforms.
 
 The scripted fallback mode is a FLOOR, not a ceiling.
 
+### 2026-03-29T10:00: starting new experiment - EXP v1: free LLM model
+v1: gemma-3n-4b + defend skill + shorter retries → 0.557 DISCARD
+  - defend caused 728 step infinite loop; model too small; rate limited
+
+### 2026-03-29T12:45: starting new experiment - EXP v2: element cycling fix
+v2: fix v19 cycle_target block + gemma-3n infra + shorter retries → 0.537 DISCARD
+  - cycling fix caused miner to chase far scarce extractors; just 1 junction aligned
+
+### 2026-03-29T20:15: starting new experiment - EXP v3: cycle priority reorder
+v3: reordered cycle to germanium→oxygen→silicon→carbon → 0.5833 DISCARD
+  - germanium now 31 deposited, oxygen 40, but carbon only 4 (new bottleneck!)
+  - Just shifts the bottleneck, doesn't solve root cause
+
+### 2026-03-29T20:45: starting new experiment - EXP v4: remove element cycling
+
+Strategy: Remove ALL element cycling (mine_cycle_index).
+Return to pure issue-16 scarce_element() logic from 361fbc4.
+That code gave 0.652 with working LLM.
+
+Changes:
+1. Remove v19 cycling block from _mine_until_full in llm_skills.py
+2. Remove mine_cycle_index advancement from _maybe_finish_skill in cross_role_policy.py
+
 ---
 
 ## Results Summary
@@ -105,6 +128,11 @@ See docs/results_autoresearch_issue-10-fixed-roles-tuning.tsv for full results.
 - Corner junctions (rows 6-7, 91-92) never reached — systematic exploration missing
 - deposit_to_hub navigation still occasionally times out
 - Agent deaths from clip ships = main variance source
+- v19 element cycling creates bottleneck by overproducing one element
+- Simply reordering cycle priority shifts bottleneck but doesn't fix it (v3 tried germanium-first)
+- Pure scarce_element() logic (issue-16, pre-v19) is likely better than any fixed cycling order
+- v2 attempt to "fix" cycling bug was wrong - the cycle_target block was intentional
+- v4 plan: remove cycling entirely, trust scarce_element() for balance
 
 ---
 
@@ -114,3 +142,6 @@ See docs/results_autoresearch_issue-10-fixed-roles-tuning.tsv for full results.
 - Corner junction targeting with systematic quadrant exploration
 - Better deposit_to_hub navigation (approach-cell BFS fix in issue-16)
 - Investigate clip ship avoidance to reduce variance from agent deaths
+- For LLM: try gemma-3-27b-it:free or llama-3.3-70b:free (larger free models)
+- Track global deposit counts in SharedMap for adaptive element targeting
+- Agent death causes all inventory to be lost - clip ship avoidance important

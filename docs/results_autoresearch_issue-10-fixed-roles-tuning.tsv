@@ -1,2 +1,5 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 d75feb1	0.586193	hearts=9/aligned=9/held=4862/germanium=12	1000	keep	baseline: issue-16 merged (hub-depletion+make_heart+element-aware), scripted-fallback mode (LLM 402)
+5b3a485	0.556800	hearts=5/aligned=6/held=4568/carbon_dep=10	1000	discard	v1-free-llm: gemma-3n-4b+defend skill+shorter retries - defend caused 728 noops/miner starved
+a2a9081	0.537097	hearts=7/aligned=1/held=4371/carbon_dep=4	1000	discard	v2-element-fix: v19 cycling fix+gemma-3n infra+shorter retries - cycling fix caused miner to chase far extractors
+dced0ba	0.583305	hearts=7/aligned=4/held=4833/germ_dep=31	1000	discard	v3-cycle-priority: reordered cycle to germanium-first - shifted bottleneck to carbon (only 4 deposited)
