@@ -49,12 +49,16 @@ class SharedMap:
         self.known_miner_stations: set[Coord] = set()
         self.known_hazard_stations: set[Coord] = set()
         self.known_extractors: set[Coord] = set()
+        # Per-element extractor tracking for balanced mining (issue #24)
+        self.known_extractors_by_element: dict[str, set[Coord]] = {}
         # Junctions (dynamic — refreshed per visible area)
         self.known_neutral_junctions: set[Coord] = set()
         self.known_friendly_junctions: set[Coord] = set()
         self.known_enemy_junctions: set[Coord] = set()
         # Agent gear tracking for team coordination
         self.agent_gears: dict[int, str] = {}
+        # Hub heart withdrawal tracking for make_heart cycle coordination
+        self.hub_hearts_withdrawn: int = 0
 
 
 @dataclass
@@ -79,6 +83,7 @@ class AlignerState(StarterCogState):
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def __init__(self, policy_env_info: PolicyEnvInterface, agent_id: int, shared_map: SharedMap | None = None):
+        from cogames.policy.starter_agent import ELEMENTS
         self._starter = StarterCogPolicyImpl(policy_env_info, agent_id, preferred_gear="aligner")
         self._shared_map = shared_map
         self._team_tag = self._tag_id("team:cogs")
@@ -92,6 +97,15 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._wall_tags = self._starter._resolve_tag_ids(["wall"])
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
+        # Per-element extractor tag sets for balanced mining support (issue #24)
+        self._extractor_tags_by_element: dict[str, set[int]] = {
+            element: self._starter._resolve_tag_ids([f"{element}_extractor"])
+            for element in ELEMENTS
+        }
+        self._extractor_tag_to_element: dict[int, str] = {}
+        for element, tag_ids in self._extractor_tags_by_element.items():
+            for tag_id in tag_ids:
+                self._extractor_tag_to_element[tag_id] = element
 
     def _tag_id(self, name: str) -> int | None:
         return self._starter._tag_name_to_id.get(name)
@@ -386,6 +400,14 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 stations_now.add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+            # Track per-element extractors for balanced mining (issue #24)
+            element = self._extractor_tag_to_element.get(int(token.value))
+            if element is not None and self._shared_map is not None:
+                if not self._shared_map.known_extractors_by_element:
+                    from cogames.policy.starter_agent import ELEMENTS as _ELEMENTS
+                    self._shared_map.known_extractors_by_element = {e: set() for e in _ELEMENTS}
+                self._shared_map.known_extractors_by_element[element].add(abs_cell)
+                self._shared_map.known_extractors.add(abs_cell)
 
         neutral_now: set[Coord] = set()
         friendly_now: set[Coord] = set()

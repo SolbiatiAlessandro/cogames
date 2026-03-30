@@ -68,7 +68,11 @@ class LLMMinerPlannerClient:
             return self._local_inference.complete(prompt)
         api_key = os.environ.get(self._api_key_env)
         if self._model:
-            return self._complete_openrouter(prompt, api_key)
+            try:
+                return self._complete_openrouter(prompt, api_key)
+            except Exception as exc:
+                logger.warning("LLM API call failed (%s: %s), using scripted fallback", type(exc).__name__, exc)
+                return ""  # Empty string triggers scripted fallback in _parse_skill_choice
         if not self._api_url:
             raise RuntimeError("LLM planner API is not configured")
         with httpx.Client(timeout=self._timeout_s) as client:
@@ -183,6 +187,11 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             last_mode=base.last_mode,
             remembered_hub_row_from_spawn=base.remembered_hub_row_from_spawn,
             remembered_hub_col_from_spawn=base.remembered_hub_col_from_spawn,
+            known_extractors_by_element=dict(base.known_extractors_by_element),
+            total_deposited_by_element=dict(base.total_deposited_by_element),
+            prev_step_inventory=dict(base.prev_step_inventory),
+            current_target_element=base.current_target_element,
+            target_element_steps=base.target_element_steps,
         )
         self._bind_shared_map_miner(state)
         return state
@@ -212,6 +221,11 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             last_carried_total=state.last_carried_total,
             explore_start_extractors=state.explore_start_extractors,
             recent_events=list(state.recent_events),
+            known_extractors_by_element=dict(base.known_extractors_by_element),
+            total_deposited_by_element=dict(base.total_deposited_by_element),
+            prev_step_inventory=dict(base.prev_step_inventory),
+            current_target_element=base.current_target_element,
+            target_element_steps=base.target_element_steps,
         )
 
     def _event(self, state: LLMMinerState, message: str) -> None:

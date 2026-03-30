@@ -37,6 +37,16 @@ class MinerSkillState(StarterCogState):
     # Move-failure tracking (same mechanism as AlignerState)
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
+    # Per-element extractor tracking for balanced mining (issue #24)
+    known_extractors_by_element: dict[str, set[Coord]] = field(default_factory=dict)
+    # Total deposited per element for balance tracking
+    total_deposited_by_element: dict[str, int] = field(default_factory=dict)
+    # Inventory at end of previous step (for deposit detection)
+    prev_step_inventory: dict[str, int] = field(default_factory=dict)
+    # Current target element for round-robin mining
+    current_target_element: str = ""
+    # Steps spent mining the current target element without switching
+    target_element_steps: int = 0
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -54,6 +64,16 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._return_load = return_load
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
+        # Per-element extractor tag sets for balanced mining (issue #24)
+        self._extractor_tags_by_element: dict[str, set[int]] = {
+            element: self._starter._resolve_tag_ids([f"{element}_extractor"])
+            for element in ELEMENTS
+        }
+        # Reverse map: tag_id -> element name
+        self._extractor_tag_to_element: dict[int, str] = {}
+        for element, tag_ids in self._extractor_tags_by_element.items():
+            for tag_id in tag_ids:
+                self._extractor_tag_to_element[tag_id] = element
 
     def _miner_station_names(self, policy_env_info: PolicyEnvInterface) -> list[str]:
         names = {"miner_station"}
@@ -89,12 +109,20 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         state.known_miner_stations = sm.known_miner_stations
         state.known_extractors = sm.known_extractors
         state.known_hazard_stations = sm.known_hazard_stations
+        # Bind per-element extractor sets from shared map (issue #24)
+        if not sm.known_extractors_by_element:
+            sm.known_extractors_by_element = {element: set() for element in ELEMENTS}
+        state.known_extractors_by_element = sm.known_extractors_by_element
 
     def initial_agent_state(self) -> MinerSkillState:
         starter_state = self._starter.initial_agent_state()
         state = MinerSkillState(
             wander_direction_index=starter_state.wander_direction_index,
             wander_steps_remaining=starter_state.wander_steps_remaining,
+            known_extractors_by_element={element: set() for element in ELEMENTS},
+            total_deposited_by_element={element: 0 for element in ELEMENTS},
+            current_target_element=ELEMENTS[0],  # Start with carbon
+            target_element_steps=0,
         )
         self._bind_shared_map_miner(state)
         return state
@@ -179,6 +207,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         hubs_now: set[Coord] = set()
         miner_stations_now: set[Coord] = set()
         extractors_now: set[Coord] = set()
+        extractors_by_element_now: dict[str, set[Coord]] = {element: set() for element in ELEMENTS}
         hazard_stations_now: set[Coord] = set()
 
         for token in obs.tokens:
@@ -193,6 +222,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 miner_stations_now.add(abs_cell)
             if token.value in self._starter._extractor_tags:
                 extractors_now.add(abs_cell)
+                # Track per-element extractor locations
+                element = self._extractor_tag_to_element.get(token.value)
+                if element is not None:
+                    extractors_by_element_now[element].add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
 
@@ -208,6 +241,16 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._remember_static_objects(state.known_hubs, hubs_now)
         self._remember_static_objects(state.known_miner_stations, miner_stations_now)
         self._remember_static_objects(state.known_extractors, extractors_now)
+        # Update per-element extractor sets
+        if not state.known_extractors_by_element:
+            state.known_extractors_by_element = {element: set() for element in ELEMENTS}
+        for element in ELEMENTS:
+            prev_count = len(state.known_extractors_by_element[element])
+            self._remember_static_objects(state.known_extractors_by_element[element], extractors_by_element_now[element])
+            new_count = len(state.known_extractors_by_element[element])
+            if new_count > prev_count:
+                logger.info("agent=%s discovered element=%s extractors now_known=%d",
+                            obs.agent_id, element, new_count)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         self._remember_visible_hub(obs, state)
 
@@ -221,6 +264,64 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     def _closest_visible_location(self, obs: AgentObservation, tag_ids: set[int]) -> Coord | None:
         return self._starter._closest_tag_location(obs, tag_ids)
+
+    def _choose_target_extractor_element(self, obs: AgentObservation, state: MinerSkillState) -> str | None:
+        """Choose which element type to mine next for balanced make_heart production.
+
+        Strategy: balance deposits toward 7 of each element needed for make_heart (issue #24).
+        Uses deposit history to pick the most needed element. If an element's extractors are
+        unknown, returns None to fall back to any extractor (will explore to find new types).
+
+        Returns element name to prioritize, or None to use any extractor.
+        """
+        if not state.known_extractors_by_element:
+            return None
+
+        # Check which element types have known extractors
+        available_elements = [e for e in ELEMENTS if state.known_extractors_by_element.get(e)]
+        if not available_elements:
+            return None
+
+        # Current cargo per element
+        inv_counts = self._inventory_counts(obs)
+
+        # Balance based on total deposited history + current cargo
+        # We want to minimize max(deposited+cargo) - min(deposited+cargo) across elements
+        # effectively bringing all elements toward the same total
+        if not state.total_deposited_by_element:
+            return available_elements[0]
+
+        # Effective total = deposited + in-cargo: pick element with least effective total
+        effective = {
+            e: state.total_deposited_by_element.get(e, 0) + inv_counts.get(e, 0)
+            for e in available_elements
+        }
+        target = min(available_elements, key=lambda e: effective[e])
+        return target
+
+    def _closest_visible_extractor_by_element(self, obs: AgentObservation, element: str) -> tuple[int, int] | None:
+        """Find the closest visible extractor of a specific element type."""
+        tag_ids = self._extractor_tags_by_element.get(element, set())
+        if not tag_ids:
+            return None
+        return self._starter._closest_tag_location(obs, tag_ids)
+
+    def _update_deposited_elements(self, obs: AgentObservation, state: MinerSkillState) -> None:
+        """Track elements deposited to hub by comparing current inventory to previous step's inventory."""
+        curr_inv = self._inventory_counts(obs)
+        if not state.total_deposited_by_element:
+            state.total_deposited_by_element = {element: 0 for element in ELEMENTS}
+        prev_inv = state.prev_step_inventory
+        for element in ELEMENTS:
+            prev = prev_inv.get(element, 0)
+            curr = curr_inv.get(element, 0)
+            if curr < prev:
+                deposited = prev - curr
+                state.total_deposited_by_element[element] = state.total_deposited_by_element.get(element, 0) + deposited
+                logger.info("agent=%s deposited element=%s amount=%d total_deposited=%s",
+                            obs.agent_id, element, deposited, state.total_deposited_by_element)
+        # Store current inventory for next step's comparison
+        state.prev_step_inventory = dict(curr_inv)
 
     def _frontier_cells(self, state: MinerSkillState) -> set[Coord]:
         frontier: set[Coord] = set()
@@ -415,11 +516,34 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s mode=mine_until_full", obs.agent_id)
             state.last_mode = "mine_until_full"
         current_abs = self._current_abs(obs)
+
+        # Element-aware mining: prefer the most needed element for balanced make_heart production (issue #24)
+        # Only applies when multiple element types are known (otherwise fall through to any extractor)
+        target_element = self._choose_target_extractor_element(obs, state)
+
+        if target_element is not None:
+            element_extractors = state.known_extractors_by_element.get(target_element, set())
+            if element_extractors:
+                # First try: visible extractor of the preferred element type
+                visible_target = self._closest_visible_extractor_by_element(obs, target_element)
+                if visible_target is not None:
+                    target_abs = self._visible_abs_cell(current_abs, visible_target)
+                    action, next_state = self._move_toward_target(state, current_abs, target_abs)
+                    return action, replace(next_state, last_mode=state.last_mode)
+                # Second try: navigate to nearest known extractor of the preferred element type
+                target_abs = self._nearest_known(current_abs, element_extractors)
+                if target_abs is not None:
+                    action, next_state = self._move_toward_target(state, current_abs, target_abs)
+                    return action, replace(next_state, last_mode=state.last_mode)
+            # Preferred element has no known extractors — fall through to mine any available extractor
+
+        # Fallback: any visible extractor
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
+        # Fallback: any known extractor
         target_abs = self._nearest_known(current_abs, state.known_extractors)
         if target_abs is None:
             if state.known_hubs:
@@ -452,13 +576,29 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         action, next_state = self._move_toward_target(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    def _needs_element_exploration(self, obs: AgentObservation, state: MinerSkillState) -> bool:
+        """Returns True if we should explore to find new element extractor types.
+
+        Disabled: element exploration was causing the miner to waste too many steps.
+        Element balance is handled passively via _choose_target_extractor_element
+        when multiple extractor types are already known from normal exploration.
+        """
+        return False
+
     def step_with_state(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         self._update_map_memory(obs, state)
+        # Track deposits by comparing to previous step's inventory
+        self._update_deposited_elements(obs, state)
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
         if gear != "miner":
             return self._gear_up(obs, state)
 
         if self._carried_total(obs) >= self._return_load:
             return self._deposit_to_hub(obs, state)
+
+        # If deposit balance is severely skewed, explore to find new element types
+        if self._needs_element_exploration(obs, state):
+            logger.info("agent=%s element_balance_explore deposits=%s", obs.agent_id, state.total_deposited_by_element)
+            return self._explore(obs, state)
 
         return self._mine_until_full(obs, state)
