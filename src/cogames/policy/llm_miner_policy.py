@@ -192,6 +192,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             prev_step_inventory=dict(base.prev_step_inventory),
             current_target_element=base.current_target_element,
             target_element_steps=base.target_element_steps,
+            trip_steps=base.trip_steps,
         )
         self._bind_shared_map_miner(state)
         return state
@@ -226,6 +227,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             prev_step_inventory=dict(base.prev_step_inventory),
             current_target_element=base.current_target_element,
             target_element_steps=base.target_element_steps,
+            trip_steps=base.trip_steps,
         )
 
     def _event(self, state: LLMMinerState, message: str) -> None:

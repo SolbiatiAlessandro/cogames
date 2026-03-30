@@ -47,10 +47,14 @@ class MinerSkillState(StarterCogState):
     current_target_element: str = ""
     # Steps spent mining the current target element without switching
     target_element_steps: int = 0
+    # Steps spent on current mining trip (since last deposit), for timeout-based early return
+    trip_steps: int = 0
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     """Bounded miner skills plus navigation primitives shared by scripted and LLM-controlled miners."""
+
+    _MAX_TRIP_STEPS = 120  # Force early deposit return if trip takes too long (handles far extractors)
 
     def __init__(self, policy_env_info: PolicyEnvInterface, agent_id: int, return_load: int, shared_map=None):
         self._starter = StarterCogPolicyImpl(policy_env_info, agent_id, preferred_gear="miner")
@@ -606,11 +610,28 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._update_map_memory(obs, state)
         # Track deposits by comparing to previous step's inventory
         self._update_deposited_elements(obs, state)
+        carried = self._carried_total(obs)
+
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
         if gear != "miner":
+            state.trip_steps = 0  # Reset trip while not mining
             return self._gear_up(obs, state)
 
-        if self._carried_total(obs) >= self._return_load:
+        # Track trip steps (reset when cargo is empty, i.e., after deposit)
+        if carried == 0:
+            state.trip_steps = 0
+        else:
+            state.trip_steps += 1
+
+        # Return to hub if cargo full OR trip taking too long with some cargo
+        force_return = (
+            carried >= self._return_load
+            or (state.trip_steps >= self._MAX_TRIP_STEPS and carried > 0)
+        )
+        if force_return:
+            if carried > 0 and state.trip_steps >= self._MAX_TRIP_STEPS:
+                logger.info("agent=%s early_return trip_steps=%d carried=%d",
+                            obs.agent_id, state.trip_steps, carried)
             return self._deposit_to_hub(obs, state)
 
         # If deposit balance is severely skewed, explore to find new element types
