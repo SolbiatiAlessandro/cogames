@@ -18,3 +18,4 @@ fb94c72	0.670333	same as v12	1000	discard	v17: Junction blacklisting. No change.
 8f0ee54	0.670667	seed0=0.662,seed1=0.646,seed2=0.704	1000	keep	v18: Defend friendly junctions when heartless (noop on junction to block recapture). Tiny improvement seed0. avg 0.671.
 741932d	0.537000	seed0=0.456(2A1S),seed1=0.447,seed2=0.708	1000	discard	v19: Add scout support - 2A+1Scout (no miner). Seed0/1 catastrophic (no miner means no heart supply). 4-cog variant also worse. Reverted.
 b6da88b	0.681500	seed0=0.659,seed1=0.701,seed2=0.684	1000	keep	v20: Aligner junction claim coordination via SharedMap. Aligners now target different junctions. Seed1 +8.6% but seed2 -2.9%. Net avg 0.682 (+1.6% vs v18).
+d291f60	0.690800	seed0=0.667,seed1=0.701,seed2=0.704	1000	keep	v21: Proximity-aware claims (only honor claim when claimer within 20 cells of target). Seed2 recovered to 0.704, seed0 improved. avg 0.691 (+3.0% vs v18).

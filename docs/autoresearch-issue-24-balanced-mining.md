@@ -308,4 +308,18 @@ This is a pure coordination improvement with no downside (falls back gracefully)
 
 Analysis: junction claim coordination helps when aligners would otherwise target the same junction (seed 1 benefits hugely). Hurts slightly when the optimal strategy is for both to cooperate on nearby junctions (seed 2). The fallback (when no unclaimed junction is available, claim any junction) prevents catastrophic failure. Next: investigate what else limits alignment in seed 2 specifically. The claimed junction approach can be tuned further.
 
+## 2026-03-30T11:00: starting new experiment loop v21 - proximity-aware claims
+
+Problem with v20: claims are made unconditionally - if aligner 0 is navigating to a junction 50 cells away, aligner 1 is forced to detour. But that far-away claim is not very useful - aligner 0 might never reach the junction in time.
+
+Fix: only honor a claim when the claimer is within 20 cells of the claimed junction (proximity radius). The claim data now includes the claimer's position, allowing proximity check.
+
+**RESULTS v21: 0.667/0.701/0.704 = avg 0.691 (+1.4% vs v20, +3.0% vs v18)**
+- Seed 0: 0.667 (was 0.659 in v20, 0.662 in v18) - improved!
+- Seed 1: 0.701 (same as v20) - stable
+- Seed 2: 0.704 (was 0.684 in v20, 0.704 in v18) - fully recovered!
+
+The proximity-aware claim is much better: far-away claims don't prevent the other aligner from choosing its optimal junction. Only when aligner 0 is close to the junction (about to align it) does aligner 1 need to go elsewhere.
+
+
 

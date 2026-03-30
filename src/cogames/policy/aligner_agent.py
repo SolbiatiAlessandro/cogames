@@ -64,9 +64,9 @@ class SharedMap:
         self.known_enemy_junctions: set[Coord] = set()
         # Agent gear tracking for team coordination
         self.agent_gears: dict[int, str] = {}
-        # Junction claim coordination: each aligner records its current junction target
-        # so other aligners can avoid targeting the same junction
-        self.agent_claimed_junctions: dict[int, Coord | None] = {}
+        # Junction claim coordination: each aligner records (its_position, junction_target)
+        # so other aligners can avoid targeting the same junction when the claimer is close
+        self.agent_claimed_junctions: dict[int, tuple[Coord | None, Coord | None]] = {}
 
 
 @dataclass
@@ -635,12 +635,17 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
-        # Exclude junctions claimed by other aligners to spread agents across more junctions
+        # Exclude junctions claimed by nearby other aligners (within claim proximity radius)
+        # Only exclude claims when the other aligner is within 20 cells of its target
+        # This prevents far-away claims from forcing us to detour to suboptimal junctions
+        _CLAIM_PROXIMITY = 20
         other_claimed: set[Coord] = set()
         if self._shared_map is not None:
-            for other_id, claimed in self._shared_map.agent_claimed_junctions.items():
-                if other_id != obs.agent_id and claimed is not None:
-                    other_claimed.add(claimed)
+            for other_id, (claimer_pos, claimed_junc) in self._shared_map.agent_claimed_junctions.items():
+                if other_id != obs.agent_id and claimed_junc is not None and claimer_pos is not None:
+                    dist_to_target = abs(claimer_pos[0] - claimed_junc[0]) + abs(claimer_pos[1] - claimed_junc[1])
+                    if dist_to_target <= _CLAIM_PROXIMITY:
+                        other_claimed.add(claimed_junc)
         alignable = {junction for junction in state.known_neutral_junctions if self._is_alignable(junction, state) and junction not in bl}
         # Prefer unclaimed junctions; fall back to claimed if no others available
         unclaimed_alignable = alignable - other_claimed
@@ -654,9 +659,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             target_abs = self._nearest_known(current_abs, unclaimed_enemy)
             if target_abs is None:
                 target_abs = self._nearest_known(current_abs, enemy_alignable)
-        # Record our claim so other aligners can spread out
+        # Record our claim (both our position and junction) so other aligners can spread out
         if self._shared_map is not None:
-            self._shared_map.agent_claimed_junctions[obs.agent_id] = target_abs
+            self._shared_map.agent_claimed_junctions[obs.agent_id] = (current_abs, target_abs)
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
@@ -730,7 +735,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             # Periodically return to hub to check if make_heart has triggered
             # Clear junction claim: we can't align heartless so free up the slot for others
             if self._shared_map is not None:
-                self._shared_map.agent_claimed_junctions[obs.agent_id] = None
+                self._shared_map.agent_claimed_junctions[obs.agent_id] = (None, None)
             state.patrol_steps += 1
             if state.patrol_steps >= _PATROL_HUB_CHECK:
                 # Reset: go back to hub-check mode so we can pick up newly-crafted hearts
