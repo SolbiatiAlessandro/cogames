@@ -57,6 +57,11 @@ class SharedMap:
         self.agent_gears: dict[int, str] = {}
         # Hub depletion tracking (issue-16): count total hearts withdrawn across team
         self.hub_hearts_withdrawn: int = 0
+        # v6-exp: global hub element deposit tracking for balanced mining
+        # Tracks cumulative deposits of each element across all agents
+        self.hub_element_deposits: dict[str, int] = {
+            "carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0
+        }
 
 
 @dataclass

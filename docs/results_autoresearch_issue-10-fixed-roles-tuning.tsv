@@ -4,3 +4,4 @@ d75feb1	0.586193	hearts=9/aligned=9/held=4862/germanium=12	1000	keep	baseline: i
 a2a9081	0.537097	hearts=7/aligned=1/held=4371/carbon_dep=4	1000	discard	v2-element-fix: v19 cycling fix+gemma-3n infra+shorter retries - cycling fix caused miner to chase far extractors
 dced0ba	0.583305	hearts=7/aligned=4/held=4833/germ_dep=31	1000	discard	v3-cycle-priority: reordered cycle to germanium-first - shifted bottleneck to carbon (only 4 deposited)
 e56ae0f	0.724396	hearts=8/aligned=5/held=6244/carbon_dep=22/germ_dep=20	1000	keep	v4-no-cycling: remove v19 element cycling+return to pure scarce logic - 28% more held junctions fewer miner fails
+09d832e	0.607706	hearts=6/aligned=3/held=5077/oxygen_dep=20/silicon_dep=3	1000	discard	v5-lower-return-load: return_load 40→20 - oxygen deposits improved but silicon bottleneck (hub silicon=1 at end)

@@ -136,6 +136,25 @@ NEXT: Investigate remaining bottlenecks:
 2. Silicon only 4 deposited
 3. Agent 1 died, lost resources
 
+### 2026-03-29T23:30: v5 RESULT - DISCARD (0.6077 < v4 0.7244)
+
+v5 result: 0.6077 - return_load=20 helped oxygen deposits (20 vs 1) but silicon bottleneck remains
+- held: 5077 (vs 6244 in v4) - WORSE
+- carbon deposited: 41, oxygen: 20, germanium: 22, silicon: 3
+- Hub at end: oxygen=18, carbon=35, germanium=14, silicon=1 → silicon=1 bottleneck for make_heart!
+- With silicon=1, floor(1/7) = 0 make_heart cycles possible!
+
+LESSON: Just changing deposit frequency doesn't fix element balance. Need globally scarce targeting.
+
+### 2026-03-29T23:45: starting new experiment - EXP v6: global deposit tracking
+
+Strategy: Add hub_element_deposits to SharedMap. Mine the globally least-deposited element.
+Changes:
+1. SharedMap.hub_element_deposits dict added to aligner_agent.py
+2. CrossRoleState.pre_deposit_inventory tracks inventory before deposit
+3. When deposit_to_hub completes, update SharedMap.hub_element_deposits
+4. _mine_until_full: use _globally_scarce_element() first, fall back to _scarce_element()
+
 ---
 
 ## Results Summary

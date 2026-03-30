@@ -435,6 +435,30 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 return e
         return None
 
+    def _globally_scarce_element(self) -> str | None:
+        """v6-exp: return the element globally least deposited to the hub (from SharedMap).
+
+        Uses team-wide deposit tracking to direct miners to elements the hub needs most.
+        Returns None if no deposit data available (early game) or if deposits are balanced.
+        """
+        if self._shared_map is None:
+            return None
+        hub_deposits = getattr(self._shared_map, "hub_element_deposits", None)
+        if hub_deposits is None:
+            return None
+        # Only use global tracking after some deposits have happened (avoid early-game noise)
+        total_deposits = sum(hub_deposits.values())
+        if total_deposits < 7:  # need at least 7 to make 1 heart
+            return None
+        min_dep = min(hub_deposits.get(e, 0) for e in ELEMENTS)
+        max_dep = max(hub_deposits.get(e, 0) for e in ELEMENTS)
+        if max_dep - min_dep < 5:  # deposits are fairly balanced
+            return None
+        for e in ELEMENTS:
+            if hub_deposits.get(e, 0) == min_dep:
+                return e
+        return None
+
     def _mine_until_full(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "mine_until_full":
             logger.info("agent=%s mode=mine_until_full", obs.agent_id)
@@ -445,10 +469,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         # Cycling was creating bottlenecks by overproducing one element while starving others.
         # Return to pure issue-16 scarce_element() logic: mine nearest extractor,
         # but redirect to scarce element when inventory becomes unbalanced.
-        # This is what gave 0.652 with working LLM in issue-16 experiments.
 
-        # Issue-16: prefer scarce element extractors for make_heart balance
-        scarce = self._scarce_element(obs)
+        # v6-exp: Prefer globally scarce element (from SharedMap hub deposits) over
+        # locally scarce element (from agent's own inventory). This enables coordinated
+        # team mining that targets the actual hub bottleneck element.
+        scarce = self._globally_scarce_element() or self._scarce_element(obs)
         if scarce and scarce in self._extractor_tags_by_element:
             scarce_tags = self._extractor_tags_by_element[scarce]
             visible_scarce = self._closest_visible_location(obs, scarce_tags)

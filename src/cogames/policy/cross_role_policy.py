@@ -264,6 +264,8 @@ class CrossRoleState:
     explore_start_extractors: int = 0
     # v19: element cycle index for diverse mining (cycles through carbon→oxygen→germanium→silicon)
     mine_cycle_index: int = 0
+    # v6-exp: track pre-deposit inventory to compute element deltas for global tracking
+    pre_deposit_inventory: dict[str, int] = field(default_factory=dict)
 
     # Gear acquisition tracking (for retry + fallback logic)
     gear_up_failures: int = 0
@@ -685,6 +687,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.explore_start_junctions = len(state.known_neutral_junctions)
             state.explore_start_extractors = len(state.known_extractors)
 
+        # v6-exp: record per-element inventory before deposit for global deposit tracking
+        if skill == "deposit_to_hub":
+            state.pre_deposit_inventory = dict(self._miner._inventory_counts(obs))
+
         state.current_skill = skill
         state.current_reason = reason
         state.skill_steps = 0
@@ -738,6 +744,15 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried == 0:
             self._event(state, "deposit_to_hub completed")
+            # v6-exp: update global hub deposit tracking in SharedMap
+            if self._shared_map is not None and hasattr(self._shared_map, "hub_element_deposits"):
+                for element, amount in state.pre_deposit_inventory.items():
+                    if element in self._shared_map.hub_element_deposits:
+                        self._shared_map.hub_element_deposits[element] += amount
+                        logger.info(
+                            "agent=%s hub_element_deposits=%s",
+                            obs.agent_id, self._shared_map.hub_element_deposits,
+                        )
             state.current_skill = None
         elif state.current_skill == "explore" and (
             len(state.known_neutral_junctions) > state.explore_start_junctions
