@@ -58,6 +58,9 @@ class SharedMap:
         # Agent position tracking for spatial coordination (repulsion field)
         # Maps agent_id -> spawn-relative (row, col) position
         self.agent_positions: dict[int, Coord] = {}
+        # Junction claiming: maps agent_id -> junction coord they are currently heading toward.
+        # Other agents skip claimed junctions to avoid clustering on the same target.
+        self.claimed_junctions: dict[int, Coord] = {}
 
 
 @dataclass
@@ -130,6 +133,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._wall_tags = self._starter._resolve_tag_ids(["wall"])
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
+
+    @property
+    def _agent_id(self) -> int:
+        return self._starter._agent_id if hasattr(self._starter, "_agent_id") else -1
 
     def _tag_id(self, name: str) -> int | None:
         return self._starter._tag_name_to_id.get(name)
@@ -445,9 +452,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if self._shared_map is None or not self._shared_map.agent_positions:
             return 9999
         min_dist = 9999
-        agent_id = self._starter._agent_id if hasattr(self._starter, '_agent_id') else -1
+        my_id = self._agent_id
         for aid, pos in self._shared_map.agent_positions.items():
-            if aid == agent_id:
+            if aid == my_id:
                 continue
             dist = abs(pos[0] - current_abs[0]) + abs(pos[1] - current_abs[1])
             if dist < min_dist:
@@ -472,8 +479,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         current_abs = self._spawn_offset(obs)
         # Update shared agent position for spatial coordination
         if self._shared_map is not None:
-            agent_id = self._starter._agent_id if hasattr(self._starter, '_agent_id') else -1
-            self._shared_map.agent_positions[agent_id] = current_abs
+            self._shared_map.agent_positions[self._agent_id] = current_abs
 
         # If we tried to move last step but didn't move, the target cell blocks movement.
         # Add to move_blocked_cells (persists across observation updates) so BFS avoids it.
@@ -532,6 +538,15 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._refresh_dynamic_objects(visible_cells, state.known_enemy_junctions, enemy_now)
         state.known_neutral_junctions.difference_update(state.known_friendly_junctions)
         state.known_neutral_junctions.difference_update(state.known_enemy_junctions)
+
+        # Release junction claims for junctions that are now friendly or enemy (no longer neutral)
+        # This unblocks other agents from claiming formerly-neutral junctions that were just aligned
+        if self._shared_map is not None and self._shared_map.claimed_junctions:
+            stale = {aid: j for aid, j in self._shared_map.claimed_junctions.items()
+                     if j in state.known_friendly_junctions or j in state.known_enemy_junctions}
+            for aid in stale:
+                del self._shared_map.claimed_junctions[aid]
+
         return current_abs
 
     def _log_mode(self, obs: AgentObservation, state: AlignerState, mode: str) -> None:
@@ -760,7 +775,18 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
-        alignable = {junction for junction in state.known_neutral_junctions if self._is_alignable(junction, state) and junction not in bl}
+        # Exclude junctions claimed by OTHER agents (to avoid all agents rushing the same junction)
+        others_claimed: set[Coord] = set()
+        if self._shared_map is not None:
+            my_id = self._agent_id
+            others_claimed = {j for aid, j in self._shared_map.claimed_junctions.items() if aid != my_id}
+        alignable = {
+            junction for junction in state.known_neutral_junctions
+            if self._is_alignable(junction, state) and junction not in bl and junction not in others_claimed
+        }
+        # Fallback: if all neutral junctions are claimed by others, use unclaimed set (better than explore)
+        if not alignable:
+            alignable = {junction for junction in state.known_neutral_junctions if self._is_alignable(junction, state) and junction not in bl}
         # Use quadrant-biased target selection when spatial partitioning is active:
         # prefer junction in assigned quadrant to spread agents across map
         if self._quadrant_bias is not None:
@@ -769,13 +795,18 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             target_abs = self._nearest_known(current_abs, alignable)
         if target_abs is None and state.known_enemy_junctions:
             # No neutral targets: try reclaiming enemy junctions (clips-held)
-            enemy_alignable = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl}
+            enemy_alignable = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl and j not in others_claimed}
+            if not enemy_alignable:
+                enemy_alignable = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl}
             if self._quadrant_bias is not None:
                 target_abs = self._biased_nearest(current_abs, enemy_alignable)
             else:
                 target_abs = self._nearest_known(current_abs, enemy_alignable)
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
+        # Register claim on this junction so other agents avoid it
+        if self._shared_map is not None:
+            self._shared_map.claimed_junctions[self._agent_id] = target_abs
         self._log_mode(obs, state, "align_neutral")
         # Already have aligner gear - no need to avoid other stations, can't re-equip
         direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
@@ -856,7 +887,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             if state.known_friendly_junctions:
                 state.my_junction = self._nearest_known(current_abs, state.known_friendly_junctions)
                 state.has_aligned_junction = True
-                logger.info("agent=%s claimed my_junction=%s", self._starter._agent_id, state.my_junction)
+                logger.info("agent=%s claimed my_junction=%s", self._agent_id, state.my_junction)
         state.last_has_heart = has_heart
 
         # Track phase steps and blacklist stuck junctions
