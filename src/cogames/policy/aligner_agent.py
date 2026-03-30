@@ -962,10 +962,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         else:
             state.no_move_steps = 0
 
-        # Navigation shake: after 5 consecutive blocked moves, every 3rd step try a random direction.
-        # This breaks deadlocks caused by agents blocking each other or BFS ruts.
+        # Navigation shake: after 3 consecutive blocked moves, every 2nd step try a random direction.
+        # Lower threshold (3 vs 5) reduces stuck metric which increased with avoid_hazards=True in get_heart.
         _UNSTUCK_DIRECTIONS = ("north", "east", "south", "west")
-        if state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
+        if state.no_move_steps >= 3 and state.no_move_steps % 2 == 0:
             direction = _UNSTUCK_DIRECTIONS[state.wander_direction_index % len(_UNSTUCK_DIRECTIONS)]
             state.wander_direction_index = (state.wander_direction_index + 1) % len(_UNSTUCK_DIRECTIONS)
             action = self._starter._action(f"move_{direction}")
