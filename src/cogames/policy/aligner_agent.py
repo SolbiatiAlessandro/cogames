@@ -92,6 +92,9 @@ class AlignerState(StarterCogState):
     my_junction: Coord | None = None
     # True once this agent has aligned at least one junction
     has_aligned_junction: bool = False
+    # Junctions that were previously friendly but became enemy (CLIPS scrambled our junctions)
+    # These get top priority for re-alignment over neutral junctions
+    previously_friendly_junctions: set[Coord] = field(default_factory=set)
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -533,6 +536,14 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._remember_static_objects(state.known_hubs, hubs_now)
         self._remember_static_objects(state.known_aligner_stations, stations_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
+        # Track which friendly junctions become enemy (CLIPS scrambled our junctions)
+        # These get priority for re-alignment in _align_neutral
+        for cell in visible_cells:
+            if cell in state.known_friendly_junctions and cell in enemy_now:
+                state.previously_friendly_junctions.add(cell)
+        # Clean up previously_friendly_junctions that are now friendly again (re-aligned)
+        state.previously_friendly_junctions.difference_update(friendly_now)
+
         self._refresh_dynamic_objects(visible_cells, state.known_neutral_junctions, neutral_now)
         self._refresh_dynamic_objects(visible_cells, state.known_friendly_junctions, friendly_now)
         self._refresh_dynamic_objects(visible_cells, state.known_enemy_junctions, enemy_now)
@@ -780,6 +791,34 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if self._shared_map is not None:
             my_id = self._agent_id
             others_claimed = {j for aid, j in self._shared_map.claimed_junctions.items() if aid != my_id}
+
+        # PRIORITY 1: Re-claim our own junctions that CLIPS scrambled (enemy, previously friendly)
+        # These are our most valuable targets - we had them and lost them
+        reclaim_priority = {
+            j for j in state.previously_friendly_junctions
+            if j in state.known_enemy_junctions and self._is_alignable(j, state) and j not in bl and j not in others_claimed
+        }
+        if not reclaim_priority:
+            reclaim_priority = {
+                j for j in state.previously_friendly_junctions
+                if j in state.known_enemy_junctions and self._is_alignable(j, state) and j not in bl
+            }
+        if reclaim_priority:
+            target_abs = self._nearest_known(current_abs, reclaim_priority)
+            if target_abs is not None:
+                if self._shared_map is not None:
+                    self._shared_map.claimed_junctions[self._agent_id] = target_abs
+                self._log_mode(obs, state, "reclaim_junction")
+                direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
+                if direction is not None:
+                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+                direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
+                if direction is not None:
+                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+                action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+                return action, replace(next_state, last_mode=state.last_mode)
+
+        # PRIORITY 2: Neutral junctions (unclaimed)
         alignable = {
             junction for junction in state.known_neutral_junctions
             if self._is_alignable(junction, state) and junction not in bl and junction not in others_claimed
@@ -794,7 +833,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         else:
             target_abs = self._nearest_known(current_abs, alignable)
         if target_abs is None and state.known_enemy_junctions:
-            # No neutral targets: try reclaiming enemy junctions (clips-held)
+            # No neutral targets: try reclaiming ALL enemy junctions (clips-held, including their own)
             enemy_alignable = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl and j not in others_claimed}
             if not enemy_alignable:
                 enemy_alignable = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl}
