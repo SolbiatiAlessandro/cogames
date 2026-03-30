@@ -519,7 +519,18 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         # Element-aware mining: prefer the most needed element for balanced make_heart production (issue #24)
         # Only applies when multiple element types are known (otherwise fall through to any extractor)
-        target_element = self._choose_target_extractor_element(obs, state)
+        # Sticky element targeting: keep the same element for the whole trip to avoid zigzag between extractors.
+        # Reset target when cargo is empty (after deposit trip completes) or if target element runs out.
+        carried = self._carried_total(obs)
+        if state.current_target_element and carried == 0:
+            # Just deposited: clear target so next choice starts fresh
+            state.current_target_element = ""
+            state.target_element_steps = 0
+        target_element = state.current_target_element if state.current_target_element else self._choose_target_extractor_element(obs, state)
+        if target_element and not state.current_target_element:
+            state.current_target_element = target_element
+            state.target_element_steps = 0
+        state.target_element_steps += 1
 
         if target_element is not None:
             element_extractors = state.known_extractors_by_element.get(target_element, set())
