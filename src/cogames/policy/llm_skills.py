@@ -585,15 +585,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         """
         return False
 
-    def _has_make_heart_quota(self, obs: AgentObservation) -> bool:
-        """Returns True if carrying at least 7 of each element (enough for one make_heart cycle).
-
-        make_heart requires 7 of each of 4 elements (28 total). Depositing exactly this
-        amount ensures one heart is crafted per deposit trip, instead of waiting for full load.
-        """
-        inv = self._inventory_counts(obs)
-        return all(inv.get(element, 0) >= 7 for element in ELEMENTS)
-
     def step_with_state(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         self._update_map_memory(obs, state)
         # Track deposits by comparing to previous step's inventory
@@ -603,12 +594,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return self._gear_up(obs, state)
 
         if self._carried_total(obs) >= self._return_load:
-            return self._deposit_to_hub(obs, state)
-
-        # Early deposit when we have exactly one make_heart quota (7 of each = 28 total)
-        # This ensures each deposit trip triggers a make_heart cycle (issue #24)
-        if self._has_make_heart_quota(obs):
-            logger.info("agent=%s make_heart_quota_met inventory=%s depositing early", obs.agent_id, self._inventory_counts(obs))
             return self._deposit_to_hub(obs, state)
 
         # If deposit balance is severely skewed, explore to find new element types

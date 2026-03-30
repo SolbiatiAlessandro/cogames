@@ -396,10 +396,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             current_abs = self._current_abs(obs)
             if current_abs in state.known_extractors:
                 state.known_extractors.discard(current_abs)
-                # Also remove from per-element extractor sets so element-aware routing
-                # won't re-target depleted extractors (issue #24)
-                for element_set in state.known_extractors_by_element.values():
-                    element_set.discard(current_abs)
                 self._event(state, f"fast-abandoned depleted extractor at {current_abs} after {state.no_progress_on_target_steps} steps")
             else:
                 self._event(state, f"mine_until_full fast-abandoned after {state.no_progress_on_target_steps} no-progress steps (target not in known_extractors)")
