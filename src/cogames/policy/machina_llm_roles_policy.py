@@ -361,10 +361,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
-        elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= max(3, self._stuck_threshold // 4):
-            # Hub is empty: give up quickly (5 steps instead of 20) to avoid wasting steps
-            self._event(state, f"get_heart exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
-            state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
