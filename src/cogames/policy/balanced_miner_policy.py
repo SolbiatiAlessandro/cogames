@@ -29,6 +29,8 @@ from mettagrid.simulator.interface import AgentObservation
 
 logger = logging.getLogger("cogames.policy.balanced_miner")
 
+_DIRECTION_DELTAS = [("north", (-1, 0)), ("south", (1, 0)), ("east", (0, 1)), ("west", (0, -1))]
+
 Coord = tuple[int, int]
 
 # How many of each element to target per trip before depositing
@@ -64,7 +66,7 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
     """
 
     # Steps to search for target element before falling back to any extractor
-    _SEARCH_TIMEOUT = 30
+    _SEARCH_TIMEOUT = 80
 
     def __init__(
         self,
@@ -132,6 +134,70 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
                     elem_set = getattr(state, f"known_{elem}_extractors")
                     elem_set.add(abs_cell)
 
+    def _best_approach_cell(self, state: BalancedMinerState, current_abs: Coord, blocked_target: Coord) -> Coord | None:
+        """Find the best adjacent free cell for approaching a blocked target (e.g., hub)."""
+        candidates = [
+            (blocked_target[0] + dr, blocked_target[1] + dc)
+            for _, (dr, dc) in _DIRECTION_DELTAS
+            if (blocked_target[0] + dr, blocked_target[1] + dc) not in state.blocked_cells
+        ]
+        if not candidates:
+            return None
+        return min(candidates, key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
+
+    def _deposit_to_hub(self, obs: AgentObservation, state: BalancedMinerState) -> tuple[Action, BalancedMinerState]:
+        """Navigate to hub and deposit. Uses approach-cell strategy (hub is blocked object)."""
+        if state.last_mode != "deposit_to_hub":
+            logger.info("agent=%s mode=deposit_to_hub load=%d counts=%s",
+                        obs.agent_id, self._carried_total(obs), self._inventory_counts(obs))
+            state.last_mode = "deposit_to_hub"
+
+        current_abs = self._current_abs(obs)
+
+        # Find hub target: visible first, then known, then remembered spawn position
+        hub_abs: Coord | None = None
+        visible_target = self._closest_visible_location(obs, self._hub_tags)
+        if visible_target is not None:
+            hub_abs = self._visible_abs_cell(current_abs, visible_target)
+            state.known_hubs.add(hub_abs)
+        elif state.known_hubs:
+            hub_abs = self._nearest_known(current_abs, state.known_hubs)
+        elif (state.remembered_hub_row_from_spawn is not None
+              and state.remembered_hub_col_from_spawn is not None):
+            hub_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
+
+        if hub_abs is None:
+            # Hub unknown: explore to find it
+            action, base_state = self._explore(obs, state)
+            return action, self._copy_balanced_with(state, base_state)
+
+        # Find best approach cell (adjacent to hub, not in blocked_cells)
+        approach = self._best_approach_cell(state, current_abs, hub_abs)
+        if approach is None:
+            # All adjacent cells blocked - try greedy move toward hub
+            dr = hub_abs[0] - current_abs[0]
+            dc = hub_abs[1] - current_abs[1]
+            if abs(dr) >= abs(dc):
+                direction = "south" if dr > 0 else "north"
+            else:
+                direction = "east" if dc > 0 else "west"
+            return self._starter._action(f"move_{direction}"), state
+
+        if current_abs == approach:
+            # Already adjacent to hub: move directly INTO it to trigger deposit
+            dr = hub_abs[0] - current_abs[0]
+            dc = hub_abs[1] - current_abs[1]
+            if abs(dr) >= abs(dc):
+                direction = "south" if dr > 0 else "north"
+            else:
+                direction = "east" if dc > 0 else "west"
+            logger.debug("agent=%s depositing_into_hub direction=%s", obs.agent_id, direction)
+            return self._starter._action(f"move_{direction}"), state
+
+        # Navigate to approach cell via BFS
+        action, base_state = self._move_toward_target(state, current_abs, approach)
+        return action, self._copy_balanced_with(state, base_state)
+
     def _mine_balanced(self, obs: AgentObservation, state: BalancedMinerState) -> tuple[Action, BalancedMinerState]:
         """Mine targeting the deficit element type for balanced deposits.
 
@@ -177,12 +243,9 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
         state.target_search_steps += 1
 
         if state.target_search_steps <= self._SEARCH_TIMEOUT:
-            # Explore to find target element type
+            # Explore full map to find target element type
             logger.debug("agent=%s searching_for_%s step=%d", obs.agent_id, target_elem, state.target_search_steps)
-            if state.known_hubs:
-                action, base_state = self._explore_near_hub(obs, state)
-            else:
-                action, base_state = self._explore(obs, state)
+            action, base_state = self._explore(obs, state)
             return action, self._copy_balanced_with(state, base_state)
         else:
             # Timeout: fall back to any extractor to ensure deposits happen
@@ -211,18 +274,14 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
             next_state = self._copy_balanced_with(state, base_state)
         elif self._should_deposit_balanced(obs):
             # Balanced load ready: deposit now to craft a heart
-            logger.info("agent=%s balanced_deposit counts=%s", obs.agent_id, self._inventory_counts(obs))
-            action, base_state = self._deposit_to_hub(obs, state)
-            next_state = self._copy_balanced_with(state, base_state)
+            action, next_state = self._deposit_to_hub(obs, state)
             if self._carried_total(obs) == 0:
                 # Deposit completed, reset targets
                 next_state.current_target_element = None
                 next_state.target_search_steps = 0
         elif self._carried_total(obs) >= self._return_load:
             # Full load: deposit regardless of balance (fallback)
-            logger.info("agent=%s full_load_deposit counts=%s", obs.agent_id, self._inventory_counts(obs))
-            action, base_state = self._deposit_to_hub(obs, state)
-            next_state = self._copy_balanced_with(state, base_state)
+            action, next_state = self._deposit_to_hub(obs, state)
         else:
             # Mine targeting deficit element
             action, next_state = self._mine_balanced(obs, state)
