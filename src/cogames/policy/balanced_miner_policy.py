@@ -102,6 +102,13 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
             remembered_hub_col_from_spawn=base.remembered_hub_col_from_spawn,
         )
         self._bind_shared_map_miner(state)
+        # Also bind per-element extractor sets to SharedMap for persistence across deaths
+        sm = self._shared_map
+        if sm is not None:
+            state.known_carbon_extractors = sm.known_carbon_extractors
+            state.known_oxygen_extractors = sm.known_oxygen_extractors
+            state.known_germanium_extractors = sm.known_germanium_extractors
+            state.known_silicon_extractors = sm.known_silicon_extractors
         return state
 
     def _copy_balanced_with(self, state: BalancedMinerState, base: MinerSkillState) -> BalancedMinerState:
@@ -121,11 +128,11 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
             known_hazard_stations=sm.known_hazard_stations if sm else set(base.known_hazard_stations),
             last_pos=base.last_pos,
             last_move_target=base.last_move_target,
-            # Preserve balanced miner specific fields
-            known_carbon_extractors=state.known_carbon_extractors,
-            known_oxygen_extractors=state.known_oxygen_extractors,
-            known_germanium_extractors=state.known_germanium_extractors,
-            known_silicon_extractors=state.known_silicon_extractors,
+            # Preserve balanced miner specific fields (use SharedMap refs if available)
+            known_carbon_extractors=sm.known_carbon_extractors if sm else state.known_carbon_extractors,
+            known_oxygen_extractors=sm.known_oxygen_extractors if sm else state.known_oxygen_extractors,
+            known_germanium_extractors=sm.known_germanium_extractors if sm else state.known_germanium_extractors,
+            known_silicon_extractors=sm.known_silicon_extractors if sm else state.known_silicon_extractors,
             current_target_element=state.current_target_element,
             target_search_steps=state.target_search_steps,
             unreachable_extractors=state.unreachable_extractors,

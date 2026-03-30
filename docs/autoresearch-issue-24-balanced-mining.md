@@ -90,6 +90,42 @@ When all known extractors of a type unreachable, immediately falls back to mine_
 - O deposits still ~8-10 avg (near-hub O not found when enemy O marked unreachable)
 - Reward gap: 0.623 vs target 0.80
 
+### v6-v8: Session 2 findings
+
+2026-03-29: Session 2 began. Key findings:
+
+**Heart crafting mechanics understood:**
+- make_heart handler requires hub has 7 of EACH element (oxygen, carbon, germanium, silicon)
+- Aligner triggers make_heart by moving INTO hub when hub has 0 hearts but 7+ each element
+- get_and_make_heart triggered when hub has 1 heart + 7 each element (best case: give agent heart AND craft)
+- Gear costs drain hub: aligner equip = {C:3,O:1,Ge:1,Si:1} per equip. With 4 aligner equips = 12C consumed!
+- Hub initial C = 9 only. 9 - 12 = -3 C deficit before any mining! Miner must deposit 7+ C just to enable heart crafting.
+
+**Aligner stuck loop (800+ steps) explained:**
+- Hub has 0 hearts + C<7: make_heart can't trigger (not enough C for 7 threshold)
+- Aligner tries hub every step: deposit(fails), get_heart(fails), get_and_make_heart(fails), get_last_heart(fails), make_heart(fails for C<7)
+- Aligner is stuck at hub indefinitely until miner deposits enough C
+
+**v7: avoid_hazards=True in _get_heart**
+- Fixed: when navigating to hub for hearts, avoid other gear stations in BFS path
+- Prevents stuck loops where BFS routes through gear station approach cells
+- Result: seed 0 aligner stuck steps 714->1, reward 0.601->0.609
+
+**v8: SharedMap per-element extractors**
+- Added known_carbon/oxygen/germanium/silicon_extractors to SharedMap
+- Miner's per-element extractor knowledge now persists across death/respawn
+- No measurable reward improvement for seeds 0-4 (those seeds don't have enough miner deaths)
+- Correctness improvement for multi-death scenarios
+
+**5-seed benchmark (seeds 0-4):**
+- v7: avg 0.618 over seeds 0-4
+- High variance: seed 2 = 0.704, seed 7 = 0.46
+
+**Key blockers remaining:**
+1. Carbon deficit: hub C consistently depleted below 7 by gear costs
+2. Low-seed miner failures: miner in bad seeds (6,7) barely deposits
+3. Oxygen bottleneck: only ~10 O per run due to enemy territory
+
 ### v6: Safe search after unreachable extractors
 
 2026-03-29: starting new experiment loop. Want to try: when all known oxygen extractors are marked
