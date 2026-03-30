@@ -202,3 +202,26 @@ from hub, not give up and explore) - or experiment with waiting longer.
 
 ### Starting experiment: avoid-hazards-get-heart
 
+
+## 2026-03-30T05:30: Experiment avoid-hazards-get-heart RESULTS
+
+**Result**: 10-ep avg = **0.813** (new best! +1.9% vs 0.798)
+**Per-episode**: 0.89/0.88/0.74/0.41/0.88/0.86/0.89/0.76/0.80/1.02
+
+**Key finding**: Adding `avoid_hazards=True` to `_get_heart` navigation significantly improves
+performance. Previously agents would lose aligner gear while navigating TO the hub (stepping
+on scrambler stations on the way). With this fix, agents keep their aligner gear more often.
+
+Some episodes improved massively: ep4 +0.18 (0.70→0.88), ep5 +0.08, ep7 +0.12.
+Some episodes slightly worse (ep1 -0.09, ep2 -0.11) - possibly noise from different seeds.
+
+**Metrics**:
+- scrambler.gained = 3.0 (up from 1.75 in baseline - more seeds with scrambler stations on paths)
+- stuck = 138.75 (up from 78.75 - avoid_hazards=True causes more detours, more stuck episodes)
+- seed 45 still 0.41 (unfixable with current approach)
+
+**Next experiments**:
+1. Reduce nav shake threshold from 5 to 3 to fix the increased stuck metric
+2. Try longer BFS search horizon to find hazard-free paths more often
+3. Try progressive refinement: if stuck for N steps in get_heart, try more aggressive avoid
+

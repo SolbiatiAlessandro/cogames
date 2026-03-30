@@ -2,3 +2,9 @@ commit	mission_reward	secondary_rewards	steps	status	description
 92df25b	0.720000	move.failed=1608/align=1.50/cells=21623/stuck=1219	2000	keep	scripted baseline: 4 aligners no SharedMap no nav shake seed=42
 8436577	0.520000	move.failed=1919/align=1.25/cells=6661/stuck=1916	2000	discard	quadrant-hard-bias: hard penalty 1000 for out-of-quadrant cells; agents stuck rushing to far quadrant frontiers; BFS fails
 2a35f4f	0.890000	move.failed=1486/align=1.50/cells=5655/stuck=9.75	2000	keep	SharedMap+NavShake+share_move_blocked=False: shared junction knowledge + nav shake after 5 stuck; +23% over baseline; max_stuck near zero
+63e65dd	0.734000	scrambler.gained=2.0/aligner.gained=6.25/junction.aligned=6.5/stuck=61.5	2000	keep	session2 baseline: 5-ep avg=0.734 (0.82/1.02/0.71/0.41/0.71); cap-move-blocked+unblock-station-approach
+35ffa76	0.758000	scrambler.gained=2.25/aligner.gained=5.75/junction.aligned=6.5/stuck=80.5	2000	keep	avoid-hazards-align-only: BFS with avoid_hazards=True in align_neutral+reclaim nav; +3% vs 5-ep baseline
+3650668	0.798000	scrambler.gained=1.75/aligner.gained=7.0/death=6.0/stuck=78.75	2000	keep	gear-up-timeout+hazard-fallback: gear_up_timeout=150 resets move_blocked; gear_up falls back avoid_hazards=False; 10-ep avg=0.798
+43680b3	0.690000	scrambler.gained=1.25/aligner.gained=5.75/death=6.0/stuck=57.5	2000	discard	avoid-hazards+defend-junction: defend_junction when waiting for hearts; worse 0.690 (agents go far from hub defending)
+aeb1acf	0.796000	scrambler.gained=3.75/aligner.gained=7.0/death=10.0/stuck=133.0	2000	discard	proactive-hazard-marking: mark current cell as hazard on gear change; bug: all cells on path marked; 10-ep same as baseline
+5f297da	0.813000	scrambler.gained=3.0/aligner.gained=7.0/death=10.0/stuck=138.75	2000	keep	avoid-hazards-get-heart: avoid_hazards=True in _get_heart navigation; 10-ep avg=0.813 new best! (+1.9% vs 3650668)
