@@ -173,14 +173,14 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         stuck_threshold: int,
         unstuck_horizon: int,
         shared_map=None,
-        fast_mine_abandon_threshold: int = 3,
+        fast_mine_abandon_threshold: int = 1,
     ) -> None:
         super().__init__(policy_env_info, agent_id, return_load=return_load, shared_map=shared_map)
         self._planner = planner
         self._stuck_threshold = stuck_threshold
         self._unstuck_horizon = unstuck_horizon
         # Fast abandon depleted extractors: after this many steps without inventory increase, move on
-        # Default 3 vs stuck_threshold=20, saves ~17 steps per depleted extractor
+        # Default 1 (immediate abandon) vs stuck_threshold=20, saves ~19 steps per depleted extractor
         self._fast_mine_abandon_threshold = fast_mine_abandon_threshold
 
     def initial_agent_state(self) -> LLMMinerState:
@@ -396,6 +396,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             current_abs = self._current_abs(obs)
             if current_abs in state.known_extractors:
                 state.known_extractors.discard(current_abs)
+                # Also remove from per-element extractor sets so element-aware routing
+                # won't re-target depleted extractors (issue #24)
+                for element_set in state.known_extractors_by_element.values():
+                    element_set.discard(current_abs)
                 self._event(state, f"fast-abandoned depleted extractor at {current_abs} after {state.no_progress_on_target_steps} steps")
             else:
                 self._event(state, f"mine_until_full fast-abandoned after {state.no_progress_on_target_steps} no-progress steps (target not in known_extractors)")
