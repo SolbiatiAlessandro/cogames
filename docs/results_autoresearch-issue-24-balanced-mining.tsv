@@ -10,3 +10,9 @@ b9bbcab	0.653333	same as v8	1000	keep	v9: Per-element search timeout (Si/Ge get 
 62c9fcc	0.652000	Si.dep=4 seed0 C.dep=10 seed1	1000	discard	v10: Focused single-element trips (7C then 7O then 7Ge then 7Si). Worse for seeds with hub needing all 4 elements simultaneously (miner completes fewer full cycles)
 8766034	0.653333	same as v8 seeds0-2 seed6=0.501(was0.469)	1000	keep	v11: Heart timeout+patrol+junction-move-block fix+periodic blocked_cells reset. Seeds 0-2 unchanged. Seed 6 improved 0.469->0.501. Stuck aligners partially fixed
 a2a2c59	0.670333	seed0=0.661(was0.609)+8.5%,seed1=0.646,seed2=0.704	1000	keep	v12: Patrol hub-return pulse every 40 steps. Fixed permanent patrol bug: aligner now periodically re-checks hub for newly-crafted hearts, enabling resumed alignment. avg 0.661/0.646/0.704
+ba25368	0.667333	same as v12	1000	discard	v13: Faster hub-patrol cycle (25/20). avg 0.667. Reverted.
+a03bbdc	0.638000	seed1=0.558	1000	discard	v14: Faster move_blocked reset 30 steps. Catastrophic. Reverted.
+cc72293	0.670333	same as v12	1000	discard	v15: Clear unreachable_extractors. No change. Reverted.
+7243bcb	0.670333	same as v12	1000	discard	v16: Nearby enemy junction priority. No change. Reverted.
+fb94c72	0.670333	same as v12	1000	discard	v17: Junction blacklisting. No change. Reverted.
+8f0ee54	0.670667	seed0=0.662,seed1=0.646,seed2=0.704	1000	keep	v18: Defend friendly junctions when heartless (noop on junction to block recapture). Tiny improvement seed0. avg 0.671.
