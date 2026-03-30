@@ -829,6 +829,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if self._shared_map is not None:
                     self._shared_map.claimed_junctions[self._agent_id] = target_abs
                 self._log_mode(obs, state, "reclaim_junction")
+                # Avoid hazard stations during reclaim navigation too
+                direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
+                if direction is not None:
+                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+                direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
+                if direction is not None:
+                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
                 direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
                 if direction is not None:
                     return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
@@ -867,11 +874,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if self._shared_map is not None:
             self._shared_map.claimed_junctions[self._agent_id] = target_abs
         self._log_mode(obs, state, "align_neutral")
-        # Already have aligner gear - no need to avoid other stations, can't re-equip
+        # Avoid hazard stations even with aligner gear: stepping on them triggers change_gear
+        # which replaces aligner gear with scrambler/miner gear, wasting steps to re-equip.
+        # Fall back to avoid_hazards=False only if no hazard-free path exists.
+        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        # Fallback: path blocked by hazard avoidance; proceed without hazard avoidance
         direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # BFS failed: try optimistic BFS (treat unknown cells as traversable)
         direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
