@@ -78,6 +78,8 @@ class AlignerState(StarterCogState):
     move_blocked_cells: set[Coord] = field(default_factory=set)
     # Junctions permanently skipped after repeated navigation failures
     blacklisted_junctions: set[Coord] = field(default_factory=set)
+    # Navigation shake: consecutive steps where agent didn't move
+    no_move_steps: int = 0
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -92,6 +94,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         shared_map: SharedMap | None = None,
         quadrant_bias: int | None = None,
         repulsion_radius: int = 0,
+        share_move_blocked: bool = True,
+        share_terrain: bool = True,
     ):
         self._starter = StarterCogPolicyImpl(policy_env_info, agent_id, preferred_gear="aligner")
         self._shared_map = shared_map
@@ -100,6 +104,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._quadrant_bias = quadrant_bias
         # Repulsion field radius: minimum desired separation from teammates (0 = disabled)
         self._repulsion_radius = repulsion_radius
+        # Whether to share move_blocked_cells across agents via SharedMap
+        # Set to False when agents can block each other (multi-agent) to avoid contamination
+        self._share_move_blocked = share_move_blocked
+        # Whether to share terrain (known_free_cells, blocked_cells) via SharedMap
+        # Set to False for independent exploration (better coverage diversity)
+        self._share_terrain = share_terrain
         self._team_tag = self._tag_id("team:cogs")
         self._net_tag = self._tag_id("net:cogs")
         self._enemy_team_tag = self._tag_id("team:clips")
@@ -138,14 +148,32 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                     names.add(object_name)
         return self._starter._resolve_tag_ids(sorted(names))
 
-    def _bind_shared_map(self, state: AlignerState) -> None:
-        """Point state's map fields at the SharedMap sets so all agents share one map."""
+    def _bind_shared_map(
+        self,
+        state: AlignerState,
+        share_move_blocked: bool = True,
+        share_terrain: bool = True,
+    ) -> None:
+        """Point state's map fields at the SharedMap sets so all agents share one map.
+
+        share_move_blocked: if True (default), share move_blocked_cells across agents.
+        Set to False when agents can physically block each other's paths (multi-agent),
+        to prevent temporary blocking from contaminating all agents' navigation.
+
+        share_terrain: if True (default), share known_free_cells and blocked_cells.
+        Set to False to allow independent terrain exploration while sharing structure knowledge.
+        Independent terrain exploration increases coverage diversity; shared terrain enables
+        faster BFS for all agents. Trade-off depends on map layout and agent count.
+        """
         sm = self._shared_map
         if sm is None:
             return
-        state.known_free_cells = sm.known_free_cells
-        state.blocked_cells = sm.blocked_cells
-        state.move_blocked_cells = sm.move_blocked_cells
+        if share_terrain:
+            state.known_free_cells = sm.known_free_cells
+            state.blocked_cells = sm.blocked_cells
+        if share_move_blocked and share_terrain:
+            state.move_blocked_cells = sm.move_blocked_cells
+        # Always share structure knowledge (junctions, hubs, stations)
         state.known_hubs = sm.known_hubs
         state.known_aligner_stations = sm.known_aligner_stations
         state.known_neutral_junctions = sm.known_neutral_junctions
@@ -159,7 +187,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             wander_direction_index=starter_state.wander_direction_index,
             wander_steps_remaining=starter_state.wander_steps_remaining,
         )
-        self._bind_shared_map(state)
+        self._bind_shared_map(
+            state,
+            share_move_blocked=self._share_move_blocked,
+            share_terrain=self._share_terrain,
+        )
         return state
 
     def _spawn_offset(self, obs: AgentObservation) -> Coord:
@@ -381,16 +413,20 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         sign_row, sign_col = self._QUADRANT_SIGNS[self._quadrant_bias]
         return (sign_row * cell[0] >= 0) and (sign_col * cell[1] >= 0)
 
-    def _quadrant_distance_bonus(self, cell: Coord) -> float:
+    def _quadrant_distance_bonus(self, cell: Coord, base_distance: float = 0.0) -> float:
         """Return a bonus score (lower is better) for cells in the preferred quadrant.
 
-        Cells in the preferred quadrant get bonus 0, cells outside get +1000.
-        This biases frontier selection toward the assigned quadrant while still
-        allowing agents to explore outside their zone when necessary.
+        Soft bias: adds a fraction of the base_distance for out-of-quadrant cells,
+        so nearby cells outside quadrant can still beat distant cells inside quadrant.
+        In-quadrant bonus: 0. Out-of-quadrant penalty: base_distance * 0.25 (adds 25% distance).
+        This creates a directional preference without forcing agents into far unreachable areas.
         """
         if self._quadrant_bias is None:
             return 0.0
-        return 0.0 if self._in_preferred_quadrant(cell) else 1000.0
+        if self._in_preferred_quadrant(cell):
+            return 0.0
+        # Soft penalty: equivalent to the cell being 25% farther than it actually is
+        return base_distance * 0.25
 
     def _nearest_teammate_distance(self, current_abs: Coord) -> int:
         """Return the Manhattan distance to the nearest teammate.
@@ -558,25 +594,26 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _biased_nearest(self, current_abs: Coord, candidates: set[Coord]) -> Coord | None:
         """Find the nearest frontier cell, biased toward the assigned quadrant and away from teammates.
 
-        Sorting key: (quadrant_out_penalty + repulsion_penalty + distance).
-        Cells in the preferred quadrant are preferred. Cells near teammates are penalized.
+        Uses a soft quadrant bias: adds 50% of the actual distance for out-of-quadrant cells.
+        This means a 10-cell in-quadrant frontier beats a 20-cell out-of-quadrant frontier,
+        but a 5-cell out-of-quadrant frontier still beats a 100-cell in-quadrant frontier.
+        Also penalizes cells near teammates (repulsion field).
         """
         if not candidates:
             return None
-        return min(
-            candidates,
-            key=lambda c: (
-                self._quadrant_distance_bonus(c) + self._repulsion_penalty(c)
-                + abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]),
-                c,
-            ),
-        )
+
+        def _score(c: Coord) -> float:
+            dist = abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])
+            return dist + self._quadrant_distance_bonus(c, base_distance=dist) + self._repulsion_penalty(c)
+
+        return min(candidates, key=lambda c: (_score(c), c))
 
     def _explore_frontier(
         self,
         obs: AgentObservation,
         state: AlignerState,
         frontier_cells: set[Coord],
+        use_bias: bool = False,
     ) -> tuple[Action, AlignerState]:
         self._log_mode(obs, state, "explore")
         current_abs = self._spawn_offset(obs)
@@ -585,8 +622,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        target_abs = self._biased_nearest(current_abs, frontier_cells)
-        action, next_state = self._move_to(state, current_abs, target_abs)
+        # Apply quadrant bias and repulsion only when explicitly requested (during junction exploration)
+        if use_bias and (self._quadrant_bias is not None or self._repulsion_radius > 0):
+            target_abs = self._biased_nearest(current_abs, frontier_cells)
+            action, next_state = self._move_toward_target(state, current_abs, target_abs)
+        else:
+            target_abs = self._nearest_known(current_abs, frontier_cells)
+            action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
     def _explore(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
@@ -627,7 +669,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         return preferred_frontier or frontier
 
     def _explore_for_alignment(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
-        return self._explore_frontier(obs, state, self._alignment_frontier_cells(state))
+        # Use quadrant bias during alignment exploration to spread agents across the map
+        return self._explore_frontier(obs, state, self._alignment_frontier_cells(state), use_bias=True)
 
     def _gear_up(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         self._log_mode(obs, state, "gear_up")
@@ -693,11 +736,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
         alignable = {junction for junction in state.known_neutral_junctions if self._is_alignable(junction, state) and junction not in bl}
-        target_abs = self._nearest_known(current_abs, alignable)
+        # Use quadrant-biased target selection when spatial partitioning is active:
+        # prefer junction in assigned quadrant to spread agents across map
+        if self._quadrant_bias is not None:
+            target_abs = self._biased_nearest(current_abs, alignable)
+        else:
+            target_abs = self._nearest_known(current_abs, alignable)
         if target_abs is None and state.known_enemy_junctions:
             # No neutral targets: try reclaiming enemy junctions (clips-held)
             enemy_alignable = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl}
-            target_abs = self._nearest_known(current_abs, enemy_alignable)
+            if self._quadrant_bias is not None:
+                target_abs = self._biased_nearest(current_abs, enemy_alignable)
+            else:
+                target_abs = self._nearest_known(current_abs, enemy_alignable)
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
@@ -715,6 +766,28 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         current_abs = self._update_map_memory(obs, state)
+
+        # Update no_move_steps counter
+        last_action_move = None
+        for token in obs.tokens:
+            if token.feature.name == "last_action_move":
+                last_action_move = int(token.value)
+                break
+        if last_action_move == 0:
+            state.no_move_steps += 1
+        else:
+            state.no_move_steps = 0
+
+        # Navigation shake: after 5 consecutive blocked moves, every 3rd step try a random direction.
+        # This breaks deadlocks caused by agents blocking each other or BFS ruts.
+        _UNSTUCK_DIRECTIONS = ("north", "east", "south", "west")
+        if state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
+            direction = _UNSTUCK_DIRECTIONS[state.wander_direction_index % len(_UNSTUCK_DIRECTIONS)]
+            state.wander_direction_index = (state.wander_direction_index + 1) % len(_UNSTUCK_DIRECTIONS)
+            action = self._starter._action(f"move_{direction}")
+            state.last_move_target = self._move_target(current_abs, direction)
+            return action, state
+
         if self._current_gear(obs) != "aligner":
             action, state = self._gear_up(obs, state, current_abs)
         elif self._inventory_count(obs, "heart") <= 0:
