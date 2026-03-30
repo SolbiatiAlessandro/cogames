@@ -80,6 +80,10 @@ class AlignerState(StarterCogState):
     blacklisted_junctions: set[Coord] = field(default_factory=set)
     # Navigation shake: consecutive steps where agent didn't move
     no_move_steps: int = 0
+    # Skill timeout tracking: steps since last progress (heart gained or junction aligned)
+    steps_in_phase: int = 0  # steps in current gear/heart/align phase
+    last_heart_count: int = 0  # hearts gained so far (to detect new heart acquisition)
+    last_junction_count: int = 0  # friendly junctions so far (to detect new alignment)
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -733,6 +737,22 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 return True
         return False
 
+    def _nth_nearest(self, current_abs: Coord, candidates: set[Coord], n: int) -> Coord | None:
+        """Find the Nth closest cell (0-indexed) from candidates.
+
+        Used for agent-rank junction selection: agent N targets the Nth closest junction,
+        ensuring different agents target different junctions for parallel alignment.
+        """
+        if not candidates:
+            return None
+        sorted_candidates = sorted(
+            candidates,
+            key=lambda c: (abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]), c),
+        )
+        # Wrap around if n >= len(candidates)
+        idx = n % len(sorted_candidates)
+        return sorted_candidates[idx]
+
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
         alignable = {junction for junction in state.known_neutral_junctions if self._is_alignable(junction, state) and junction not in bl}
@@ -764,6 +784,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    # Timeout threshold (steps) before blacklisting a stuck junction
+    # Only for align phase - gear_up and get_heart no longer have timeouts to prevent explore loops
+    _ALIGN_TIMEOUT = 200   # steps trying to reach a junction before blacklisting
+
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         current_abs = self._update_map_memory(obs, state)
 
@@ -786,7 +810,32 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             state.wander_direction_index = (state.wander_direction_index + 1) % len(_UNSTUCK_DIRECTIONS)
             action = self._starter._action(f"move_{direction}")
             state.last_move_target = self._move_target(current_abs, direction)
+            state.steps_in_phase += 1
             return action, state
+
+        has_aligner = self._current_gear(obs) == "aligner"
+        has_heart = self._inventory_count(obs, "heart") > 0
+        friendly_count = len(state.known_friendly_junctions)
+
+        # Only blacklist stuck junctions in the align phase
+        if has_aligner and has_heart:
+            if friendly_count > state.last_junction_count:
+                state.last_junction_count = friendly_count
+                state.steps_in_phase = 0  # just aligned a junction
+            else:
+                state.steps_in_phase += 1
+                if state.steps_in_phase > self._ALIGN_TIMEOUT:
+                    # Align timed out: blacklist current nearest junction and try another
+                    state.steps_in_phase = 0
+                    bl = state.blacklisted_junctions
+                    alignable = {j for j in state.known_neutral_junctions if self._is_alignable(j, state) and j not in bl}
+                    stuck_junction = self._nearest_known(current_abs, alignable)
+                    if stuck_junction is not None:
+                        state.blacklisted_junctions.add(stuck_junction)
+                        state.known_neutral_junctions.discard(stuck_junction)
+        else:
+            # Reset phase counter when not in align phase
+            state.steps_in_phase = 0
 
         if self._current_gear(obs) != "aligner":
             action, state = self._gear_up(obs, state, current_abs)
