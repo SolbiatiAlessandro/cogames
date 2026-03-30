@@ -90,7 +90,11 @@ class LLMMinerPlannerClient:
         }
         if self._site_url:
             headers["HTTP-Referer"] = self._site_url
-        payload = {
+        # Some models (thinking/reasoning models, free-tier) return content=null with JSON in
+        # markdown fences; response_format=json_object can cause null content in those cases.
+        # Detect thinking models by ":free" suffix or known thinking model names.
+        is_thinking_model = bool(self._model and (":free" in self._model or "thinking" in self._model.lower()))
+        payload: dict = {
             "model": self._model,
             "messages": [
                 {
@@ -103,10 +107,11 @@ class LLMMinerPlannerClient:
                 },
                 {"role": "user", "content": prompt},
             ],
-            "response_format": {"type": "json_object"},
             "temperature": 0.0,
             "max_tokens": 120,
         }
+        if not is_thinking_model:
+            payload["response_format"] = {"type": "json_object"}
         with httpx.Client(timeout=self._timeout_s) as client:
             response = client.post(
                 self._api_url or "https://openrouter.ai/api/v1/chat/completions",
@@ -115,6 +120,11 @@ class LLMMinerPlannerClient:
             )
             response.raise_for_status()
             data = response.json()
+        # Some providers return errors in the body with a 200 status (e.g., free-tier rate limits)
+        if "error" in data and "choices" not in data:
+            error_msg = data["error"].get("message", "unknown error")
+            error_code = data["error"].get("code", "unknown")
+            raise RuntimeError(f"OpenRouter API error {error_code}: {error_msg}")
         choices = data.get("choices")
         if not isinstance(choices, list) or not choices:
             raise RuntimeError("OpenRouter response missing choices")
@@ -132,6 +142,11 @@ class LLMMinerPlannerClient:
             text = "".join(text_parts).strip()
             if text:
                 return text
+        # Fallback: thinking models may put reasoning in the 'reasoning' field when content is null
+        reasoning = message.get("reasoning")
+        if isinstance(reasoning, str) and reasoning.strip():
+            logger.debug("LLM response: content=null, falling back to reasoning field")
+            return reasoning
         raise RuntimeError("OpenRouter response missing non-empty assistant content")
 
 

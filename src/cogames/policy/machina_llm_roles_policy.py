@@ -206,14 +206,25 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         )
         logger.info("agent=%s role=aligner llm_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
         started_at = time.perf_counter()
-        text = self._planner.complete(prompt)
-        latency_ms = (time.perf_counter() - started_at) * 1000.0
-        logger.info(
-            "agent=%s role=aligner llm_response_ms=%.1f llm_response=%s",
-            obs.agent_id,
-            latency_ms,
-            text.replace("\n", " "),
-        )
+        try:
+            text = self._planner.complete(prompt)
+        except Exception as exc:
+            latency_ms = (time.perf_counter() - started_at) * 1000.0
+            logger.warning(
+                "agent=%s role=aligner llm_error_ms=%.1f llm_error=%s — using scripted fallback",
+                obs.agent_id,
+                latency_ms,
+                exc,
+            )
+            text = ""
+        else:
+            latency_ms = (time.perf_counter() - started_at) * 1000.0
+            logger.info(
+                "agent=%s role=aligner llm_response_ms=%.1f llm_response=%s",
+                obs.agent_id,
+                latency_ms,
+                text.replace("\n", " "),
+            )
         skill, reason = _parse_role_skill_choice(text, set(ALIGNER_SKILL_DESCRIPTIONS))
         was_stuck = bool(state.recent_events and ("exited as stuck" in state.recent_events[-1] or "exited as stale" in state.recent_events[-1] or "timed out after" in state.recent_events[-1]))
         if skill is None:
@@ -362,6 +373,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+            # Treat stale exit from get_heart (at hub but no heart acquired) as a timeout
+            # so the "hub likely depleted → defend" override fires correctly
+            if state.current_skill == "get_heart":
+                state.get_heart_timeouts += 1
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 

@@ -1,0 +1,2 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+baseline_no_llm	0.652895	junction.held=5529 junction.gained=6	1000	keep	Baseline: machina_llm_roles with kw.llm_model=None (scripted fallback). Bug fix: LLM error handling added (graceful catch), free model (nemotron-nano-9b:free) supported via removing response_format=json_object for :free models. Novel frontier exploration added to _explore() method.

@@ -337,6 +337,61 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 near_frontier.add(cell)
         return near_frontier or frontier
 
+    def _novel_frontier_target(self, state: AlignerState, current_abs: Coord, frontier_cells: set[Coord]) -> Coord | None:
+        """Select the frontier cell that maximizes information gain (farthest from explored region centroid).
+
+        Implements a simple empowerment proxy: prefer frontiers that are far from the
+        known-explored region. This drives agents toward map corners and unexplored quadrants
+        rather than re-exploring already-known areas.
+
+        Uses a two-step selection:
+        1. Divide the map into quadrants; prefer frontiers in the least-explored quadrant
+        2. Within the preferred quadrant, pick the frontier farthest from the centroid of known_free_cells
+        """
+        if not frontier_cells:
+            return None
+        if not state.known_free_cells:
+            return self._nearest_known(current_abs, frontier_cells)
+
+        # Compute centroid of known free cells (take every Nth cell for performance when large)
+        free_cells = state.known_free_cells
+        if len(free_cells) > 500:
+            # Deterministic sampling: take every Nth cell
+            step = len(free_cells) // 500
+            sample = [c for i, c in enumerate(free_cells) if i % step == 0]
+        else:
+            sample = list(free_cells)
+        centroid_r = sum(c[0] for c in sample) / len(sample)
+        centroid_c = sum(c[1] for c in sample) / len(sample)
+
+        # Count known cells per quadrant using centroid as divider
+        quad_counts = {0: 0, 1: 0, 2: 0, 3: 0}
+        for c in sample:
+            q = (2 if c[0] >= centroid_r else 0) + (1 if c[1] >= centroid_c else 0)
+            quad_counts[q] += 1
+
+        # Pick the quadrant with the fewest explored cells
+        min_quad = min(quad_counts, key=lambda q: quad_counts[q])
+
+        # Find frontier cells in that quadrant
+        preferred_frontier = set()
+        for cell in frontier_cells:
+            q = (2 if cell[0] >= centroid_r else 0) + (1 if cell[1] >= centroid_c else 0)
+            if q == min_quad:
+                preferred_frontier.add(cell)
+
+        target_pool = preferred_frontier if preferred_frontier else frontier_cells
+
+        # Within the target pool, pick the frontier farthest from the centroid (maximizes novelty)
+        best = max(
+            target_pool,
+            key=lambda cell: (
+                abs(cell[0] - centroid_r) + abs(cell[1] - centroid_c),  # farthest from explored centroid
+                -abs(cell[0] - current_abs[0]) - abs(cell[1] - current_abs[1]),  # prefer closer (tiebreak)
+            ),
+        )
+        return best
+
     def _inventory_count(self, obs: AgentObservation, item: str) -> int:
         for token in obs.tokens:
             if token.location != self._starter._center:
@@ -488,6 +543,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         obs: AgentObservation,
         state: AlignerState,
         frontier_cells: set[Coord],
+        use_novelty: bool = False,
     ) -> tuple[Action, AlignerState]:
         self._log_mode(obs, state, "explore")
         current_abs = self._spawn_offset(obs)
@@ -496,12 +552,20 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, frontier_cells)
+        if use_novelty:
+            target_abs = self._novel_frontier_target(state, current_abs, frontier_cells)
+        else:
+            target_abs = self._nearest_known(current_abs, frontier_cells)
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
     def _explore(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
-        return self._explore_frontier(obs, state, self._frontier_cells(state))
+        """Exploration with novelty-driven frontier selection.
+
+        Prefers frontiers in unexplored quadrants over nearby frontiers,
+        driving agents toward map corners and maximizing coverage.
+        """
+        return self._explore_frontier(obs, state, self._frontier_cells(state), use_novelty=True)
 
     def _explore_near_hub(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         frontier_cells = self._frontier_near(state, state.known_hubs, max_anchor_distance=_HUB_SEARCH_DISTANCE)
