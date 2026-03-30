@@ -55,6 +55,9 @@ class SharedMap:
         self.known_enemy_junctions: set[Coord] = set()
         # Agent gear tracking for team coordination
         self.agent_gears: dict[int, str] = {}
+        # Agent position tracking for spatial coordination (repulsion field)
+        # Maps agent_id -> spawn-relative (row, col) position
+        self.agent_positions: dict[int, Coord] = {}
 
 
 @dataclass
@@ -78,9 +81,25 @@ class AlignerState(StarterCogState):
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
-    def __init__(self, policy_env_info: PolicyEnvInterface, agent_id: int, shared_map: SharedMap | None = None):
+    # Quadrant bias constants (spawn-relative row/col directions):
+    # 0 = NW (row<0, col<0), 1 = NE (row<0, col>0), 2 = SW (row>0, col<0), 3 = SE (row>0, col>0)
+    _QUADRANT_SIGNS: tuple[tuple[int, int], ...] = ((-1, -1), (-1, 1), (1, -1), (1, 1))
+
+    def __init__(
+        self,
+        policy_env_info: PolicyEnvInterface,
+        agent_id: int,
+        shared_map: SharedMap | None = None,
+        quadrant_bias: int | None = None,
+        repulsion_radius: int = 0,
+    ):
         self._starter = StarterCogPolicyImpl(policy_env_info, agent_id, preferred_gear="aligner")
         self._shared_map = shared_map
+        # Spatial partitioning: which quadrant this agent prefers for exploration
+        # None = no bias (original behavior), 0-3 = NW/NE/SW/SE
+        self._quadrant_bias = quadrant_bias
+        # Repulsion field radius: minimum desired separation from teammates (0 = disabled)
+        self._repulsion_radius = repulsion_radius
         self._team_tag = self._tag_id("team:cogs")
         self._net_tag = self._tag_id("net:cogs")
         self._enemy_team_tag = self._tag_id("team:clips")
@@ -355,8 +374,61 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         target_set.difference_update(visible_cells)
         target_set.update(current_values)
 
+    def _in_preferred_quadrant(self, cell: Coord) -> bool:
+        """Return True if this cell is in the agent's preferred quadrant."""
+        if self._quadrant_bias is None:
+            return True
+        sign_row, sign_col = self._QUADRANT_SIGNS[self._quadrant_bias]
+        return (sign_row * cell[0] >= 0) and (sign_col * cell[1] >= 0)
+
+    def _quadrant_distance_bonus(self, cell: Coord) -> float:
+        """Return a bonus score (lower is better) for cells in the preferred quadrant.
+
+        Cells in the preferred quadrant get bonus 0, cells outside get +1000.
+        This biases frontier selection toward the assigned quadrant while still
+        allowing agents to explore outside their zone when necessary.
+        """
+        if self._quadrant_bias is None:
+            return 0.0
+        return 0.0 if self._in_preferred_quadrant(cell) else 1000.0
+
+    def _nearest_teammate_distance(self, current_abs: Coord) -> int:
+        """Return the Manhattan distance to the nearest teammate.
+
+        Returns a large number if no teammate positions are known.
+        """
+        if self._shared_map is None or not self._shared_map.agent_positions:
+            return 9999
+        min_dist = 9999
+        agent_id = self._starter._agent_id if hasattr(self._starter, '_agent_id') else -1
+        for aid, pos in self._shared_map.agent_positions.items():
+            if aid == agent_id:
+                continue
+            dist = abs(pos[0] - current_abs[0]) + abs(pos[1] - current_abs[1])
+            if dist < min_dist:
+                min_dist = dist
+        return min_dist
+
+    def _repulsion_penalty(self, cell: Coord) -> float:
+        """Return a large penalty for frontier cells too close to a teammate.
+
+        If repulsion_radius > 0 and a teammate is within that radius of the cell,
+        this cell is penalized to reduce overlap.
+        """
+        if self._repulsion_radius <= 0 or self._shared_map is None:
+            return 0.0
+        for aid, pos in self._shared_map.agent_positions.items():
+            dist = abs(pos[0] - cell[0]) + abs(pos[1] - cell[1])
+            if dist < self._repulsion_radius:
+                return 500.0
+        return 0.0
+
     def _update_map_memory(self, obs: AgentObservation, state: AlignerState) -> Coord:
         current_abs = self._spawn_offset(obs)
+        # Update shared agent position for spatial coordination
+        if self._shared_map is not None:
+            agent_id = self._starter._agent_id if hasattr(self._starter, '_agent_id') else -1
+            self._shared_map.agent_positions[agent_id] = current_abs
 
         # If we tried to move last step but didn't move, the target cell blocks movement.
         # Add to move_blocked_cells (persists across observation updates) so BFS avoids it.
@@ -483,6 +555,23 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return self._safe_wander(state, current_abs)
         return self._move_to(state, current_abs, best_frontier)
 
+    def _biased_nearest(self, current_abs: Coord, candidates: set[Coord]) -> Coord | None:
+        """Find the nearest frontier cell, biased toward the assigned quadrant and away from teammates.
+
+        Sorting key: (quadrant_out_penalty + repulsion_penalty + distance).
+        Cells in the preferred quadrant are preferred. Cells near teammates are penalized.
+        """
+        if not candidates:
+            return None
+        return min(
+            candidates,
+            key=lambda c: (
+                self._quadrant_distance_bonus(c) + self._repulsion_penalty(c)
+                + abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]),
+                c,
+            ),
+        )
+
     def _explore_frontier(
         self,
         obs: AgentObservation,
@@ -496,7 +585,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, frontier_cells)
+        target_abs = self._biased_nearest(current_abs, frontier_cells)
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
