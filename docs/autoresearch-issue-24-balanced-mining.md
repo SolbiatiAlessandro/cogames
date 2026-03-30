@@ -68,3 +68,35 @@ The `machina_llm_roles` policy with `scripted_miners=true` would use LLMMinerPol
 
 ## Experiment Loop
 
+### v3 (50b915f): 0.590 - Element-aware mining with 30-step near-hub search
+
+First real balanced miner: detects which element is lowest in inventory and targets that type's extractor.
+- Si deposits = 1 (still unreachable - only near-hub search, Si far from hub)
+- O deposits = 11, C deposits = 21, Ge deposits = 21
+- Full-map exploration fallback added for when target element not found after timeout
+
+### v4 (1b7b530): 0.603 - Approach-cell hub deposit + full-map exploration
+
+Critical bug fix: Hub is a "blocked object" so BFS returns None when navigating to it directly.
+Fixed by approach-cell strategy: navigate to adjacent free cell then step INTO hub.
+Also switched to full-map _explore for Si discovery (Si too far for near-hub search).
+- Si deposits = 21 (found via full-map explore), but O at (-31,10) is in enemy territory -> miner dies
+
+### v5 (34f4b60): 0.623 - Unreachable extractor tracking
+
+Prevents death loop to enemy oxygen extractor at (-31, 10).
+After 15 steps navigating to same extractor, marks it unreachable.
+When all known extractors of a type unreachable, immediately falls back to mine_until_full.
+- O deposits still ~8-10 avg (near-hub O not found when enemy O marked unreachable)
+- Reward gap: 0.623 vs target 0.80
+
+### v6: Safe search after unreachable extractors
+
+2026-03-29: starting new experiment loop. Want to try: when all known oxygen extractors are marked
+unreachable (e.g., enemy O at -31,10), instead of immediately falling back to mine_until_full,
+do a near-hub _explore_near_hub search for up to 40 steps to try to find a SAFE oxygen extractor.
+The v3 experiment found oxygen via near-hub search, so this should recover safe O.
+Hypothesis: this will increase O deposits from ~8-10 to ~15-20, improving reward from 0.623 toward target 0.80.
+
+Added constant: _SAFE_SEARCH_AFTER_UNREACHABLE = 40
+

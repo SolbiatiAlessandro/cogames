@@ -40,6 +40,8 @@ _NAV_STUCK_TIMEOUT = 15
 _ELEMENTS_LIST = list(ELEMENTS)  # ["carbon", "oxygen", "germanium", "silicon"]
 # Default return load: 4 elements * 7 each = 28
 _DEFAULT_RETURN_LOAD = 28
+# Steps to search near hub for safe alternative extractor when all known extractors are unreachable
+_SAFE_SEARCH_AFTER_UNREACHABLE = 40
 
 
 @dataclass
@@ -270,22 +272,33 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
                     return action, self._copy_balanced_with(replace(state, last_mode="mine_balanced"), base_state)
 
         # No reachable known extractor of target type
-        # If we know extractors exist but all are unreachable, fall back immediately
+        # If we know extractors exist but all are unreachable, do near-hub search then mine_until_full
         if elem_extractors and not (elem_extractors - state.unreachable_extractors):
-            logger.info("agent=%s all_%s_extractors_unreachable falling_back",
-                        obs.agent_id, target_elem)
-            state.target_search_steps = 0
-            action, base_state = self._mine_until_full(obs, state)
-            return action, self._copy_balanced_with(state, base_state)
+            state.target_search_steps += 1
+            if state.target_search_steps <= _SAFE_SEARCH_AFTER_UNREACHABLE:
+                # Search near hub for a safe alternative extractor of target type
+                logger.debug("agent=%s safe_search_%s_after_unreachable step=%d",
+                             obs.agent_id, target_elem, state.target_search_steps)
+                if state.known_hubs:
+                    action, base_state = self._explore_near_hub(obs, state)
+                else:
+                    action, base_state = self._explore(obs, state)
+                return action, self._copy_balanced_with(state, base_state)
+            else:
+                logger.info("agent=%s all_%s_unreachable_fallback",
+                            obs.agent_id, target_elem)
+                state.target_search_steps = 0
+                action, base_state = self._mine_until_full(obs, state)
+                return action, self._copy_balanced_with(state, base_state)
 
-        # Unknown: no known extractor of target type - use full map exploration to find it
+        # Unknown: use full map exploration to find target element type
         state.target_search_steps += 1
         if state.target_search_steps <= self._SEARCH_TIMEOUT:
-            logger.debug("agent=%s searching_for_%s step=%d", obs.agent_id, target_elem, state.target_search_steps)
+            logger.debug("agent=%s searching_%s step=%d", obs.agent_id, target_elem, state.target_search_steps)
             action, base_state = self._explore(obs, state)
             return action, self._copy_balanced_with(state, base_state)
         else:
-            # Timeout: fall back to any extractor to ensure deposits happen
+            # Timeout: fall back to mine_until_full (any element) to ensure deposits happen
             logger.info("agent=%s search_timeout_%s falling_back_to_any search_steps=%d",
                         obs.agent_id, target_elem, state.target_search_steps)
             state.target_search_steps = 0
