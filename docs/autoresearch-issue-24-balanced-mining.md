@@ -272,5 +272,13 @@ This is a good result because it fixes a real bug (permanent patrol loop) and im
 Next: look at what else limits alignment. In seed 1, action.move.failed=533 (agent 0) - still high.
 Also note that Si deposits are very low across all seeds still - silicon is a persistent bottleneck.
 
-## 2026-03-30T04:00: starting new experiment loop v13 - reduce hub return patrol interval
+## 2026-03-30T04:00: v13 (DISCARDED): faster hub-patrol cycle. avg 0.667.
+## 2026-03-30T04:30: v14 (DISCARDED): faster move_blocked reset 30 steps. avg 0.638. Catastrophic seed1.
+## 2026-03-30T05:00: v15 (DISCARDED): clear unreachable_extractors. avg 0.670 same.
+## 2026-03-30T06:00: v16 (DISCARDED): nearby enemy junction priority. avg 0.670 same.
+## 2026-03-30T07:00: v17 (DISCARDED): junction blacklisting. avg 0.670 same.
+
+## 2026-03-30T08:00: starting new experiment loop v18 - defend friendly junctions when heartless
+
+In this experiment: when aligner enters heartless patrol mode, navigate to the nearest FRIENDLY junction and stay on it (prevent clips from walking through via collision). Currently patrol_junctions navigates toward any junction without defending. The LLMAlignerPolicyImpl has a "defend" skill precisely for this. Hypothesis: defended junctions stay friendly longer, improving held time.
 

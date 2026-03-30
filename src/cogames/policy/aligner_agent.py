@@ -655,7 +655,28 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         return action, replace(next_state, last_mode=state.last_mode)
 
     def _navigate_to_any_junction(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
-        """Navigate toward any known junction (friendly, enemy, or neutral) to keep moving."""
+        """Navigate toward and defend friendly junctions when heartless (to prevent clips recapture).
+
+        Priority: defend known friendly junctions (stay on them, preventing clips from walking through).
+        Fallback: navigate toward any junction if no friendly ones known.
+        """
+        # Priority: defend a friendly junction by navigating to it and staying on it
+        if state.known_friendly_junctions:
+            self._log_mode(obs, state, "defend_friendly")
+            target_abs = self._nearest_known(current_abs, state.known_friendly_junctions)
+            if target_abs is not None:
+                if current_abs == target_abs:
+                    # Already on junction: issue noop to stay and block recapture
+                    return self._starter._action(self._starter._fallback_action_name), replace(state, last_mode=state.last_mode)
+                direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
+                if direction is not None:
+                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+                direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
+                if direction is not None:
+                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+                action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+                return action, replace(next_state, last_mode=state.last_mode)
+        # Fallback: patrol toward any known junction
         self._log_mode(obs, state, "patrol_junctions")
         all_junctions = (
             state.known_neutral_junctions
