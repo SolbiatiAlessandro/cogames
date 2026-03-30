@@ -1,2 +1,7 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 baseline	0.390000	Ge.dep=0,C.dep=0,O.dep=0,Si.dep=0,hearts=0,junctions=1.33	1000	keep	Baseline: machina_roles 2A1M scripted - StarterCogPolicyImpl miner never deposits
+50b915f	0.590000	C.dep=21,Ge.dep=21,O.dep=11,Si.dep=1,hearts=1craft,junctions=5	1000	keep	v3: BalancedMinerPolicyImpl element-aware mining with 30-step near-hub search + mine_until_full fallback. Deposits C+Ge+O but Si unreachable (avg over seeds 0 1 2)
+1b7b530	0.603333	C.dep=14,Ge.dep=21,O.dep=10,Si.dep=21,hearts=1craft,junctions=9	1000	keep	v4: Approach-cell hub deposit fix + full-map exploration. Si now found but O in enemy territory causes 1 death (avg 0.66/0.57/0.58)
+34f4b60	0.623333	C.dep=14,Ge.dep=21,O.dep=10,Si.dep=21,junctions=9	1000	keep	v5: Unreachable extractor tracking prevents death loop to O@(-31,10). Fallback to mine_until_full when all known extractors unreachable (avg 0.65/0.64/0.58)
+dd25858	0.651000	C.dep=14,Ge.dep=21,O.dep=10,Si.dep=21,junctions=9 seed42	1000	keep	v6: Safe near-hub search (40 steps) after all extractors of type unreachable. Improves O recovery after enemy-territory mark. avg 0.601/0.647/0.704 seeds 0/1/2
+eb759c8	0.653333	C.dep=10,Ge.dep=10,O.dep=10,Si.dep=4 seed0	1000	keep	v7: Fix aligner hub navigation with avoid_hazards=True for _get_heart. Prevents stuck loops at hub. Aligner[0] max_steps_without_motion 714->1. avg 0.609/0.647/0.704 seeds 0/1/2

@@ -614,7 +614,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
         # avoid_hazards=False: allow traversal through gear stations when aligning junctions.
-        # Gear station avoidance causes BFS failures in maps where junction paths go through station areas.
+        # Gear station avoidance causes BFS to route through longer paths that may lead to stuck loops.
         direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
