@@ -1,0 +1,2 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+baseline	0.390000	Ge.dep=0,C.dep=0,O.dep=0,Si.dep=0,hearts=0,junctions=1.33	1000	keep	Baseline: machina_roles 2A1M scripted - StarterCogPolicyImpl miner never deposits
