@@ -343,6 +343,29 @@ would give more reward per agent than having the miner+4th aligner.
 
 DISCARD - revert to 3A+1M (0.81).
 
+## 2026-03-30T: starting experiment loop - early-deposit when balanced
+
+In this experiment I want to try: deposit early when carrying >= 7 of each element type (28 total).
+
+My hypothesis: If the miner deposits at exactly 7 of each (28 total), each deposit trip triggers
+exactly 1 make_heart cycle. This makes heart production more predictable and faster.
+- Current: deposit at 40 items (~10/element), waiting full load before depositing
+- Proposed: deposit at 28 items (~7/element), triggering make_heart faster
+
+Implementation: When inventory has >= 7 of each element, trigger deposit_to_hub regardless
+of total load (bypass the return_load=40 threshold).
+
+Risk: More frequent hub trips may reduce total elements deposited if travel time increases.
+But the benefit of earlier heart generation could outweigh this.
+
+## 2026-03-30T: 4A no miner baseline check (reference experiment)
+
+To understand the ceiling, let me check what 4A (all aligners, no miner) achieves at 1000 steps.
+The autoresearch_22_march best was 0.92 at 1000 steps (with local LLM). With cloud LLM,
+it might be different. If 4A beats 3A+1M (0.81), it means the miner is hurting us.
+If 4A is similar or worse, then 3A+1M is truly optimal for this config.
+
+
 
 
 
