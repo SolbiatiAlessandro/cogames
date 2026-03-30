@@ -927,24 +927,15 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 # Still within the waiting window: try to get heart
                 action, state = self._get_heart(obs, state, current_abs)
             else:
-                # Hub depleted or too long wait: navigate toward alignable targets so we're positioned
-                # to re-align the moment a heart becomes available.
-                # Priority: enemy junctions (ours that got scrambled) > neutral junctions > explore
-                bl = state.blacklisted_junctions
-                alignable_enemy = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl}
-                alignable_neutral = {j for j in state.known_neutral_junctions if self._is_alignable(j, state) and j not in bl}
-                patrol_targets = alignable_enemy or alignable_neutral
-                if patrol_targets:
-                    target = self._nearest_known(current_abs, patrol_targets)
-                    direction = self._bfs_first_direction(state, current_abs, target, avoid_hazards=False)
-                    if direction is None:
-                        direction = self._bfs_optimistic_direction(state, current_abs, target, avoid_hazards=False)
-                    if direction is not None:
-                        self._log_mode(obs, state, "patrol_target")
-                        action = self._starter._action(f"move_{direction}")
-                        state.last_move_target = self._move_target(current_abs, direction)
-                    else:
-                        action, state = self._explore_for_alignment(obs, state)
+                # Hub depleted or too long wait: explore near hub to stay close for quick heart pickup.
+                # Keep agents near hub (within HUB_SEARCH_DISTANCE) so they grab hearts immediately
+                # when hub refills from extractors. Use _get_heart to keep trying periodically.
+                # Every 50 steps, retry get_heart in case hub refilled; otherwise explore near hub.
+                if state.steps_in_phase % 50 == 0:
+                    # Periodic check: try to get heart in case hub refilled
+                    action, state = self._get_heart(obs, state, current_abs)
+                elif state.known_hubs:
+                    action, state = self._explore_near_hub(obs, state)
                 else:
                     action, state = self._explore_for_alignment(obs, state)
         else:
