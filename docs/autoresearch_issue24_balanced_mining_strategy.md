@@ -220,4 +220,44 @@ Options:
 3. Try forcing the miner to always include some silicon before depositing
    (deposit threshold: only deposit when carrying at least 1 silicon)
 
+## 2026-03-30T (new session starting): autoresearch continuing
+
+Picking up from the fast-extractor-abandon experiment that was written but not run.
+Current best: 0.72 on seed 42. Target: 0.80.
+
+The fast-extractor-abandon experiment code is already committed. Let me run it first,
+then plan next experiments based on the results.
+
+Key hypothesis for fast-extractor-abandon: Miner wastes ~580 steps on depleted extractors.
+Fast abandonment (3 steps vs 20) should enable 2+ deposit trips per episode.
+With 2 trips and balanced elements: 2 make_heart cycles = 2 extra hearts = more alignment time.
+
+## 2026-03-30T: RESULT - fast-extractor-abandon: 0.81 reward (EXCEEDS TARGET!)
+
+Results from fast-extractor-abandon experiment:
+- Mission reward: **0.81** (vs 0.72 previous best = +12.5% improvement!)
+- **EXCEEDS TARGET of >0.80**
+- silicon.deposited: 20 (was 13 before! +54% improvement in silicon deposits!)
+- carbon.deposited: 20 / germanium.deposited: 21 / oxygen.deposited: 21 (well balanced)
+- aligned.junction: 8 (was 6 before = 2 more junctions aligned!)
+- aligned.junction.held: 7091 (was 6190 = +15% more held steps)
+- heart.gained: 2.25/agent
+- heart.withdrawn: 6 total (same as before but distributed across 8 alignments!)
+- status.max_steps_without_motion: 410 (was 590 = miner 30% less stuck!)
+- action timeouts: 6 (vs 2 before, but LLM is actually responding now)
+
+KEY INSIGHT: The fast extractor abandonment (3 steps vs 20) dramatically improved silicon deposits
+because silicon extractors appear to be more spread out / harder to reach in clusters. When the miner
+quickly abandons depleted extractors instead of waiting 20 steps, it explores more of the map and
+finds silicon extractors. More silicon = balanced elements = more make_heart cycles!
+
+The miner now does more deposit trips: max_steps_without_motion dropped from 590 to 410 means
+miner spent 180 fewer steps stuck on depleted extractors.
+
+NEXT EXPERIMENTS to try:
+1. Reduce fast_mine_abandon_threshold even further (1 step instead of 3)?
+2. Remove depleted extractors from per-element known sets when abandoned
+3. Try adding silicon element info to the miner's element-biasing logic
+4. Check if further improvements can be made to the aligner to speed up junction collection
+
 
