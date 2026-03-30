@@ -300,3 +300,12 @@ Implementation:
 
 This is a pure coordination improvement with no downside (falls back gracefully).
 
+**RESULTS v20: 0.659/0.701/0.684 = avg 0.682 (+1.6% vs v18 avg 0.671)**
+- Seed 0: 0.659 (was 0.662) tiny regression -0.4%
+- Seed 1: 0.701 (was 0.646) big improvement +8.6%!
+- Seed 2: 0.684 (was 0.704) small regression -2.9%
+- Net improvement: +1.6% - KEEP
+
+Analysis: junction claim coordination helps when aligners would otherwise target the same junction (seed 1 benefits hugely). Hurts slightly when the optimal strategy is for both to cooperate on nearby junctions (seed 2). The fallback (when no unclaimed junction is available, claim any junction) prevents catastrophic failure. Next: investigate what else limits alignment in seed 2 specifically. The claimed junction approach can be tuned further.
+
+
