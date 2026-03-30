@@ -155,3 +155,26 @@ Implementation:
 - Replace `_SEARCH_TIMEOUT = 80` with dict `_SEARCH_TIMEOUT_BY_ELEMENT = {"carbon": 80, "oxygen": 80, "germanium": 160, "silicon": 160}`
 - Update `_mine_balanced` to use `self._SEARCH_TIMEOUT_BY_ELEMENT.get(target_elem, 80)` instead
 
+**Result v9a: 0.609/0.647/0.704 = avg 0.653** - same as v8! Per-element timeout doesn't help.
+Reason: silicon is limited by miner death (carrying 10 Si but hub only gets 4) rather than search time.
+The miner fills to 28 total (return_load) with only 4 Si because Si extractors are far; miner accumulates C/O/Ge while searching for Si.
+
+**New insight: single-element trips would be better.**
+Instead of balanced trip (7C+7O+7Ge+7Si=28), do separate focused trips:
+- Trip 1: mine only carbon until 7, then deposit
+- Trip 2: mine only oxygen until 7, then deposit
+- Trip 3: mine only germanium until 7, then deposit
+- Trip 4: mine only silicon until 7, then deposit
+- Hub has 7 of each -> make_heart!
+
+This prevents partial deposits (Si.dep=4) because the miner only deposits AFTER getting enough Si.
+Also reduces death risk (smaller load = faster deposit trips = less time in enemy territory).
+
+But wait: if miner focuses ONLY on Si for all 160 steps searching, and Si is in enemy territory, it will die with 0 Si. The partial balanced approach at least gets C/O/Ge deposited which is useful too.
+
+Alternative: **hub element tracking** - track which element the hub needs MOST (compare hub amounts to 7 threshold), and send miner for that element. But we can't observe hub inventory directly from agent POV.
+
+Actually we can track it via our deposits! Each deposit trip deposits ~7 of one element. We can count how many of each we've deposited and infer hub needs.
+
+## 2026-03-30T00:30: starting new experiment - single-element trips with hub tracking
+

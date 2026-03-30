@@ -42,6 +42,10 @@ _ELEMENTS_LIST = list(ELEMENTS)  # ["carbon", "oxygen", "germanium", "silicon"]
 _DEFAULT_RETURN_LOAD = 28
 # Steps to search near hub for safe alternative extractor when all known extractors are unreachable
 _SAFE_SEARCH_AFTER_UNREACHABLE = 40
+# Single-element trip target count (deposit when this many of current element are carried)
+_SINGLE_TRIP_TARGET = 7
+# Cycle order for focused single-element trips (carbon first since it depletes fastest)
+_FOCUSED_TRIP_CYCLE = ["carbon", "oxygen", "germanium", "silicon"]
 
 
 @dataclass
@@ -61,6 +65,8 @@ class BalancedMinerState(MinerSkillState):
     # Navigation tracking: current extractor target and step count
     nav_target_extractor: Coord | None = None
     nav_to_extractor_steps: int = 0
+    # Index into _FOCUSED_TRIP_CYCLE for single-element trip mode
+    trip_element_index: int = 0
 
 
 class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerState]):
@@ -83,6 +89,9 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
         "silicon": 160,
     }
     _SEARCH_TIMEOUT = 80  # fallback for elements not in dict
+    # If True, use focused single-element trips (7 of one element per trip, cycling C->O->Ge->Si)
+    # If False, use balanced mixed trips (7 of each element per trip, return_load=28)
+    _use_focused_trips: bool = False
 
     def __init__(
         self,
@@ -90,14 +99,16 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
         agent_id: int,
         return_load: int = _DEFAULT_RETURN_LOAD,
         shared_map=None,
+        focused_trips: bool = False,
     ) -> None:
         super().__init__(policy_env_info, agent_id, return_load=return_load, shared_map=shared_map)
+        self._use_focused_trips = focused_trips
         # Per-element extractor tag sets
         self._element_extractor_tags: dict[str, set[int]] = {}
         for elem in _ELEMENTS_LIST:
             self._element_extractor_tags[elem] = self._starter._resolve_tag_ids([f"{elem}_extractor"])
-        logger.info("agent=%s BalancedMinerPolicyImpl initialized return_load=%d element_tags=%s",
-                    agent_id, return_load, {e: len(t) for e, t in self._element_extractor_tags.items()})
+        logger.info("agent=%s BalancedMinerPolicyImpl initialized return_load=%d focused_trips=%s element_tags=%s",
+                    agent_id, return_load, focused_trips, {e: len(t) for e, t in self._element_extractor_tags.items()})
 
     def initial_agent_state(self) -> BalancedMinerState:
         base = super().initial_agent_state()
@@ -145,6 +156,7 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
             unreachable_extractors=state.unreachable_extractors,
             nav_target_extractor=state.nav_target_extractor,
             nav_to_extractor_steps=state.nav_to_extractor_steps,
+            trip_element_index=state.trip_element_index,
         )
 
     def _update_element_extractors(self, obs: AgentObservation, state: BalancedMinerState) -> None:
@@ -223,6 +235,84 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
         # Navigate to approach cell via BFS
         action, base_state = self._move_toward_target(state, current_abs, approach)
         return action, self._copy_balanced_with(state, base_state)
+
+    def _mine_focused_trip(self, obs: AgentObservation, state: BalancedMinerState) -> tuple[Action, BalancedMinerState]:
+        """Mine a single element type per trip (focused trips).
+
+        Cycles through elements in _FOCUSED_TRIP_CYCLE order. On each trip, mines
+        _SINGLE_TRIP_TARGET items of the current element, then deposits. After deposit,
+        advances to the next element in the cycle.
+        """
+        if state.last_mode != "mine_focused_trip":
+            logger.info("agent=%s mode=mine_focused_trip", obs.agent_id)
+            state.last_mode = "mine_focused_trip"
+
+        target_elem = _FOCUSED_TRIP_CYCLE[state.trip_element_index % len(_FOCUSED_TRIP_CYCLE)]
+        counts = self._inventory_counts(obs)
+        count_of_target = counts.get(target_elem, 0)
+        current_abs = self._current_abs(obs)
+
+        # If we have enough of the target element OR we have enough total, prepare to deposit
+        # (the deposit is triggered by step_with_state via _should_deposit_focused)
+        logger.debug("agent=%s focused_trip=%s count=%d target=%d", obs.agent_id, target_elem, count_of_target, _SINGLE_TRIP_TARGET)
+
+        # Check if visible extractor of target type
+        visible_target = self._closest_visible_location(obs, self._element_extractor_tags[target_elem])
+        if visible_target is not None:
+            target_abs = self._visible_abs_cell(current_abs, visible_target)
+            elem_extractors = getattr(state, f"known_{target_elem}_extractors")
+            elem_extractors.add(target_abs)
+            state.target_search_steps = 0
+            state.nav_target_extractor = target_abs
+            state.nav_to_extractor_steps = 0
+            action, base_state = self._move_toward_target(state, current_abs, target_abs)
+            return action, self._copy_balanced_with(replace(state, last_mode="mine_focused_trip"), base_state)
+
+        # Navigate to known extractor of target type (excluding unreachable ones)
+        elem_extractors = getattr(state, f"known_{target_elem}_extractors")
+        reachable = elem_extractors - state.unreachable_extractors
+        if reachable:
+            target_abs = self._nearest_known(current_abs, reachable)
+            if target_abs is not None:
+                state.target_search_steps = 0
+                if state.nav_target_extractor == target_abs:
+                    state.nav_to_extractor_steps += 1
+                else:
+                    state.nav_target_extractor = target_abs
+                    state.nav_to_extractor_steps = 1
+                if state.nav_to_extractor_steps > _NAV_STUCK_TIMEOUT:
+                    logger.info("agent=%s marking_%s_unreachable pos=%s steps=%d",
+                                obs.agent_id, target_elem, target_abs, state.nav_to_extractor_steps)
+                    state.unreachable_extractors.add(target_abs)
+                    state.nav_target_extractor = None
+                    state.nav_to_extractor_steps = 0
+                else:
+                    action, base_state = self._move_toward_target(state, current_abs, target_abs)
+                    return action, self._copy_balanced_with(replace(state, last_mode="mine_focused_trip"), base_state)
+
+        # No known extractor: search for it
+        search_timeout = self._SEARCH_TIMEOUT_BY_ELEMENT.get(target_elem, self._SEARCH_TIMEOUT)
+        state.target_search_steps += 1
+        if state.target_search_steps <= search_timeout:
+            logger.debug("agent=%s focused_searching_%s step=%d", obs.agent_id, target_elem, state.target_search_steps)
+            action, base_state = self._explore(obs, state)
+            return action, self._copy_balanced_with(state, base_state)
+        else:
+            # Timeout: skip this element and advance to next one
+            logger.info("agent=%s focused_timeout_%s skipping advance_to_next", obs.agent_id, target_elem)
+            state.trip_element_index = (state.trip_element_index + 1) % len(_FOCUSED_TRIP_CYCLE)
+            state.target_search_steps = 0
+            state.current_target_element = None
+            state.nav_target_extractor = None
+            # Fall back to any extractor to avoid deadlock
+            action, base_state = self._mine_until_full(obs, state)
+            return action, self._copy_balanced_with(state, base_state)
+
+    def _should_deposit_focused(self, obs: AgentObservation, state: BalancedMinerState) -> bool:
+        """Return True if we have enough of the current focused element to deposit."""
+        target_elem = _FOCUSED_TRIP_CYCLE[state.trip_element_index % len(_FOCUSED_TRIP_CYCLE)]
+        counts = self._inventory_counts(obs)
+        return counts.get(target_elem, 0) >= _SINGLE_TRIP_TARGET
 
     def _mine_balanced(self, obs: AgentObservation, state: BalancedMinerState) -> tuple[Action, BalancedMinerState]:
         """Mine targeting the deficit element type for balanced deposits.
@@ -351,6 +441,20 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
         if gear != "miner":
             action, base_state = self._gear_up(obs, state)
             next_state = self._copy_balanced_with(state, base_state)
+        elif self._use_focused_trips:
+            # Focused single-element trip mode
+            if self._should_deposit_focused(obs, state):
+                action, next_state = self._deposit_to_hub(obs, state)
+                if self._carried_total(obs) == 0:
+                    # Deposit completed: advance to next element in cycle
+                    next_state.trip_element_index = (state.trip_element_index + 1) % len(_FOCUSED_TRIP_CYCLE)
+                    next_state.current_target_element = None
+                    next_state.target_search_steps = 0
+                    next_state.nav_target_extractor = None
+                    logger.info("agent=%s focused_deposit_done advance_to=%s",
+                                obs.agent_id, _FOCUSED_TRIP_CYCLE[next_state.trip_element_index % len(_FOCUSED_TRIP_CYCLE)])
+            else:
+                action, next_state = self._mine_focused_trip(obs, state)
         elif self._should_deposit_balanced(obs):
             # Balanced load ready: deposit now to craft a heart
             action, next_state = self._deposit_to_hub(obs, state)
@@ -390,9 +494,11 @@ class MachinaBalancedRolesPolicy(MultiAgentPolicy):
         num_aligners: int | str = 2,
         aligner_ids: str = "",
         return_load: int | str = _DEFAULT_RETURN_LOAD,
+        focused_trips: bool | str = False,
     ):
         super().__init__(policy_env_info, device=device)
         self._return_load = int(return_load)
+        self._focused_trips = bool(focused_trips) if not isinstance(focused_trips, str) else focused_trips.lower() in ("true", "1", "yes")
         self._shared_map = SharedMap()
         n_agents = policy_env_info.num_agents
 
@@ -419,6 +525,7 @@ class MachinaBalancedRolesPolicy(MultiAgentPolicy):
                     agent_id,
                     return_load=self._return_load,
                     shared_map=self._shared_map,
+                    focused_trips=self._focused_trips,
                 )
             self._agent_policies[agent_id] = StatefulAgentPolicy(
                 impl,
