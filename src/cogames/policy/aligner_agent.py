@@ -849,7 +849,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     # Only for align phase - gear_up and get_heart no longer have timeouts to prevent explore loops
     _ALIGN_TIMEOUT = 200   # steps trying to reach a junction before blacklisting
     # How long to wait at hub before giving up and going to defend
-    _HEART_WAIT_TIMEOUT = 150  # steps before switching from get_heart to defend
+    _HEART_WAIT_TIMEOUT = 50  # steps before switching from get_heart to defend/explore
 
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         current_abs = self._update_map_memory(obs, state)
@@ -923,13 +923,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 # Still within the waiting window: try to get heart
                 action, state = self._get_heart(obs, state, current_abs)
             else:
-                # Hub depleted or too long wait: switch to defend/explore
-                if state.known_friendly_junctions:
-                    # Defend the nearest friendly junction (ours or a teammate's)
-                    action, state = self._defend_junction(obs, state, current_abs)
-                else:
-                    # No friendly junctions at all: keep exploring to find junctions
-                    action, state = self._explore_for_alignment(obs, state)
+                # Hub depleted or too long wait: explore near junctions (re-align faster when heart available)
+                # Don't defend (NOOP) — it wastes time since CLIPS can scramble regardless
+                # Instead explore to find/approach junctions so we're ready when hearts refill
+                action, state = self._explore_for_alignment(obs, state)
         else:
             # Have heart: align a neutral junction (will explore if none known)
             action, state = self._align_neutral(obs, state, current_abs)
