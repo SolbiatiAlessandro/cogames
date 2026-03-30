@@ -303,5 +303,24 @@ DECISION: Revert threshold back to 3. Keep the element set removal code as it sh
 
 VERDICT: DISCARD threshold=1. Keep threshold=3 (previous best at 0.81).
 
+## 2026-03-30T: starting new experiment loop - 4A+1M (5 agents, cloud LLM)
+
+In this experiment I want to try: 5 agents total - 4 aligners + 1 scripted miner with cloud LLM.
+
+Key insight: Previous autoresearch_22_march showed 5 agents OOM with LOCAL LLM (GPU memory limit).
+But we're using CLOUD LLM (OpenRouter), so there's NO memory constraint!
+With cloud LLM, we can run 5 agents without any hardware limitation.
+
+My hypothesis: 4A+1M should give us the best of both worlds:
+- 4 aligners (same as autoresearch_22_march best at 1.24) for more junction alignment
+- 1 miner with element-aware mining + fast abandon (our improvements) for heart economy
+- The miner's balanced resource deposits can enable make_heart cycles
+- More aligners = more parallel junction discovery and alignment
+
+Expected outcome: reward > 0.90 (combining 4A alignment power with miner heart economy)
+
+Note: The cloud LLM is responding (~1.5-2.5s latency per call, 4 aligners = ~6-10s per planning cycle)
+
+
 
 
