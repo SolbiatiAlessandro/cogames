@@ -917,21 +917,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if self._current_gear(obs) != "aligner":
             action, state = self._gear_up(obs, state, current_abs)
         elif self._inventory_count(obs, "heart") <= 0:
-            # No heart:
-            # - If we have a personal junction already aligned, defend it immediately.
-            #   This prevents CLIPS from recapturing while we wait at hub.
-            # - Only go get heart if hub has a heart available (first _HEART_WAIT_TIMEOUT steps)
-            if (state.my_junction is not None):
-                # Already aligned a junction - defend it, only briefly try for more hearts
-                if state.steps_in_phase <= self._HEART_WAIT_TIMEOUT:
-                    # Give hub a chance to refill before defending
-                    action, state = self._get_heart(obs, state, current_abs)
-                else:
-                    # Hub depleted or too long wait: defend personal junction
-                    action, state = self._defend_junction(obs, state, current_abs)
-            else:
-                # Haven't aligned yet: keep trying to get heart
+            # No heart: try to get one, but don't spin forever if hub is depleted.
+            # After _HEART_WAIT_TIMEOUT steps without a heart, switch to defend or explore.
+            if state.steps_in_phase <= self._HEART_WAIT_TIMEOUT:
+                # Still within the waiting window: try to get heart
                 action, state = self._get_heart(obs, state, current_abs)
+            else:
+                # Hub depleted or too long wait: switch to defend/explore
+                if state.known_friendly_junctions:
+                    # Defend the nearest friendly junction (ours or a teammate's)
+                    action, state = self._defend_junction(obs, state, current_abs)
+                else:
+                    # No friendly junctions at all: keep exploring to find junctions
+                    action, state = self._explore_for_alignment(obs, state)
         else:
             # Have heart: align a neutral junction (will explore if none known)
             action, state = self._align_neutral(obs, state, current_abs)
