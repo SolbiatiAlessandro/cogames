@@ -67,3 +67,29 @@ which uses scripted miners with LLM aligners. The LLM will timeout and use scrip
 
 ## Experiment Loop
 
+### 2026-03-29T: Experiment 1 - Element-Aware Mining (3A+1M, no scout)
+
+RESULTS: mission_reward=0.72 (vs baseline 0.53, +36% improvement!)
+
+Key metrics:
+- aligned.junction.held: 6190 (vs 4278 baseline, +45% more junction time!)
+- hearts.gained: 2.25/agent (vs 1.5/agent baseline, +50% more hearts!)
+- Element deposits: carbon=21, germanium=21, oxygen=20, silicon=13 (balanced!)
+- Previous 3A+1M+scout run: 0.51 (scout was actually hurting, not helping)
+
+KEY DISCOVERY: The scout (default num_scouts=1) was STEALING the miner role! When setting
+num_aligners=3 without num_scouts=0, agent 3 becomes a scout (not a miner). This wasted
+the miner slot on a scout behavior, reducing alignment from 3 aligners. By explicitly setting
+num_scouts=0, we get 3 aligners and 1 miner - which dramatically outperforms.
+
+ELEMENT BALANCE WORKING: The element-aware mining is producing beautifully balanced deposits.
+All 4 element types are well-represented (13-21 range, ratio ~1.6:1 vs old 30:1).
+This is exactly what make_heart needs (7 of each = 28 total).
+
+ISSUE: The miner still only deposits ~21 per element even though there are 40 oxygen_extractors
+and 33 silicon_extractors on the map. Silicon is lower (13 vs 21) suggesting silicon extractors
+may be slightly harder to reach or the miner switches away from silicon when it's rarest.
+
+NEXT EXPERIMENT IDEA: Try 2A+2M to see if double miner improves hearts even further,
+or try with make_heart skill explicitly triggering when 7 of each are available.
+
