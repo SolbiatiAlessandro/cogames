@@ -260,4 +260,48 @@ NEXT EXPERIMENTS to try:
 3. Try adding silicon element info to the miner's element-biasing logic
 4. Check if further improvements can be made to the aligner to speed up junction collection
 
+## 2026-03-30T: starting new experiment loop - threshold=1 + remove from element set
+
+In this experiment I want to try two changes together:
+1. Reduce fast_mine_abandon_threshold from 3 to 1 step
+2. When abandoning a depleted extractor, also remove it from the per-element set
+   so the miner doesn't revisit it for element-aware targeting
+
+My hypothesis is: Each step saved per depleted extractor = more mining from non-depleted extractors.
+With threshold=1 (vs 3), we save 2 more steps per depleted extractor.
+If there are ~30 depleted extractors encountered per episode, that's 60 more free steps.
+Also, removing from per-element set means element-aware routing will prefer undiscovered
+or non-depleted extractors = even better element balance.
+
+The risk: if we abandon too fast, we might abandon extractors that are just slow to respond
+(not actually depleted). But given the game mechanics (extractors start with 100 units,
+miner takes 10 per use = exactly 10 visits before depletion), and the miner takes 10 per step
+when adjacent, getting 0 on step 1 means the extractor is definitely depleted.
+
+## 2026-03-30T: RESULT - threshold=1: 0.72 reward (WORSE - DISCARD)
+
+Results from threshold=1 experiment:
+- Mission reward: **0.72** (vs 0.81 with threshold=3 - WORSE)
+- silicon.deposited: 13 (BACK to old bad value!)
+- aligned.junction: 2 (only 2 currently held, vs 6 for threshold=3)
+- aligned.junction.held: 6195 (vs 7091 for threshold=3 - WORSE)
+
+ANALYSIS: Threshold=1 is too aggressive. The miner is abandoning valid extractors before
+actually mining them. When no_progress_on_target_steps=1, the miner may have just arrived
+at the extractor but hasn't had enough time for the mine action to fire and show inventory increase.
+With threshold=3, the miner gets 3 steps to:
+1. Navigate to/arrive at extractor (1-2 steps)
+2. Actually mine (1 step, inventory increases)
+Threshold=1 abandons too early.
+
+Also: the element set removal alone (without threshold reduction) may have confused the miner -
+by removing extractors from the per-element set too aggressively, the miner can't find silicon
+targets and falls back to unbalanced mining.
+
+DECISION: Revert threshold back to 3. Keep the element set removal code as it shouldn't hurt
+(depleted extractors shouldn't be in the per-element set anyway).
+
+VERDICT: DISCARD threshold=1. Keep threshold=3 (previous best at 0.81).
+
+
 
