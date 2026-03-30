@@ -923,10 +923,26 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 # Still within the waiting window: try to get heart
                 action, state = self._get_heart(obs, state, current_abs)
             else:
-                # Hub depleted or too long wait: explore near junctions (re-align faster when heart available)
-                # Don't defend (NOOP) — it wastes time since CLIPS can scramble regardless
-                # Instead explore to find/approach junctions so we're ready when hearts refill
-                action, state = self._explore_for_alignment(obs, state)
+                # Hub depleted or too long wait: navigate toward alignable targets so we're positioned
+                # to re-align the moment a heart becomes available.
+                # Priority: enemy junctions (ours that got scrambled) > neutral junctions > explore
+                bl = state.blacklisted_junctions
+                alignable_enemy = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl}
+                alignable_neutral = {j for j in state.known_neutral_junctions if self._is_alignable(j, state) and j not in bl}
+                patrol_targets = alignable_enemy or alignable_neutral
+                if patrol_targets:
+                    target = self._nearest_known(current_abs, patrol_targets)
+                    direction = self._bfs_first_direction(state, current_abs, target, avoid_hazards=False)
+                    if direction is None:
+                        direction = self._bfs_optimistic_direction(state, current_abs, target, avoid_hazards=False)
+                    if direction is not None:
+                        self._log_mode(obs, state, "patrol_target")
+                        action = self._starter._action(f"move_{direction}")
+                        state.last_move_target = self._move_target(current_abs, direction)
+                    else:
+                        action, state = self._explore_for_alignment(obs, state)
+                else:
+                    action, state = self._explore_for_alignment(obs, state)
         else:
             # Have heart: align a neutral junction (will explore if none known)
             action, state = self._align_neutral(obs, state, current_abs)
