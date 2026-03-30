@@ -282,3 +282,21 @@ Also note that Si deposits are very low across all seeds still - silicon is a pe
 
 In this experiment: when aligner enters heartless patrol mode, navigate to the nearest FRIENDLY junction and stay on it (prevent clips from walking through via collision). Currently patrol_junctions navigates toward any junction without defending. The LLMAlignerPolicyImpl has a "defend" skill precisely for this. Hypothesis: defended junctions stay friendly longer, improving held time.
 
+**RESULTS v18: 0.662/0.646/0.704 = avg 0.671 (+0.001 vs v12).** Tiny improvement from defending. Clips don't walk through junctions anyway so collision blocking matters less than expected. Kept since no regression.
+
+## 2026-03-30T09:00: v19 (DISCARDED): Scout support (2A+1S no miner). avg 0.537. Catastrophic - no miner means no element deposits, no hearts crafted.
+
+## 2026-03-30T10:00: starting new experiment loop v20 - aligner junction claim coordination
+
+In this experiment I want to try: prevent two aligners from targeting the same junction simultaneously. Currently both aligners independently compute nearest neutral junction, but since they spawn near each other, they often target the same junction. This wastes time - both agents travel to the same location, one aligns it, the other finds it's already aligned (now friendly, not neutral).
+
+My hypothesis: by adding junction claim coordination via SharedMap, aligner 0 and aligner 1 will target DIFFERENT junctions, effectively doubling throughput per unit time.
+
+Implementation:
+- Add `agent_claimed_junctions: dict[int, Coord | None]` to SharedMap
+- In `_align_neutral`: find other aligners' claimed junctions and exclude them when picking target
+- Fall back to any junction if all unclaimed junctions are exhausted
+- Clear claim when going heartless (free the slot for other aligners)
+
+This is a pure coordination improvement with no downside (falls back gracefully).
+
