@@ -577,7 +577,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
             # Hub is a blocked object; navigate to adjacent approach cell then step into hub
-            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
+            # avoid_hazards=True prevents accidental gear changes via wrong stations on the way
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
@@ -586,7 +587,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if target_abs is None:
             return self._explore(obs, state)
         # Hub known but not visible - navigate to approach cell via BFS/optimistic-BFS/greedy
-        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
+        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
@@ -612,12 +613,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
-        # Already have aligner gear - no need to avoid other stations, can't re-equip
-        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
+        # avoid_hazards=True prevents accidental gear changes via wrong gear stations during navigation
+        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # BFS failed: try optimistic BFS (treat unknown cells as traversable)
-        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
+        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # Last resort: greedy absolute navigation toward known junction position
