@@ -59,8 +59,6 @@ class SharedMap:
         self.agent_gears: dict[int, str] = {}
         # Hub heart withdrawal tracking for make_heart cycle coordination
         self.hub_hearts_withdrawn: int = 0
-        # Shared deposit tracking for coordinated element-balanced mining (issue #24)
-        self.total_deposited_by_element: dict[str, int] = {}
 
 
 @dataclass

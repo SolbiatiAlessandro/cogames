@@ -90,6 +90,46 @@ ISSUE: The miner still only deposits ~21 per element even though there are 40 ox
 and 33 silicon_extractors on the map. Silicon is lower (13 vs 21) suggesting silicon extractors
 may be slightly harder to reach or the miner switches away from silicon when it's rarest.
 
+### 2026-03-29T: Experiment 2 - 2A+2M configuration
+
+Result: 0.63 reward (DISCARD - worse than 3A+1M)
+Deposits: oxygen=40, carbon=20, germanium=20, silicon=1. Two miners interfere: both target same rarest element.
+
+### 2026-03-29T: Experiment 3 - return_load hyperparameter search
+
+Tested return_load = 7, 14, 20, 30 (all worse than default 40):
+- return_load=7: 0.54
+- return_load=14: 0.61
+- return_load=20: 0.61
+- return_load=30: 0.61
+- return_load=40 (default): 0.72 (best)
+
+More items per trip = better efficiency (fewer hub trips = less travel overhead).
+
+### 2026-03-29T: Experiment 4 - Multi-seed analysis
+
+Running 5 episodes (seeds 42-46):
+- Seed 42: 0.72, Seed 43: 0.83, Seed 44: 0.80, Seed 45: 0.52, Seed 46: 0.48
+- Mean: 0.67
+
+KEY FINDING: Seed 46 is the hardest map - baseline 4A gives 0.56 but our 3A+1M gives 0.48.
+The miner hurts on seed 46 because fewer aligners costs more than miner provides.
+Seed 42 (issue evaluation seed) gives 0.72 which is our primary target.
+
+### 2026-03-29T: Next experiment ideas
+
+Tried:
+1. Directional exploration diversity (worse - 0.636 mean)
+2. Defend timeout reduction (minimal effect)
+
+The fundamental bottleneck: on seed 42, the policy is working well but some seeds are difficult.
+Issue target: >0.80 on seed 42. We're getting 0.72 consistently (0.80 in some multi-episode runs).
+
+Focus areas for improvement:
+- The 0.72 on seed 42 is below 0.80 target
+- Need ~11% more junction-held steps (6190 → ~6874)
+- Key: faster initial junction discovery or faster aligner recycling
+
 NEXT EXPERIMENT IDEA: Try 2A+2M to see if double miner improves hearts even further,
 or try with make_heart skill explicitly triggering when 7 of each are available.
 

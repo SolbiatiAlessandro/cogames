@@ -47,14 +47,10 @@ class MinerSkillState(StarterCogState):
     current_target_element: str = ""
     # Steps spent mining the current target element without switching
     target_element_steps: int = 0
-    # Steps spent on current mining trip (since last deposit), for timeout-based early return
-    trip_steps: int = 0
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     """Bounded miner skills plus navigation primitives shared by scripted and LLM-controlled miners."""
-
-    _MAX_TRIP_STEPS = 120  # Force early deposit return if trip takes too long (handles far extractors)
 
     def __init__(self, policy_env_info: PolicyEnvInterface, agent_id: int, return_load: int, shared_map=None):
         self._starter = StarterCogPolicyImpl(policy_env_info, agent_id, preferred_gear="miner")
@@ -291,18 +287,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         # Balance based on total deposited history + current cargo
         # We want to minimize max(deposited+cargo) - min(deposited+cargo) across elements
-        # Use shared deposit totals across all miners if available (better coordination)
-        shared_deposits = (
-            self._shared_map.total_deposited_by_element
-            if self._shared_map is not None and self._shared_map.total_deposited_by_element
-            else state.total_deposited_by_element
-        )
-        if not shared_deposits:
+        # effectively bringing all elements toward the same total
+        if not state.total_deposited_by_element:
             return available_elements[0]
 
         # Effective total = deposited + in-cargo: pick element with least effective total
         effective = {
-            e: shared_deposits.get(e, 0) + inv_counts.get(e, 0)
+            e: state.total_deposited_by_element.get(e, 0) + inv_counts.get(e, 0)
             for e in available_elements
         }
         target = min(available_elements, key=lambda e: effective[e])
@@ -316,16 +307,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         return self._starter._closest_tag_location(obs, tag_ids)
 
     def _update_deposited_elements(self, obs: AgentObservation, state: MinerSkillState) -> None:
-        """Track elements deposited to hub by comparing current inventory to previous step's inventory.
-
-        Updates both local state and SharedMap for coordinated mining across all miners.
-        """
+        """Track elements deposited to hub by comparing current inventory to previous step's inventory."""
         curr_inv = self._inventory_counts(obs)
         if not state.total_deposited_by_element:
             state.total_deposited_by_element = {element: 0 for element in ELEMENTS}
-        # Initialize shared deposit tracking in SharedMap if needed
-        if self._shared_map is not None and not self._shared_map.total_deposited_by_element:
-            self._shared_map.total_deposited_by_element = {element: 0 for element in ELEMENTS}
         prev_inv = state.prev_step_inventory
         for element in ELEMENTS:
             prev = prev_inv.get(element, 0)
@@ -333,14 +318,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if curr < prev:
                 deposited = prev - curr
                 state.total_deposited_by_element[element] = state.total_deposited_by_element.get(element, 0) + deposited
-                # Also update shared map for cross-miner coordination
-                if self._shared_map is not None and self._shared_map.total_deposited_by_element:
-                    self._shared_map.total_deposited_by_element[element] = (
-                        self._shared_map.total_deposited_by_element.get(element, 0) + deposited
-                    )
-                logger.info("agent=%s deposited element=%s amount=%d total_deposited=%s shared_deposited=%s",
-                            obs.agent_id, element, deposited, state.total_deposited_by_element,
-                            self._shared_map.total_deposited_by_element if self._shared_map else {})
+                logger.info("agent=%s deposited element=%s amount=%d total_deposited=%s",
+                            obs.agent_id, element, deposited, state.total_deposited_by_element)
         # Store current inventory for next step's comparison
         state.prev_step_inventory = dict(curr_inv)
 
@@ -610,28 +589,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._update_map_memory(obs, state)
         # Track deposits by comparing to previous step's inventory
         self._update_deposited_elements(obs, state)
-        carried = self._carried_total(obs)
-
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
         if gear != "miner":
-            state.trip_steps = 0  # Reset trip while not mining
             return self._gear_up(obs, state)
 
-        # Track trip steps (reset when cargo is empty, i.e., after deposit)
-        if carried == 0:
-            state.trip_steps = 0
-        else:
-            state.trip_steps += 1
-
-        # Return to hub if cargo full OR trip taking too long with some cargo
-        force_return = (
-            carried >= self._return_load
-            or (state.trip_steps >= self._MAX_TRIP_STEPS and carried > 0)
-        )
-        if force_return:
-            if carried > 0 and state.trip_steps >= self._MAX_TRIP_STEPS:
-                logger.info("agent=%s early_return trip_steps=%d carried=%d",
-                            obs.agent_id, state.trip_steps, carried)
+        if self._carried_total(obs) >= self._return_load:
             return self._deposit_to_hub(obs, state)
 
         # If deposit balance is severely skewed, explore to find new element types
