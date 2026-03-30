@@ -35,6 +35,8 @@ Coord = tuple[int, int]
 
 # How many of each element to target per trip before depositing
 _BALANCED_TARGET_PER_ELEMENT = 7
+# Max steps navigating to same extractor before marking it unreachable
+_NAV_STUCK_TIMEOUT = 15
 _ELEMENTS_LIST = list(ELEMENTS)  # ["carbon", "oxygen", "germanium", "silicon"]
 # Default return load: 4 elements * 7 each = 28
 _DEFAULT_RETURN_LOAD = 28
@@ -52,6 +54,11 @@ class BalancedMinerState(MinerSkillState):
     current_target_element: str | None = None
     # Steps spent looking for target element without finding it
     target_search_steps: int = 0
+    # Extractors that have been tried too long without success (unreachable/dangerous)
+    unreachable_extractors: set[Coord] = field(default_factory=set)
+    # Navigation tracking: current extractor target and step count
+    nav_target_extractor: Coord | None = None
+    nav_to_extractor_steps: int = 0
 
 
 class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerState]):
@@ -119,6 +126,9 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
             known_silicon_extractors=state.known_silicon_extractors,
             current_target_element=state.current_target_element,
             target_search_steps=state.target_search_steps,
+            unreachable_extractors=state.unreachable_extractors,
+            nav_target_extractor=state.nav_target_extractor,
+            nav_to_extractor_steps=state.nav_to_extractor_steps,
         )
 
     def _update_element_extractors(self, obs: AgentObservation, state: BalancedMinerState) -> None:
@@ -217,6 +227,8 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
             deficit_elem = min(_ELEMENTS_LIST, key=lambda e: counts.get(e, 0))
             state.current_target_element = deficit_elem
             state.target_search_steps = 0
+            state.nav_target_extractor = None
+            state.nav_to_extractor_steps = 0
             logger.info("agent=%s target_element=%s counts=%s", obs.agent_id, deficit_elem, counts)
 
         target_elem = state.current_target_element
@@ -228,22 +240,47 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
             target_abs = self._visible_abs_cell(current_abs, visible_target)
             elem_extractors.add(target_abs)
             state.target_search_steps = 0
+            state.nav_target_extractor = target_abs
+            state.nav_to_extractor_steps = 0
             action, base_state = self._move_toward_target(state, current_abs, target_abs)
             return action, self._copy_balanced_with(replace(state, last_mode="mine_balanced"), base_state)
 
-        # Navigate to known extractor of target type
-        if elem_extractors:
-            target_abs = self._nearest_known(current_abs, elem_extractors)
+        # Navigate to known extractor of target type (excluding unreachable ones)
+        reachable = elem_extractors - state.unreachable_extractors
+        if reachable:
+            target_abs = self._nearest_known(current_abs, reachable)
             if target_abs is not None:
                 state.target_search_steps = 0
-                action, base_state = self._move_toward_target(state, current_abs, target_abs)
-                return action, self._copy_balanced_with(replace(state, last_mode="mine_balanced"), base_state)
+                # Track how long we've been navigating to this specific target
+                if state.nav_target_extractor == target_abs:
+                    state.nav_to_extractor_steps += 1
+                else:
+                    state.nav_target_extractor = target_abs
+                    state.nav_to_extractor_steps = 1
+                # If stuck navigating same extractor too long, mark unreachable
+                if state.nav_to_extractor_steps > _NAV_STUCK_TIMEOUT:
+                    logger.info("agent=%s marking_%s_unreachable pos=%s steps=%d",
+                                obs.agent_id, target_elem, target_abs, state.nav_to_extractor_steps)
+                    state.unreachable_extractors.add(target_abs)
+                    state.nav_target_extractor = None
+                    state.nav_to_extractor_steps = 0
+                    # Fall through to search or mine_until_full below
+                else:
+                    action, base_state = self._move_toward_target(state, current_abs, target_abs)
+                    return action, self._copy_balanced_with(replace(state, last_mode="mine_balanced"), base_state)
 
-        # No known extractor of target type - increment search counter
+        # No reachable known extractor of target type
+        # If we know extractors exist but all are unreachable, fall back immediately
+        if elem_extractors and not (elem_extractors - state.unreachable_extractors):
+            logger.info("agent=%s all_%s_extractors_unreachable falling_back",
+                        obs.agent_id, target_elem)
+            state.target_search_steps = 0
+            action, base_state = self._mine_until_full(obs, state)
+            return action, self._copy_balanced_with(state, base_state)
+
+        # Unknown: no known extractor of target type - use full map exploration to find it
         state.target_search_steps += 1
-
         if state.target_search_steps <= self._SEARCH_TIMEOUT:
-            # Explore full map to find target element type
             logger.debug("agent=%s searching_for_%s step=%d", obs.agent_id, target_elem, state.target_search_steps)
             action, base_state = self._explore(obs, state)
             return action, self._copy_balanced_with(state, base_state)
@@ -252,7 +289,6 @@ class BalancedMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[BalancedMinerSt
             logger.info("agent=%s search_timeout_%s falling_back_to_any search_steps=%d",
                         obs.agent_id, target_elem, state.target_search_steps)
             state.target_search_steps = 0
-            # Let current_target_element stay as-is so we know what to look for
             action, base_state = self._mine_until_full(obs, state)
             return action, self._copy_balanced_with(state, base_state)
 
