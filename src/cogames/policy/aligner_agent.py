@@ -61,6 +61,9 @@ class SharedMap:
         # Junction claiming: maps agent_id -> junction coord they are currently heading toward.
         # Other agents skip claimed junctions to avoid clustering on the same target.
         self.claimed_junctions: dict[int, Coord] = {}
+        # Junctions that were previously friendly but became enemy (CLIPS scrambled our junctions).
+        # Shared across all agents so any agent observing a scramble benefits all agents.
+        self.previously_friendly_junctions: set[Coord] = set()
 
 
 @dataclass
@@ -199,6 +202,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         state.known_friendly_junctions = sm.known_friendly_junctions
         state.known_enemy_junctions = sm.known_enemy_junctions
         state.known_hazard_stations = sm.known_hazard_stations
+        # Share previously_friendly_junctions so ANY agent observing a scramble benefits all agents
+        state.previously_friendly_junctions = sm.previously_friendly_junctions
 
     def initial_agent_state(self) -> AlignerState:
         starter_state = self._starter.initial_agent_state()
