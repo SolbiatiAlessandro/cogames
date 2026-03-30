@@ -277,6 +277,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1 and state.known_friendly_junctions:
             reason = f"overrode get_heart to defend after {state.get_heart_timeouts} timeouts (hub likely empty)"
             skill = "defend"
+        # Hub likely depleted: also override explore to defend if get_heart has timed out (was_stuck+explore path)
+        if has_aligner and not has_heart and skill == "explore" and state.get_heart_timeouts >= 1 and state.known_friendly_junctions:
+            reason = f"overrode explore to defend after {state.get_heart_timeouts} get_heart timeouts (hub likely empty)"
+            skill = "defend"
         # Break explore→stuck loop when agent has gear+heart but no known junctions: try unstuck
         if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and was_stuck:
             reason = "overrode explore to unstuck after stuck exit (try escape moves to find junctions)"
@@ -362,6 +366,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+            if state.current_skill == "get_heart":
+                # Stale on hub = hub is empty; count as timeout so defend override can fire
+                state.get_heart_timeouts += 1
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
