@@ -176,5 +176,76 @@ Alternative: **hub element tracking** - track which element the hub needs MOST (
 
 Actually we can track it via our deposits! Each deposit trip deposits ~7 of one element. We can count how many of each we've deposited and infer hub needs.
 
-## 2026-03-30T00:30: starting new experiment - single-element trips with hub tracking
+## 2026-03-30T01:00: v11 aligner improvements - heart timeout + patrol + move_blocked fixes
+
+Started analyzing why aligners get stuck for 700-800 steps in some seeds.
+
+**Key findings:**
+1. Aligner gets stuck at hub approach cell waiting for hearts that never come (hub out of hearts)
+2. The aligner's `move_blocked_cells` gets poisoned by failed hub/junction attempts
+3. Periodic reset of `move_blocked_cells` (every 100 steps) + blocked_cells cleanup helps partially
+4. Junction cells not added to `move_blocked_cells` prevents blocking BFS paths through junction areas
+
+**v11 changes to aligner_agent.py:**
+- `_GET_HEART_TIMEOUT = 50`: after 50 steps waiting for heart, switch to patrol mode
+- `_navigate_to_any_junction()`: navigate to nearest junction (friendly/enemy/neutral) when heartless
+- Junction cells excluded from `move_blocked_cells` tracking (dynamic obstacles)
+- Periodic `move_blocked_cells` + `blocked_cells` reset every 100 steps
+
+**Results:**
+- Seeds 0-2: IDENTICAL to v8/v9 (0.609/0.647/0.704 = avg 0.653)
+- Seeds 3-5: similar to v8/v9 (~0.55-0.58)
+- Seed 6: slight improvement 0.469 -> 0.501 (both aligners still stuck 756/800 steps)
+- Seed 7: similar to v8
+
+**Root cause analysis:**
+The stuck behavior happens when:
+1. Aligner reaches hub approach cell
+2. Hub has no hearts (make_heart not triggered yet)
+3. Aligner tries to move into hub (fails), adds hub to move_blocked_cells (redundant but OK)
+4. With heart timeout (50 steps), aligner switches to patrol_junctions
+5. patrol_junctions calls _navigate_to_any_junction
+6. BFS finds path to nearest junction, but path cells might be blocked by move_blocked_cells accumulated from earlier failures
+7. Greedy fallback picks direction toward junction which is a wall -> move fails
+8. More cells added to move_blocked_cells -> BFS more poisoned
+
+The fix works partially: with junction cells excluded from move_blocked, BFS can route around (not through) junctions. With periodic reset, stale blocks are cleared. But in some seeds (6), the hub area's specific topology traps both aligners.
+
+**Conclusion:** v11 changes give same reward for seeds 0-2 (primary benchmark) and slight improvements for hard seeds. Keeping the changes since they don't hurt and might help.
+
+## 2026-03-30T01:30: shifting focus - what can actually improve reward?
+
+The aligner stuck issue is well-understood but fixing it doesn't improve seeds 0-2 (which are already near their ceiling with current alignment strategy). Need to think about what ELSE can improve reward.
+
+Key observation from seed 2: carbon.deposited=20, oxygen.deposited=20, germanium.deposited=20, silicon.deposited=0 yet reward=0.704. The miner deposited C/O/Ge but no Si in seed 2! And reward is the BEST of all seeds tested. This suggests silicon deposits matter less than alignment.
+
+The aligner is the bottleneck, not the miner. More junctions aligned = more reward. The miner just enables more hearts for aligners.
+
+What limits junction alignment?
+1. Aligners only align 3-4 junctions per episode before losing hearts
+2. Clips recapture junctions faster than aligners can re-align
+3. Hub area access: some aligners get trapped near hub
+
+Possible improvement: **improve how aligners decide which junctions to align**. Currently they go to the nearest neutral junction. Maybe going to a STRATEGIC junction (one that is close to hub/friendly territory AND far from enemy spawn) would hold longer.
+
+Or: **improve aligner recapture of enemy junctions**. After clips take junctions back, aligners should prioritize recapture of recently-lost junctions.
+
+Or: **aligner HP management** - when low HP, retreat to hub area instead of dying and losing gear.
+
+## 2026-03-30T02:00: v12 idea - smarter aligner junction selection
+
+Current: aligner goes to nearest neutral junction
+Problem: some junctions are in bad positions (far from hub, easy for clips to recapture)
+
+Idea: bias toward junctions that are:
+1. Closer to friendly territory (hub/other friendly junctions)
+2. Further from clips' spawn area
+
+Not easy to implement without knowing clips spawn position. Skipping this.
+
+Alternative idea: **track junction hold time** - prefer junctions that we've held before (we know the path, clips don't focus on them as much). But this requires persistent state between trips.
+
+Actually, the simplest improvement: go to 2 junctions at once (if close), hold both longer.
+
+Conclusion: Aligner improvements are hard without knowing enemy spawn positions. Focus on current approach and accept ~0.653 avg for seeds 0-2 as the ceiling.
 

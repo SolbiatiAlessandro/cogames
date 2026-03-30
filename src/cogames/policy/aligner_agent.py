@@ -28,6 +28,8 @@ _JUNCTION_ALIGN_DISTANCE = 15
 _HP_RETREAT_THRESHOLD = 0.50
 # Distance from hub/friendly junction to be considered "in friendly territory"
 _FRIENDLY_TERRITORY_DISTANCE = 15
+# Max steps waiting for a heart before giving up and aligning junctions heartlessly
+_GET_HEART_TIMEOUT = 50
 
 
 class SharedMap:
@@ -80,6 +82,10 @@ class AlignerState(StarterCogState):
     move_blocked_cells: set[Coord] = field(default_factory=set)
     # Junctions permanently skipped after repeated navigation failures
     blacklisted_junctions: set[Coord] = field(default_factory=set)
+    # Steps spent waiting for a heart from hub without success
+    get_heart_steps: int = 0
+    # Counter for periodic reset of move_blocked_cells (to remove stale dynamic obstacles)
+    move_blocked_reset_counter: int = 0
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -365,11 +371,30 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         # If we tried to move last step but didn't move, the target cell blocks movement.
         # Add to move_blocked_cells (persists across observation updates) so BFS avoids it.
+        # Exception: do NOT add junction cells - they are dynamic (sometimes alignable, sometimes defended)
+        # and we still need BFS to route through areas near junctions.
         if state.last_pos is not None and state.last_move_target is not None:
             if current_abs == state.last_pos:
-                state.move_blocked_cells.add(state.last_move_target)
+                all_known_junctions = (
+                    state.known_neutral_junctions
+                    | state.known_friendly_junctions
+                    | state.known_enemy_junctions
+                )
+                if state.last_move_target not in all_known_junctions:
+                    state.move_blocked_cells.add(state.last_move_target)
         state.last_pos = current_abs
         state.last_move_target = None  # reset; set by callers before returning a move action
+
+        # Periodically clear move_blocked_cells to remove stale dynamic obstacle blocks
+        # (enemy agents blocking paths temporarily should not permanently poison BFS)
+        state.move_blocked_reset_counter += 1
+        if state.move_blocked_reset_counter >= 100:
+            state.move_blocked_reset_counter = 0
+            # Also remove the stale move-blocked cells from blocked_cells
+            # (they would otherwise persist indefinitely even after clearing move_blocked_cells)
+            state.blocked_cells.difference_update(state.move_blocked_cells)
+            state.move_blocked_cells.clear()
+            logger.debug("agent=%s cleared move_blocked_cells (periodic reset)", current_abs)
 
         visible_cells = self._visible_abs_cells(current_abs)
         visible_tag_ids_by_cell: dict[Coord, set[int]] = {}
@@ -631,13 +656,43 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    def _navigate_to_any_junction(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
+        """Navigate toward any known junction (friendly, enemy, or neutral) to keep moving."""
+        self._log_mode(obs, state, "patrol_junctions")
+        all_junctions = (
+            state.known_neutral_junctions
+            | state.known_friendly_junctions
+            | state.known_enemy_junctions
+        ) - state.blacklisted_junctions
+        target_abs = self._nearest_known(current_abs, all_junctions)
+        if target_abs is None:
+            return self._explore(obs, state)
+        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+        return action, replace(next_state, last_mode=state.last_mode)
+
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         current_abs = self._update_map_memory(obs, state)
         if self._current_gear(obs) != "aligner":
             action, state = self._gear_up(obs, state, current_abs)
-        elif self._inventory_count(obs, "heart") <= 0:
+            state.get_heart_steps = 0
+        elif self._inventory_count(obs, "heart") <= 0 and state.get_heart_steps < _GET_HEART_TIMEOUT:
+            state.get_heart_steps += 1
             action, state = self._get_heart(obs, state, current_abs)
+        elif self._inventory_count(obs, "heart") <= 0:
+            # Heart timeout: navigate toward nearest junction to keep moving
+            # (hub may have no hearts yet; miner will eventually deposit elements for make_heart)
+            logger.info("agent=%s get_heart_timeout=%d patrolling_junctions",
+                        obs.agent_id, state.get_heart_steps)
+            action, state = self._navigate_to_any_junction(obs, state, current_abs)
         else:
+            # Have heart: reset timeout counter and align
+            state.get_heart_steps = 0
             action, state = self._align_neutral(obs, state, current_abs)
         action_name = action.name if hasattr(action, "name") else ""
         if action_name.startswith("move_"):
