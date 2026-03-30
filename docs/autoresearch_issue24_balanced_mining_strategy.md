@@ -365,6 +365,39 @@ The autoresearch_22_march best was 0.92 at 1000 steps (with local LLM). With clo
 it might be different. If 4A beats 3A+1M (0.81), it means the miner is hurting us.
 If 4A is similar or worse, then 3A+1M is truly optimal for this config.
 
+## 2026-03-30T: new session, continuing experiment loop
+
+Checked 5-episode run status - still running. Looking at existing logs:
+- Aligners waste steps at empty hubs: "get_heart paused at hub after 20 steps, hub empty"
+- Each aligner waits stuck_threshold=20 steps at empty hub before exiting
+- With 3 aligners all trying hub, they waste 60 steps per hub-empty cycle
+
+Key experiments to try:
+1. Reduce get_heart patience specifically (don't touch overall stuck_threshold)
+2. Add hub_hearts count to aligner prompt (but need to know if obs can see hub inventory)
+3. Early-deposit logic correctly in LLMMinerPolicyImpl._scripted_skill_choice
+
+Plan: Implement a `get_heart_patience` parameter in machina_llm_roles_policy.py.
+When get_heart gets no progress for `get_heart_patience` steps (e.g. 6 instead of 20),
+exit faster and explore/align instead. This saves ~14 steps per hub-empty attempt.
+
+Hypothesis: With stuck_threshold=20 for get_heart, 3 aligners waste 60 steps per hub cycle.
+With get_heart_patience=6, only 18 steps wasted. Net savings ~42 steps per hub-empty cycle.
+If hub empties 5 times per episode = 210 steps saved = could be used for alignment.
+
+## 2026-03-30T: starting new experiment - get_heart_patience=6
+
+In this experiment I want to try: reduce get_heart hub-wait from 20 to 6 steps.
+
+Implementation: Add `get_heart_patience` parameter to `LLMAlignerPolicyImpl`.
+When current_skill="get_heart" and near_hub and no_progress_on_target_steps >= get_heart_patience,
+exit sooner so aligner can do other useful work.
+
+My hypothesis: Faster hub-empty detection frees aligners to explore/align more,
+improving junction held steps. The 20-step patience was designed for navigation
+(detect if moving toward hub is blocked), but at the hub, 6 steps is enough to
+know if heart is not available.
+
 
 
 

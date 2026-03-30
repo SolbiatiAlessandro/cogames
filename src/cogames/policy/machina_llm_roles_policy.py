@@ -73,11 +73,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         stuck_threshold: int,
         unstuck_horizon: int,
         shared_map: SharedMap | None = None,
+        get_heart_patience: int | None = None,
     ) -> None:
         super().__init__(policy_env_info, agent_id, shared_map=shared_map)
         self._planner = planner
         self._stuck_threshold = stuck_threshold
         self._unstuck_horizon = unstuck_horizon
+        # How many no-progress steps at hub before giving up on get_heart.
+        # Default: same as stuck_threshold (20). Lower value = faster hub-empty detection.
+        self._get_heart_patience = get_heart_patience if get_heart_patience is not None else stuck_threshold
 
     def initial_agent_state(self) -> LLMAlignerState:
         base = super().initial_agent_state()
@@ -361,12 +365,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
-        elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
-            if state.current_skill == "get_heart":
-                # Use non-stuck message so scripted fallback retries get_heart (hub may refill soon)
-                self._event(state, f"get_heart paused at hub after {state.no_progress_on_target_steps} steps, hub empty")
-            else:
-                self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
+        elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= self._get_heart_patience:
+            # Use non-stuck message so scripted fallback retries get_heart (hub may refill soon)
+            # Faster hub-empty detection with get_heart_patience (default=stuck_threshold=20).
+            self._event(state, f"get_heart paused at hub after {state.no_progress_on_target_steps} steps, hub empty")
+            state.current_skill = None
+        elif state.current_skill not in {None, "gear_up", "get_heart"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+            self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
     def _unstuck(self, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
@@ -498,6 +503,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         llm_responder: Callable[[str], str] | None = None,
         llm_local_model_path: str | None = None,
         scripted_miners: bool | str = False,
+        get_heart_patience: int | str | None = None,
     ):
         super().__init__(policy_env_info, device=device)
         self._scripted_miners = str(scripted_miners).lower() in ("true", "1", "yes")
@@ -535,6 +541,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         self._return_load = int(return_load)
         self._stuck_threshold = int(stuck_threshold)
         self._unstuck_horizon = int(unstuck_horizon)
+        self._get_heart_patience = int(get_heart_patience) if get_heart_patience is not None else None
         self._agent_policies: dict[int, StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]] = {}
 
     def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]:
@@ -547,6 +554,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     stuck_threshold=self._stuck_threshold,
                     unstuck_horizon=self._unstuck_horizon,
                     shared_map=self._shared_map,
+                    get_heart_patience=self._get_heart_patience,
                 )
             elif agent_id in self._scout_ids:
                 # Scouts are offset across the grid so multiple scouts cover
