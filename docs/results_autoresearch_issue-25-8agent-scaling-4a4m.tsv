@@ -7,3 +7,5 @@ dd20aba	0.450000	junction.held=avg seeds42-47 (0.450,0.484,0.368,0.520,0.518,0.3
 dd20aba	0.549000	junction.held=avg seeds42-47 (0.559,0.653,0.337,0.518,0.635,0.590)	1000	discard	machina_llm_roles 5A1S2M return_load=20 fast-fail seeds 42-47 avg - scout still dying
 dd20aba	0.634000	junction.held=avg seeds42-47 (0.475,0.685,0.761,0.511,0.699,0.673)	1000	keep	machina_llm_roles 4A0S4M no-scout return_load=20 fast-fail - HUGE +28% improvement!
 0042a1e	0.645000	junction.held=avg seeds42-47 (0.475,0.685,0.761,0.511,0.699,0.740)	1000	keep	deposit_to_hub timeout extended to 200 steps (was 100) - seed 47 +10%
+af3b8a9	0.663000	junction.held=avg seeds42-47 (0.475,0.685,0.761,0.511,0.699,0.849)	1000	keep	deposit_to_hub timeout loop fix: detect timeout in scripted choice, seed 47 +15%
+0d35166	0.675000	junction.held=avg seeds42-47 (0.475,0.685,0.761,0.580,0.699,0.849)	1000	keep	deposit stale fix: explore when full-cargo+stale, add explore timeout 100s - seeds 45+47 both improved
