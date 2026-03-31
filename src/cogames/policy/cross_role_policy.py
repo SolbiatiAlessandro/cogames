@@ -1211,6 +1211,7 @@ class CrossRolePolicy(MultiAgentPolicy):
         llm_timeout_s: float | str = 10.0,
         llm_responder: Callable[[str], str] | None = None,
         llm_local_model_path: str | None = None,
+        scripted_miners: bool | str = False,
     ):
         super().__init__(policy_env_info, device=device)
         self._shared_map = SharedMap()
@@ -1228,21 +1229,36 @@ class CrossRolePolicy(MultiAgentPolicy):
         self._return_load = int(return_load)
         self._stuck_threshold = int(stuck_threshold)
         self._unstuck_horizon = int(unstuck_horizon)
-        self._agent_policies: dict[int, StatefulAgentPolicy[CrossRoleState]] = {}
+        self._scripted_miners = str(scripted_miners).lower() in ("true", "1", "yes")
+        self._agent_policies: dict[int, StatefulAgentPolicy[CrossRoleState | LLMMinerState]] = {}
 
-    def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[CrossRoleState]:
+    def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[CrossRoleState | LLMMinerState]:
         if agent_id not in self._agent_policies:
-            preferred = "aligner" if agent_id < self._num_aligners else "miner"
-            impl = CrossRolePolicyImpl(
-                self._policy_env_info,
-                agent_id,
-                planner=self._planner,
-                stuck_threshold=self._stuck_threshold,
-                unstuck_horizon=self._unstuck_horizon,
-                return_load=self._return_load,
-                shared_map=self._shared_map,
-                preferred_initial_gear=preferred,
-            )
+            is_miner = agent_id >= self._num_aligners
+            if self._scripted_miners and is_miner:
+                # Issue-25: scripted miners bypass LLM entirely, freeing bandwidth for aligners.
+                # Use LLMMinerPolicyImpl with planner=None for deterministic mine->deposit loops.
+                impl: StatefulPolicyImpl = LLMMinerPolicyImpl(
+                    self._policy_env_info,
+                    agent_id,
+                    planner=None,
+                    return_load=self._return_load,
+                    stuck_threshold=self._stuck_threshold,
+                    unstuck_horizon=self._unstuck_horizon,
+                    shared_map=self._shared_map,
+                )
+            else:
+                preferred = "aligner" if not is_miner else "miner"
+                impl = CrossRolePolicyImpl(
+                    self._policy_env_info,
+                    agent_id,
+                    planner=self._planner,
+                    stuck_threshold=self._stuck_threshold,
+                    unstuck_horizon=self._unstuck_horizon,
+                    return_load=self._return_load,
+                    shared_map=self._shared_map,
+                    preferred_initial_gear=preferred,
+                )
             self._agent_policies[agent_id] = StatefulAgentPolicy(
                 impl,
                 self._policy_env_info,
