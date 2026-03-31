@@ -1,1 +1,9 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+5e085db	0.633	heart.gained=2.33/agent;junction.aligned=2.33/agent	1000	keep	baseline: v16 cross_role 2A1M gemma-3-12b return_load=40 seeds42-44 avg
+5e085db	0.684	heart.gained~3/agent;junction.aligned~3/agent	1000	keep	return_load=10 parameter change: more mining cycles; avg seeds42-46=0.684 vs baseline 0.633; +8% improvement
+5e085db	0.630	similar to baseline	1000	discard	return_load=5: too frequent trips; nav overhead dominates; not better than return_load=10
+5e085db	0.640	similar to baseline	1000	discard	stuck_threshold=10: faster blacklist but also more premature exits; not better
+5e085db	0.627	similar to baseline	1000	discard	stuck_threshold=15: marginally worse than default 20
+c032e13	0.730	heart.withdrawn=6;elements_balanced(21:11:11:12 vs 35:21:6:10);junction.aligned~3/agent	1000	keep	v20: fix element cycling - only advance cycle when cycle element mined; force explore when unknown; avg seeds42-44=0.730 vs baseline 0.633 = +15.3%!
+5e085db	0.690	similar to v20	1000	discard	v21: cycle_target_element hint in LLM prompt; avg seeds42-44=0.690 vs v20=0.730; reverted
+c8bb329	0.687	similar to v20	1000	discard	v22: aligner explore terminates only on junction found (not extractor); avg seeds42-44=0.687 vs v20=0.730; reverted
