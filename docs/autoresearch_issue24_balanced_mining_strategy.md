@@ -453,4 +453,25 @@ silicon extractors = more time mining actual silicon = balanced deposits every r
 Expected outcome: silicon.deposited improves from 11 to 15-20 consistently, leading
 to more make_heart cycles and higher reward (potentially > 0.85).
 
+## 2026-03-30T (session 3): new experiment - 5A+1S+2M configuration
+
+In this experiment I want to try: increase aligners from 4 to 5 (keeping 1 scout + 2 miners).
+
+Rationale from session 3 analysis:
+- Currently: 4A+1S+3M = 4/8 agents earning junction reward → per-agent = 4*aligner_reward/8
+- With 5A+1S+2M: 5/8 agents earning junction reward → per-agent = 5*aligner_reward/8
+- If each aligner earns similar reward (hub economy still works), we get 25% more total junction reward
+- 2 miners still enough for make_heart since 2 miners should deposit 2x elements
+
+My hypothesis: The junction economy with 4 aligners is leaving unrealized potential.
+Adding a 5th aligner increases junction coverage:
+- 5 aligners can hold 5 junctions simultaneously (vs 4)
+- The Clips also capture junctions, so more aligners means faster recapture
+- Hub economy should still work with 2 miners (each deposits ~10 items = 20 total)
+
+Risk: If 2 miners only deposit 20 items total (10 each), may not reach make_heart threshold (7*4=28).
+Could break the heart economy. But initial hearts from hub + any make_heart = still valuable.
+
+Implementation: Pass `num_aligners=5` to machina_llm_roles policy.
+Command: `class=machina_llm_roles,kw.scripted_miners=true,kw.num_aligners=5`
 
