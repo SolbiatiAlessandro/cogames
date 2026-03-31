@@ -358,7 +358,51 @@ of total load (bypass the return_load=40 threshold).
 Risk: More frequent hub trips may reduce total elements deposited if travel time increases.
 But the benefit of earlier heart generation could outweigh this.
 
-## 2026-03-30T (new session 2): continuing experiment loop - get-heart-patience=6 RESULTS
+## 2026-03-30T (new session 2): continuing experiments
+
+### get-heart-patience=6: DISCARD (0.73 avg, vs 0.81 baseline)
+- Created infinite get_heart loop (was_stuck not set by "paused" message)
+- max_steps_without_motion: 1815 (catastrophic vs 410 baseline)
+
+### fix-depleted-extractor-element-sets: DISCARD (0.72 avg, vs 0.81 baseline)
+- Bug: removed depleted extractors from per-element sets but emptied silicon set completely
+- When silicon set empty, miner falls back to any extractor = breaks element-aware routing
+- silicon.gained=10 (same as before, fix made things worse)
+- germanium.gained=10 (dropped from 20!)
+- max_steps_without_motion=1455 (still worse than 0.81)
+
+KEY LEARNING: The 0.81 result (fast-extractor-abandon, ecd621e) relies on delicate balance:
+- Element-aware mining works well WHEN silicon extractors are found
+- The high variance (0.55 to 0.81) comes from map/path randomness, not code bugs
+- The silicon deficit comes from silicon extractors being in harder-to-reach areas
+
+## 2026-03-30T: starting new experiment loop - get-heart-stale-exit
+
+In this experiment I want to try: change get_heart hub-empty exit from "paused" message
+to "stale" message so was_stuck=True and override logic lets aligner EXPLORE instead of
+re-triggering get_heart immediately.
+
+ROOT CAUSE ANALYSIS:
+The 0.81 result wastes ~100 steps per hub-empty cycle per aligner because:
+1. get_heart waits 20 steps (stuck_threshold) → "paused at hub" → was_stuck=False
+2. Override forces get_heart again (was_stuck=False + has_aligner + no_heart + known_hub)
+3. Repeats for ~100 steps total until the 100-step timeout fires "timed out after"
+4. Then was_stuck=True → aligner finally explores
+5. Total waste: ~100 steps per hub-empty event per aligner = ~300 steps for 3 aligners
+
+The fix: change the "paused at hub" message to "exited as stale on target" message.
+This makes was_stuck=True immediately at 20 steps (vs 100 steps previously).
+When LLM then says "explore" (which it correctly does after seeing stale events):
+  - Override won't fire (requires not was_stuck)
+  - Aligner explores, finding new junctions or map area
+Total savings: ~80 steps per hub-empty cycle per aligner (~240 for 3 aligners)
+
+Implementation: In LLMAlignerPolicyImpl._maybe_finish_skill, use "exited as stale"
+message for get_heart (same as all other skills) instead of the special "paused" message.
+
+Hypothesis: Saves ~240 steps per hub-empty event. With ~3 hub-empty events per episode,
+that's ~720 more productive steps, potentially enabling 1 more junction alignment.
+1 more junction = +0.06 reward → target 0.87.
 
 Ran get-heart-patience=6 experiment (2 independent runs of 3 episodes each):
 - Run 1: Episodes 0.72, 0.72, 0.79 (mean ~0.74)

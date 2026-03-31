@@ -365,12 +365,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
-        elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= self._get_heart_patience:
-            # Use non-stuck message so scripted fallback retries get_heart (hub may refill soon)
-            # Faster hub-empty detection with get_heart_patience (default=stuck_threshold=20).
-            self._event(state, f"get_heart paused at hub after {state.no_progress_on_target_steps} steps, hub empty")
-            state.current_skill = None
-        elif state.current_skill not in {None, "gear_up", "get_heart"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+        elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+            # Use "exited as stale" for get_heart too — this sets was_stuck=True which allows
+            # the override logic to let explore proceed (instead of overriding explore→get_heart).
+            # Hub-full: get_heart succeeds before reaching stuck_threshold (no stale fires).
+            # Hub-empty: stale fires, was_stuck=True → aligner explores, saving ~80 steps vs 100-step timeout.
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
