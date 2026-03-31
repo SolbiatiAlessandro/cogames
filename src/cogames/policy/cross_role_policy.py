@@ -290,6 +290,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         shared_map: SharedMap | None = None,
         preferred_initial_gear: str = "",
         phase_switch_step: int = 0,
+        scripted_miners: bool = False,
     ) -> None:
         # Aligner impl handles aligner-specific skills (gear_up aligner station, get_heart, align_neutral)
         self._aligner = AlignerPolicyImpl(policy_env_info, agent_id, shared_map=shared_map)
@@ -302,6 +303,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         self._shared_map = shared_map
         self._preferred_initial_gear = preferred_initial_gear
         self._phase_switch_step = phase_switch_step
+        # Issue-25: scripted miners bypass LLM for miner role (faster, no LLM contention)
+        self._scripted_miners = scripted_miners
         # Store hub_tags for hub visibility check
         self._hub_tags = self._aligner._starter._resolve_tag_ids(["hub"])
 
@@ -526,6 +529,55 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
 
         team_aligners, team_miners = self._team_gear_counts()
         team_size = max(1, len(self._shared_map.agent_gears) if self._shared_map and hasattr(self._shared_map, "agent_gears") else 8)
+
+        # Issue-25: scripted miners bypass LLM entirely for miner-role agents.
+        # This avoids LLM contention at scale and is more reliable than LLM mining.
+        if self._scripted_miners and self._preferred_initial_gear == "miner":
+            was_stuck = bool(
+                state.recent_events and (
+                    "exited as stuck" in state.recent_events[-1]
+                    or "exited as stale" in state.recent_events[-1]
+                    or "timed out after" in state.recent_events[-1]
+                )
+            )
+            was_stale = bool(state.recent_events and "exited as stale" in state.recent_events[-1])
+            if gear != "miner":
+                if was_stuck:
+                    skill = "explore"
+                    reason = "scripted-miner: gear_up stuck, exploring for station"
+                else:
+                    skill = "gear_up_miner"
+                    reason = "scripted-miner: no miner gear"
+            elif carried >= self._return_load:
+                if was_stuck:
+                    skill = "explore"
+                    reason = "scripted-miner: deposit stuck, exploring for route"
+                else:
+                    skill = "deposit_to_hub"
+                    reason = "scripted-miner: cargo full"
+            elif was_stale:
+                skill = "explore"
+                reason = "scripted-miner: stale target, exploring for new extractor"
+            elif was_stuck:
+                skill = "explore"
+                reason = "scripted-miner: stuck, exploring for new route"
+            elif state.known_extractors:
+                skill = "mine_until_full"
+                reason = "scripted-miner: known extractors available"
+            else:
+                skill = "explore"
+                reason = "scripted-miner: no extractors known"
+            state.current_skill = skill
+            state.current_reason = reason
+            state.skill_steps = 0
+            state.no_move_steps = 0
+            state.no_progress_on_target_steps = 0
+            if skill in {"explore", "gear_up_aligner", "gear_up_miner"}:
+                state.explore_start_junctions = len(state.known_neutral_junctions)
+                state.explore_start_extractors = len(state.known_extractors)
+            self._event(state, f"scripted-miner selected {skill}: {reason}")
+            logger.info("agent=%s scripted_miner skill=%s", obs.agent_id, skill)
+            return
 
         # Issue-16: hub depletion awareness
         # Only use cooldown-based blocking (no hard block). After cooldown expires,
@@ -1211,9 +1263,11 @@ class CrossRolePolicy(MultiAgentPolicy):
         llm_timeout_s: float | str = 10.0,
         llm_responder: Callable[[str], str] | None = None,
         llm_local_model_path: str | None = None,
+        scripted_miners: bool | str = False,
     ):
         super().__init__(policy_env_info, device=device)
         self._shared_map = SharedMap()
+        self._scripted_miners = str(scripted_miners).lower() in ("true", "1", "yes")
         self._planner = LLMMinerPlannerClient(
             api_url=llm_api_url,
             model=llm_model,
@@ -1242,6 +1296,7 @@ class CrossRolePolicy(MultiAgentPolicy):
                 return_load=self._return_load,
                 shared_map=self._shared_map,
                 preferred_initial_gear=preferred,
+                scripted_miners=self._scripted_miners,
             )
             self._agent_policies[agent_id] = StatefulAgentPolicy(
                 impl,
