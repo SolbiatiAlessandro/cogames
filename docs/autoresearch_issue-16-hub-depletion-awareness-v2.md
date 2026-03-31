@@ -118,9 +118,26 @@ Best detail: heart.withdrawn=6, elements balanced (21:11:11:12 carbon:oxygen:ger
 
 **Status:** Reverted back to v20.
 
+### 2026-03-31T: Experiment 7 (v23) - Cap silicon explore at N tries, mine-whatever fallback
+
+**Hypothesis:** From trace analysis, the miner was doing 15+ consecutive explores for silicon when silicon extractors couldn't be found. This "silicon explore storm" wastes ~150 steps per episode. Fix: cap at N explores per cycle element, then mine whatever is available (advancing cycle).
+
+**Key finding from trace (seed 42):** Silicon explore storm identified - 15+ explore cycles at end of episode, hub depletes while waiting.
+
+**v23 first attempt (max_cycle_explores=3):** Too aggressive! Seed 43 dropped from 0.78 to 0.55 because silicon was skipped before being found.
+
+**v23b (max_cycle_explores=5):** Better!
+- Seeds 42-46 avg: 0.732 vs v20 0.730 - slight improvement
+- Seed 43: 0.81 (4.0 junctions/agent, 4.0 hearts/agent, silicon.deposited=42, heart.withdrawn=8 = 3 make_hearts!)
+- The silicon explore storm is fixed - silicon IS being found more reliably
+
+**Root cause:** Silicon extractors exist but may be far from spawn. With 5 explore cycles before giving up, the miner has enough time to navigate to silicon areas while not wasting 15+ steps on impossible searches.
+
+**Status:** Keep (v23b, commit 3261dd6)
+
 ---
 
-## Current best: v20 = 0.730 avg (seeds 42-44)
+## Current best: v23b = 0.732 avg (seeds 42-46)
 
 Key metrics from v20:
 - heart.withdrawn=6 in best run (seeds 42-44 avg ~3/agent)
