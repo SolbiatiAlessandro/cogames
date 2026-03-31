@@ -172,6 +172,30 @@ for aligners (hearts come from hub deposits). More miners also means more divers
 
 ---
 
+## 2026-03-31T16:00:00Z: experiment loop 4 - deposit_to_hub timeout loop fix (scripted_choice)
+
+**Problem discovered:** Agent 7 in seed 45 was stuck for 695 steps (70% of game wasted).
+Root cause: deposit_to_hub started, then timed out after 200 steps (our fix from loop 3).
+BUT `_scripted_skill_choice` checked `was_stuck` = "exited as stuck" in last event.
+The timeout exit produces "deposit_to_hub timed out after X steps" NOT "exited as stuck".
+So `was_stuck = False` → `carried_total >= 20` → returned "deposit_to_hub" again → infinite timeout loop.
+
+**Per-agent deposit analysis:**
+- Seed 42 (0.475): agents 6,7 never deposited (silicon+germanium stuck in inventory)
+  - Agent 6: moves=993, silicon.amount=10, germanium.amount=10, zero deposits
+  - Agent 7: moves=977, silicon.amount=20, zero deposits, stuck=21
+- Seed 45 (0.511): agent 7 stuck=695 (nearly whole game), agent 4 never deposited
+- Seed 44 (0.761): all miners depositing well (225 total deposits vs 54/25 in bad seeds)
+
+**Fix applied:** Added `deposit_timed_out` check in `_scripted_skill_choice`:
+- Detect "deposit_to_hub timed out" in last recent event
+- Treat it like `was_stuck` → return "explore" to find hub route
+- Note: does NOT affect gear_up or mine_until_full timeouts (only deposit_to_hub)
+
+**Hypothesis:** Seeds 42/45 have miners far from hub in some layouts. Miners mine 20 items,
+then can't reach hub (200 steps insufficient for very far hub). After timeout, they now explore
+to discover a path to hub, then retry deposit. Should significantly improve seeds 42 and 45.
+
 ## 2026-03-31T00:05:00Z: starting to run baseline
 
 **Command (machina_llm_roles, 4A4M scripted):**

@@ -274,13 +274,19 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         carried_total = self._carried_total(obs)
         was_stuck = state.recent_events and "exited as stuck" in state.recent_events[-1]
         was_stale = state.recent_events and "exited as stale" in state.recent_events[-1]
+        # Issue-25: treat deposit_to_hub timeout as "stuck" so agent explores for hub route
+        # (other timeouts like mine_until_full should NOT trigger explore - they should retry)
+        deposit_timed_out = (
+            state.recent_events
+            and "deposit_to_hub timed out" in state.recent_events[-1]
+        )
         if not has_miner:
             if was_stuck:
                 return "explore", "scripted: gear_up stuck, exploring for station"
             return "gear_up", "scripted: no miner gear"
         if carried_total >= self._return_load:
-            if was_stuck:
-                return "explore", "scripted: deposit stuck, exploring for route"
+            if was_stuck or deposit_timed_out:
+                return "explore", "scripted: deposit stuck/timed-out, exploring for hub route"
             return "deposit_to_hub", "scripted: cargo full"
         if was_stale:
             return "explore", "scripted: stale target, exploring for new extractor"
