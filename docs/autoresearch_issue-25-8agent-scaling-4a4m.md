@@ -74,6 +74,35 @@ I'll start with Option A (machina_llm_roles, scripted_miners=true) since it exis
 - Lower return_load (10-20) means miners return to hub more frequently, depositing minerals faster
 - These two together might push above 0.5/agent avg target
 
+## 2026-03-31T13:00:00Z: MAJOR DISCOVERY - scout was hurting performance!
+
+**Key insight:** The machina_llm_roles default config includes `num_scouts=1`!
+With `num_aligners=4`, agents are: 0-3=aligners, 4=scout, 5-7=miners (actual 4A1S3M).
+With `num_aligners=5`, agents are: 0-4=aligners, 5=scout, 6-7=miners (actual 5A1S2M).
+
+The scout agent eventually dies (hp=0, status.max_steps_without_motion=880+).
+But wait - even dying, it has `cell.visited=22000+` from exploration before death.
+Despite this, **removing the scout and replacing it with an extra miner is hugely better**.
+
+**4A0S4M (num_scouts=0) results:**
+| Config | seed42 | seed43 | seed44 | seed45 | seed46 | seed47 | AVG |
+|---|---|---|---|---|---|---|---|
+| 4A1S3M (baseline, scout=1) | 0.521 | 0.366 | 0.358 | 0.639 | 0.487 | 0.596 | 0.495 |
+| **4A0S4M** | **0.475** | **0.685** | **0.761** | **0.511** | **0.699** | **0.673** | **0.634** |
+
+4A0S4M average = 0.634 (+28% over baseline!)
+Seed 44 went from 0.337→0.761, seed 43 from 0.366→0.685, seed 46 from 0.487→0.699!
+Only seed 45 (0.639→0.511) got slightly worse.
+
+**Hypothesis:** The scout uses exploration but dies early, wasting energy. More miners means more
+carbon/oxygen/silicon/germanium deposits = more reward from mining side + more element support
+for aligners (hearts come from hub deposits). More miners also means more diverse extractor coverage.
+
+**Next experiments:**
+- 5A0S3M (no scout): already ran = 0.497 (worse than 4A0S4M 0.634!)
+- Surprising: 5 aligners + 3 true miners = worse than 4 aligners + 4 true miners
+- 4 miners seems critical - more mining diversity helps more than extra aligner
+
 ## 2026-03-31T12:30:00Z: experiment loop 1 - aligner count sweep
 
 **Hypothesis:** More aligners should improve junction score since aligners score points.
