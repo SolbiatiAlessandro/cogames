@@ -1,1 +1,6 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+dd20aba	0.495000	junction.held=avg seeds42-47 (0.521,0.366,0.358,0.639,0.487,0.596)	1000	keep	machina_llm_roles 4A4M scripted fast-fail seeds 42-47 avg - BASELINE
+9da719f	0.372000	junction.held=avg seeds42-47 (46=0.10,47=0.17 catastrophic)	1000	discard	cross_role scripted_miners 4A4M fast-fail seeds 42-47 avg - aligners fail seeds 46/47
+dd20aba	0.540000	junction.held=avg seeds42-47 (0.564,0.543,0.337,0.614,0.565,0.614)	1000	keep	machina_llm_roles 5A3M scripted fast-fail seeds 42-47 avg - +9% over 4A4M baseline
+dd20aba	0.467000	junction.held=avg seeds42-47 (0.453,0.591,0.430,0.294,0.607,0.429)	1000	discard	machina_llm_roles 6A2M scripted fast-fail seeds 42-47 avg - worse than 4A4M
+dd20aba	0.450000	junction.held=avg seeds42-47 (0.450,0.484,0.368,0.520,0.518,0.362)	1000	discard	machina_llm_roles 3A5M scripted fast-fail seeds 42-47 avg - worse than 4A4M
