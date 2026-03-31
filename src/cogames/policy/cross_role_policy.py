@@ -674,24 +674,26 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 reason = "overrode: already have miner gear, no extractors"
 
         # v20: when miner wants to mine but cycle element has no known extractors, explore first
-        # v23: skip cycle element after too many failed explores (prevents silicon explore storm)
+        # v23: after too many failed explores for cycle element, mine whatever is available
         if skill == "mine_until_full" and gear == "miner":
             from cogames.policy.starter_agent import ELEMENTS as _ELEMS
             cycle_elem = _ELEMS[state.mine_cycle_index % len(_ELEMS)]
             cycle_known = state.extractors_by_element.get(cycle_elem, set()) if hasattr(state, "extractors_by_element") else set()
             if not cycle_known:
-                # v23: if we've explored too many times for this element, skip to next element
-                _MAX_CYCLE_EXPLORES = 3  # max explores before giving up on current cycle element
+                # v23: if we've explored too many times for this element, mine whatever's available
+                _MAX_CYCLE_EXPLORES = 5  # max explores before giving up searching for cycle element
                 if hasattr(state, "mine_cycle_explore_count") and state.mine_cycle_explore_count >= _MAX_CYCLE_EXPLORES:
+                    # Fall through to mine_until_full without cycle constraint (mine nearest extractor)
+                    # Advance cycle so next deposit cycle moves on to next element
                     state.mine_cycle_index = (state.mine_cycle_index + 1) % len(_ELEMS)
-                    state.mine_cycle_explore_count = 0
+                    if hasattr(state, "mine_cycle_explore_count"):
+                        state.mine_cycle_explore_count = 0
                     new_elem = _ELEMS[state.mine_cycle_index % len(_ELEMS)]
-                    reason = f"skipped cycle element {cycle_elem} after {_MAX_CYCLE_EXPLORES} explores; advanced to {new_elem}"
+                    reason = f"gave up on {cycle_elem} after {_MAX_CYCLE_EXPLORES} explores; mining whatever is available; advancing cycle to {new_elem}"
                     self._event(state, reason)
-                    # Now re-check if we need to explore for the new element
-                    cycle_elem = new_elem
-                    cycle_known = state.extractors_by_element.get(cycle_elem, set()) if hasattr(state, "extractors_by_element") else set()
-                if not cycle_known:
+                    logger.info("agent=%s mine_cycle_skip: gave up on %s, advanced to %s", obs.agent_id, cycle_elem, new_elem)
+                    # skill stays as mine_until_full — no cycle override, mine nearest
+                else:
                     # Force explore to find the cycle element's extractors
                     if hasattr(state, "mine_cycle_explore_count"):
                         state.mine_cycle_explore_count += 1
