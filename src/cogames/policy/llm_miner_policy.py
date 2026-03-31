@@ -20,6 +20,9 @@ from mettagrid.simulator.interface import AgentObservation
 logger = logging.getLogger("cogames.policy.llm_miner")
 
 
+_HP_RETREAT_THRESHOLD_MINER = 0.40  # Retreat to hub when HP drops below 40% of max seen
+
+
 @dataclass
 class LLMMinerState(MinerSkillState):
     current_skill: str | None = None
@@ -30,6 +33,9 @@ class LLMMinerState(MinerSkillState):
     last_carried_total: int = 0
     explore_start_extractors: int = 0
     recent_events: list[str] = field(default_factory=list)
+    # HP monitoring for retreat
+    max_hp_seen: int = 0
+    retreating: bool = False
 
 
 class LLMMinerPlannerClient:
@@ -212,6 +218,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             last_carried_total=state.last_carried_total,
             explore_start_extractors=state.explore_start_extractors,
             recent_events=list(state.recent_events),
+            max_hp_seen=state.max_hp_seen,
+            retreating=state.retreating,
         )
 
     def _event(self, state: LLMMinerState, message: str) -> None:
@@ -365,8 +373,12 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
             state.current_skill = None
-        elif state.current_skill in {"gear_up", "mine_until_full", "deposit_to_hub"} and state.skill_steps >= self._stuck_threshold * 5:
+        elif state.current_skill in {"gear_up", "mine_until_full"} and state.skill_steps >= self._stuck_threshold * 5:
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
+            state.current_skill = None
+        # Issue-25: deposit_to_hub gets 10x threshold (200 steps) since hub may be far from extractors
+        elif state.current_skill == "deposit_to_hub" and state.skill_steps >= self._stuck_threshold * 10:
+            self._event(state, f"deposit_to_hub timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
@@ -385,9 +397,61 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._starter._action(f"move_{direction}"), state
 
+    def _read_hp(self, obs: AgentObservation) -> int | None:
+        """Read current HP from observation tokens."""
+        center = self._starter._center
+        for token in obs.tokens:
+            if token.location != center:
+                continue
+            name = token.feature.name
+            if name in ("hp", "energy", "hp:cogs", "hp:agent", "current_hp"):
+                return int(token.value)
+        return None
+
+    def _check_hp_retreat(self, obs: AgentObservation, state: LLMMinerState) -> bool:
+        """Check HP and update retreat state. Returns True if miner should return to hub."""
+        hp = self._read_hp(obs)
+        if hp is None:
+            return False
+        if hp > state.max_hp_seen:
+            state.max_hp_seen = hp
+        if state.max_hp_seen <= 0:
+            return False
+        hp_fraction = hp / state.max_hp_seen
+        # Check if miner is near a hub (safe zone)
+        current_abs = self._current_abs(obs)
+        near_hub = any(
+            abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 5
+            for h in state.known_hubs
+        )
+        if hp_fraction < _HP_RETREAT_THRESHOLD_MINER and not near_hub:
+            if not state.retreating:
+                logger.info("agent=%s miner HP_LOW hp=%d/%d (%.0f%%) retreating to hub",
+                            obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
+                self._event(state, f"HP low ({hp}/{state.max_hp_seen}), retreating to hub")
+                state.retreating = True
+                # Cancel current skill to force deposit_to_hub planning
+                state.current_skill = None
+            return True
+        if state.retreating and (near_hub or hp_fraction > 0.7):
+            state.retreating = False
+        return state.retreating
+
     def step_with_state(self, obs: AgentObservation, state: LLMMinerState) -> tuple[Action, LLMMinerState]:
         self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+
+        # HP safety: retreat to hub if HP is critically low
+        if self._check_hp_retreat(obs, state) and state.known_hubs:
+            action, base_state = self._deposit_to_hub(obs, state)
+            state = self._copy_with(state, base_state)
+            state.skill_steps += 1
+            action_name = action.name if hasattr(action, "name") else ""
+            if action_name.startswith("move_"):
+                current_abs = self._current_abs(obs)
+                direction = action_name[len("move_"):]
+                state.last_move_target = self._move_target(current_abs, direction)
+            return action, state
 
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:

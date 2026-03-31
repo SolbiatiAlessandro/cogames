@@ -53,6 +53,53 @@ I'll start with Option A (machina_llm_roles, scripted_miners=true) since it exis
 
 ---
 
+## 2026-03-31T15:30:00Z: experiment loop 3 - deposit_to_hub timeout bug fix
+
+**Bug found:** `_scripted_skill_choice` and `_maybe_finish_skill` had mismatched timeout detection.
+- deposit_to_hub timed out after 100 steps (`stuck_threshold * 5`)
+- After timeout, `_scripted_skill_choice` returned deposit_to_hub AGAIN (since `was_stuck=False`, timeout not detected)
+- Agent 7 in seed 45 stuck for 712 steps doing repeated deposit timeouts → 712 noops
+
+**Fix tried:**
+1. Add "timed out after" to scripted_skill_choice's `was_stuck` check → Made seed 44 worse (far miners explore instead of retrying deposit)
+2. **Extend deposit_to_hub timeout to 200 steps** (`stuck_threshold * 10`) → +1.7% improvement!
+
+**Deposit 200-step timeout results (seeds 42-47):**
+| Config | seed42 | seed43 | seed44 | seed45 | seed46 | seed47 | AVG |
+|---|---|---|---|---|---|---|---|
+| Baseline 4A0S4M rl20 | 0.475 | 0.685 | 0.761 | 0.511 | 0.699 | 0.673 | 0.634 |
+| **deposit_timeout=200** | **0.475** | **0.685** | **0.761** | **0.511** | **0.699** | **0.740** | **0.645** |
+
+Seed 47: 0.673→0.740 (+10%). All other seeds identical.
+The 200-step timeout gives distant miners enough time to reach the hub.
+
+## 2026-03-31T14:00:00Z: experiment loop 2 - parameter sweeps and contamination fixes
+
+**Experiments tried (all vs 4A0S4M rl20 baseline = 0.634):**
+
+1. **stuck_threshold=10**: 0.554 (WORSE) - too fast, gear_up exits prematurely
+2. **stuck_threshold=15**: 0.574 (WORSE) - still worse than default
+3. **stuck_threshold=20** (default): 0.634 (BEST)
+
+4. **Contamination fix attempt 1** (BFS avoids aligner stations from shared map): 0.619 (WORSE)
+   - Seed 47 jumped from 0.673→0.801 but seed 44 dropped from 0.761→0.494
+   - Miners avoiding aligner station walked into scout station instead!
+   - Concluded: can't avoid just aligner station without all stations in hazard set
+
+5. **Contamination fix attempt 2** (pre-populate ALL station hazards from hub position): 0.574 (MUCH WORSE)
+   - Pre-populating hazard stations before they're in known_free_cells breaks BFS routing
+   - The BFS needs the hazard cell to be in known_free_cells to route around it
+
+**Lessons learned about contamination:**
+- The contamination in seed 42 (agent 5 getting aligner gear) happens during deposit_to_hub, not gear_up
+- The contamination is NOT systematic - only affects a few seeds/agents
+- Fixing contamination requires knowing ALL hazard stations, not just aligner station
+- The shared map's `known_hazard_stations` is populated correctly from agent observations
+- The timing issue: contamination happens before stations are known to be hazards
+- Since contamination only affects 1-2 agents per run (and only in some seeds), the fix overhead is too high
+
+**Decision:** Don't try to fix contamination further. Focus on other improvements.
+
 ## 2026-03-31T12:00:00Z: session 2 starting, reset cross_role experiments, new direction
 
 **Previous session summary:**

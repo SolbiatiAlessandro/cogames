@@ -6,3 +6,4 @@ dd20aba	0.467000	junction.held=avg seeds42-47 (0.453,0.591,0.430,0.294,0.607,0.4
 dd20aba	0.450000	junction.held=avg seeds42-47 (0.450,0.484,0.368,0.520,0.518,0.362)	1000	discard	machina_llm_roles 3A5M scripted fast-fail seeds 42-47 avg - worse than 4A4M
 dd20aba	0.549000	junction.held=avg seeds42-47 (0.559,0.653,0.337,0.518,0.635,0.590)	1000	discard	machina_llm_roles 5A1S2M return_load=20 fast-fail seeds 42-47 avg - scout still dying
 dd20aba	0.634000	junction.held=avg seeds42-47 (0.475,0.685,0.761,0.511,0.699,0.673)	1000	keep	machina_llm_roles 4A0S4M no-scout return_load=20 fast-fail - HUGE +28% improvement!
+HEAD	0.645000	junction.held=avg seeds42-47 (0.475,0.685,0.761,0.511,0.699,0.740)	1000	keep	deposit_to_hub timeout extended to 200 steps (was 100) - seed 47 +10%
