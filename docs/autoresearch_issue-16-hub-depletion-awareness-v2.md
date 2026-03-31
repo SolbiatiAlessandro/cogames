@@ -137,7 +137,7 @@ Best detail: heart.withdrawn=6, elements balanced (21:11:11:12 carbon:oxygen:ger
 
 ---
 
-## Current best: v23b = 0.732 avg (seeds 42-46)
+## Current best: v23b + return_load=7 = 0.744 avg (seeds 42-46), seed43=0.88!
 
 Key metrics from v20:
 - heart.withdrawn=6 in best run (seeds 42-44 avg ~3/agent)

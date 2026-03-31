@@ -9,3 +9,4 @@ c032e13	0.730	heart.withdrawn=6;elements_balanced(21:11:11:12 vs 35:21:6:10);jun
 c8bb329	0.687	similar to v20	1000	discard	v22: aligner explore terminates only on junction found (not extractor); avg seeds42-44=0.687 vs v20=0.730; reverted
 5d83d16	0.630	junction.aligned=2/agent;max_cycle_explores=3 skips too aggressively	1000	discard	v23 (first attempt): max_cycle_explores=3 too aggressive; seed43=0.55 vs v20=0.78; reverted
 3261dd6	0.732	junction.aligned~3.8/agent;heart.gained~3/agent;seed43=0.81(4junctions);silicon.deposited=42	1000	keep	v23b: cap silicon explore at 5 tries; mine-whatever fallback; seeds42-46 avg 0.732 vs v20 0.730; silicon explore storm fixed
+3261dd6	0.744	seed43=0.88;seed45=0.78;seed42=0.76;junction.aligned~4/agent on good seeds	1000	keep	return_load=7 parameter optimization: 7=make_heart per element threshold; faster make_heart cycles; seeds42-46 avg 0.744 vs v23b 0.732 = +1.6%
