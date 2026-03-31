@@ -555,6 +555,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 else:
                     skill = "deposit_to_hub"
                     reason = "scripted-miner: cargo full"
+            # Issue-25 fix: if stale/stuck with partial cargo, deposit rather than explore
+            # This prevents miners from hoarding resources in inventory when extractors are depleted
+            elif was_stale and carried > 0 and state.known_hubs:
+                skill = "deposit_to_hub"
+                reason = f"scripted-miner: stale with cargo={carried}, depositing partial load"
+            elif was_stuck and carried > 0 and state.known_hubs:
+                skill = "deposit_to_hub"
+                reason = f"scripted-miner: stuck with cargo={carried}, depositing partial load"
             elif was_stale:
                 skill = "explore"
                 reason = "scripted-miner: stale target, exploring for new extractor"
@@ -614,14 +622,17 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         logger.info("agent=%s cross_role_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
         started_at = time.perf_counter()
         text = ""
-        for attempt in range(3):
+        # Issue-25: if timeout is very short (scripted mode), don't retry at all — skip delays
+        _fast_fail = self._planner._timeout_s <= 0.5
+        _max_attempts = 1 if _fast_fail else 3
+        for attempt in range(_max_attempts):
             try:
                 text = self._planner.complete(prompt)
                 break
             except Exception as exc:
                 wait_s = 3.0 * (attempt + 1)
                 logger.warning("agent=%s LLM attempt %d failed (%s), retrying in %.0fs", obs.agent_id, attempt + 1, exc, wait_s)
-                if attempt < 2:
+                if attempt < _max_attempts - 1:
                     time.sleep(wait_s)
         latency_ms = (time.perf_counter() - started_at) * 1000.0
         logger.info(
