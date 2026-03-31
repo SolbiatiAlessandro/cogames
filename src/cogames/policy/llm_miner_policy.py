@@ -285,8 +285,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 return "explore", "scripted: gear_up stuck, exploring for station"
             return "gear_up", "scripted: no miner gear"
         if carried_total >= self._return_load:
-            if was_stuck or deposit_timed_out:
-                return "explore", "scripted: deposit stuck/timed-out, exploring for hub route"
+            if was_stuck or deposit_timed_out or was_stale:
+                return "explore", "scripted: deposit stuck/timed-out/stale, exploring for hub route"
             return "deposit_to_hub", "scripted: cargo full"
         if was_stale:
             return "explore", "scripted: stale target, exploring for new extractor"
@@ -375,6 +375,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.current_skill = None
         elif state.current_skill == "explore" and len(state.known_extractors) > state.explore_start_extractors:
             self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
+            state.current_skill = None
+        # Issue-25: explore timeout so full-cargo miners retry deposit rather than exploring forever
+        elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 5:
+            self._event(state, f"explore timed out after {state.skill_steps} steps without new extractors")
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
