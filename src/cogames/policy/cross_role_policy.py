@@ -759,14 +759,20 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         elif state.current_skill == "deposit_to_hub" and carried == 0:
             self._event(state, "deposit_to_hub completed")
             state.current_skill = None
-        elif state.current_skill == "explore" and (
-            len(state.known_neutral_junctions) > state.explore_start_junctions
-            or len(state.known_extractors) > state.explore_start_extractors
-        ):
+        elif state.current_skill == "explore":
             new_junctions = len(state.known_neutral_junctions) - state.explore_start_junctions
             new_extractors = len(state.known_extractors) - state.explore_start_extractors
-            self._event(state, f"explore completed: +{new_junctions} junctions, +{new_extractors} extractors")
-            state.current_skill = None
+            # v22: for aligners, only terminate explore when new JUNCTION found (not extractor).
+            # Aligners don't benefit from extractor knowledge — terminating explore on extractor
+            # discovery wastes a plan cycle (aligner re-plans, finds no junctions, explores again).
+            # For miners, terminate on either new junction or new extractor (both are useful).
+            if gear == "aligner":
+                should_finish = new_junctions > 0
+            else:
+                should_finish = new_junctions > 0 or new_extractors > 0
+            if should_finish:
+                self._event(state, f"explore completed: +{new_junctions} junctions, +{new_extractors} extractors")
+                state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             # Issue-16: agent got a heart while defending — switch to aligning
             self._event(state, "defend completed: acquired heart, switching to align")
