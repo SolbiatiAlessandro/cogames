@@ -396,15 +396,24 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             current_abs = self._current_abs(obs)
             if current_abs in state.known_extractors:
                 state.known_extractors.discard(current_abs)
-                self._event(state, f"fast-abandoned depleted extractor at {current_abs} after {state.no_progress_on_target_steps} steps")
+                # Also remove from per-element sets to prevent element-aware mining from re-visiting depleted extractors
+                for element_set in state.known_extractors_by_element.values():
+                    element_set.discard(current_abs)
+                self._event(state, f"fast-abandoned depleted extractor at {current_abs} after {state.no_progress_on_target_steps} steps (removed from all element sets)")
             else:
+                # Position not in known_extractors but still possibly in element sets — clean up
+                for element_set in state.known_extractors_by_element.values():
+                    element_set.discard(current_abs)
                 self._event(state, f"mine_until_full fast-abandoned after {state.no_progress_on_target_steps} no-progress steps (target not in known_extractors)")
             state.current_skill = None
         elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
             current_abs = self._current_abs(obs)
             if state.current_skill == "mine_until_full" and current_abs in state.known_extractors:
                 state.known_extractors.discard(current_abs)
-                self._event(state, f"removed depleted extractor at {current_abs} from memory")
+                # Also remove from per-element sets
+                for element_set in state.known_extractors_by_element.values():
+                    element_set.discard(current_abs)
+                self._event(state, f"removed depleted extractor at {current_abs} from memory (all element sets)")
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 

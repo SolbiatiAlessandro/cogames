@@ -358,47 +358,55 @@ of total load (bypass the return_load=40 threshold).
 Risk: More frequent hub trips may reduce total elements deposited if travel time increases.
 But the benefit of earlier heart generation could outweigh this.
 
-## 2026-03-30T: 4A no miner baseline check (reference experiment)
+## 2026-03-30T (new session 2): continuing experiment loop - get-heart-patience=6 RESULTS
 
-To understand the ceiling, let me check what 4A (all aligners, no miner) achieves at 1000 steps.
-The autoresearch_22_march best was 0.92 at 1000 steps (with local LLM). With cloud LLM,
-it might be different. If 4A beats 3A+1M (0.81), it means the miner is hurting us.
-If 4A is similar or worse, then 3A+1M is truly optimal for this config.
+Ran get-heart-patience=6 experiment (2 independent runs of 3 episodes each):
+- Run 1: Episodes 0.72, 0.72, 0.79 (mean ~0.74)
+- Run 2: Episodes 0.67, 0.72, 0.79 (mean ~0.73)
+- status.max_steps_without_motion: 1815-1849 (EXTREMELY high! vs 410 before)
+- silicon.gained: 11 (still bottleneck)
+- VERDICT: DISCARD - worse than 0.81 baseline
 
-## 2026-03-30T: new session, continuing experiment loop
+ROOT CAUSE: get-heart-patience=6 creates an infinite loop!
+- The "paused at hub" message does NOT set was_stuck=True
+- So override logic re-triggers get_heart immediately each time
+- 6 steps get_heart -> pause -> 6 steps -> pause -> INFINITE LOOP
+- max_steps_without_motion=1815 confirms agents stuck at hub for ~1800/1000 steps!
 
-Checked 5-episode run status - still running. Looking at existing logs:
-- Aligners waste steps at empty hubs: "get_heart paused at hub after 20 steps, hub empty"
-- Each aligner waits stuck_threshold=20 steps at empty hub before exiting
-- With 3 aligners all trying hub, they waste 60 steps per hub-empty cycle
+KEY LEARNING: The hub-empty handling is fundamentally broken. Two interacting issues:
+1. "paused" message vs "exited as stuck" message determines was_stuck in override logic
+2. When was_stuck=False and has_aligner+has_heart=False+known_hubs, override ALWAYS returns get_heart
+3. With patience=6, agents loop at hub every 6 steps forever = catastrophic
 
-Key experiments to try:
-1. Reduce get_heart patience specifically (don't touch overall stuck_threshold)
-2. Add hub_hearts count to aligner prompt (but need to know if obs can see hub inventory)
-3. Early-deposit logic correctly in LLMMinerPolicyImpl._scripted_skill_choice
+REVERTED to 9313ae5 (0.81 fast-extractor-abandon baseline).
 
-Plan: Implement a `get_heart_patience` parameter in machina_llm_roles_policy.py.
-When get_heart gets no progress for `get_heart_patience` steps (e.g. 6 instead of 20),
-exit faster and explore/align instead. This saves ~14 steps per hub-empty attempt.
+## 2026-03-30T: starting new experiment loop - fix-depleted-extractor-element-sets
 
-Hypothesis: With stuck_threshold=20 for get_heart, 3 aligners waste 60 steps per hub cycle.
-With get_heart_patience=6, only 18 steps wasted. Net savings ~42 steps per hub-empty cycle.
-If hub empties 5 times per episode = 210 steps saved = could be used for alignment.
+In this experiment I want to try: Fix a bug where depleted extractors remain in
+per-element sets after fast-abandonment.
 
-## 2026-03-30T: starting new experiment - get_heart_patience=6
+ROOT CAUSE FOUND: When the miner fast-abandons a depleted extractor (after 3 no-progress
+steps), it removes the position from `state.known_extractors` BUT NOT from
+`state.known_extractors_by_element[element]`. This means:
 
-In this experiment I want to try: reduce get_heart hub-wait from 20 to 6 steps.
+1. Miner sees silicon as rarest (fewest effective total)
+2. Navigates to a silicon extractor position in `known_extractors_by_element["silicon"]`
+3. Arrives, but the extractor was removed from `known_extractors` - it's depleted/gone
+4. Gets 0 inventory increase for 3 steps
+5. Fast-abandons, removes from `known_extractors` (but it's not there anymore)
+6. Does NOT remove from `known_extractors_by_element["silicon"]`
+7. Next time it tries silicon mining: navigates to SAME depleted position!
+8. Infinite cycle on depleted silicon extractors -> explains silicon=11 in some runs
 
-Implementation: Add `get_heart_patience` parameter to `LLMAlignerPolicyImpl`.
-When current_skill="get_heart" and near_hub and no_progress_on_target_steps >= get_heart_patience,
-exit sooner so aligner can do other useful work.
+The fix: when fast-abandoning or stale-exiting a depleted extractor, also remove
+from ALL `known_extractors_by_element` sets. This prevents element-aware mining
+from re-targeting depleted extractor positions.
 
-My hypothesis: Faster hub-empty detection frees aligners to explore/align more,
-improving junction held steps. The 20-step patience was designed for navigation
-(detect if moving toward hub is blocked), but at the hub, 6 steps is enough to
-know if heart is not available.
+My hypothesis: This bug fix alone could substantially improve silicon deposits from
+11 to 20+ in ALL episodes (not just lucky ones). Less time cycling on depleted
+silicon extractors = more time mining actual silicon = balanced deposits every run.
 
-
-
+Expected outcome: silicon.deposited improves from 11 to 15-20 consistently, leading
+to more make_heart cycles and higher reward (potentially > 0.85).
 
 
