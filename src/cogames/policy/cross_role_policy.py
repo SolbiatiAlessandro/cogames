@@ -671,6 +671,17 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 skill = "explore"
                 reason = "overrode: already have miner gear, no extractors"
 
+        # v20: when miner wants to mine but cycle element has no known extractors, explore first
+        # This ensures the miner discovers diverse element extractors before cycling
+        if skill == "mine_until_full" and gear == "miner":
+            from cogames.policy.starter_agent import ELEMENTS as _ELEMS
+            cycle_elem = _ELEMS[state.mine_cycle_index % len(_ELEMS)]
+            cycle_known = state.extractors_by_element.get(cycle_elem, set()) if hasattr(state, "extractors_by_element") else set()
+            if not cycle_known:
+                # Force explore to find the cycle element's extractors
+                skill = "explore"
+                reason = f"overrode mine to explore: cycle element {cycle_elem} has no known extractors yet"
+
         # Prevent consecutive unstuck loops
         if skill == "unstuck":
             state.consecutive_unstuck += 1
@@ -734,7 +745,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried >= self._return_load:
             self._event(state, f"mine_until_full completed: cargo={carried}")
-            state.mine_cycle_index = (state.mine_cycle_index + 1) % 4  # v19: advance element cycle
+            # v20: only advance cycle if the cycle element was actually mined (majority of cargo)
+            from cogames.policy.starter_agent import ELEMENTS
+            cycle_element = ELEMENTS[state.mine_cycle_index % len(ELEMENTS)]
+            cycle_count = self._inventory_count(obs, cycle_element)
+            # Advance cycle if ≥40% of cargo is the cycle element (meaning we targeted it)
+            if cycle_count >= max(1, self._return_load * 4 // 10):
+                state.mine_cycle_index = (state.mine_cycle_index + 1) % 4
+                self._event(state, f"mine_cycle advanced to {ELEMENTS[state.mine_cycle_index % len(ELEMENTS)]} (mined {cycle_count} {cycle_element})")
+            else:
+                self._event(state, f"mine_cycle kept at {cycle_element} (only mined {cycle_count}/{self._return_load}, need more)")
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried == 0:
             self._event(state, "deposit_to_hub completed")
