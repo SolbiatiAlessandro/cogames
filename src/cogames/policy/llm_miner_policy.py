@@ -210,6 +210,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             known_hazard_stations=sm.known_hazard_stations if sm else set(base.known_hazard_stations),
             last_pos=base.last_pos,
             last_move_target=base.last_move_target,
+            last_inventory=base.last_inventory,
             current_skill=state.current_skill,
             current_reason=state.current_reason,
             skill_steps=state.skill_steps,
@@ -449,6 +450,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
 
     def step_with_state(self, obs: AgentObservation, state: LLMMinerState) -> tuple[Action, LLMMinerState]:
         self._update_map_memory(obs, state)
+        self._update_team_deposits(obs, state)
         self._update_progress(obs, state)
 
         # HP safety: retreat to hub if HP is critically low

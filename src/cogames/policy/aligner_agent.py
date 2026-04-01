@@ -63,6 +63,8 @@ class SharedMap:
         self.hub_hearts_withdrawn: int = 0
         # Junction reservation: which junction each aligner is currently targeting (to prevent double-targeting)
         self.aligner_junction_targets: dict[int, "Coord | None"] = {}
+        # Issue-25: team-level deposit tracking for hub-scarce routing
+        self.team_deposits: dict[str, int] = {e: 0 for e in ("carbon", "oxygen", "germanium", "silicon")}
 
 
 @dataclass
