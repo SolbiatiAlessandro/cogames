@@ -27,3 +27,7 @@ b7ffd23	0.586	seeds42-47 (0.60,0.57,0.52,0.58,0.63,0.63)	1000	discard	miner-extr
 4c94cd2	0.667	seeds42-47 (0.65,0.70,0.75,0.73,0.63,0.54)	1000	keep	shared-element-extractors: team-wide scarce-element routing +5.5% over junction-reservation - seed44 +79%!
 33bf3db	0.663	seeds42-47 (0.57,0.70,0.75,0.73,0.63,0.60)	1000	discard	scarce-element-distance-cap-30: seed42 collapses when cap prevents cross-map carbon routing
 33f6f08	0.677	seeds42-47 (0.65,0.70,0.75,0.73,0.63,0.60)	1000	keep	scarce-element-distance-cap-40: new best! seed47 improves 0.54->0.60 without hurting seed42
+3992a45	0.700	seeds42-47 (0.82,0.60,0.65,0.74,0.63,0.76) fresh re-run	1000	keep	FRESH BASELINE at HEAD: re-ran all seeds after session restart - 0.700 avg (higher than prior 0.677 recording)
+081ab86	0.668	seeds42-47 (0.66,0.60,0.83,0.73,0.63,0.56)	1000	discard	expanded-alignment-reach: HUB_ALIGN 25->35 JUNCTION_ALIGN 15->20 - seed44 +28% but seed42 -19% seed47 -26%
+7e8a9f3	0.652	seeds42-47 (0.67,0.58,0.74,0.73,0.63,0.56)	1000	discard	intermediate-alignment-reach: HUB_ALIGN=30 JUNCTION_ALIGN=18 - still hurts seeds 42/47 systematically
+c6b527a	0.712	seeds42-47 (0.82,0.67,0.65,0.74,0.63,0.76)	1000	keep	scarce-threshold-3: lower threshold 5->3 for scarce routing - seed43 +12% (0.60->0.67) NEW BEST!

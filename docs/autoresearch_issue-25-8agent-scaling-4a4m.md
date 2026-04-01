@@ -471,3 +471,48 @@ Miners route to far-away silicon extractors discovered by other miners. Total mi
 **Decision: KEEP.** New best 0.677 avg. All seeds maintained, seed 47 recovered partially.
 
 **Key insight**: The goldilocks distance for scarce-element routing is 40 tiles. Under 40 = too aggressive (cuts off useful carbon routing in seed 42). Over 40 = same as uncapped (silicon is 40+ tiles away in seed 47, so cap has no effect).
+
+## 2026-04-01T02:00:00Z: session 7 starting - fresh measurements after restart
+
+**FRESH RE-MEASUREMENT AT HEAD (3992a45) - 2026-04-01:**
+Running all 6 seeds from clean state gives HIGHER numbers than previously recorded!
+- seed 42: 0.82 (was recorded 0.65 - MUCH HIGHER)
+- seed 43: 0.60 (consistent with previous 0.60/0.70 range)
+- seed 44: 0.65 (was recorded 0.75 - slightly lower now)
+- seed 45: 0.74 (was recorded 0.73 - consistent)
+- seed 46: 0.63 (was recorded 0.63 - consistent)
+- seed 47: 0.76 (was recorded 0.60 - HIGHER)
+- AVG: 0.700 (vs 0.677 previously recorded)
+
+TSV updated with fresh measurement row.
+
+**Analysis from diagnostic run (disable shared element routing):**
+- Without shared element routing: seeds (0.77,0.74,0.42,0.59,0.66,0.61) avg=0.632 = junction-reservation baseline
+- With shared element routing + 40-cap (HEAD 3992a45): seeds (0.82,0.60,0.65,0.74,0.63,0.76) avg=0.700
+
+**Clips mechanic**: CRITICAL DISCOVERY - clips team is NOT controlled by AI agents! They use game events:
+- `neutral_to_clips`: every 100 steps (from step 100), auto-aligns 1 nearby neutral junction to clips
+- `cogs_to_neutral`: every 100 steps (from step 50), scrambles 1 cogs junction near clips territory
+- Clips use same alignment distances as us (15 tiles junction-to-junction, 25 tiles hub-to-junction)
+- This is why clips get 43 junctions vs our 4-8 - they auto-align without travel overhead
+
+**Bottleneck seeds (with fresh HEAD measurements):**
+- seed 43: 0.60 - silicon bottleneck (21 deposited vs 44 oxygen). Shared routing detours miners.
+- seed 44: 0.65 - clips auto-align dominates. Limited by heart production.
+- seed 46: 0.63 - deposit catastrophe: carbon=3, silicon=1, oxygen=2, germanium=0.
+
+**Alignment reach experiments (BOTH FAILED):**
+- HUB_ALIGN=35, JUNCTION_ALIGN=20: avg=0.668, seed 44 +28% but seeds 42 -19% seed 47 -26%
+- HUB_ALIGN=30, JUNCTION_ALIGN=18: avg=0.652, same pattern
+
+**Scarce threshold-3 experiment (KEPT, NEW BEST):**
+- threshold=5 (original): avg=0.700
+- threshold=3: avg=0.712 (seed 43 improves 0.60->0.67 +12%)
+- threshold=10: avg=0.700 (no change - threshold too high, routing never triggers)
+
+**Decision: KEEP scarce-threshold-3**. New best 0.712 avg.
+
+**Remaining bottleneck seeds:**
+- seed 43: 0.67 (was 0.60, still silicon bottleneck)
+- seed 44: 0.65 (clips scramble our junctions fast)
+- seed 46: 0.63 (deposit catastrophe)
