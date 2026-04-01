@@ -516,3 +516,40 @@ TSV updated with fresh measurement row.
 - seed 43: 0.67 (was 0.60, still silicon bottleneck)
 - seed 44: 0.65 (clips scramble our junctions fast)
 - seed 46: 0.63 (deposit catastrophe)
+
+## 2026-04-01T03:30:00Z: session 7 continued - systematic cap tuning
+
+**Discovery: cap=45 is significantly better than cap=40 for seed 43**
+
+Systematic cap testing (threshold=3):
+- cap=40: avg=0.712, seed43=0.67
+- cap=45: avg=0.735, seed43=0.81 (+21%!)
+- cap=50: avg=0.723, seed43=0.74 (worse than 45!)
+- cap=60: avg=0.723, seed43=0.74 (same as 50)
+
+**The goldilocks is cap=45!** Not cap=50, not cap=40. The silicon extractors in seed 43 are between 40-45 tiles away, and routing with cap=45 reaches them. Cap=50 overshoots and introduces more overhead.
+
+**Threshold tuning (with cap=45):**
+- threshold=2: same as threshold=3 (0.735 avg)
+- threshold=3: 0.735 avg (current best)
+- threshold=4: same as threshold=3 (0.735 avg)
+
+**Current best: 0.735 avg** (threshold=3, cap=45)
+
+**Per-seed with current best:**
+- seed 42: 0.82 (excellent)
+- seed 43: 0.81 (huge improvement from silicon routing to 40-45 tile extractors!)
+- seed 44: 0.65 (clips auto-align dominates)
+- seed 45: 0.74 (good)
+- seed 46: 0.63 (deposit issue persists)
+- seed 47: 0.76 (good)
+
+**Remaining bottlenecks:**
+- seed 44: 0.65 - clips hold 43 junctions vs our 2. Need better early expansion.
+- seed 46: 0.63 - catastrophic deposits. Seed 46 is structurally different.
+- seed 45: 0.74 - room for improvement
+
+**Next ideas:**
+1. Try cap tuning for other seeds (44, 45, 46) to find their optimal cap
+2. Investigate seed 44 junction dynamics more carefully
+3. Try adjusting alignment behavior for seeds where clips dominate early

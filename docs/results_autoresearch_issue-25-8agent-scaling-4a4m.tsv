@@ -31,3 +31,5 @@ b7ffd23	0.586	seeds42-47 (0.60,0.57,0.52,0.58,0.63,0.63)	1000	discard	miner-extr
 081ab86	0.668	seeds42-47 (0.66,0.60,0.83,0.73,0.63,0.56)	1000	discard	expanded-alignment-reach: HUB_ALIGN 25->35 JUNCTION_ALIGN 15->20 - seed44 +28% but seed42 -19% seed47 -26%
 7e8a9f3	0.652	seeds42-47 (0.67,0.58,0.74,0.73,0.63,0.56)	1000	discard	intermediate-alignment-reach: HUB_ALIGN=30 JUNCTION_ALIGN=18 - still hurts seeds 42/47 systematically
 c6b527a	0.712	seeds42-47 (0.82,0.67,0.65,0.74,0.63,0.76)	1000	keep	scarce-threshold-3: lower threshold 5->3 for scarce routing - seed43 +12% (0.60->0.67) NEW BEST!
+1859e89	0.723	seeds42-47 (0.82,0.74,0.65,0.74,0.63,0.76)	1000	keep	scarce-cap-50: increase distance cap 40->50 tiles - seed43 +10% (0.67->0.74) NEW BEST!
+eb402e9	0.735	seeds42-47 (0.82,0.81,0.65,0.74,0.63,0.76)	1000	keep	scarce-cap-45: cap=45 tiles - seed43 jumps 0.67->0.81 (+21%) NEW BEST!
