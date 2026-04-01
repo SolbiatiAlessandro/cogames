@@ -21,8 +21,8 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 )
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
 _HUB_SEARCH_DISTANCE = 20
-_HUB_ALIGN_DISTANCE = 35
-_JUNCTION_ALIGN_DISTANCE = 20
+_HUB_ALIGN_DISTANCE = 25
+_JUNCTION_ALIGN_DISTANCE = 15
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
 _HP_RETREAT_THRESHOLD = 0.50
