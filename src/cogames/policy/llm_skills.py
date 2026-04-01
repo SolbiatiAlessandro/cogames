@@ -450,26 +450,33 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         current_abs = self._current_abs(obs)
 
         # Issue-25: when inventory is empty (just deposited), route to team-level scarce element
-        # Time-limited: give up after 40 consecutive empty-inv steps (prevents stuck loop when extractor unreachable)
+        # Time-limited: give up after 100 consecutive empty-inv steps (prevents stuck loop when extractor unreachable)
+        # Proximity-relative: only route to team-scarce if it's not much farther than the nearest ANY extractor
         _TEAM_SCARCE_MAX_EMPTY_STEPS = 100
+        _TEAM_SCARCE_PROXIMITY_MARGIN = 0  # Only route to team-scarce if its extractor is nearest (no extra detour)
         current_inv = self._inventory_counts(obs)
         if not current_inv and state.team_scarce_empty_steps < _TEAM_SCARCE_MAX_EMPTY_STEPS:
             team_scarce = self._team_scarce_element()
             if team_scarce:
                 logger.debug("agent=%s empty_inv team_scarce=%s steps=%d deposits=%s", obs.agent_id, team_scarce, state.team_scarce_empty_steps, dict(self._shared_map.team_deposits) if self._shared_map else None)
             if team_scarce and team_scarce in self._extractor_tags_by_element:
+                # Compute distance to nearest known extractor of ANY element (as baseline cost)
+                nearest_any = self._nearest_known(current_abs, state.known_extractors)
+                dist_to_nearest_any = abs(nearest_any[0] - current_abs[0]) + abs(nearest_any[1] - current_abs[1]) if nearest_any else 9999
                 team_tags = self._extractor_tags_by_element[team_scarce]
                 visible_team = self._closest_visible_location(obs, team_tags)
                 if visible_team is not None:
                     target_abs = self._visible_abs_cell(current_abs, visible_team)
-                    action, next_state = self._move_toward_target(state, current_abs, target_abs)
-                    return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
+                    team_dist = abs(target_abs[0] - current_abs[0]) + abs(target_abs[1] - current_abs[1])
+                    if team_dist <= dist_to_nearest_any + _TEAM_SCARCE_PROXIMITY_MARGIN:
+                        action, next_state = self._move_toward_target(state, current_abs, target_abs)
+                        return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
                 team_known = state.extractors_by_element.get(team_scarce, set())
                 if team_known:
                     target_abs = self._nearest_known(current_abs, team_known)
                     if target_abs is not None:
                         dist = abs(target_abs[0] - current_abs[0]) + abs(target_abs[1] - current_abs[1])
-                        if dist <= _MAX_SCARCE_ELEMENT_DISTANCE:
+                        if dist <= _MAX_SCARCE_ELEMENT_DISTANCE and dist <= dist_to_nearest_any + _TEAM_SCARCE_PROXIMITY_MARGIN:
                             action, next_state = self._move_toward_target(state, current_abs, target_abs)
                             return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
 

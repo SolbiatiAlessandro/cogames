@@ -655,3 +655,21 @@ Team routing fixes this: when silicon is team_scarce, empty-inventory miners go 
 **Decisions on further experiments:**
 - limit=100 is KEEP (0.772 avg NEW BEST)
 - Next: try further tuning the limit value, or fix seed 42's false-positive oxygen signal
+
+## 2026-03-31T12:00:00Z: session 11 - proximity-based team-scarce routing
+
+**Context**: Continuing from session 10. HEAD=05ee1b5, 0.772 avg. 3 failed experiments from session 10 (all threshold/timing changes).
+
+**Fundamental problem recap**: Seed 42 oxygen routing is a false positive. The miner routes to oxygen because early deposits show oxygen=0. But oxygen extractors ARE accessible (within 20 tiles), yet miner spends 31 wasted steps trying to get there (extractor occupied or blocked). This false positive costs ~0.14 reward (0.82→0.68).
+
+**New hypothesis**: The false positive happens because the team-scarce routing ignores the RELATIVE COST of the detour. In seed 42, oxygen extractor is FAR (say 20 tiles) but there are carbon extractors 5 tiles away. The miner should prefer the nearby carbon extractor.
+
+In seed 44, silicon extractors are the ONLY ones accessible (all extractors are ~40-45 tiles away), so routing to silicon is necessary and beneficial.
+
+**New experiment: proximity-relative team-scarce routing**
+
+Only route to team-scarce element if its nearest known extractor is within `dist_to_nearest_any + MARGIN` tiles. If there are much closer extractors of other elements, mine those instead.
+
+MARGIN candidates: 0 (strict: only if team-scarce is closest), 5, 10, 15.
+
+**Hypothesis**: With MARGIN=0, seed 42's oxygen routing never fires (carbon is closer). Seed 44 preserved (silicon is the only/nearest element). This should recover seed 42 to ~0.82 without hurting seed 44.
