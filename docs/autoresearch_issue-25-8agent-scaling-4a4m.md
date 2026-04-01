@@ -450,3 +450,24 @@ Results: 0.586 avg. Seeds 42,43 dropped badly. The reservation breaks nearest-fi
 **Why seeds 42, 43, 47 dropped slightly**: Sharing element knowledge makes miners occasionally route to farther element-specific extractors rather than the nearest generic one. This adds travel overhead in maps where extractors are well-distributed.
 
 **Current best: 0.667 avg** (junction reservation + shared element extractors)
+
+## 2026-04-01T01:00:00Z: session 6 experiment loop 3 - scarce-element distance cap 40 tiles (KEPT +1.5%)
+
+**Analysis**: Seed 47 with shared elements has silicon bottleneck (1 deposited vs 20 without sharing).
+Miners route to far-away silicon extractors discovered by other miners. Total mining dropped from 109 to 55 deposits.
+
+**30-tile cap**: seed 42 dropped 0.65→0.57 (carbon extractor is 30-50 tiles away in seed 42). Net 0.663.
+**40-tile cap**: seed 42 unchanged (carbon extractor within 40 tiles), seed 47 improved 0.54→0.60. Net **0.677**.
+
+| seed | no_cap (0.667) | cap_40 (0.677) | delta |
+|------|----------------|----------------|-------|
+| 42 | 0.65 | 0.65 | = |
+| 43 | 0.70 | 0.70 | = |
+| 44 | 0.75 | 0.75 | = |
+| 45 | 0.73 | 0.73 | = |
+| 46 | 0.63 | 0.63 | = |
+| 47 | 0.54 | 0.60 | +11% |
+
+**Decision: KEEP.** New best 0.677 avg. All seeds maintained, seed 47 recovered partially.
+
+**Key insight**: The goldilocks distance for scarce-element routing is 40 tiles. Under 40 = too aggressive (cuts off useful carbon routing in seed 42). Over 40 = same as uncapped (silicon is 40+ tiles away in seed 47, so cap has no effect).

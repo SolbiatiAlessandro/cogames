@@ -26,3 +26,4 @@ b117951	0.585	seeds42-47 (0.57,0.66,0.35,0.59,0.63,0.71)	1000	keep	TRUE BASELINE
 b7ffd23	0.586	seeds42-47 (0.60,0.57,0.52,0.58,0.63,0.63)	1000	discard	miner-extractor-reservation: spread miners across extractors - breaks nearest-first heuristic seeds 42+43 drop
 4c94cd2	0.667	seeds42-47 (0.65,0.70,0.75,0.73,0.63,0.54)	1000	keep	shared-element-extractors: team-wide scarce-element routing +5.5% over junction-reservation - seed44 +79%!
 33bf3db	0.663	seeds42-47 (0.57,0.70,0.75,0.73,0.63,0.60)	1000	discard	scarce-element-distance-cap-30: seed42 collapses when cap prevents cross-map carbon routing
+33f6f08	0.677	seeds42-47 (0.65,0.70,0.75,0.73,0.63,0.60)	1000	keep	scarce-element-distance-cap-40: new best! seed47 improves 0.54->0.60 without hurting seed42
