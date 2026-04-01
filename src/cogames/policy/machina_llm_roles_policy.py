@@ -298,12 +298,35 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.consecutive_unstuck = 0
         if skill == "explore":
             state.explore_start_junctions = len(state.known_neutral_junctions)
+        # Hub slot coordination: if planning get_heart but another aligner is already seeking hub, explore instead
+        agent_id = obs.agent_id
+        if skill == "get_heart" and self._shared_map is not None and hasattr(self._shared_map, "hub_seeking_aligners"):
+            other_seekers = self._shared_map.hub_seeking_aligners - {agent_id}
+            if other_seekers:
+                # Another aligner is already going to the hub - wait our turn by exploring
+                if known_alignable_junctions and has_heart:
+                    skill = "align_neutral"
+                    reason = f"hub slot taken by aligner(s) {other_seekers}, aligning junction instead"
+                else:
+                    skill = "explore"
+                    reason = f"hub slot taken by aligner(s) {other_seekers}, exploring while waiting"
+        # Register/unregister hub-seeking status
+        if self._shared_map is not None and hasattr(self._shared_map, "hub_seeking_aligners"):
+            if skill == "get_heart":
+                self._shared_map.hub_seeking_aligners.add(agent_id)
+            else:
+                self._shared_map.hub_seeking_aligners.discard(agent_id)
         state.current_skill = skill
         state.current_reason = reason
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
         self._event(state, f"planner selected {skill}: {reason}")
+
+    def _deregister_hub_seeking(self, obs: AgentObservation) -> None:
+        """Remove this aligner from hub_seeking_aligners when get_heart is done."""
+        if self._shared_map is not None and hasattr(self._shared_map, "hub_seeking_aligners"):
+            self._shared_map.hub_seeking_aligners.discard(obs.agent_id)
 
     def _maybe_finish_skill(self, obs: AgentObservation, state: LLMAlignerState) -> None:
         has_heart = self._inventory_count(obs, "heart") > 0
@@ -314,6 +337,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill == "get_heart" and has_heart and state.skill_steps > 0:
             self._event(state, "get_heart completed after acquiring heart")
             state.get_heart_timeouts = 0
+            self._deregister_hub_seeking(obs)
             state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             self._event(state, "defend ended: acquired heart while defending")
@@ -362,12 +386,17 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                             state.align_neutral_timeouts = 0
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
+                self._deregister_hub_seeking(obs)
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
+            if state.current_skill == "get_heart":
+                self._deregister_hub_seeking(obs)
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+            if state.current_skill == "get_heart":
+                self._deregister_hub_seeking(obs)
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
