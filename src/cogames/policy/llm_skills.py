@@ -14,6 +14,7 @@ logger = logging.getLogger("cogames.policy.llm_skills")
 
 Coord = tuple[int, int]
 _HUB_SEARCH_DISTANCE = 20
+_MAX_SCARCE_ELEMENT_DISTANCE = 40
 _HUB_EXTRACTOR_OFFSETS: tuple[Coord, ...] = ((-8, -8), (-8, 8), (8, -8), (8, 8))
 _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
     ("north", (-1, 0)),
@@ -453,13 +454,15 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 target_abs = self._visible_abs_cell(current_abs, visible_scarce)
                 action, next_state = self._move_toward_target(state, current_abs, target_abs)
                 return action, replace(next_state, last_mode=state.last_mode)
-            # Try navigating to a known scarce-element extractor
+            # Try navigating to a known scarce-element extractor (within distance cap)
             scarce_known = state.extractors_by_element.get(scarce, set())
             if scarce_known:
                 target_abs = self._nearest_known(current_abs, scarce_known)
                 if target_abs is not None:
-                    action, next_state = self._move_toward_target(state, current_abs, target_abs)
-                    return action, replace(next_state, last_mode=state.last_mode)
+                    dist = abs(target_abs[0] - current_abs[0]) + abs(target_abs[1] - current_abs[1])
+                    if dist <= _MAX_SCARCE_ELEMENT_DISTANCE:
+                        action, next_state = self._move_toward_target(state, current_abs, target_abs)
+                        return action, replace(next_state, last_mode=state.last_mode)
 
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
