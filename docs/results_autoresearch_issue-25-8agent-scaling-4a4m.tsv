@@ -24,3 +24,4 @@ b117951	0.585	seeds42-47 (0.57,0.66,0.35,0.59,0.63,0.71)	1000	keep	TRUE BASELINE
 0f714c6	0.557	seeds42-47 (0.53,0.72,0.38,0.55,0.63,0.56)	1000	discard	return_load=10: miners return too frequently, reduces mining efficiency
 0f714c6	0.567	seeds42-47 (0.56,0.73,0.37,0.56,0.63,0.58)	1000	discard	return_load=15: slightly better than 10 but still worse than default 20
 b7ffd23	0.586	seeds42-47 (0.60,0.57,0.52,0.58,0.63,0.63)	1000	discard	miner-extractor-reservation: spread miners across extractors - breaks nearest-first heuristic seeds 42+43 drop
+4c94cd2	0.667	seeds42-47 (0.65,0.70,0.75,0.73,0.63,0.54)	1000	keep	shared-element-extractors: team-wide scarce-element routing +5.5% over junction-reservation - seed44 +79%!

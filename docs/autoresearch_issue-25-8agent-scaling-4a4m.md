@@ -421,3 +421,32 @@ The system is at a local maximum given the current architecture.
 4. Better enemy junction handling: prioritize attacking enemy junctions closest to our network
 5. Reduce wait time on extract_resource when stuck (current stuck_threshold might be sub-optimal)
 6. Try using actual LLM (gemma-3-12b) for aligner decisions - issue #25 suggestion
+7. **MINER EXTRACTOR RESERVATION** - mirrors junction reservation success. If 4 miners all target same nearest extractor, only one mines at a time while others queue. With reservation, each miner picks a DIFFERENT extractor for max parallel throughput.
+8. **SHARED ELEMENT EXTRACTORS** - each miner tracks per-element extractor locations but this info is NOT shared. If miner A finds carbon extractors, miner B can't use them for scarce-element routing.
+
+## 2026-04-01T00:00:00Z: session 6 experiment loop 1 - miner extractor reservation (FAILED)
+
+Results: 0.586 avg. Seeds 42,43 dropped badly. The reservation breaks nearest-first heuristic.
+
+## 2026-04-01T00:05:00Z: session 6 experiment loop 2 - shared element extractors (KEPT +5.5%)
+
+**Idea**: Add `extractors_by_element` to SharedMap. All miners share the per-element extractor locations. When miner A discovers a carbon extractor, all miners can use it for scarce-element routing.
+
+**Results (seeds 42-47):**
+| seed | junction_res_only | +shared_element | delta |
+|------|------------------|-----------------|-------|
+| 42 | 0.77 | 0.65 | -16% |
+| 43 | 0.74 | 0.70 | -5% |
+| 44 | 0.42 | 0.75 | +79%! |
+| 45 | 0.59 | 0.73 | +24% |
+| 46 | 0.66 | 0.63 | -5% |
+| 47 | 0.61 | 0.54 | -11% |
+| AVG | 0.632 | **0.667** | **+5.5%** |
+
+**Decision: KEEP.** Net positive +5.5% over junction-reservation. 3 seeds improve, 3 regress. Seed 44 is the biggest winner (+79%!) - was the lowest-performing seed (0.42), now 0.75.
+
+**Why seed 44 improved so dramatically**: Clips team scrambles cogs junctions. But now miners can better balance elements. When miner A discovers that carbon extractors are near the hub, miner B can directly route there when carbon is scarce, instead of going to a nearby germanium extractor that doesn't help with heart production.
+
+**Why seeds 42, 43, 47 dropped slightly**: Sharing element knowledge makes miners occasionally route to farther element-specific extractors rather than the nearest generic one. This adds travel overhead in maps where extractors are well-distributed.
+
+**Current best: 0.667 avg** (junction reservation + shared element extractors)
