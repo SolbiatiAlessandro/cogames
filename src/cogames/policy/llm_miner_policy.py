@@ -211,6 +211,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             last_pos=base.last_pos,
             last_move_target=base.last_move_target,
             last_inventory=base.last_inventory,
+            team_scarce_empty_steps=base.team_scarce_empty_steps,
             current_skill=state.current_skill,
             current_reason=state.current_reason,
             skill_steps=state.skill_steps,

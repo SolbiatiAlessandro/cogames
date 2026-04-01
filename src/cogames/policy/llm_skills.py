@@ -42,6 +42,8 @@ class MinerSkillState(StarterCogState):
     last_move_target: Coord | None = None
     # Issue-25: track last inventory for deposit detection
     last_inventory: dict[str, int] = field(default_factory=dict)
+    # Issue-25: count consecutive empty-inv steps trying team-scarce routing (prevent stuck loop)
+    team_scarce_empty_steps: int = 0
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -448,19 +450,20 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         current_abs = self._current_abs(obs)
 
         # Issue-25: when inventory is empty (just deposited), route to team-level scarce element
-        # This avoids the all-miners-pile-on oscillation by only redirecting at deposit cycle start
+        # Time-limited: give up after 40 consecutive empty-inv steps (prevents stuck loop when extractor unreachable)
+        _TEAM_SCARCE_MAX_EMPTY_STEPS = 100
         current_inv = self._inventory_counts(obs)
-        if not current_inv:
+        if not current_inv and state.team_scarce_empty_steps < _TEAM_SCARCE_MAX_EMPTY_STEPS:
             team_scarce = self._team_scarce_element()
             if team_scarce:
-                logger.debug("agent=%s empty_inv team_scarce=%s deposits=%s", obs.agent_id, team_scarce, dict(self._shared_map.team_deposits) if self._shared_map else None)
+                logger.debug("agent=%s empty_inv team_scarce=%s steps=%d deposits=%s", obs.agent_id, team_scarce, state.team_scarce_empty_steps, dict(self._shared_map.team_deposits) if self._shared_map else None)
             if team_scarce and team_scarce in self._extractor_tags_by_element:
                 team_tags = self._extractor_tags_by_element[team_scarce]
                 visible_team = self._closest_visible_location(obs, team_tags)
                 if visible_team is not None:
                     target_abs = self._visible_abs_cell(current_abs, visible_team)
                     action, next_state = self._move_toward_target(state, current_abs, target_abs)
-                    return action, replace(next_state, last_mode=state.last_mode)
+                    return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
                 team_known = state.extractors_by_element.get(team_scarce, set())
                 if team_known:
                     target_abs = self._nearest_known(current_abs, team_known)
@@ -468,7 +471,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                         dist = abs(target_abs[0] - current_abs[0]) + abs(target_abs[1] - current_abs[1])
                         if dist <= _MAX_SCARCE_ELEMENT_DISTANCE:
                             action, next_state = self._move_toward_target(state, current_abs, target_abs)
-                            return action, replace(next_state, last_mode=state.last_mode)
+                            return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
 
         # Issue-16: prefer scarce element extractors for make_heart balance
         scarce = self._scarce_element(obs)
@@ -585,6 +588,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 for element in ("carbon", "oxygen", "germanium", "silicon"):
                     self._shared_map.team_deposits[element] += last_inv.get(element, 0)
                 logger.debug("agent=%s deposit_detected deposits=%s", obs.agent_id, dict(self._shared_map.team_deposits))
+                # Reset team-scarce step counter for the new deposit cycle
+                state.team_scarce_empty_steps = 0
         state.last_inventory = current_inv
 
     def _team_scarce_element(self) -> str | None:
