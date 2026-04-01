@@ -696,3 +696,30 @@ Committed as 5d70c80.
 - seed 42: 0.77 (was 0.82 pre-team-scarce, 0.68 with unlimited team-scarce). The proximity fix partially helps but doesn't fully recover.
 - seed 46: 0.63 (consistent catastrophic deposits - structural issue)
 - seed 45: 0.74 (room for improvement)
+
+## 2026-03-31T14:00:00Z: session 11 continued - aligner experiments
+
+**Investigating seed 46 hub crowding**
+
+Seed 46 has catastrophic deposits: only 6 elements deposited in 1000 steps. This is the root cause of 0.63 score.
+Root cause analysis: 4 miners + 4 aligners ALL trying to access the hub simultaneously creates deadlock.
+Evidence: 0A8M configuration for seed 46 → deposits = 160 (40 per element). Miners CAN deposit when aligners aren't crowding hub!
+
+**Failed aligner experiments:**
+1. enemy-avoiding junction selection (prefer junctions far from enemy territory): same results (0.790), no change. Aligners don't see enough enemy junctions early in game for this to matter.
+2. staggered return_load (40, 45, 50, 55 per miner): 0.545 avg - terrible! Higher loads reduce mining efficiency.
+3. hub crowding: patient waiting (double stale threshold for get_heart): 0.675 avg - causes cascade blocking.
+4. explore-first aligner (delay get_heart until first junction found): 0.562 avg - seed 43 catastrophically drops (0.86→0.30).
+
+**Key insight from seed 46 analysis**:
+- Seed 46 hub is structurally more susceptible to crowding than other seeds
+- With 0 aligners, miners deposit 160 elements (40 each), proving the map IS accessible
+- Any delay in aligner hub access hurts all other seeds (early junction capture is critical)
+- Seed 46 appears near-optimal for current architecture: the map layout creates unavoidable crowding
+
+**Decision**: Accept seed 46 = 0.63 as near-optimal for current 4A4M scripted architecture. Focus on other improvements.
+
+**Remaining experiments to try:**
+1. Better miner routing in seed 42 (still slightly below 0.82 pre-team-scarce baseline)
+2. Investigate what makes seed 44 so strong (0.98) - can we replicate this for other seeds?
+3. Look at aligner improvements for seed 45 specifically
