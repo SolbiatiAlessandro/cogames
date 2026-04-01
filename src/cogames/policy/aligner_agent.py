@@ -49,6 +49,10 @@ class SharedMap:
         self.known_miner_stations: set[Coord] = set()
         self.known_hazard_stations: set[Coord] = set()
         self.known_extractors: set[Coord] = set()
+        # Issue-25: per-element extractor tracking shared across all miners (so scarce-element routing works team-wide)
+        self.extractors_by_element: dict[str, "set[Coord]"] = {
+            e: set() for e in ("carbon", "oxygen", "germanium", "silicon")
+        }
         # Junctions (dynamic — refreshed per visible area)
         self.known_neutral_junctions: set[Coord] = set()
         self.known_friendly_junctions: set[Coord] = set()

@@ -96,6 +96,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         state.known_miner_stations = sm.known_miner_stations
         state.known_extractors = sm.known_extractors
         state.known_hazard_stations = sm.known_hazard_stations
+        # Issue-25: share per-element extractor knowledge so scarce-element routing works team-wide
+        if hasattr(sm, "extractors_by_element"):
+            state.extractors_by_element = sm.extractors_by_element
 
     def initial_agent_state(self) -> MinerSkillState:
         starter_state = self._starter.initial_agent_state()
