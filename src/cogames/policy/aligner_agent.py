@@ -65,6 +65,8 @@ class SharedMap:
         self.aligner_junction_targets: dict[int, "Coord | None"] = {}
         # Issue-25: team-level deposit tracking for hub-scarce routing
         self.team_deposits: dict[str, int] = {e: 0 for e in ("carbon", "oxygen", "germanium", "silicon")}
+        # Issue-25: track which miners are currently doing team-scarce routing (per-step coordination)
+        self.team_scarce_miners: set[int] = set()
 
 
 @dataclass

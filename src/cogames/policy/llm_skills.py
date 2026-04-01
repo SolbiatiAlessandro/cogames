@@ -452,14 +452,21 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         # Issue-25: when inventory is empty (just deposited), route to team-level scarce element
         # Time-limited: give up after 100 consecutive empty-inv steps (prevents stuck loop when extractor unreachable)
         # Proximity-relative: only route to team-scarce if it's not much farther than the nearest ANY extractor
+        # Parallel-limited: max 2 miners do team-scarce routing simultaneously (prevents all-miners pile-on)
         _TEAM_SCARCE_MAX_EMPTY_STEPS = 100
         _TEAM_SCARCE_PROXIMITY_MARGIN = 10  # Allow up to 10 extra tiles of detour for team-scarce routing
+        _MAX_PARALLEL_SCARCE_MINERS = 2  # Max miners doing team-scarce routing at once
         current_inv = self._inventory_counts(obs)
+        # Update per-step team-scarce miner tracking: mark this miner as NOT doing team-scarce (default)
+        if self._shared_map is not None and hasattr(self._shared_map, "team_scarce_miners"):
+            self._shared_map.team_scarce_miners.discard(obs.agent_id)
         if not current_inv and state.team_scarce_empty_steps < _TEAM_SCARCE_MAX_EMPTY_STEPS:
             team_scarce = self._team_scarce_element()
             if team_scarce:
                 logger.debug("agent=%s empty_inv team_scarce=%s steps=%d deposits=%s", obs.agent_id, team_scarce, state.team_scarce_empty_steps, dict(self._shared_map.team_deposits) if self._shared_map else None)
-            if team_scarce and team_scarce in self._extractor_tags_by_element:
+            # Check parallel limit: skip team-scarce if too many miners already doing it
+            parallel_count = len(self._shared_map.team_scarce_miners) if self._shared_map is not None and hasattr(self._shared_map, "team_scarce_miners") else 0
+            if team_scarce and team_scarce in self._extractor_tags_by_element and parallel_count < _MAX_PARALLEL_SCARCE_MINERS:
                 # Compute distance to nearest known extractor of ANY element (as baseline cost)
                 nearest_any = self._nearest_known(current_abs, state.known_extractors)
                 dist_to_nearest_any = abs(nearest_any[0] - current_abs[0]) + abs(nearest_any[1] - current_abs[1]) if nearest_any else 9999
@@ -469,6 +476,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     target_abs = self._visible_abs_cell(current_abs, visible_team)
                     team_dist = abs(target_abs[0] - current_abs[0]) + abs(target_abs[1] - current_abs[1])
                     if team_dist <= dist_to_nearest_any + _TEAM_SCARCE_PROXIMITY_MARGIN:
+                        if self._shared_map is not None and hasattr(self._shared_map, "team_scarce_miners"):
+                            self._shared_map.team_scarce_miners.add(obs.agent_id)
                         action, next_state = self._move_toward_target(state, current_abs, target_abs)
                         return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
                 team_known = state.extractors_by_element.get(team_scarce, set())
@@ -477,6 +486,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     if target_abs is not None:
                         dist = abs(target_abs[0] - current_abs[0]) + abs(target_abs[1] - current_abs[1])
                         if dist <= _MAX_SCARCE_ELEMENT_DISTANCE and dist <= dist_to_nearest_any + _TEAM_SCARCE_PROXIMITY_MARGIN:
+                            if self._shared_map is not None and hasattr(self._shared_map, "team_scarce_miners"):
+                                self._shared_map.team_scarce_miners.add(obs.agent_id)
                             action, next_state = self._move_toward_target(state, current_abs, target_abs)
                             return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
 
