@@ -57,6 +57,8 @@ class SharedMap:
         self.agent_gears: dict[int, str] = {}
         # Hub depletion tracking (issue-16): count total hearts withdrawn across team
         self.hub_hearts_withdrawn: int = 0
+        # Junction reservation: which junction each aligner is currently targeting (to prevent double-targeting)
+        self.aligner_junction_targets: dict[int, "Coord | None"] = {}
 
 
 @dataclass
@@ -605,13 +607,29 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
-        alignable = {junction for junction in state.known_neutral_junctions if self._is_alignable(junction, state) and junction not in bl}
+        # Issue-25: soft junction reservation - skip junctions reserved by nearby aligners only
+        agent_id = obs.agent_id
+        reserved = set()
+        if self._shared_map is not None:
+            for aid, target in self._shared_map.aligner_junction_targets.items():
+                if aid != agent_id and target is not None:
+                    reserved.add(target)
+        alignable_all = {junction for junction in state.known_neutral_junctions if self._is_alignable(junction, state) and junction not in bl}
+        alignable_unreserved = alignable_all - reserved
+        # Use unreserved if available, fallback to all alignable if reservation would block everything
+        alignable = alignable_unreserved if alignable_unreserved else alignable_all
         target_abs = self._nearest_known(current_abs, alignable)
         if target_abs is None and state.known_enemy_junctions:
             # No neutral targets: try reclaiming enemy junctions (clips-held)
-            enemy_alignable = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl}
+            enemy_alignable_all = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl}
+            enemy_alignable = (enemy_alignable_all - reserved) if (enemy_alignable_all - reserved) else enemy_alignable_all
             target_abs = self._nearest_known(current_abs, enemy_alignable)
+        # Update this agent's reservation
+        if self._shared_map is not None:
+            self._shared_map.aligner_junction_targets[agent_id] = target_abs
         if target_abs is None:
+            if self._shared_map is not None:
+                self._shared_map.aligner_junction_targets[agent_id] = None
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
         # Already have aligner gear - no need to avoid other stations, can't re-equip

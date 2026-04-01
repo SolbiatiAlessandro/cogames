@@ -432,6 +432,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.skill_steps += 1
             return action, state
 
+        # Clear junction reservation when not doing align_neutral (prevent stale reservations)
+        if state.current_skill != "align_neutral" and self._shared_map is not None:
+            self._shared_map.aligner_junction_targets[obs.agent_id] = None
+
         if state.current_skill == "gear_up":
             action, base_state = self._gear_up(obs, state, current_abs)
             state = self._copy_with(state, base_state)
