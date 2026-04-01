@@ -670,6 +670,29 @@ In seed 44, silicon extractors are the ONLY ones accessible (all extractors are 
 
 Only route to team-scarce element if its nearest known extractor is within `dist_to_nearest_any + MARGIN` tiles. If there are much closer extractors of other elements, mine those instead.
 
-MARGIN candidates: 0 (strict: only if team-scarce is closest), 5, 10, 15.
+MARGIN candidates tested: 0, 5, 10, 15, 20.
 
-**Hypothesis**: With MARGIN=0, seed 42's oxygen routing never fires (carbon is closer). Seed 44 preserved (silicon is the only/nearest element). This should recover seed 42 to ~0.82 without hurting seed 44.
+**Results**:
+- margin=0: seed42=0.82 (fixed!) but seed44=0.84 (dropped from 0.98!). avg=0.767, worse.
+  - Silicon extractors in seed 44 ARE nearest, but proximity to visible ones throws off the check
+- margin=5: seed42=0.77, seed44=0.65, avg=0.733. Seed44 still hurt.
+- margin=10: seed42=0.77, seed43=0.86, seed44=0.98, seed45=0.74, seed46=0.63, seed47=0.76. avg=0.790 NEW BEST!
+- margin=15: seed42=0.51 (much worse), seed44=0.98. Oxygen extractor in seed42 is 10-15 tiles farther than nearest carbon.
+- margin=20: seed42=0.60, seed44=0.98. margin=20 still allows oxygen routing false positive.
+
+**GOLDILOCKS = margin=10!**
+- seed42: 0.68→0.77 (+0.09) - partially fixed the oxygen false positive
+- seed44: 0.98 preserved (silicon routing still fires because silicon extractors are ~45 tiles, nearest any ~35 tiles, diff=10 = margin)
+- seed47: 0.74→0.76 (+0.02) slight improvement
+
+**Why margin=10 works for seed 42**: Oxygen extractor in seed 42 is approximately 10-15 tiles farther than the nearest carbon extractor. With margin=10, the oxygen routing fires only when the extractor is within 10 tiles of the nearest. This cuts off false-positive routing without being too strict.
+
+**Why margin=10 preserves seed 44**: Silicon extractors are ~40-45 tiles, ALL other extractors are ~35 tiles. Diff = ~5-10 tiles, so 10-tile margin allows silicon routing to fire.
+
+**NEW BEST: 0.790 avg** (0.77, 0.86, 0.98, 0.74, 0.63, 0.76)
+Committed as 5d70c80.
+
+**Remaining bottlenecks:**
+- seed 42: 0.77 (was 0.82 pre-team-scarce, 0.68 with unlimited team-scarce). The proximity fix partially helps but doesn't fully recover.
+- seed 46: 0.63 (consistent catastrophic deposits - structural issue)
+- seed 45: 0.74 (room for improvement)

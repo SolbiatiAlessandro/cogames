@@ -41,3 +41,5 @@ c21d6ff	0.762	seeds42-47 (0.68,0.86,0.98,0.74,0.63,0.68)	1000	keep	team-deposit-
 80a1171	0.715	seeds42-47 (0.69,0.86,0.82,0.74,0.63,0.55)	1000	discard	min-element-deposits-5: require deposits[element]>=5 before classifying scarce - seed44/47 hurt
 96ad450	0.760	seeds42-47 (0.68,0.86,0.98,0.74,0.63,0.67)	1000	discard	stationary-detection-5: 5-step stationary limit in team-scarce routing - seed47 drops 0.74->0.67
 1f7c6d9	0.713	seeds42-47 (0.68,0.86,0.82,0.74,0.63,0.55)	1000	discard	total-deposits-40: require total>=40 before team-scarce routing - seed44/47 hurt same pattern
+26d5240	0.767	seeds42-47 (0.82,0.81,0.84,0.74,0.63,0.76)	1000	discard	proximity-margin=0: seed42 fixed 0.68->0.82 but seed44 drops 0.98->0.84 (too strict)
+5d70c80	0.790	seeds42-47 (0.77,0.86,0.98,0.74,0.63,0.76)	1000	keep	proximity-margin=10: GOLDILOCKS seed42 0.68->0.77 AND seed44 preserved at 0.98 - NEW BEST!
