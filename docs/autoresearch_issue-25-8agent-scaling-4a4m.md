@@ -553,3 +553,105 @@ Systematic cap testing (threshold=3):
 1. Try cap tuning for other seeds (44, 45, 46) to find their optimal cap
 2. Investigate seed 44 junction dynamics more carefully
 3. Try adjusting alignment behavior for seeds where clips dominate early
+
+## 2026-04-01T04:00:00Z: session 8 - wiring team deposit tracking
+
+**Context**: Picking up from previous session. HEAD is at 8ca7300 (cap=45 result, 0.735 avg).
+Code in llm_skills.py has uncommitted team_deposits tracking (deposit detection + _team_scarce_element method).
+The _team_scarce_element method was implemented but NOT wired into _mine_until_full.
+
+**What I just did**: Wired _team_scarce_element() into _mine_until_full().
+- Added `team_scarce = self._team_scarce_element()` at start of mine-until-full
+- Changed `scarce = self._scarce_element(obs)` to `scarce = team_scarce or self._scarce_element(obs)`
+- Team-level signal (hub deposit imbalance) now takes priority over per-miner inventory imbalance
+
+**Hypothesis**: Team deposit tracking identifies which element the hub is most short of globally.
+For seeds where one element bottlenecks heart production (carbon in seed 42, silicon in seed 43/44),
+routing ALL miners toward the globally-scarce element should improve throughput.
+The threshold in _team_scarce_element is max-min >= 7 (one heart-worth of element difference).
+
+**Starting experiment run now (seeds 42-47)**
+
+## 2026-04-01T05:00:00Z: session 8 - team deposit tracking BREAKTHROUGH
+
+**APPROACH**: Team-level deposit tracking with empty-inventory routing
+
+**Implementation**:
+1. Added `team_deposits: dict[str, int]` to SharedMap in aligner_agent.py
+2. Added `last_inventory: dict[str, int]` to MinerSkillState
+3. Added `_update_team_deposits()` to detect deposit events (inventory drops to 0) and record what was deposited
+4. Added `_team_scarce_element()` to identify which element the hub most needs (max-min >= 7 threshold)
+5. Fixed `LLMMinerPolicyImpl.step_with_state` to call `_update_team_deposits` (was only in base class)
+6. Fixed `LLMMinerPolicyImpl._copy_with` to preserve `last_inventory` field (was being lost!)
+7. Added empty-inventory routing: when miner has NO inventory (just deposited), route to team-scarce element
+
+**Key insight**: Only route to team-scarce when inventory is EMPTY (miner just deposited, starting new cycle).
+This prevents the "all miners pile on" oscillation seen in previous attempts.
+When inventory is non-empty, per-miner scarce routing handles balance naturally.
+
+**Results (seeds 42-47):**
+| seed | baseline (0.735) | team-deposit-empty-inv | delta |
+|------|-----------------|------------------------|-------|
+| 42 | 0.82 | 0.68 | -17% |
+| 43 | 0.81 | 0.86 | +6% |
+| 44 | 0.65 | 0.98 | +51%!!! |
+| 45 | 0.74 | 0.74 | = |
+| 46 | 0.63 | 0.63 | = |
+| 47 | 0.76 | 0.68 | -11% |
+| AVG | 0.735 | **0.762** | **+3.7%** |
+
+**Decision: KEEP.** Net positive +3.7%. Seed 44 is extraordinary (+51%). 
+Seeds 42 and 47 drop but are outweighed by seed 44's massive improvement.
+Committed as c21d6ff.
+
+**Why seed 44 improved so dramatically**: Seed 44 has silicon=10 vs carbon/germanium=30 deposits.
+Silicon extractors are nearby but miners always routed to carbon (per-miner balance always said "need carbon").
+Team routing fixes this: when silicon is team_scarce, empty-inventory miners go to silicon first.
+
+**Why seeds 42 and 47 drop**: 
+- Seed 42: well-balanced deposits (silicon=70 vs max=84, diff=14 > threshold 7).
+  Team routing fires for silicon in seed 42 even though it's nearly balanced.
+  Silicon extractors in seed 42 are 40+ tiles away, causing detours.
+- Seed 47: silicon=31 vs oxygen=85, huge imbalance. Team routing fires and routes to silicon.
+  But silicon+other element routing creates oscillation - total deposits actually INCREASE but
+  germanium drops (54→27) which becomes new bottleneck.
+  Mystery: MORE total deposits (231→284) but LOWER reward (0.76→0.68). May be timing issue.
+
+**Next ideas to fix seed 42 and 47:**
+1. Add a minimum imbalance ratio (not just absolute diff) - seed 42 imbalance=14/70=20%, seed 44 imbalance=20/10=200%
+2. Only route to team-scarce if miner's known silicon extractors are CLOSE (< 20 tiles)
+3. Limit how many times team routing fires per miner per deposit cycle
+4. Per-seed investigation: why does more deposits in seed 47 give lower reward?
+
+## 2026-04-01T10:00:00Z: session 9 - team-scarce time limit
+
+**Continuation from session 8. Goal: fix seeds 42/47 regression while keeping seed 44's gain.**
+
+**Root cause analysis**:
+- c21d6ff stuck loop: in seed 42, agent 4 fires team_scarce=oxygen for 31+ CONSECUTIVE empty-inv steps with SAME deposit state
+- The loop happens because: visible oxygen extractor → move_toward_target → can't mine (miner already adjacent, extractor occupied or mining requires time) → still empty → repeat
+- Extractors are in known_free_cells (NOT blocked_cells), so _navigate_to_blocked_target doesn't work
+- Tried blocked-target navigation: broke seed 44 (miner stops 1 cell short of extractor)
+- Key insight: need a TIME LIMIT to prevent stuck loops without one-shot (which kills seed 44 by limiting to 1 step)
+
+**Experiments tried this session:**
+1. One-shot per cycle: seed 44 drops 0.98→0.65 (miner takes 1 step to silicon, gives up, uses normal routing which doesn't prefer silicon)
+2. 25-step limit: seeds 42/47 still hurt (0.57), seed 44 preserved at 0.89
+3. blocked-target nav + 40-step limit: seed 44 drops 0.65 (blocked-target wrong for free extractors)
+4. 40-step limit only: seed 42=0.68, seed 44=0.98, seed 47=0.64 (seed 47 hurt)
+5. 100-step limit: seed 42=0.68, seed 43=0.86, seed 44=0.98, seed 45=0.74, seed 46=0.63, seed 47=0.74
+
+**BREAKTHROUGH**: limit=100 gives avg=0.772, NEW BEST (+1.3% over c21d6ff=0.762, +5.0% over baseline=0.735)
+- Seed 47 improved 0.68→0.74 (+9%)!
+- Seed 44 preserved at 0.98
+- Seed 42 unchanged at 0.68
+
+**Why limit=100 helps seed 47**: The silicon routing in seed 47 was causing 100+ consecutive empty-inv steps (stuck loop similar to seed 42's oxygen loop). Limit=100 cuts off the loop and the miner falls back to normal routing. The key: silicon=31 vs oxygen=85 in seed 47's deposits is still a genuine imbalance, but the routing loop was wasting too many steps.
+
+**Why limit=100 doesn't help seed 42**: Seed 42's oxygen loop runs for 31 steps (within the 100-step limit), so the limit never triggers. The fundamental issue remains: early deposits show oxygen=0, firing oxygen routing even though oxygen is naturally balanced.
+
+**Committed**: 64f1882 as new experiment baseline.
+
+**Decisions on further experiments:**
+- limit=100 is KEEP (0.772 avg NEW BEST)
+- Next: try further tuning the limit value, or fix seed 42's false-positive oxygen signal

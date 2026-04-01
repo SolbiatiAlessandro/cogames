@@ -33,3 +33,8 @@ b7ffd23	0.586	seeds42-47 (0.60,0.57,0.52,0.58,0.63,0.63)	1000	discard	miner-extr
 c6b527a	0.712	seeds42-47 (0.82,0.67,0.65,0.74,0.63,0.76)	1000	keep	scarce-threshold-3: lower threshold 5->3 for scarce routing - seed43 +12% (0.60->0.67) NEW BEST!
 1859e89	0.723	seeds42-47 (0.82,0.74,0.65,0.74,0.63,0.76)	1000	keep	scarce-cap-50: increase distance cap 40->50 tiles - seed43 +10% (0.67->0.74) NEW BEST!
 eb402e9	0.735	seeds42-47 (0.82,0.81,0.65,0.74,0.63,0.76)	1000	keep	scarce-cap-45: cap=45 tiles - seed43 jumps 0.67->0.81 (+21%) NEW BEST!
+1859e89_b	0.723	seeds42-47 (0.82,0.74,0.65,0.74,0.63,0.76)	1000	discard	scarce-cap-55: cap=55 tiles - seed43 drops back to 0.74, 45 is goldilocks
+1859e89_c	0.723	seeds42-47 (0.82,0.74,0.65,0.74,0.63,0.76)	1000	discard	scarce-cap-60: same as 55 - confirmed 45 is goldilocks for seed43
+3992a45_re	0.735	seeds42-47 (0.82,0.81,0.65,0.74,0.63,0.76)	1000	keep	TRUE BASELINE re-measured at session 8 start - fresh re-run confirms 0.735 avg
+c21d6ff	0.762	seeds42-47 (0.68,0.86,0.98,0.74,0.63,0.68)	1000	keep	team-deposit-empty-inv: route empty-inventory miners to team-scarce element - seed44 +51%! NEW BEST!
+64f1882	0.772	seeds42-47 (0.68,0.86,0.98,0.74,0.63,0.74)	1000	keep	team-scarce-limit-100: 100-step time limit prevents stuck loops - seed47 +9% (0.68->0.74) NEW BEST!
