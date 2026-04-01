@@ -16,3 +16,10 @@ b117951	0.643000	seeds42-47 (0.57,0.64,0.73,0.58,0.70,0.60)	1000	discard	hub-awa
 b117951	0.632	seeds42-47 (0.77,0.74,0.42,0.59,0.66,0.61)	1000	discard	junction-reservation: prevent aligners targeting same junction - helps seed42+43 but hurts seed44+47 consistently
 b117951	0.585	seeds42-47 (0.57,0.66,0.35,0.59,0.63,0.71)	1000	keep	TRUE BASELINE re-measured: machina_llm_roles 4A0S4M llm_timeout=0.001 scripted_miners (TSV rows 8-11 used different measurement)
 2c5efb6	0.632	seeds42-47 (0.77,0.74,0.42,0.59,0.66,0.61)	1000	keep	junction-reservation: soft reservation in SharedMap +8% over true baseline
+2c5efb6	0.587	seeds42-47 (0.61,0.74,0.34,0.59,0.63,0.61)	1000	discard	distance-proportional-reservation: 1.5x distance threshold collapses seed42 back - simple reservation is better
+0f714c6	0.587	seeds42-47 (0.55,0.72,0.34,0.59,0.63,0.65)	1000	discard	distance-proportional-reservation 2x: same pattern, seed42 collapses - hard reservation is best form
+0f714c6	0.598	seeds42-47 (0.59,0.80,0.43,0.55,0.63,0.59)	1000	discard	HP-retreat-fix: fix _read_hp to use inv:hp prefix - seed42 drops 0.77->0.59 miners retreat too early
+0f714c6	0.478	seeds42-47 (0.45,0.49,0.38,0.49,0.53,0.57)	1000	discard	5A0S3M-with-reservation: 5 aligners 3 miners - too few miners hurts overall
+0f714c6	0.515	seeds42-47 (0.44,0.58,0.38,0.52,0.52,0.62)	1000	discard	3A0S5M-with-reservation: 3 aligners 5 miners - too few aligners hurts junction coverage
+0f714c6	0.557	seeds42-47 (0.53,0.72,0.38,0.55,0.63,0.56)	1000	discard	return_load=10: miners return too frequently, reduces mining efficiency
+0f714c6	0.567	seeds42-47 (0.56,0.73,0.37,0.56,0.63,0.58)	1000	discard	return_load=15: slightly better than 10 but still worse than default 20

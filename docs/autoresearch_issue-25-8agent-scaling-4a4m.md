@@ -385,3 +385,39 @@ This is the correct reference for all subsequent experiments in this session.
 1. Improve seed 47: understand why reservation hurts it - maybe add distance-based reservation bypass
 2. Try to further improve seed 44 (0.35→0.42 still low)
 3. Try distance-weighted reservation: only skip reserved if alternative within 1.5x distance
+
+## 2026-03-31T23:00:00Z: session 5 experiments (all failed)
+
+**Distance-proportional reservation (1.5x)**: 0.587 avg. Seed 42 collapses back to 0.61. FAILED.
+**Distance-proportional reservation (2x)**: 0.587 avg. Same pattern. FAILED.
+**HP retreat fix (inv:hp prefix)**: 0.598 avg. Seed 42 drops 0.77->0.59. Miners retreat too early. FAILED.
+**5A0S3M with reservation**: 0.478 avg. Too few miners.
+**3A0S5M with reservation**: 0.515 avg. Too few aligners.
+**return_load=10**: 0.557 avg. Too frequent deposits.
+**return_load=15**: 0.567 avg. Still below default 20.
+
+**KEY FINDING from this session**: The junction reservation at simple hard form (0.632 avg) is the best result.
+All variations tried (distance-based softening, aligner/miner count changes, HP retreat fix, return_load changes) hurt.
+The system is at a local maximum given the current architecture.
+
+## 2026-03-31T23:30:00Z: session 6 starting - new brainstorm
+
+**Current state**: Best = 0.632 avg (junction reservation committed at 2c5efb6)
+**True baseline**: 0.585 avg (seeds 42-47)
+**Stretch target**: 0.75/agent
+
+**Per-seed remaining issues:**
+- Seed 42 (0.77 with reservation): improved, but carbon bottleneck remains (21 vs 74 germanium)
+- Seed 43 (0.74): good, room to improve
+- Seed 44 (0.42): clips team dominates, junctions lost quickly. Fundamentally hard.
+- Seed 45 (0.59): deposit routing issues
+- Seed 46 (0.66): stable
+- Seed 47 (0.61 with reservation, 0.71 without): reservation HURTS this seed
+
+**New ideas to try:**
+1. Aligner behavior when all junctions are friendly: explore toward uncovered territory vs stay near hub
+2. Better heart acquisition: aligners retry get_heart after small delay instead of looping forever
+3. Miner behavior when hub is full: explore to new extractors instead of looping at hub
+4. Better enemy junction handling: prioritize attacking enemy junctions closest to our network
+5. Reduce wait time on extract_resource when stuck (current stuck_threshold might be sub-optimal)
+6. Try using actual LLM (gemma-3-12b) for aligner decisions - issue #25 suggestion
