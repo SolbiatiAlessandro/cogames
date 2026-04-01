@@ -14,7 +14,7 @@ logger = logging.getLogger("cogames.policy.llm_skills")
 
 Coord = tuple[int, int]
 _HUB_SEARCH_DISTANCE = 20
-_MAX_SCARCE_ELEMENT_DISTANCE = 40
+_MAX_SCARCE_ELEMENT_DISTANCE = 50
 _HUB_EXTRACTOR_OFFSETS: tuple[Coord, ...] = ((-8, -8), (-8, 8), (8, -8), (8, 8))
 _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
     ("north", (-1, 0)),
