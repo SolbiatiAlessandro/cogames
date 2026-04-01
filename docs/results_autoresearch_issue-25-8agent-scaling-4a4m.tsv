@@ -38,3 +38,6 @@ eb402e9	0.735	seeds42-47 (0.82,0.81,0.65,0.74,0.63,0.76)	1000	keep	scarce-cap-45
 3992a45_re	0.735	seeds42-47 (0.82,0.81,0.65,0.74,0.63,0.76)	1000	keep	TRUE BASELINE re-measured at session 8 start - fresh re-run confirms 0.735 avg
 c21d6ff	0.762	seeds42-47 (0.68,0.86,0.98,0.74,0.63,0.68)	1000	keep	team-deposit-empty-inv: route empty-inventory miners to team-scarce element - seed44 +51%! NEW BEST!
 64f1882	0.772	seeds42-47 (0.68,0.86,0.98,0.74,0.63,0.74)	1000	keep	team-scarce-limit-100: 100-step time limit prevents stuck loops - seed47 +9% (0.68->0.74) NEW BEST!
+80a1171	0.715	seeds42-47 (0.69,0.86,0.82,0.74,0.63,0.55)	1000	discard	min-element-deposits-5: require deposits[element]>=5 before classifying scarce - seed44/47 hurt
+96ad450	0.760	seeds42-47 (0.68,0.86,0.98,0.74,0.63,0.67)	1000	discard	stationary-detection-5: 5-step stationary limit in team-scarce routing - seed47 drops 0.74->0.67
+1f7c6d9	0.713	seeds42-47 (0.68,0.86,0.82,0.74,0.63,0.55)	1000	discard	total-deposits-40: require total>=40 before team-scarce routing - seed44/47 hurt same pattern
