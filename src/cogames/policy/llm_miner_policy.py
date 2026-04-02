@@ -287,11 +287,15 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         )
         # After 3+ timeouts with persistent low cargo (< 15), explore for better territory
         mine_timed_out_low_cargo = False
+        # After 5+ timeouts with substantial partial cargo (>= 20), deposit what we have
+        mine_timed_out_partial_deposit = False
         if state.recent_events and "mine_until_full timed out" in state.recent_events[-1] and state.mine_timeout_count >= 3:
             try:
                 cargo_str = state.recent_events[-1].split("cargo=")[-1]
                 cargo_val = int(cargo_str.strip())
                 mine_timed_out_low_cargo = cargo_val < 15
+                if not mine_timed_out_low_cargo and state.mine_timeout_count >= 4 and carried_total >= 20:
+                    mine_timed_out_partial_deposit = True
             except (ValueError, IndexError):
                 pass
         if not has_miner:
@@ -308,6 +312,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             return "explore", "scripted: stuck, exploring for new route"
         if mine_timed_out_low_cargo:
             return "explore", f"scripted: mine timed out {state.mine_timeout_count}x with low cargo, exploring for better extractors"
+        if mine_timed_out_partial_deposit:
+            return "deposit_to_hub", f"scripted: mine timed out {state.mine_timeout_count}x with partial cargo={carried_total}, depositing"
         if state.known_extractors:
             return "mine_until_full", "scripted: known extractors available"
         return "explore", "scripted: no extractors known"
