@@ -1032,3 +1032,45 @@ What could still help:
 2. Per-aligner staggering: agent 0 gets heart first, others explore/align in meantime
 3. Improve aligner gear_up speed (some agents stuck in gear_up)
 4. Look at mine_explore mechanism: are miners finding better extraction areas?
+
+## 2026-04-02T11:00:00Z: session 18 - more experiments
+
+### stuck_threshold variations (all DISCARDED)
+- stuck=25 (aligners) / 20 (miners): 0.682 avg - catastrophic (longer waits cascade)
+- stuck=15 (all): seed 42 improves (0.77->0.84) but seeds 43/44/47 collapse
+- stuck=15 (aligners) / 20 (miners): similar pattern, net worse 0.713
+
+KEY INSIGHT: stuck_threshold=20 is goldilocks. Lower values cause aligners to abandon junctions too early (they were close but gave up). Higher values cause cascade blocking.
+
+### hub_stale_explore_steps experiment (DISCARDED)
+After stale get_heart exit (waiting at hub but no heart), force N-step explore before retrying.
+- N=30: seed 42+45 improve but 43/44/47 collapse badly
+- N=10: seeds 44+45 recover but seed 47 still 0.58
+- N=5: seeds 44+45 recover to baseline but seed 47 drops 0.83->0.58, seed 42 drops 0.77->0.74
+
+Why it fails: can't distinguish "hub temporarily empty (another aligner just took last heart)" from "hub empty because no resources for heart crafting". Stale exit fires for both, but they need different cooldown lengths (1-2 steps vs 20+ steps).
+
+### Analysis of hub contention
+- Initial hearts=5: enough for all 4 aligners on first pass
+- Contention happens on 2nd-6th heart (when hub needs to craft from deposits)
+- Heart crafting requires 7 of each element in hub simultaneously
+- After heart is crafted, 4 aligners compete for it
+- The 20-step stale threshold means each losing aligner wastes 20 steps
+- With 4 aligners, this creates 60+ steps of contention per heart
+
+The fundamental problem is that we can't change the game's heart crafting mechanics.
+
+### What's been exhaustively tried
+- All timeout values: goldilocks found (mine=75, deposit=155, stuck=20)
+- All team configs: 4A4M is optimal
+- Hub depletion awareness: doesn't help (navigation blocking misidentified as depletion)
+- Per-miner scarce variations: threshold 2/3/4, team_scarce_current_cycle - all worse
+- Aligner stuck/cooldown variants: hub_stale_explore, defend after timeouts - all worse
+- Junction reservation: already implemented (gave +8% earlier in session history)
+- Alignment reach: HUB=25, JUNCTION=15 are goldilocks
+- Return loads: 40 is goldilocks
+
+### Next ideas (very limited):
+1. Lower per-miner `_scarce_element` threshold from `max-min >= 3` to just `min_count == 0` (only route when one element is completely depleted in inventory)
+2. Try very large proximity margin (20-30) specifically for seed 42's oxygen problem without a general cap
+3. Try to improve the explore quality by using spiral/systematic pattern instead of frontier BFS
