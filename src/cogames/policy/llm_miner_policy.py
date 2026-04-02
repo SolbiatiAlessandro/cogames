@@ -36,6 +36,8 @@ class LLMMinerState(MinerSkillState):
     # HP monitoring for retreat
     max_hp_seen: int = 0
     retreating: bool = False
+    # Issue-25: count consecutive mine_until_full timeouts (no deposit between them)
+    mine_timeout_count: int = 0
 
 
 class LLMMinerPlannerClient:
@@ -222,6 +224,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             recent_events=list(state.recent_events),
             max_hp_seen=state.max_hp_seen,
             retreating=state.retreating,
+            mine_timeout_count=state.mine_timeout_count,
         )
 
     def _event(self, state: LLMMinerState, message: str) -> None:
@@ -282,6 +285,15 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.recent_events
             and "deposit_to_hub timed out" in state.recent_events[-1]
         )
+        # After 3+ timeouts with persistent low cargo (< 15), explore for better territory
+        mine_timed_out_low_cargo = False
+        if state.recent_events and "mine_until_full timed out" in state.recent_events[-1] and state.mine_timeout_count >= 3:
+            try:
+                cargo_str = state.recent_events[-1].split("cargo=")[-1]
+                cargo_val = int(cargo_str.strip())
+                mine_timed_out_low_cargo = cargo_val < 15
+            except (ValueError, IndexError):
+                pass
         if not has_miner:
             if was_stuck:
                 return "explore", "scripted: gear_up stuck, exploring for station"
@@ -294,6 +306,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             return "explore", "scripted: stale target, exploring for new extractor"
         if was_stuck:
             return "explore", "scripted: stuck, exploring for new route"
+        if mine_timed_out_low_cargo:
+            return "explore", f"scripted: mine timed out {state.mine_timeout_count}x with low cargo, exploring for better extractors"
         if state.known_extractors:
             return "mine_until_full", "scripted: known extractors available"
         return "explore", "scripted: no extractors known"
@@ -372,9 +386,11 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill == "mine_until_full" and carried_total >= self._return_load:
             self._event(state, f"mine_until_full completed at load={carried_total}")
             state.current_skill = None
+            state.mine_timeout_count = 0  # Reset timeout counter on successful mine completion
         elif state.current_skill == "deposit_to_hub" and carried_total == 0:
             self._event(state, "deposit_to_hub completed after deposit")
             state.current_skill = None
+            state.mine_timeout_count = 0  # Reset timeout counter after successful deposit
         elif state.current_skill == "explore" and len(state.known_extractors) > state.explore_start_extractors:
             self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
             state.current_skill = None
@@ -390,7 +406,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             self._event(state, "unstuck finished its bounded horizon")
             state.current_skill = None
         elif state.current_skill in {"gear_up", "mine_until_full"} and state.skill_steps >= self._stuck_threshold * 5:
-            self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
+            carried_at_timeout = self._carried_total(obs)
+            self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion cargo={carried_at_timeout}")
+            if state.current_skill == "mine_until_full":
+                state.mine_timeout_count += 1
             state.current_skill = None
         # Issue-25: deposit_to_hub gets 10x threshold (200 steps) since hub may be far from extractors
         elif state.current_skill == "deposit_to_hub" and state.skill_steps >= self._stuck_threshold * 10:
