@@ -379,9 +379,13 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
             state.current_skill = None
         # Issue-25: explore timeout so full-cargo miners retry deposit rather than exploring forever
-        elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 5:
-            self._event(state, f"explore timed out after {state.skill_steps} steps without new extractors")
-            state.current_skill = None
+        # After deposit timeout: use shorter explore (1x threshold) when hub is already known
+        elif state.current_skill == "explore":
+            deposit_timed_out_prev = any("deposit_to_hub timed out" in e for e in state.recent_events[-3:]) if state.recent_events else False
+            explore_timeout = self._stuck_threshold if (deposit_timed_out_prev and state.known_hubs) else self._stuck_threshold * 5
+            if state.skill_steps >= explore_timeout:
+                self._event(state, f"explore timed out after {state.skill_steps} steps without new extractors")
+                state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
             state.current_skill = None
