@@ -481,28 +481,21 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                             return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
 
         # Issue-16: prefer scarce element extractors for make_heart balance
-        # Proximity-relative: only route to scarce if it's not much farther than the nearest ANY extractor
-        _PER_MINER_SCARCE_PROXIMITY_MARGIN = 10  # same margin as team-scarce routing
         scarce = self._scarce_element(obs)
         if scarce and scarce in self._extractor_tags_by_element:
-            # Compute distance to nearest known extractor of ANY element (as baseline cost)
-            nearest_any_pm = self._nearest_known(current_abs, state.known_extractors)
-            dist_to_nearest_any_pm = abs(nearest_any_pm[0] - current_abs[0]) + abs(nearest_any_pm[1] - current_abs[1]) if nearest_any_pm else 9999
             scarce_tags = self._extractor_tags_by_element[scarce]
             visible_scarce = self._closest_visible_location(obs, scarce_tags)
             if visible_scarce is not None:
                 target_abs = self._visible_abs_cell(current_abs, visible_scarce)
-                scarce_dist = abs(target_abs[0] - current_abs[0]) + abs(target_abs[1] - current_abs[1])
-                if scarce_dist <= dist_to_nearest_any_pm + _PER_MINER_SCARCE_PROXIMITY_MARGIN:
-                    action, next_state = self._move_toward_target(state, current_abs, target_abs)
-                    return action, replace(next_state, last_mode=state.last_mode)
+                action, next_state = self._move_toward_target(state, current_abs, target_abs)
+                return action, replace(next_state, last_mode=state.last_mode)
             # Try navigating to a known scarce-element extractor (within distance cap)
             scarce_known = state.extractors_by_element.get(scarce, set())
             if scarce_known:
                 target_abs = self._nearest_known(current_abs, scarce_known)
                 if target_abs is not None:
                     dist = abs(target_abs[0] - current_abs[0]) + abs(target_abs[1] - current_abs[1])
-                    if dist <= _MAX_SCARCE_ELEMENT_DISTANCE and dist <= dist_to_nearest_any_pm + _PER_MINER_SCARCE_PROXIMITY_MARGIN:
+                    if dist <= _MAX_SCARCE_ELEMENT_DISTANCE:
                         action, next_state = self._move_toward_target(state, current_abs, target_abs)
                         return action, replace(next_state, last_mode=state.last_mode)
 
