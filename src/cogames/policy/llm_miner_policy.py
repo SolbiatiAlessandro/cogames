@@ -389,12 +389,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
             state.current_skill = None
-        elif state.current_skill == "gear_up" and state.skill_steps >= self._stuck_threshold * 5:
-            self._event(state, f"gear_up timed out after {state.skill_steps} steps without completion")
-            state.current_skill = None
-        # mine_until_full gets 8x threshold to allow more mining time in large maps
-        elif state.current_skill == "mine_until_full" and state.skill_steps >= self._stuck_threshold * 8:
-            self._event(state, f"mine_until_full timed out after {state.skill_steps} steps without completion")
+        elif state.current_skill in {"gear_up", "mine_until_full"} and state.skill_steps >= self._stuck_threshold * 5:
+            self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         # Issue-25: deposit_to_hub gets 10x threshold (200 steps) since hub may be far from extractors
         elif state.current_skill == "deposit_to_hub" and state.skill_steps >= self._stuck_threshold * 10:
