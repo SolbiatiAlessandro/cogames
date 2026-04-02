@@ -80,3 +80,7 @@ bcec881_f	0.825	same	1000	discard	return_load=35: same as 40 with mine_timeout=7
 bcec881_g	0.762	seeds42-47 (0.77,0.86,0.73,0.75,0.63,0.83)	1000	discard	mine_explore_count=2: explore too aggressively, seed44/45 hurt
 bcec881_h	0.825	same	1000	discard	explore_timeout=3x (60 steps): no change - explore already completes early
 62ca840	0.795	seeds42-47 (0.74,0.83,0.96,0.88,0.63,0.73)	1000	discard	hub-depletion-awareness: port cross_role cooldown to machina_llm_roles - seed47 drops 0.83->0.73 due to nav-stuck misidentified as hub depleted
+7012670_a	0.825	same	1000	discard	mine_timeout=70: 0.805 (43 drops 0.86->0.81, 45 drops 0.85->0.78) - also tried 80 (0.818) 85 (0.818) - 75 is goldilocks
+7012670_b	0.825	same	1000	discard	deposit_timeout=140: 0.805 and 170: worse - 155 is goldilocks
+7012670_c	0.825	same	1000	discard	per-miner-scarce-threshold=2: no change - 3 is goldilocks
+7012670_d	0.722	seeds42-47 (0.68,0.81,0.81,0.78,0.63,0.62)	1000	discard	team_scarce_current_cycle: suppress per-miner scarce when team_scarce active - catastrophic, per-miner scarce is essential for mining efficiency

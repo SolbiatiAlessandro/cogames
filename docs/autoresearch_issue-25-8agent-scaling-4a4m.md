@@ -989,3 +989,46 @@ The 0.825 plateau seems to be a local maximum given current constraints:
 2. Make the unstuck logic near hub smarter (agents wait in a queue-like pattern)
 3. Investigate aligner staggering: stagger get_heart attempts across agents using agent_id offset
 4. Look at what makes seed 47 better than 43 - and what's hurting 43 specifically
+
+## 2026-04-02T10:00:00Z: session 18 continued - more discarded experiments
+
+### Mine/deposit timeout fine-tuning (all DISCARDED)
+- mine_timeout=70: 0.805 avg (43 drops 0.86->0.81, 45 drops 0.85->0.78)
+- mine_timeout=80: 0.818 avg (44 drops 1.01->0.99)
+- mine_timeout=85: 0.818 avg (44=0.99, 45=0.83)
+- deposit_timeout=140: 0.805 avg (43 drops, 47 drops 0.83->0.64)
+- deposit_timeout=170: worse (44=0.92, 47=0.64)
+- CONFIRMED: mine_timeout=75 AND deposit_timeout=155 are both goldilocks.
+
+### Per-miner scarce threshold=2 (DISCARDED)
+Lowering per-miner scarce threshold from 3 to 2: NO CHANGE. Same 0.825 across all seeds.
+
+### team_scarce_current_cycle: suppress per-miner scarce when team_scarce active (CATASTROPHIC)
+Result: (0.68, 0.81, 0.81, 0.78, 0.63, 0.62) = 0.722 avg.
+Rationale: when team_scarce routes to silicon, skip per-miner routing for OTHER elements.
+Why catastrophic: per-miner scarce is critical for diversity. Miners need to collect ALL elements, not just team-scarce. When per-miner scarce is suppressed, miners fill up entirely on silicon (team-scarce), depositing 40 silicon but 0 carbon/oxygen/germanium. This creates NEW imbalances for other elements, making heart production worse overall.
+KEY INSIGHT: Per-miner scarce and team-scarce serve DIFFERENT purposes:
+- team_scarce: ensure the LOWEST-deposited element is filled (macro balance)
+- per-miner scarce: ensure each MINER'S load is balanced (micro balance within load)
+Both are needed simultaneously for optimal efficiency.
+
+### Friendly-hub filter (NO EFFECT)
+Filtering known_hubs to only contain team:cogs hubs: no change at all seeds. Either team tags aren't in token stream, or enemy hubs are already farther away in practice.
+
+### Analysis: why are we stuck at 0.825?
+The 0.825 plateau comes from:
+1. Seed 46 (0.63): confirmed near-optimal, structural hub crowding
+2. Seed 42 (0.77): oxygen per-miner routing creates false team-scarcity, can't fix without hurting seed 44
+3. Seeds 43, 47 are near their own ceiling given their map structure
+
+The scoring fundamentals:
+- clips always holds 43 junctions (21040 junction-steps per 1000 steps)
+- Our best: 15 junctions, 9087 junction-steps (seed 44)
+- Each additional heart = 7 of each element = 1 more junction = ~600 additional junction-steps (time held)
+- With heart_cost=7 each element, need 28 resources per heart from balanced deposits
+
+What could still help:
+1. Aligner efficiency: reduce get_heart contention between 4 aligners
+2. Per-aligner staggering: agent 0 gets heart first, others explore/align in meantime
+3. Improve aligner gear_up speed (some agents stuck in gear_up)
+4. Look at mine_explore mechanism: are miners finding better extraction areas?
