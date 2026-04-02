@@ -412,12 +412,6 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Clear move_blocked_cells for cells visibly empty (not walls or objects)
-        # This allows cells temporarily blocked by other agents to be navigated again
-        passable_now_aligner = visible_cells - blocked_now - hubs_now - stations_now - hazard_stations_now
-        cells_to_unblock_aligner = state.move_blocked_cells & passable_now_aligner
-        if cells_to_unblock_aligner:
-            state.move_blocked_cells.difference_update(cells_to_unblock_aligner)
         state.blocked_cells.update(state.move_blocked_cells)  # persist move-failure blocks
         state.known_free_cells.update(visible_cells - blocked_now)
         state.known_free_cells.difference_update(state.blocked_cells)
