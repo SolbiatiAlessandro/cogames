@@ -500,6 +500,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         scout_ids: str = "",
         return_load: int | str = 40,
         stuck_threshold: int | str = 20,
+        miner_stuck_threshold: int | str = 0,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
         llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
@@ -546,6 +547,8 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         )
         self._return_load = int(return_load)
         self._stuck_threshold = int(stuck_threshold)
+        _miner_stuck = int(miner_stuck_threshold)
+        self._miner_stuck_threshold = _miner_stuck if _miner_stuck > 0 else self._stuck_threshold
         self._unstuck_horizon = int(unstuck_horizon)
         self._agent_policies: dict[int, StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]] = {}
 
@@ -578,7 +581,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     agent_id,
                     planner=None if self._scripted_miners else self._planner,
                     return_load=self._return_load,
-                    stuck_threshold=self._stuck_threshold,
+                    stuck_threshold=self._miner_stuck_threshold,
                     unstuck_horizon=self._unstuck_horizon,
                     shared_map=self._shared_map,
                 )
