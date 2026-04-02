@@ -43,6 +43,13 @@ c21d6ff	0.762	seeds42-47 (0.68,0.86,0.98,0.74,0.63,0.68)	1000	keep	team-deposit-
 1f7c6d9	0.713	seeds42-47 (0.68,0.86,0.82,0.74,0.63,0.55)	1000	discard	total-deposits-40: require total>=40 before team-scarce routing - seed44/47 hurt same pattern
 26d5240	0.767	seeds42-47 (0.82,0.81,0.84,0.74,0.63,0.76)	1000	discard	proximity-margin=0: seed42 fixed 0.68->0.82 but seed44 drops 0.98->0.84 (too strict)
 5d70c80	0.790	seeds42-47 (0.77,0.86,0.98,0.74,0.63,0.76)	1000	keep	proximity-margin=10: GOLDILOCKS seed42 0.68->0.77 AND seed44 preserved at 0.98 - NEW BEST!
+a0fc8dd	0.790	seeds42-47 (same 0.790 avg)	1000	discard	parallel-limited team-scarce (max 2 miners): no change - routing already only 1-2 miners at a time
+4f9445e	0.363	seeds42-47 (0.10,0.59,0.36,0.55,0.19,0.39)	1000	discard	clear-move-blocked-cells (all visible non-wall cells): catastrophic - move_blocked_cells needed for nav
+4dc728c	0.505	seeds42-47 (0.61,0.51,0.36,0.44,0.45,0.66)	1000	discard	clear-agent-blocked-cells (only passable cells): still catastrophic - move_blocked_cells critical
+6248747	0.595	seeds42-47 (0.51,0.50,0.43,0.69,0.62,0.82)	1000	discard	hub-slot-reservation for aligners: aligners redirect to explore when hub taken - catastrophic (aligners can't get hearts)
+c1296c2	0.695	seeds42-47 (0.73,0.85,0.67,0.58,0.63,0.71)	1000	discard	per-miner-scarce-proximity margin=10: prevents per-miner balance routing - seed44 drops 0.98->0.67
+38a98cf	0.790	seeds42-47 (same 0.790 avg)	1000	discard	short-explore-after-deposit-timeout: 20-step explore when hub known after timeout - no change
+79f9352	0.783	seeds42-47 (0.77,0.82,0.98,0.74,0.63,0.76)	1000	discard	longer-mine-timeout 8x: seed43 drops 0.86->0.82 - longer mining hurts not helps
 5d70c80	0.790	seeds42-47 (same 0.790 avg)	1000	discard	enemy-avoiding junction selection: prefer junctions far from enemy territory - no change
 5d70c80	0.545	seeds42-47 (0.41,0.48,0.60,0.65,0.63,0.50)	1000	discard	staggered return_load 40/45/50/55: higher loads destroy mining efficiency
 5d70c80	0.675	seeds42-47 (0.61,0.64,0.95,0.65,0.63,0.57)	1000	discard	patient hub waiting: double stuck threshold for get_heart - cascade blocking hurts

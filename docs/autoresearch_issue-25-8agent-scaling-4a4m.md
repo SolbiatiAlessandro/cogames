@@ -723,3 +723,72 @@ Evidence: 0A8M configuration for seed 46 → deposits = 160 (40 per element). Mi
 1. Better miner routing in seed 42 (still slightly below 0.82 pre-team-scarce baseline)
 2. Investigate what makes seed 44 so strong (0.98) - can we replicate this for other seeds?
 3. Look at aligner improvements for seed 45 specifically
+
+## 2026-03-31T15:00:00Z: session 12 starting - new experiment loop
+
+**Context**: HEAD is 20a8dbd. Best is 0.790 avg (0.77,0.86,0.98,0.74,0.63,0.76).
+All session 11 failed experiments now logged. Baseline confirmed at 0.790.
+
+**Brainstorm for new experiments:**
+
+The current bottlenecks are seeds 42 (0.77 vs 0.82 pre-team-scarce), 45 (0.74), and 46 (0.63 near-optimal).
+
+**Analysis of remaining seed 42 gap (0.77 vs 0.82)**:
+- pre-team-scarce 0.82 had NO team-scarce routing at all
+- team-scarce adds false-positive oxygen routing in seed 42 that costs ~0.05
+- proximity margin=10 helps but only partially (oxygen extractor ~10 tiles farther than carbon)
+- The false positive fires SOMETIMES (when team deposits show oxygen imbalance early in game)
+- Possible fix: require team_deposits[element] >= 10 (not just max-min >= 7) before routing to that specific element. Or require that at least 2 elements have deposits >= 5 before the team-scarce routing fires (not just total >= 14).
+
+**Analysis of seed 45 (0.74)**:
+- ~123 deposits vs ~267 for seed 42. Half the throughput.
+- This suggests either: (a) hub crowding, (b) miners spending too much time exploring, (c) extractors are farther away
+- Let's try investigating whether team-scarce routing is causing excessive routing in seed 45
+
+**New experiment ideas:**
+1. **Per-element minimum deposits**: Only route to element X if team_deposits[X] + (total - team_deposits[X]) > 14 AND the element has at least N deposits (not just "total imbalance"). This prevents routing to element X when it has 0 deposits (which is always scarce).
+2. **Team-scarce threshold 7 -> 5**: More aggressive routing (helps seeds where imbalance is 5-7 range).
+3. **Single-miner team-scarce**: Use SharedMap to assign only 1 miner per cycle to team-scarce routing. Others use normal routing. Prevents "all miners pile on".
+4. **Improve aligner: prefer junctions near enemy (to contest them early)** - already tried in session 11, no change.
+5. **Improve aligner: after each get_heart, explore frontier-for-alignment** - currently aligners go straight to get_heart and then to nearest alignable junction. What if they do a short exploration pass first?
+
+**My hypothesis for experiment 1 (team-scarce element minimum):**
+Currently team_deposits shows {carbon: 30, oxygen: 0, germanium: 30, silicon: 30} → routes to oxygen.
+But oxygen could be 0 because there simply ARE no oxygen extractors nearby (not because miners aren't trying).
+If we require that team_deposits[element] >= K before routing to it, we'd skip oxygen=0 and only route when ALL elements have been deposited at least K times.
+
+Wait - this is actually the wrong interpretation. `team_deposits[element]` tracks how much has been deposited to the hub, not what miners are finding. If oxygen = 0 deposits, it means miners haven't deposited any oxygen, which IS a problem.
+
+Actually the issue is different: early game deposits might show oxygen=0 just because the first miner to deposit didn't have oxygen (carried mostly carbon). So team-scarce fires immediately with oxygen as the scarce element.
+
+**Better hypothesis**: What if we increase the total threshold from 14 to 28? This means we wait until 2 full deposit cycles before team-scarce fires. This would reduce false positives from early-game imbalance.
+
+Let me check: in session 9, increasing minimum deposits from 14 to 40 (row 43 in TSV) hurt seeds 44 and 47. So higher thresholds are bad. Let me not go that direction.
+
+**New experiment: single-miner assignment for team-scarce routing**
+
+Only 1 miner per step should follow team-scarce routing. This prevents all miners piling on silicon/carbon in the same step. Implementation: add `team_scarce_assigned_miner: int | None` to SharedMap. If another miner is already assigned, skip team-scarce routing.
+
+Starting experiment loop now.
+
+## 2026-03-31T18:00:00Z: session 12 experiment results - many failures
+
+**Failed experiments this session:**
+1. parallel-limited team-scarce (max 2 miners): No change at 0.790. The parallel routing was already naturally limited.
+2. hub-slot-reservation for aligners: Catastrophic 0.595 avg. Aligners redirect to explore when hub is "taken", but they have no heart so they can't do align_neutral. Creates infinite explore loops.
+3. per-miner-scarce-proximity margin=10: 0.695 avg. Prevents per-miner balance routing. Seed 44 drops 0.98→0.67 because miners need to route to distant silicon for INVENTORY balance.
+4. short-explore-after-deposit-timeout: 0.790 avg (no change). Reducing explore timeout after deposit timeout has no visible effect.
+5. longer-mine-timeout 8x: 0.783 avg. Seed 43 drops 0.86→0.82.
+6. clear-move-blocked-cells (all visible): Catastrophic 0.363. move_blocked_cells are critical for navigation, not just agent-blocking.
+7. clear-agent-blocked-cells (passable only): Still catastrophic 0.505. Even selective clearing breaks navigation.
+
+**Key finding**: move_blocked_cells are essential for navigation correctness. They represent actual immovable obstacles that the tag-based wall detection doesn't cover. Clearing them causes agents to repeatedly hit walls and hazards.
+
+**Key finding on seed 45**: The low deposit count (~123 vs 267 for seed 42) is caused by:
+- Only 8 deposit MODE entries logged (vs 12 for seed 42)
+- Each deposit produces ~15 elements vs expected 40
+- This suggests miners are NOT completing full 40-element loads
+
+**Hypothesis on seed 45 deposits**: Mine_until_full times out after 100 steps. If extractors are spread across a larger area and miners need more time to collect 40 elements, they deposit with partial loads. Longer timeout (8x) hurt seed 43, so this isn't the fix.
+
+**Conclusion from session 12**: The 0.790 avg appears to be at a local maximum for the current architecture. The bottleneck seeds (45=0.74, 46=0.63) have structural issues (hub layout, extractor distances) that can't easily be fixed through routing tuning alone.
