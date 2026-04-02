@@ -58,3 +58,4 @@ c1296c2	0.695	seeds42-47 (0.73,0.85,0.67,0.58,0.63,0.71)	1000	discard	per-miner-
 5d70c80	0.735	seeds42-47 (ratio=1.5 seed44=0.65)	1000	discard	ratio-based proximity 1.5x: seed44 drops badly vs margin=10
 5d70c80	0.755	seeds42-47 (ratio=2.0 seed44=0.85)	1000	discard	ratio-based proximity 2.0x: seed44 0.98->0.85 worse than margin=10
 5d70c80	0.750	seeds42-47 (ratio=3.0 seed42=0.60 seed44=0.83)	1000	discard	ratio-based proximity 3.0x: seed42 drops back to 0.60 - margin=10 remains goldilocks
+83ebd90	0.795	seeds42-47 (0.77,0.86,1.00,0.72,0.66,0.76)	1000	keep	mine-timeout-explore count=3 cargo<15: explore after 3 low-cargo timeouts - seed44 hits 1.00! NEW BEST!

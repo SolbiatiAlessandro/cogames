@@ -792,3 +792,35 @@ Starting experiment loop now.
 **Hypothesis on seed 45 deposits**: Mine_until_full times out after 100 steps. If extractors are spread across a larger area and miners need more time to collect 40 elements, they deposit with partial loads. Longer timeout (8x) hurt seed 43, so this isn't the fix.
 
 **Conclusion from session 12**: The 0.790 avg appears to be at a local maximum for the current architecture. The bottleneck seeds (45=0.74, 46=0.63) have structural issues (hub layout, extractor distances) that can't easily be fixed through routing tuning alone.
+
+## 2026-04-01T18:00:00Z: session 13 - mine-timeout-explore fix - NEW BEST 0.795
+
+**Continuing investigation of agent 7 in seed 45 (never deposits, only mine_until_full)**
+
+Discovered the root cause: agent 7 in seed 45 times out from `mine_until_full` repeatedly (9 times!) with `cargo=11` each time. The cargo stays at 11 because:
+1. The extractor area agent 7 is in has limited resources - only ~11 elements available per 100-step window
+2. Agent 7 starts each new mine cycle with 0 cargo (somehow the partial cargo is lost)
+3. `_scripted_skill_choice` after timeout just returns `mine_until_full` again (because `known_extractors` is non-empty)
+
+**The bug**: After `mine_until_full` times out, `_scripted_skill_choice` returns `mine_until_full` again if `known_extractors` is non-empty. This creates an infinite loop where a miner in a low-yield area NEVER explores to find better extractors.
+
+**Fix implemented**: Added `mine_timeout_count` to LLMMinerState. After 3+ consecutive timeouts (no deposit between them) with cargo < 15, force EXPLORE to find better extractors. Reset counter on successful deposit or mine completion.
+
+**Results (seeds 42-47):**
+| seed | before | after |
+|------|--------|-------|
+| 42 | 0.77 | 0.77 |
+| 43 | 0.86 | 0.86 |
+| 44 | 0.98 | **1.00** (+2%) |
+| 45 | 0.74 | 0.72 (-3%) |
+| 46 | 0.63 | 0.66 (+5%) |
+| 47 | 0.76 | 0.76 |
+| AVG | 0.790 | **0.795** (+0.6%) |
+
+**Why seed 44 hit 1.00**: The fix causes miners that were stuck in low-yield areas to explore and find better extractors, increasing overall throughput. Seed 44 was already at 0.98 (near perfect) and the fix pushed it over.
+
+**Why seed 45 dropped slightly**: The explore trigger fires at step ~300 (3 * 100-step timeouts), but the explore timeout is 100 more steps = 400 steps burned before agent 7 can even start mining the new area. With only 600 steps left, agent 7 finds a slightly better area (cargo=21 after explore) but it's still not enough to reach deposit threshold.
+
+**Key insight**: The fix helps when miners are in TRULY barren areas. The threshold (count=3, cargo<15) is the goldilocks - count=2 hurts seed 45 more (0.65), count=5 has no effect (0.790). Cargo threshold 12 is same as 15 since agent 7 is at 11.
+
+**COMMITTED as 83ebd90 - KEEP**
