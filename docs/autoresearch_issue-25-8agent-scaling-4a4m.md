@@ -824,3 +824,26 @@ Discovered the root cause: agent 7 in seed 45 times out from `mine_until_full` r
 **Key insight**: The fix helps when miners are in TRULY barren areas. The threshold (count=3, cargo<15) is the goldilocks - count=2 hurts seed 45 more (0.65), count=5 has no effect (0.790). Cargo threshold 12 is same as 15 since agent 7 is at 11.
 
 **COMMITTED as 83ebd90 - KEEP**
+
+## 2026-04-01T18:30:00Z: session 13 part 2 - partial deposit on timeout - NEW BEST 0.798
+
+**Extending the mine-timeout fix with partial deposit**
+
+After the explore trigger (mine_timeout_count >= 3, cargo < 15), miners find better extractors. But then after 4+ timeouts total with accumulated cargo >= 20, they should deposit rather than keep mining toward 40.
+
+**Fix**: When mine_timeout_count >= 4 AND cargo >= 20 AND cargo < 15 doesn't apply → deposit_to_hub with partial load.
+
+**Results (seeds 42-47):**
+| seed | mine-timeout-explore | +partial-deposit |
+|------|---------------------|------------------|
+| 42 | 0.77 | 0.77 |
+| 43 | 0.86 | 0.86 |
+| 44 | 1.00 | 1.00 |
+| 45 | 0.72 | **0.74** (+3%) |
+| 46 | 0.66 | 0.66 |
+| 47 | 0.76 | 0.76 |
+| **AVG** | **0.795** | **0.798** |
+
+**Why it works**: Miners that accumulate cargo over multiple cycles but never reach 40 in a single cycle can now deposit their accumulated partial loads. In seed 45, miners now deposit 20-30 element loads instead of never depositing.
+
+**COMMITTED as cf81a4e - KEEP**
