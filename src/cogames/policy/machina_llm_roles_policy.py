@@ -501,6 +501,8 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         return_load: int | str = 40,
         stuck_threshold: int | str = 20,
         miner_stuck_threshold: int | str = 0,
+        mine_timeout_steps: int | str = 0,
+        deposit_timeout_steps: int | str = 0,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
         llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
@@ -549,6 +551,8 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         self._stuck_threshold = int(stuck_threshold)
         _miner_stuck = int(miner_stuck_threshold)
         self._miner_stuck_threshold = _miner_stuck if _miner_stuck > 0 else self._stuck_threshold
+        self._mine_timeout_steps = int(mine_timeout_steps)
+        self._deposit_timeout_steps = int(deposit_timeout_steps)
         self._unstuck_horizon = int(unstuck_horizon)
         self._agent_policies: dict[int, StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]] = {}
 
@@ -584,6 +588,8 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     stuck_threshold=self._miner_stuck_threshold,
                     unstuck_horizon=self._unstuck_horizon,
                     shared_map=self._shared_map,
+                    mine_timeout_steps=self._mine_timeout_steps,
+                    deposit_timeout_steps=self._deposit_timeout_steps,
                 )
             self._agent_policies[agent_id] = StatefulAgentPolicy(
                 impl,

@@ -177,11 +177,17 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         stuck_threshold: int,
         unstuck_horizon: int,
         shared_map=None,
+        mine_timeout_steps: int = 0,
+        deposit_timeout_steps: int = 0,
     ) -> None:
         super().__init__(policy_env_info, agent_id, return_load=return_load, shared_map=shared_map)
         self._planner = planner
         self._stuck_threshold = stuck_threshold
         self._unstuck_horizon = unstuck_horizon
+        # mine_timeout_steps: if > 0, overrides stuck_threshold*5 for mine_until_full timeout
+        self._mine_timeout_steps = mine_timeout_steps if mine_timeout_steps > 0 else stuck_threshold * 5
+        # deposit_timeout_steps: if > 0, overrides stuck_threshold*10 for deposit_to_hub timeout
+        self._deposit_timeout_steps = deposit_timeout_steps if deposit_timeout_steps > 0 else stuck_threshold * 10
 
     def initial_agent_state(self) -> LLMMinerState:
         base = super().initial_agent_state()
@@ -411,14 +417,17 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
             state.current_skill = None
-        elif state.current_skill in {"gear_up", "mine_until_full"} and state.skill_steps >= self._stuck_threshold * 5:
+        elif state.current_skill == "gear_up" and state.skill_steps >= self._stuck_threshold * 5:
             carried_at_timeout = self._carried_total(obs)
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion cargo={carried_at_timeout}")
-            if state.current_skill == "mine_until_full":
-                state.mine_timeout_count += 1
+            state.current_skill = None
+        elif state.current_skill == "mine_until_full" and state.skill_steps >= self._mine_timeout_steps:
+            carried_at_timeout = self._carried_total(obs)
+            self._event(state, f"mine_until_full timed out after {state.skill_steps} steps without completion cargo={carried_at_timeout}")
+            state.mine_timeout_count += 1
             state.current_skill = None
         # Issue-25: deposit_to_hub gets 10x threshold (200 steps) since hub may be far from extractors
-        elif state.current_skill == "deposit_to_hub" and state.skill_steps >= self._stuck_threshold * 10:
+        elif state.current_skill == "deposit_to_hub" and state.skill_steps >= self._deposit_timeout_steps:
             self._event(state, f"deposit_to_hub timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
