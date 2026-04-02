@@ -501,7 +501,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         return_load: int | str = 40,
         stuck_threshold: int | str = 20,
         miner_stuck_threshold: int | str = 0,
-        mine_timeout_steps: int | str = 0,
+        mine_timeout_steps: int | str = 75,
         deposit_timeout_steps: int | str = 155,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
