@@ -1074,3 +1074,21 @@ The fundamental problem is that we can't change the game's heart crafting mechan
 1. Lower per-miner `_scarce_element` threshold from `max-min >= 3` to just `min_count == 0` (only route when one element is completely depleted in inventory)
 2. Try very large proximity margin (20-30) specifically for seed 42's oxygen problem without a general cap
 3. Try to improve the explore quality by using spiral/systematic pattern instead of frontier BFS
+
+## 2026-03-31T14:00:00Z: session 19 - failed experiments
+
+### team-scarce-margin-9 NO CHANGE (0.825)
+Hypothesis: margin=9 prevents oxygen routing in seed 42 (oxygen 10 tiles farther than carbon).
+Result: identical to margin=10. Oxygen distance is stochastic (10-11 tiles), so margin=9 fires when 9 tiles and doesn't when 10+. Net same.
+
+### hub-approach-diversity CATASTROPHIC (0.655)
+seeds: (0.76, 0.70, 0.64, 0.75, 0.63, 0.45)
+Agent_id-based rotation among approach cells within 2 tiles of nearest. Seed 47 drops 0.83->0.45.
+KEY INSIGHT: Miners MUST always use the nearest approach cell. Any deviation causes cascading BFS failures.
+
+### Current state: stuck at 0.825 plateau
+All 12 experiments this session have failed (10 from prev session + margin-9 + hub-approach-diversity).
+Next experiment directions:
+1. Dynamic return_load: have miner 4 and 5 use load=30 to deposit more frequently (reduce hub queuing)
+2. Try different _TEAM_SCARCE_MAX_EMPTY_STEPS values (80 vs 100) to see if 100 is truly optimal
+3. Look at aligner `_explore_for_alignment` heuristic improvement
