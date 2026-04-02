@@ -412,6 +412,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
+        # Clear move_blocked_cells that are now visibly clear (occupied by agent, not wall)
+        # Prevents cells temporarily blocked by agents from being permanently marked as walls
+        cells_to_clear = state.move_blocked_cells & (visible_cells - blocked_now)
+        if cells_to_clear:
+            state.move_blocked_cells.difference_update(cells_to_clear)
         state.blocked_cells.update(state.move_blocked_cells)  # persist move-failure blocks
         state.known_free_cells.update(visible_cells - blocked_now)
         state.known_free_cells.difference_update(state.blocked_cells)
