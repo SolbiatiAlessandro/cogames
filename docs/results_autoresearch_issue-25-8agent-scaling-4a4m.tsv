@@ -71,3 +71,11 @@ f0336c0_e	0.613	seeds42-47 (0.62,0.62,0.55,0.72,0.63,0.54)	1000	discard	return_l
 798f12b	0.803	seeds42-47 (infra only: mine_timeout_steps and deposit_timeout_steps params added)	1000	keep	deposit/mine timeout infrastructure: separate params for mine vs deposit timeouts
 d4ce48c	0.812	seeds42-47 (0.77,0.86,0.99,0.79,0.63,0.83)	1000	keep	deposit_timeout_steps=155 default: seeds 45/47 improve without hurting 42/43 - NEW BEST!
 bcec881	0.825	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.83)	1000	keep	mine_timeout_steps=75+deposit=155: seed44=1.01! seed45+7% - NEW BEST!
+bcec881_a	0.762	seeds42-47 (0.78,0.73,1.01,0.85,0.63,0.57)	1000	discard	mine_no_progress_threshold=10: miners abandon extractors too quickly - seed43/47 catastrophic
+bcec881_b	0.825	same	1000	discard	TEAM_SCARCE_PROXIMITY_MARGIN=8: no change (seed42 oxygen extractor is 10-11 tiles farther)
+bcec881_c	0.697	seeds42-47 (0.90,0.42,0.56,0.59,0.67,1.04)	1000	discard	3A5M with new timeouts: seeds 43/44/45 collapse
+bcec881_d	0.543	seeds42-47 (0.55,0.46,0.51,0.66,0.45,0.63)	1000	discard	5A3M with new timeouts: severe regression
+bcec881_e	0.587	seeds42-47 (0.51,0.62,0.52,0.77,0.63,0.47)	1000	discard	return_load=30 with mine_timeout=75: too frequent deposits hurt mining
+bcec881_f	0.825	same	1000	discard	return_load=35: same as 40 with mine_timeout=75
+bcec881_g	0.762	seeds42-47 (0.77,0.86,0.73,0.75,0.63,0.83)	1000	discard	mine_explore_count=2: explore too aggressively, seed44/45 hurt
+bcec881_h	0.825	same	1000	discard	explore_timeout=3x (60 steps): no change - explore already completes early

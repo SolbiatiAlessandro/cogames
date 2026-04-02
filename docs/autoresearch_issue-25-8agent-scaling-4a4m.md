@@ -931,3 +931,35 @@ The `deposit_timeout_steps` and `mine_timeout_steps` parameters allow independen
 2. Try mine_timeout=75 with deposit_timeout=155 (miner_stuck_threshold=15 equivalent but separate params)
 3. Investigate why seed 46 dropped (0.66→0.63) with deposit=155
 4. Try deposit_timeout tuning per-seed using different miner assignments
+
+## 2026-03-31T04:00:00Z: session 15 continued - experiments after 0.825 best
+
+**Current best: 0.825 (0.77, 0.86, 1.01, 0.85, 0.63, 0.83)**
+
+**Experiments tried:**
+
+1. **mine_no_progress_threshold=10**: (0.78, 0.73, 1.01, 0.85, 0.63, 0.57) = 0.762. MUCH WORSE. Miners abandon extractors too quickly. Seed 43 drops 0.86→0.73, seed 47 drops 0.83→0.57.
+
+2. **TEAM_SCARCE_PROXIMITY_MARGIN=8**: Same as 0.825. No change. The oxygen extractor in seed 42 must be exactly 10-11 tiles farther, so margin=8 doesn't prevent the routing.
+
+3. **TEAM_SCARCE_PROXIMITY_MARGIN=5**: Seed 44 drops 1.01→0.73, seed 43 drops 0.86→0.81. Too aggressive.
+
+4. **min_count==0 AND max_count<28 filter**: Seed 44 drops 1.01→0.93. The filter prevents early silicon routing in seed 44.
+
+5. **min_count==0 AND max_count<14 filter**: Same result - seed 44 still drops to 0.93.
+
+6. **stuck_threshold=25 (all agents)**: (0.72, 0.59, 0.69, 0.70, 0.63, 0.44) = 0.629. Catastrophic. Longer aligner timeouts break everything.
+
+**Key insight from these experiments:**
+The seed 42 oxygen routing false positive is deeply embedded in the system. The problem is distinguishing "oxygen hasn't been deposited because no accessible extractors" (false positive) from "oxygen is truly scarce" (true positive). Since seed 44 has the same "element with 0 deposits" pattern but it IS a true positive, any filter that blocks 0-deposit routing hurts seed 44.
+
+The 0.825 plateau seems to be a local maximum given current constraints:
+- Seed 46: 0.63 (structural hub crowding, confirmed near-optimal)
+- Seed 42: 0.77 (oxygen routing false positive, can't filter without hurting seed 44)
+- Seed 43: 0.86 (seems to be a ceiling given clips dominance)
+
+**Next experiment ideas (less explored):**
+1. Investigate if return_load=40 is still optimal with mine_timeout=75 (shorter cycles may benefit from lower load)
+2. Try 3A0S5M or 5A0S3M with the new mine/deposit timeouts (maybe optimal split changed)
+3. Test different mine_timeout_steps values (65, 68, 72, 77, 80) for fine-tuning
+4. Investigate seed 46 hub crowding - can aligners be staggered to reduce hub congestion?
