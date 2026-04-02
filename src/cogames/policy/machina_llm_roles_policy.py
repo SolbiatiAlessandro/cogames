@@ -502,7 +502,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         stuck_threshold: int | str = 20,
         miner_stuck_threshold: int | str = 0,
         mine_timeout_steps: int | str = 0,
-        deposit_timeout_steps: int | str = 0,
+        deposit_timeout_steps: int | str = 155,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
         llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
