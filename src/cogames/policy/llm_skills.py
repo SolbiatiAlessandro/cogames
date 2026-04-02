@@ -217,12 +217,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Clear move_blocked_cells that are now visibly clear (occupied by agent, not wall)
-        # This prevents cells temporarily blocked by other agents from being permanently marked
+        # Re-apply persistent move-blocked cells from shared map
         if self._shared_map and self._shared_map.move_blocked_cells:
-            cells_to_clear = self._shared_map.move_blocked_cells & (visible_cells - blocked_now)
-            if cells_to_clear:
-                self._shared_map.move_blocked_cells.difference_update(cells_to_clear)
             state.blocked_cells.update(self._shared_map.move_blocked_cells)
         state.known_free_cells.update(visible_cells - blocked_now)
         state.known_free_cells.difference_update(state.blocked_cells)
