@@ -217,8 +217,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Re-apply persistent move-blocked cells from shared map
+        # Clear move_blocked_cells for cells visibly empty (not walls, objects, or stations)
+        # This allows cells temporarily blocked by other agents to be navigated again
         if self._shared_map and self._shared_map.move_blocked_cells:
+            passable_now = visible_cells - blocked_now - hubs_now - miner_stations_now - extractors_now - hazard_stations_now
+            cells_to_unblock = self._shared_map.move_blocked_cells & passable_now
+            if cells_to_unblock:
+                self._shared_map.move_blocked_cells.difference_update(cells_to_unblock)
             state.blocked_cells.update(self._shared_map.move_blocked_cells)
         state.known_free_cells.update(visible_cells - blocked_now)
         state.known_free_cells.difference_update(state.blocked_cells)
