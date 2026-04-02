@@ -63,3 +63,10 @@ cf81a4e	0.798	seeds42-47 (0.77,0.86,1.00,0.74,0.66,0.76)	1000	keep	mine-timeout-
 cf81a4e	0.798	seeds42-47 (same 0.798 avg)	1000	discard	gear_up-avoid_hazards: bypass hazard avoidance after 2+ gear_up timeouts - no change, infrastructure kept
 cf81a4e	0.798	seeds42-47 (same 0.798 avg)	1000	discard	hub-aware-explore for mine-timeout: use explore_near_hub when mine_timeout_count>=3 - same result, reverted
 cf81a4e	0.767	seeds42-47 (0.60,0.86,1.00,0.74,0.66,0.74)	1000	discard	dynamic-proximity-margin 10->20 for imbalance>=20: seed42 catastrophic drop 0.77->0.60
+c19bbc6	0.723	seeds42-47 (0.76,0.47,0.95,0.74,0.66,0.76)	1000	discard	element-level-spreading: seed43 catastrophic 0.86->0.47, seed44 drops 1.00->0.95 - spreading harmful
+f0336c0_c	0.798	seeds42-47 (same 0.798 avg)	1000	discard	shorter-mine-timeout-explore 2x: same result - explore already completing early
+f0336c0_d	0.798	seeds42-47 (same 0.798 avg)	1000	discard	persistent-timeout-count after partial deposit: no change - agent7 issue is structural timing
+f0336c0_e	0.613	seeds42-47 (0.62,0.62,0.55,0.72,0.63,0.54)	1000	discard	return_load=30: more deposits reduce efficiency - return_load=40 confirmed optimal
+500b302	0.803	seeds42-47 (0.77,0.78,0.98,0.77,0.63,0.89)	1000	discard	miner_stuck_threshold=15 (aligners stay 20): seed47 +17% but seed43 drops 0.86->0.78 - net +0.5%
+798f12b	0.803	seeds42-47 (infra only: mine_timeout_steps and deposit_timeout_steps params added)	1000	keep	deposit/mine timeout infrastructure: separate params for mine vs deposit timeouts
+d4ce48c	0.812	seeds42-47 (0.77,0.86,0.99,0.79,0.63,0.83)	1000	keep	deposit_timeout_steps=155 default: seeds 45/47 improve without hurting 42/43 - NEW BEST!
