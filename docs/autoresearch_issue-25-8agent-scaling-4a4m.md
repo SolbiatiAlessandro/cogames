@@ -847,3 +847,25 @@ After the explore trigger (mine_timeout_count >= 3, cargo < 15), miners find bet
 **Why it works**: Miners that accumulate cargo over multiple cycles but never reach 40 in a single cycle can now deposit their accumulated partial loads. In seed 45, miners now deposit 20-30 element loads instead of never depositing.
 
 **COMMITTED as cf81a4e - KEEP**
+
+## 2026-04-01T19:00:00Z: session 13 part 3 - multiple failed experiments
+
+All attempts to improve beyond 0.798 failed:
+
+1. **gear_up-avoid_hazards**: After 2+ gear_up timeouts, disable hazard avoidance. Added `gear_up_timeouts` counter + `avoid_hazards` parameter to `_gear_up`. No change (0.798).
+   - Root cause: agent 0 in seed 45 can't reach aligner station because expected station formula points to wrong hub when 8 hubs are known.
+   - The infrastructure (gear_up_timeouts counter) was KEPT as potentially useful.
+
+2. **hub-aware-explore for mine-timeout**: When mine_timeout_count >= 3 and known_hubs, use explore_near_hub instead of explore. No change (0.798).
+
+3. **dynamic-proximity-margin**: Scale team-scarce routing margin from 10 to 20 when deposit imbalance >= 20. Seed 42 catastrophically dropped 0.77→0.60. Reverted.
+
+**Key insights from session 13 debugging:**
+- Agent 0 in seed 45 CANNOT reach aligner station. It has `known_hubs: 8` but 0 known aligner stations. The expected station formula uses nearest hub, but the nearest hub might not have the aligner station adjacent. This is a map navigation fundamental issue.
+- Seed 47 (Ge=64, low vs C=91, O=97) has germanium far from miners' usual territory. The proximity margin correctly limits routing to avoid detours, but this means germanium stays undertapped.
+- Increasing the proximity margin always hurts seed 42 (which depends on precise carbon routing near its hub).
+
+**Next directions to explore:**
+- Multi-hub aligner station search (try ALL hubs not just nearest when station not found)
+- Reduce `_TEAM_SCARCE_PROXIMITY_MARGIN` to 8 or 9 to see if tighter margin helps some seeds
+- Try different scarce routing for ONLY the most imbalanced element (top-1 scarce vs all scarce)

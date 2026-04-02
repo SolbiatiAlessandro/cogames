@@ -56,6 +56,7 @@ class LLMAlignerState(AlignerState):
     explore_start_junctions: int = 0
     align_neutral_timeouts: int = 0
     get_heart_timeouts: int = 0
+    gear_up_timeouts: int = 0
     recent_events: list[str] = field(default_factory=list)
     # HP monitoring
     max_hp_seen: int = 0
@@ -117,6 +118,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             explore_start_junctions=state.explore_start_junctions,
             align_neutral_timeouts=state.align_neutral_timeouts,
             get_heart_timeouts=state.get_heart_timeouts,
+            gear_up_timeouts=state.gear_up_timeouts,
             recent_events=list(state.recent_events),
             blacklisted_junctions=set(state.blacklisted_junctions),
         )
@@ -311,6 +313,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if state.current_skill == "gear_up" and has_aligner and state.skill_steps > 0:
             self._event(state, "gear_up completed after acquiring aligner gear")
             state.current_skill = None
+            state.gear_up_timeouts = 0
         elif state.current_skill == "get_heart" and has_heart and state.skill_steps > 0:
             self._event(state, "get_heart completed after acquiring heart")
             state.get_heart_timeouts = 0
@@ -336,6 +339,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.current_skill = None
         elif state.current_skill == "gear_up" and state.skill_steps >= self._stuck_threshold * 10:
             self._event(state, f"gear_up timed out after {state.skill_steps} steps without completion")
+            state.gear_up_timeouts += 1
             state.current_skill = None
         elif state.current_skill in {"get_heart", "align_neutral"} and state.skill_steps >= self._stuck_threshold * 5:
             if state.current_skill == "align_neutral":
@@ -437,7 +441,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._shared_map.aligner_junction_targets[obs.agent_id] = None
 
         if state.current_skill == "gear_up":
-            action, base_state = self._gear_up(obs, state, current_abs)
+            # After 2+ timeouts, disable hazard avoidance to allow cutting through hazard zones
+            gear_up_avoid_hazards = state.gear_up_timeouts < 2
+            action, base_state = self._gear_up(obs, state, current_abs, avoid_hazards=gear_up_avoid_hazards)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "get_heart":
             action, base_state = self._get_heart(obs, state, current_abs)

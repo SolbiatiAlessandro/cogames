@@ -550,13 +550,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _explore_for_alignment(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         return self._explore_frontier(obs, state, self._alignment_frontier_cells(state))
 
-    def _gear_up(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
+    def _gear_up(self, obs: AgentObservation, state: AlignerState, current_abs: Coord, avoid_hazards: bool = True) -> tuple[Action, AlignerState]:
         self._log_mode(obs, state, "gear_up")
         visible_target = self._starter._closest_tag_location(obs, self._aligner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
             # Station is visible - navigate to an adjacent cell (station itself is blocked)
-            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=avoid_hazards)
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             # All adjacents also blocked - fall back to greedy toward station
@@ -569,12 +569,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 # Stations are placed 4 rows below hub center; aligner is leftmost (3 cols west of center).
                 hub_center = self._nearest_known(current_abs, state.known_hubs)
                 expected_station = (hub_center[0] + 4, hub_center[1] - 3)
-                direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=True)
+                direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=avoid_hazards)
                 if direction is not None:
                     return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             return self._explore(obs, state)
         # Station known but not visible - navigate to approach cell
-        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=avoid_hazards)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # All adjacents blocked - greedy toward station
