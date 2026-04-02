@@ -79,3 +79,4 @@ bcec881_e	0.587	seeds42-47 (0.51,0.62,0.52,0.77,0.63,0.47)	1000	discard	return_l
 bcec881_f	0.825	same	1000	discard	return_load=35: same as 40 with mine_timeout=75
 bcec881_g	0.762	seeds42-47 (0.77,0.86,0.73,0.75,0.63,0.83)	1000	discard	mine_explore_count=2: explore too aggressively, seed44/45 hurt
 bcec881_h	0.825	same	1000	discard	explore_timeout=3x (60 steps): no change - explore already completes early
+62ca840	0.795	seeds42-47 (0.74,0.83,0.96,0.88,0.63,0.73)	1000	discard	hub-depletion-awareness: port cross_role cooldown to machina_llm_roles - seed47 drops 0.83->0.73 due to nav-stuck misidentified as hub depleted

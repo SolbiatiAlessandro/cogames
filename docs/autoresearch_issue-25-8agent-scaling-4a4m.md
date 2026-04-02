@@ -963,3 +963,29 @@ The 0.825 plateau seems to be a local maximum given current constraints:
 2. Try 3A0S5M or 5A0S3M with the new mine/deposit timeouts (maybe optimal split changed)
 3. Test different mine_timeout_steps values (65, 68, 72, 77, 80) for fine-tuning
 4. Investigate seed 46 hub crowding - can aligners be staggered to reduce hub congestion?
+
+## 2026-04-02T09:00:00Z: session 18 - hub depletion awareness DISCARDED
+
+**Hypothesis**: Port cross_role's hub depletion cooldown (consecutive_get_heart_failures + get_heart_cooldown_steps) to LLMAlignerState. Replace crude "defend after 1+ timeout" with cooldown→explore approach.
+
+**Implementation**: Added `consecutive_get_heart_failures` and `get_heart_cooldown_steps` to LLMAlignerState. When get_heart times out/stalls/stuck, set cooldown = min(failures*2, 8). During cooldown, override get_heart to explore. Decrement cooldown each step. Reset on success.
+
+**Results**: (0.74, 0.83, 0.96, 0.88, 0.63, 0.73) = 0.795 avg
+- Seed 42: 0.74 vs 0.77 (-0.03)
+- Seed 43: 0.83 vs 0.86 (-0.03)
+- Seed 44: 0.96 vs 1.01 (-0.05)
+- Seed 45: 0.88 vs 0.85 (+0.03) -- improved!
+- Seed 46: 0.63 vs 0.63 (=) -- same
+- Seed 47: 0.73 vs 0.83 (-0.10) -- MUCH WORSE
+
+**Why it failed**: The cooldown fires on ALL get_heart failure types including navigation-stuck (blocked by agents). In seed 47, aligners get stuck navigating to hub (heavy hub traffic), trigger cooldown, then spend time exploring instead of retrying get_heart when the hub actually HAS hearts. The cooldown misidentifies navigation blocking as hub depletion.
+
+**Key insight**: The cross_role approach works better because in cross_role, agents are more varied (sometimes miners who don't need hearts). In machina_llm_roles with 4 dedicated aligners, all 4 try to get hearts frequently and block each other. The cooldown amplifies this problem rather than solving it.
+
+**DISCARDED**: Reverted to HEAD=7012670.
+
+**Next ideas to try:**
+1. Only apply cooldown on "stale on target" exits (when AT hub but no heart available) - NOT on "stuck" exits (navigation blocked)
+2. Make the unstuck logic near hub smarter (agents wait in a queue-like pattern)
+3. Investigate aligner staggering: stagger get_heart attempts across agents using agent_id offset
+4. Look at what makes seed 47 better than 43 - and what's hurting 43 specifically
