@@ -1092,3 +1092,32 @@ Next experiment directions:
 1. Dynamic return_load: have miner 4 and 5 use load=30 to deposit more frequently (reduce hub queuing)
 2. Try different _TEAM_SCARCE_MAX_EMPTY_STEPS values (80 vs 100) to see if 100 is truly optimal
 3. Look at aligner `_explore_for_alignment` heuristic improvement
+
+## 2026-04-02T10:18:00Z: session 20 starting - exploring new directions
+
+**Current state**: HEAD=f364a6a (docs commit, code at a4a5112). Best = 0.825 avg (0.77,0.86,1.01,0.85,0.63,0.83).
+
+**Fresh analysis**: After 92 experiments, the system is at a plateau. Key bottlenecks:
+1. Seed 46 (0.63): structural hub crowding, 8 agents simultaneously at hub
+2. Seed 42 (0.77): oxygen false-positive team-scarce routing, can't fix without hurting seed 44
+3. Seeds 43/47 seem near their ceiling for current architecture
+
+**New ideas to try (not yet tried)**:
+1. **explore_near_hub after deposit timeout**: Currently deposit timeout → explore goes to nearest frontier (away from hub). What if it uses explore_near_hub (explores the hub VICINITY to find alternate approach)? This is the explore_near_hub behavior but specifically triggered by deposit timeout. We tried "hub-aware-explore for mine-timeout" in session 13 (no change), but NOT for deposit timeout.
+2. **TEAM_SCARCE_MAX_EMPTY_STEPS=80**: Reduces time on team-scarce when stuck (currently 100). This is listed as untried.
+3. **Per-miner scarce threshold=4**: Currently max-min >= 3. Higher threshold = less routing churn. Not tried (only tried 2 which had no change).
+4. **Stale-exit explore near hub**: When deposit_to_hub exits as stale (adjacent to hub but no progress), immediately use explore_near_hub to find alternate approach cell.
+
+**Starting experiment: explore_near_hub after deposit timeout**
+Hypothesis: miners that time out from deposit are stuck near the hub. Exploring the hub vicinity will find alternate approach cells rather than going to distant frontiers.
+
+## 2026-03-31T00:00:00Z: session 21 starting - continuing experiment loop
+
+**Current state**: HEAD=f364a6a (docs commit, code at a4a5112). Best = 0.825 avg (0.77,0.86,1.01,0.85,0.63,0.83).
+**My plan**: Try all 4 untried ideas from session 20 plan:
+1. explore_near_hub after deposit timeout (NOT tried yet)
+2. TEAM_SCARCE_MAX_EMPTY_STEPS=80 (NOT tried yet)
+3. Per-miner scarce threshold=4 (NOT tried yet)
+4. Stale-exit explore near hub (NOT tried yet)
+
+**Hypothesis for experiment 1**: When deposit_to_hub times out, the miner switches to `explore`. Currently this uses `_explore()` which goes to the global nearest frontier. But if the miner timed out from deposit, they were near the hub and the hub was accessible (they just couldn't navigate through hub congestion). Exploring the hub VICINITY should find alternate approach cells and reduce next-cycle deposit time. We tried this for mine-timeout (no change) but not for deposit-timeout.
