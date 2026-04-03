@@ -1114,10 +1114,24 @@ Hypothesis: miners that time out from deposit are stuck near the hub. Exploring 
 ## 2026-03-31T00:00:00Z: session 21 starting - continuing experiment loop
 
 **Current state**: HEAD=f364a6a (docs commit, code at a4a5112). Best = 0.825 avg (0.77,0.86,1.01,0.85,0.63,0.83).
-**My plan**: Try all 4 untried ideas from session 20 plan:
-1. explore_near_hub after deposit timeout (NOT tried yet)
-2. TEAM_SCARCE_MAX_EMPTY_STEPS=80 (NOT tried yet)
-3. Per-miner scarce threshold=4 (NOT tried yet)
-4. Stale-exit explore near hub (NOT tried yet)
+**My plan**: Try all 4 untried ideas from session 20 plan, then look at aligner prompt improvements.
 
-**Hypothesis for experiment 1**: When deposit_to_hub times out, the miner switches to `explore`. Currently this uses `_explore()` which goes to the global nearest frontier. But if the miner timed out from deposit, they were near the hub and the hub was accessible (they just couldn't navigate through hub congestion). Exploring the hub VICINITY should find alternate approach cells and reduce next-cycle deposit time. We tried this for mine-timeout (no change) but not for deposit-timeout.
+**CRITICAL FINDING**: LLM (via API) is highly non-deterministic even with fixed game seeds. Running seed 42 gives results between 0.54 and 0.77 on different runs. This means the "0.825 baseline" was measured with a specific LLM API response pattern that may not repeat.
+
+**KEY IMPLICATION**: We need to be especially careful about false positives. Changes need to show clear improvement across ALL seeds, not just one seed. Small marginal differences (< 0.05) are likely within noise and should not be kept.
+
+**Experiments run this session:**
+
+### Experiment 1: explore_near_hub after deposit timeout (COMMITTED, NO CHANGE)
+Code change: when deposit_to_hub times out and hub is known, route to explore_near_hub instead of explore.
+Result: No observable effect. Deposit timeout rarely fires (miners usually deposit successfully before 155 steps).
+Decision: KEEP the code (it's correct and won't hurt), but move to next experiment.
+
+### New plan for session 21:
+Since LLM causes high variance, focus on changes that clearly affect scripted behavior:
+1. Try `TEAM_SCARCE_MAX_EMPTY_STEPS=80` - reduces time wasted on team-scarce routing when stuck
+2. Improve aligner LLM prompt - add guidance for repeated get_heart failures
+3. Try `per-miner scarce threshold=4` (from session 20 plan)
+
+**Hypothesis for experiment 2 (TEAM_SCARCE_MAX_EMPTY_STEPS=80)**:
+Currently limit is 100 steps for team-scarce routing when inventory is empty. Reducing to 80 would make miners give up sooner when they can't reach the team-scarce extractor, falling back to normal routing. This could help seeds where team-scarce routing gets stuck (especially seed 42's oxygen false positive).
