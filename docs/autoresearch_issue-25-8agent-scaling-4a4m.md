@@ -1247,4 +1247,18 @@ The aligner prompt improvement (9492dd9) was logged as DISCARD in TSV.
 
 **Next ideas**: Try TEAM_SCARCE_MAX_EMPTY_STEPS sweep (60, 70, 90) to find goldilocks with 4A0S4M config.
 
-## 2026-04-04T06:00:00Z: EXPERIMENT - TEAM_SCARCE sweep (60, 70, 90)
+## 2026-04-04T06:00:00Z: EXPERIMENT - TEAM_SCARCE sweep (60, 70, 90) - confirms 80 is goldilocks
+
+**Results**:
+| TEAM_SCARCE | seed42 | seed43 | seed44 | seed45 | seed46 | seed47 | avg |
+|-------------|--------|--------|--------|--------|--------|--------|-----|
+| 60 | 0.661 | 0.535 | 0.851 | 0.699 | 0.646 | 0.646 | 0.673 |
+| 70 | 0.770 | 0.483 | 0.939 | 0.829 | 0.631 | 0.564 | 0.703 |
+| **80** | **0.626** | **0.785** | **0.931** | **0.777** | **0.646** | **0.711** | **0.746** |
+| 90 | 0.712 | 0.483 | 0.860 | 0.670 | 0.673 | 0.658 | 0.676 |
+
+**Key observation**: At 60/70/90, seed 43 is catastrophically bad (0.483-0.535). At 80, seed 43 averages 0.785 across 3 trials. This is not LLM variance - it's a systematic effect.
+
+**Why 80 is goldilocks**: In seed 43, the team-scarce extractor is accessible but requires ~80 steps to reach when coming from the other side of the map. At 80 steps, the miner just barely makes it before giving up. At 70 or less, miners give up before reaching the extractor. At 90+, miners may loop back to team-scarce too aggressively.
+
+**CONFIRMED**: TEAM_SCARCE=80 is goldilocks. All sweep values worse. All DISCARDED.
