@@ -453,7 +453,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         # Time-limited: give up after 100 consecutive empty-inv steps (prevents stuck loop when extractor unreachable)
         # Proximity-relative: only route to team-scarce if it's not much farther than the nearest ANY extractor
         _TEAM_SCARCE_MAX_EMPTY_STEPS = 80
-        _TEAM_SCARCE_PROXIMITY_MARGIN = 10  # Allow up to 10 extra tiles of detour for team-scarce routing
+        _TEAM_SCARCE_PROXIMITY_MARGIN = 15  # Allow up to 15 extra tiles of detour for team-scarce routing
         current_inv = self._inventory_counts(obs)
         if not current_inv and state.team_scarce_empty_steps < _TEAM_SCARCE_MAX_EMPTY_STEPS:
             team_scarce = self._team_scarce_element()
