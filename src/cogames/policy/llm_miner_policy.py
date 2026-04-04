@@ -518,15 +518,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             action, base_state = self._deposit_to_hub(obs, state)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
-            # Issue-25: after deposit timeout with hub known, explore near hub to find alternate approach
-            deposit_timed_out_recently = (
-                state.recent_events
-                and any("deposit_to_hub timed out" in e for e in state.recent_events[-3:])
-            )
-            if deposit_timed_out_recently and state.known_hubs:
-                action, base_state = self._explore_near_hub(obs, state)
-            else:
-                action, base_state = self._explore(obs, state)
+            action, base_state = self._explore(obs, state)
             state = self._copy_with(state, base_state)
         else:
             action, state = self._unstuck(state)

@@ -103,3 +103,4 @@ e0a4062_a	0.673	seeds42-47 (0.661,0.535,0.851,0.699,0.646,0.646)	1000	discard	TE
 e0a4062_b	0.703	seeds42-47 (0.770,0.483,0.939,0.829,0.631,0.564)	1000	discard	TEAM_SCARCE=70: seed43 catastrophic 0.483 - still too aggressive
 e0a4062_c	0.676	seeds42-47 (0.712,0.483,0.860,0.670,0.673,0.658)	1000	discard	TEAM_SCARCE=90: seed43 catastrophic 0.483 - 80 is confirmed goldilocks
 05f4560	0.684	seeds42-47 (0.664,0.525,0.960,0.769,0.629,0.559)	1000	discard	proximity-margin=15: seed43 catastrophic 0.525 - margin=10 is goldilocks
+710fb35	0.593	seeds42-47 (0.579,0.441,0.713,0.606,0.657,0.559)	1000	discard	explore-near-hub-deposit-timeout-v2: catastrophic! seed43=0.441 seed44=0.713 - explore_near_hub confuses miners near hub
