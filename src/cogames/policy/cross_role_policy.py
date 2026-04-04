@@ -262,6 +262,7 @@ class CrossRoleState:
     # Miner LLM tracking
     last_carried_total: int = 0
     explore_start_extractors: int = 0
+    team_scarce_empty_steps: int = 0
 
     # Gear acquisition tracking (for retry + fallback logic)
     gear_up_failures: int = 0

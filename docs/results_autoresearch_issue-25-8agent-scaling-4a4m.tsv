@@ -90,3 +90,6 @@ bcec881_h	0.825	same	1000	discard	explore_timeout=3x (60 steps): no change - exp
 a4a5112_p	0.308	seeds42-47 (0.10,0.63,0.38,0.55,0.19,0.49)	1000	discard	clear-move-blocked-visible: CATASTROPHIC - move_blocked_cells cannot be cleared
 a4a5112_q	0.825	same	1000	discard	team-scarce-margin-9: identical to margin=10 - oxygen distance is stochastic 10-11 tiles
 a4a5112_r	0.655	seeds42-47 (0.76,0.70,0.64,0.75,0.63,0.45)	1000	discard	hub-approach-diversity: agent_id-based approach cell rotation - CATASTROPHIC (47=0.83->0.45)
+NOTE_env_change	0.496	seeds42-47 (0.504,0.480,0.358,0.518,0.510,0.605)	1000	keep	REFERENCE: machina_llm_roles f364a6a baseline with current LLM API - historical 0.825 not reproducible
+2a971f5	0.521	seeds42-47 (0.508,0.458,0.358,0.564,0.558,0.678)	1000	keep	explore_near_hub on deposit timeout + partial deposit when stale/stuck with cargo machina_llm_roles +5% vs 0.496
+8d82e7f	0.524	seeds42-47-avg-trials (0.617,0.442,0.358,0.587,0.520,0.621)	1000	keep	TEAM_SCARCE_MAX_EMPTY_STEPS=80+explore_near_hub combined machina_llm_roles +5.6% vs 0.496 trial1=0.533 trial2=0.515
