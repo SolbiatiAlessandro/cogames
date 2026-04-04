@@ -309,18 +309,9 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 return "explore", "scripted: gear_up stuck, exploring for station"
             return "gear_up", "scripted: no miner gear"
         if carried_total >= self._return_load:
-            if was_stuck or was_stale:
-                return "explore", "scripted: deposit stuck/stale, exploring for hub route"
-            if deposit_timed_out and state.known_hubs:
-                return "explore_near_hub", "scripted: deposit timed out, exploring near hub for alternate approach"
-            if deposit_timed_out:
-                return "explore", "scripted: deposit timed out, exploring for hub route"
+            if was_stuck or deposit_timed_out or was_stale:
+                return "explore", "scripted: deposit stuck/timed-out/stale, exploring for hub route"
             return "deposit_to_hub", "scripted: cargo full"
-        # Port from cross_role: deposit partial cargo when stale/stuck (avoids wasting collected resources)
-        if was_stale and carried_total > 0 and state.known_hubs:
-            return "deposit_to_hub", f"scripted: stale with partial cargo={carried_total}, depositing"
-        if was_stuck and carried_total > 0 and state.known_hubs:
-            return "deposit_to_hub", f"scripted: stuck with partial cargo={carried_total}, depositing"
         if was_stale:
             return "explore", "scripted: stale target, exploring for new extractor"
         if was_stuck:
@@ -394,7 +385,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
-        if skill in ("explore", "explore_near_hub"):
+        if skill == "explore":
             state.explore_start_extractors = len(state.known_extractors)
         self._event(state, f"planner selected {skill}: {reason}")
 
@@ -415,9 +406,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill == "explore" and len(state.known_extractors) > state.explore_start_extractors:
             self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
             state.current_skill = None
-        elif state.current_skill == "explore_near_hub" and len(state.known_extractors) > state.explore_start_extractors:
-            self._event(state, f"explore_near_hub completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
-            state.current_skill = None
         # Issue-25: explore timeout so full-cargo miners retry deposit rather than exploring forever
         # After deposit timeout: use shorter explore (1x threshold) when hub is already known
         elif state.current_skill == "explore":
@@ -425,11 +413,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             explore_timeout = self._stuck_threshold if (deposit_timed_out_prev and state.known_hubs) else self._stuck_threshold * 5
             if state.skill_steps >= explore_timeout:
                 self._event(state, f"explore timed out after {state.skill_steps} steps without new extractors")
-                state.current_skill = None
-        # explore_near_hub always times out after 1x stuck_threshold (it's a focused short explore)
-        elif state.current_skill == "explore_near_hub":
-            if state.skill_steps >= self._stuck_threshold:
-                self._event(state, f"explore_near_hub timed out after {state.skill_steps} steps")
                 state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
@@ -536,9 +519,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
             action, base_state = self._explore(obs, state)
-            state = self._copy_with(state, base_state)
-        elif state.current_skill == "explore_near_hub":
-            action, base_state = self._explore_near_hub(obs, state)
             state = self._copy_with(state, base_state)
         else:
             action, state = self._unstuck(state)
