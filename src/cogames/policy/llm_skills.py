@@ -609,7 +609,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         min_count = min(deposits.values())
         max_count = max(deposits.values())
-        if max_count - min_count < 10:  # Less than ~1.5 heart worth of imbalance (was 7)
+        if max_count - min_count < 7:  # Less than 1 heart worth of imbalance
             return None
         for e in ("carbon", "oxygen", "germanium", "silicon"):
             if deposits[e] == min_count:

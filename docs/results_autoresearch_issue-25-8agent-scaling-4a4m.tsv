@@ -105,3 +105,4 @@ e0a4062_c	0.676	seeds42-47 (0.712,0.483,0.860,0.670,0.673,0.658)	1000	discard	TE
 05f4560	0.684	seeds42-47 (0.664,0.525,0.960,0.769,0.629,0.559)	1000	discard	proximity-margin=15: seed43 catastrophic 0.525 - margin=10 is goldilocks
 710fb35	0.593	seeds42-47 (0.579,0.441,0.713,0.606,0.657,0.559)	1000	discard	explore-near-hub-deposit-timeout-v2: catastrophic! seed43=0.441 seed44=0.713 - explore_near_hub confuses miners near hub
 c6d5b71	0.525	seeds42-47 (0.371,0.384,0.600,0.705,0.627,0.464)	1000	discard	return_load=50: CATASTROPHIC seeds42/43 collapse 0.37/0.38 - mine timeout 75 can't fill 50 items; return_load=40 confirmed optimal
+146a34c	0.428	seeds42-47 partial (0.419,0.287,?,0.566,?,0.641)	1000	discard	imbalance-threshold-10: catastrophic! seed43=0.287 seed42=0.419 - threshold 7 is goldilocks (silicon routing needs to fire early in seed44)
