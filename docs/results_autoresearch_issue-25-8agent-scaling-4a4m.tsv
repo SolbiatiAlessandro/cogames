@@ -98,3 +98,4 @@ d39b2ad	0.513	seeds42-47-avg-trials (0.622,0.371,0.358,0.570,0.539,0.620)	1000	d
 CRITICAL_DISCOVERY	0.700	seeds42-47-avg-trials (4A0S4M 3 trials avg)	1000	keep	num_scouts=0 (4A0S4M): MASSIVE win +31% vs 0.524 (4A1S3M with scout). Seed44 scout gets stuck 874/1000 steps!
 2c9aa58	0.700	seeds42-47-3trial-avg (f364a6a code + default num_scouts=0 + reverted TEAM_SCARCE+explore_hub)	1000	keep	num_scouts=0 default in MachinaLLMRolesPolicy - correct config for 8-agent 4A4M +40% over original baseline
 9492dd9	0.653	seeds42-47 trial1=0.686 trial2=0.732 trial3=0.542 (seed44=0.304 catastrophic in trial3)	1000	discard	aligner-prompt-improvements: added enemy_junctions+get_heart_timeouts+hub_hint+unstuck_guidance - catastrophic instability seed44
+6581518	0.746	seeds42-47 3-trial avg (0.626,0.785,0.931,0.777,0.646,0.711) t1=0.750 t2=0.725 t3=0.763	1000	keep	TEAM_SCARCE_MAX_EMPTY_STEPS=80 standalone (no explore_near_hub): +6.6% over 0.700 baseline NEW BEST!

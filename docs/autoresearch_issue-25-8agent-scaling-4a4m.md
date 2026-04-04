@@ -1229,3 +1229,20 @@ New baseline: **0.700 avg** with f364a6a code + num_scouts=0 default
 The aligner prompt improvement (9492dd9) was logged as DISCARD in TSV.
 
 **Next experiment**: TEAM_SCARCE_MAX_EMPTY_STEPS=80 with 4A0S4M. In the previous session, this value + explore_near_hub hurt 4A0S4M (0.686 vs 0.700). But that was combined with another change. Let's try JUST the TEAM_SCARCE change alone to see if it helps or hurts in isolation.
+
+## 2026-04-04T05:30:00Z: EXPERIMENT - TEAM_SCARCE_MAX_EMPTY_STEPS=80 (commit 6581518)
+
+**Result**: 3-trial avg = **0.746** (t1=0.750, t2=0.725, t3=0.763)
+- Per-seed: (0.626, 0.785, 0.931, 0.777, 0.646, 0.711)
+- vs baseline 0.700: **+6.6% improvement! NEW BEST!**
+
+**Why it helps**: Reducing from 100 to 80 steps means miners give up faster when stuck trying to route to the team-scarce element. This prevents the "stuck-loop" where miners keep trying to reach an inaccessible extractor. Key improvements:
+- seed 43: 0.60 → 0.785 avg (+31%)
+- seed 44: 0.65 → 0.931 avg (+43%)
+- seed 45: 0.74 → 0.777 avg (+5%)
+
+**Why it hurt with explore_near_hub in session 22**: The combined change had additional side effects. TEAM_SCARCE_MAX_EMPTY_STEPS=80 alone is clearly beneficial.
+
+**KEEP**: This is a new best (0.746 vs 0.700 baseline).
+
+**Next ideas**: Try TEAM_SCARCE_MAX_EMPTY_STEPS sweep (60, 70, 90) to find goldilocks with 4A0S4M config.
