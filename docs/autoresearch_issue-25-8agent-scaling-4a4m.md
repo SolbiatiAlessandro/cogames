@@ -1215,3 +1215,17 @@ New baseline: **0.700 avg** with f364a6a code + num_scouts=0 default
 - TEAM_SCARCE_MAX_EMPTY_STEPS=80 appears to help (but high LLM variance makes it hard to confirm)
 - explore_near_hub on deposit timeout helps seeds 45-47 (+5-12%)
 - The 0.825 historical baseline is NOT reproducible - use current environment baseline for comparisons
+
+## 2026-04-04T05:14:00Z: session 23 starting
+
+**State**: HEAD=161dce2, baseline 0.700 avg (4A0S4M config). Aligner prompt improvement was tried and discarded in previous session (9492dd9, reverted - results: 0.686, 0.732, 0.542, avg=0.653 vs 0.700 baseline; seed44 dropped to 0.304 catastrophically in trial3).
+
+**Plan**: Continue experimenting to improve beyond 0.700 baseline. Priority:
+1. TEAM_SCARCE_MAX_EMPTY_STEPS sweep (60, 70, 80, 90, 120) with correct 4A0S4M config
+2. mine_timeout_steps sweep (re-verify 75 is goldilocks with current LLM)
+3. deposit_timeout_steps sweep (re-verify 155)
+4. Any novel ideas
+
+The aligner prompt improvement (9492dd9) was logged as DISCARD in TSV.
+
+**Next experiment**: TEAM_SCARCE_MAX_EMPTY_STEPS=80 with 4A0S4M. In the previous session, this value + explore_near_hub hurt 4A0S4M (0.686 vs 0.700). But that was combined with another change. Let's try JUST the TEAM_SCARCE change alone to see if it helps or hurts in isolation.
