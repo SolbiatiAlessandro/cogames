@@ -496,7 +496,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         device: str = "cpu",
         num_aligners: int | str = 4,
         aligner_ids: str = "",
-        num_scouts: int | str = 1,
+        num_scouts: int | str = 0,
         scout_ids: str = "",
         return_load: int | str = 40,
         stuck_threshold: int | str = 20,
