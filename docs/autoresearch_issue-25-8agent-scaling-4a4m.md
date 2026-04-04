@@ -1162,6 +1162,19 @@ Currently limit is 100 steps for team-scarce routing when inventory is empty. Re
 
 **New reference baseline**: 0.524 avg (machina_llm_roles, both exp1+exp2 combined)
 
+**Session 22 continued - new experiments:**
+
+### Experiment B: per-miner-scarce-threshold=4 (DISCARD)
+- Code: increase `_scarce_element` threshold from `max-min < 3` to `< 4`
+- Result: 0.485 avg (seed43 drops 0.480→0.304 catastrophically)
+- Baseline 0.496 is better. threshold=3 is goldilocks.
+
+### Experiment C: deposit-stale-explore-near-hub (DISCARD)
+- Code: when deposit_to_hub exits as stale with full cargo, use explore_near_hub
+- Results: trial1=0.508 trial2=0.518, avg=0.513
+- Current code (without this change) = 0.524, so this is a regression.
+- Stale deposit → regular explore is better than → explore_near_hub
+
 **Learnings**:
 - Cross_role policy has catastrophic aligner failures on seed 46/47 - avoid for experiments
 - machina_llm_roles is stable across all seeds
