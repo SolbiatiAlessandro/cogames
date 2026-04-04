@@ -498,7 +498,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         aligner_ids: str = "",
         num_scouts: int | str = 0,
         scout_ids: str = "",
-        return_load: int | str = 50,
+        return_load: int | str = 40,
         stuck_threshold: int | str = 20,
         miner_stuck_threshold: int | str = 0,
         mine_timeout_steps: int | str = 75,
