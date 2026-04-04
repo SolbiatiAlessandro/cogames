@@ -1262,3 +1262,31 @@ The aligner prompt improvement (9492dd9) was logged as DISCARD in TSV.
 **Why 80 is goldilocks**: In seed 43, the team-scarce extractor is accessible but requires ~80 steps to reach when coming from the other side of the map. At 80 steps, the miner just barely makes it before giving up. At 70 or less, miners give up before reaching the extractor. At 90+, miners may loop back to team-scarce too aggressively.
 
 **CONFIRMED**: TEAM_SCARCE=80 is goldilocks. All sweep values worse. All DISCARDED.
+
+## 2026-04-04T08:00:00Z: session 23 continued - failed experiments after TEAM_SCARCE=80
+
+**All failed experiments (all DISCARD)**:
+- proximity-margin=15: seed43=0.525 catastrophic (margin=10 is goldilocks)
+- explore-near-hub-deposit-timeout-v2: seed43=0.441 catastrophic (generic explore is better)
+- return_load=50: seeds42/43 collapse 0.37/0.38 catastrophic (mine timeout 75 can't fill 50 items)
+- imbalance-threshold-10: seed43=0.287 catastrophic (threshold=7 needed for seed44 silicon routing)
+
+**Key learnings from session 23**: All major parameters are confirmed goldilocks:
+- TEAM_SCARCE=80 (goldilocks - the big win!)
+- TEAM_SCARCE_PROXIMITY_MARGIN=10 (goldilocks)
+- return_load=40 (goldilocks)
+- imbalance_threshold=7 (goldilocks)
+- mine_timeout_steps=75 (goldilocks from old sessions, not re-verified)
+- deposit_timeout_steps=155 (goldilocks from old sessions)
+
+**Current best**: 0.746 avg (TEAM_SCARCE=80 + all defaults)
+
+**Remaining bottlenecks** (same as previous sessions):
+- seed 42: 0.626 avg (oxygen false-positive routing)
+- seed 46: 0.646 avg (structural hub crowding)
+
+**Next ideas to explore**:
+1. Try mine_timeout_steps sweep (65, 75, 85, 100) with current TEAM_SCARCE=80 config - may have different optimum
+2. Try deposit_timeout_steps sweep (140, 155, 170) with TEAM_SCARCE=80
+3. Try stuck_threshold variations (15, 18, 20, 22, 25) for miners specifically
+4. Consider LLM model change (gemma-3-12b may be faster, reduce 429 errors, improve aligner decisions)
