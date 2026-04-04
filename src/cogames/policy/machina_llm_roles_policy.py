@@ -505,7 +505,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         deposit_timeout_steps: int | str = 155,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
-        llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        llm_model: str | None = "google/gemma-3-12b-it:free",
         llm_api_key_env: str = "OPENROUTER_API_KEY",
         llm_site_url: str | None = None,
         llm_app_name: str = "cogames-voyager",
