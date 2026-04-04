@@ -1175,6 +1175,40 @@ Currently limit is 100 steps for team-scarce routing when inventory is empty. Re
 - Current code (without this change) = 0.524, so this is a regression.
 - Stale deposit → regular explore is better than → explore_near_hub
 
+## 2026-03-31T22:00:00Z: CRITICAL DISCOVERY - num_scouts=0 is the key improvement
+
+### THE BIG FINDING
+All previous experiments in session 22 were using WRONG run config: `machina_llm_roles` default has `num_scouts=1` which means 4A1S3M (scout eats a miner slot). The correct 4A0S4M config uses `num_scouts=0`.
+
+With num_scouts=0 (4A0S4M): avg ~0.700 vs ~0.524 with scout (+31% improvement!)
+
+**Why it helps**: In seed 44, the scout agent (agent 4) gets stuck for 874/1000 steps and dies. With num_scouts=0, that slot is given to a productive miner instead.
+
+### Detailed results
+
+| Config | T1 | T2 | T3 | Avg |
+|--------|-----|-----|-----|-----|
+| f364a6a + 4A1S3M (with scout) | 0.496 | - | - | 0.496 |
+| 8d82e7f + 4A1S3M (with scout) | 0.533 | 0.515 | - | 0.524 |
+| f364a6a + 4A0S4M (no scout, explicit) | 0.752 | 0.657 | - | 0.705 |
+| f364a6a + 4A0S4M (no scout, default) | 0.698 | - | - | 0.698 |
+| 8d82e7f + 4A0S4M (no scout, explicit) | 0.664 | 0.708 | - | 0.686 |
+| 2c9aa58 + 4A0S4M (code=8d82e7f, default) | 0.623 | 0.681 | - | 0.652 |
+
+### Conclusion
+- **KEEP**: num_scouts=0 default (change MachinaLLMRolesPolicy default from 1 to 0)
+- **REVERT**: TEAM_SCARCE_MAX_EMPTY_STEPS=80 and explore_near_hub (hurt 4A0S4M by ~2-5%)
+
+New baseline: **0.700 avg** with f364a6a code + num_scouts=0 default
+(Historical 0.825 was also with 4A0S4M - the 0.700 is the current LLM environment's realistic ceiling)
+
+### Next experiments to try with 4A0S4M baseline
+1. TEAM_SCARCE_MAX_EMPTY_STEPS sweep (60, 70, 80, 90, 120) - verify goldilocks
+2. mine_timeout_steps sweep (65, 70, 75 is historical goldilocks, 80) - re-check with current LLM
+3. deposit_timeout_steps sweep (140, 150, 155 is historical goldilocks, 160)
+4. Aligner prompt improvements - reduce stuck behavior in seed 44
+5. Return load optimization (currently 40, try 35 or 45)
+
 **Learnings**:
 - Cross_role policy has catastrophic aligner failures on seed 46/47 - avoid for experiments
 - machina_llm_roles is stable across all seeds
