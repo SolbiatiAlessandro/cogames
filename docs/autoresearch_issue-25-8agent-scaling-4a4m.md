@@ -1246,3 +1246,5 @@ The aligner prompt improvement (9492dd9) was logged as DISCARD in TSV.
 **KEEP**: This is a new best (0.746 vs 0.700 baseline).
 
 **Next ideas**: Try TEAM_SCARCE_MAX_EMPTY_STEPS sweep (60, 70, 90) to find goldilocks with 4A0S4M config.
+
+## 2026-04-04T06:00:00Z: EXPERIMENT - TEAM_SCARCE sweep (60, 70, 90)
