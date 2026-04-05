@@ -15,6 +15,7 @@ logger = logging.getLogger("cogames.policy.llm_skills")
 Coord = tuple[int, int]
 _HUB_SEARCH_DISTANCE = 20
 _MAX_SCARCE_ELEMENT_DISTANCE = 45
+_MAX_TEAM_SCARCE_ELEMENT_DISTANCE = 50  # Slightly larger cap for team-level routing (covers more distant extractors)
 _HUB_EXTRACTOR_OFFSETS: tuple[Coord, ...] = ((-8, -8), (-8, 8), (8, -8), (8, 8))
 _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
     ("north", (-1, 0)),
@@ -476,7 +477,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     target_abs = self._nearest_known(current_abs, team_known)
                     if target_abs is not None:
                         dist = abs(target_abs[0] - current_abs[0]) + abs(target_abs[1] - current_abs[1])
-                        if dist <= _MAX_SCARCE_ELEMENT_DISTANCE and dist <= dist_to_nearest_any + _TEAM_SCARCE_PROXIMITY_MARGIN:
+                        if dist <= _MAX_TEAM_SCARCE_ELEMENT_DISTANCE and dist <= dist_to_nearest_any + _TEAM_SCARCE_PROXIMITY_MARGIN:
                             action, next_state = self._move_toward_target(state, current_abs, target_abs)
                             return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
 
