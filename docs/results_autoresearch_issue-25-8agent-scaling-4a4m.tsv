@@ -174,3 +174,9 @@ b15e046_m12	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	ma
 b15e046_5a3m	0.543	seeds42-47 (0.55,0.46,0.51,0.66,0.45,0.63) det	1000	discard	5A3M: CATASTROPHIC - only 3 miners insufficient for heart production; 4A4M confirmed optimal
 b15e046_3a5m	0.697	seeds42-47 (0.90,0.42,0.56,0.59,0.67,1.04) det	1000	discard	3A5M: WORSE - fewer aligners hurt overall; 4A4M optimal
 b15e046_rl30	0.597	seeds42-47 (0.51,0.68,0.52,0.77,0.63,0.47) det	1000	discard	return_load=30: WORSE - re-confirmed goldilocks 40 even with new goldilocks params
+b15e046_st18	0.793	seeds42-47 (0.78,0.62,0.95,0.87,0.63,0.91) det	1000	discard	stuck_threshold=18 (all): seed43 catastrophic (0.62); seeds 45/47 improve but net worse
+b15e046_st18m20	0.767	seeds42-47 (0.77,0.74,0.95,0.88,0.63,0.63) det	1000	discard	stuck=18 aligners / 20 miners: seed43 partially recovered (0.74) but still worse; seed47 drops 0.78→0.63
+b15e046_st20m18	0.765	seeds42-47 (0.77,0.57,1.01,0.78,0.66,0.80) det	1000	discard	stuck=20 aligners / 18 miners: seed43 catastrophic (0.57); miner stuck-threshold=20 is goldilocks
+b15e046_pm5	0.798	seeds42-47 (0.75,0.77,1.01,0.85,0.63,0.78) det	1000	discard	per-miner-scarce-threshold=5: seed43 drops 0.86→0.77; threshold=3 is goldilocks
+b15e046_def-expl	0.767	seeds42-47 (0.78,0.75,0.99,0.85,0.64,0.59) det	1000	discard	defend=explore-near-hub: seed47 catastrophic (0.78→0.59); defending aligners must stay near hub for heart pickup
+a1801b6	0.732	seeds42-47 (0.77,0.86,0.71,0.85,0.63,0.57) det	1000	discard	explore-toward-neutral-junctions: CATASTROPHIC - aligners explore too broadly; neutral junction anchors spread exploration
