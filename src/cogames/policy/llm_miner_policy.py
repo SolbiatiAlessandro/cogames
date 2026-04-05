@@ -413,7 +413,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         # Issue-25: explore timeout so full-cargo miners retry deposit rather than exploring forever
         # After deposit timeout: use backoff explore (2^n * threshold) when hub is already known
         elif state.current_skill == "explore":
-            deposit_timed_out_prev = any("deposit_to_hub timed out" in e or "deposit_to_hub" in e for e in state.recent_events[-3:]) if state.recent_events else False
+            deposit_timed_out_prev = any(("deposit_to_hub timed out" in e or "deposit_to_hub" in e and ("stuck" in e or "stale" in e)) for e in state.recent_events[-3:]) if state.recent_events else False
             if deposit_timed_out_prev and state.known_hubs:
                 # Exponential backoff: 1x, 2x, 4x, 4x (capped) based on deposit_stuck_count
                 backoff_multiplier = min(2 ** state.deposit_stuck_count, 4)
