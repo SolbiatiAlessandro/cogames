@@ -188,3 +188,8 @@ a1801b6	0.732	seeds42-47 (0.77,0.86,0.71,0.85,0.63,0.57) det	1000	discard	explor
 156d61b	0.773	seeds42-47 (0.73,0.82,0.85,0.85,0.69,0.70) det	1000	discard	cycle-time-junction-select 2x hub weight: seed46 +0.06 but seeds42/43/44/47 all regress; hub-far junctions penalized too much
 156d61b_1x	0.788	seeds42-47 (0.73,0.82,0.93,0.85,0.71,0.69) det	1000	discard	cycle-time 1x hub weight: seed46 +0.08 but seeds42/43/44/47 still worse; consistent tradeoff not net positive
 156d61b_hn	0.738	seeds42-47 (0.74,0.73,0.78,0.85,0.64,0.69) det	1000	discard	hub-near-first: prefer junctions within HUB_ALIGN_DISTANCE - CATASTROPHIC seeds42/43/44 all drop; forces long detours to hub-near junctions
+ff32914	0.390	seeds42-47 (0.10,0.63,0.38,0.55,0.19,0.49) det	1000	discard	stale-move-blocked-fix: CATASTROPHIC - clearing move_blocked_cells removes station positions (non-wall but blocking); avg 0.39
+total_thresh_28	0.817	seeds42-47 (same) det	1000	discard	total-threshold-28: no change - false-positive fires after 28 deposits anyway
+total_thresh_42	0.778	seeds42-47 (0.77,0.86,0.93,0.85,0.63,0.53) det	1000	discard	total-threshold-42: seeds 44/47 drop catastrophically; routing too delayed
+5d4f8e8_c2	0.817	seeds42-47 (same) det	1000	discard	extractor-crowding threshold=2: no change - crowding rarely occurs at scarce extractor
+5d4f8e8_c1	0.807	seeds42-47 (0.77,0.86,0.92,0.85,0.63,0.78) det	1000	discard	extractor-crowding threshold=1: seed44 drops 1.01→0.92; too aggressive, prevents valid routing
