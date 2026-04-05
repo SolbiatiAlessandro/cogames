@@ -165,3 +165,12 @@ fc7846f	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	territ
 41925fa	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	hp-commit-override (push through alignment when <=8 steps from junction): NO CHANGE - HP retreat rarely/never triggered
 4fcf4a2	0.800	seeds42-47 (0.67,0.86,1.01,0.85,0.63,0.78) det	1000	discard	bfs-junction-select: WORSE - seed42=0.67 dropped. BFS only considers known_free_cells junctions; early-game misses unexplored junctions
 29529f3	0.775	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.53) det	1000	discard	depleted-extractor-fix: WORSE - seed47=0.53 crashed; falsely depleted extractors removed from routing permanently
+29e3b1a	0.762	seeds42-47 (0.77,0.86,0.93,0.85,0.63,0.53) det	1000	discard	total-threshold-56: WORSE - seed47 crashes 0.78→0.53; delayed activation hurts early element balance
+45785b9	0.762	seeds42-47 (0.77,0.86,0.93,0.85,0.63,0.53) det	1000	discard	min-count-1-filter: WORSE - preventing routing when any element=0 blocks seed44 silicon and seed47 germanium early routing; 0→10 deposit window is critical
+4c1b887	0.792	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.63) det	1000	discard	local-stale-extractors: WORSE - per-miner stale avoidance prevents seed47 germanium routing (Ge extractor frequently stale); 0.78→0.63
+97453ca	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	team-scarce-cap-50: NO CHANGE - Ge extractor in seed47 already within 45 tile cap; proximity margin is binding constraint
+b15e046_m11	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	margin-11: NO CHANGE - Ge extractor in seed47 within current margin; not the binding constraint
+b15e046_m12	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	margin-12: NO CHANGE - margin is not binding for seed47
+b15e046_5a3m	0.543	seeds42-47 (0.55,0.46,0.51,0.66,0.45,0.63) det	1000	discard	5A3M: CATASTROPHIC - only 3 miners insufficient for heart production; 4A4M confirmed optimal
+b15e046_3a5m	0.697	seeds42-47 (0.90,0.42,0.56,0.59,0.67,1.04) det	1000	discard	3A5M: WORSE - fewer aligners hurt overall; 4A4M optimal
+b15e046_rl30	0.597	seeds42-47 (0.51,0.68,0.52,0.77,0.63,0.47) det	1000	discard	return_load=30: WORSE - re-confirmed goldilocks 40 even with new goldilocks params
