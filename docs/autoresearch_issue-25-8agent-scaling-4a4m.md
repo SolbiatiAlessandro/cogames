@@ -1299,7 +1299,6 @@ The aligner prompt improvement (9492dd9) was logged as DISCARD in TSV.
 
 **CRITICAL DISCOVERY: LLM HURTS PERFORMANCE**
 When nemotron LLM actually works (100-270 responses/seed), it gets 0.671 vs scripted fallback 0.816!
-The LLM makes slightly different choices than optimal scripted (e.g. "unstick" typo, explore when scripted does unstuck+get_heart).
 **CONCLUSION**: Current scripted fallback is BETTER than any LLM decisions. Keep scripted-only.
 
 **Parameter sweeps - ALL goldilocks confirmed:**
@@ -1308,19 +1307,20 @@ The LLM makes slightly different choices than optimal scripted (e.g. "unstick" t
 - miner_stuck_threshold: tested 15, 17, 18 - default 0 is best
 - imbalance_threshold: tested 8 - no change vs 7
 
-**Failed aligner improvements:**
-- hub-crowd-dispersal (5 stale exits trigger): catastrophic seed47=0.585
-- hub-crowd-defend-v2 (3 stale exits + friendly junctions): catastrophic seed44=0.931 seed47=0.587
-
-**Root cause analysis of bottleneck seeds:**
-- seed46 = 0.627: hub in structurally congested map location. 21 explore cycles for miners, only 5 hearts obtained.
-  Both miners AND aligners fail to reach hub frequently. Structural issue, resistant to parameter tuning.
-- seed42 = 0.771: enemy recapturing junctions (13 gained but only 4 held at end, 9 lost to enemy).
-  Aligners not defending aligned junctions after alignment.
-
 **Next experiments to try:**
 1. LLM prompt improvement: add "defend" hint when known_friendly_junctions are threatened
 2. Patrol-after-align: spend 5-10 steps at newly aligned junction before getting next heart
-3. Different team split: try 4.5A3.5M by varying agent IDs
-4. explore_for_alignment skill for aligners after gear_up (focus exploration on alignable zones)
-5. try a truly different model that's both working AND fast (not free tier)
+3. explore_for_alignment skill for aligners after gear_up (focus exploration on alignable zones)
+
+---
+
+## 2026-04-05T05:50:00Z: CRITICAL DISCOVERY - must use llm_timeout_s=0.001 for deterministic experiments
+
+**KEY FINDING**: The LLM API timing (whether calls timeout with 429 or succeed) causes massive variance in results.
+
+**SOLUTION**: Add `kw.llm_timeout_s=0.001` to ALL experiment runs. Forces immediate LLM timeout, guaranteeing pure scripted fallback. Results are FULLY DETERMINISTIC.
+
+**IMPACT**:
+- Deterministic baseline = 0.817 avg (0.77,0.86,1.01,0.85,0.63,0.79) - matches historical 0.816
+- All goldilocks confirmed: mine=75, deposit=155, TEAM_SCARCE=80, margin=10, load=40, stuck=20
+- mine_timeout sweep (72-80) all worse than 75 confirming goldilocks

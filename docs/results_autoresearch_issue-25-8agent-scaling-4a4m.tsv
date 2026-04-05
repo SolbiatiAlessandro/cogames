@@ -122,3 +122,9 @@ e1842b3_mst18	0.764	seeds42-47 (0.770,0.565,1.009,0.781,0.664,0.795)	1000	discar
 9549989	0.816	seeds42-47 (identical to base)	1000	discard	imbalance-threshold-8: no change vs 7 - oxygen imbalance already >=8 when firing
 c2d6875	0.736	seeds42-47 (0.747,0.857,0.931,0.665,0.627,0.587)	1000	discard	hub-crowd-defend-v2: defend after 3 stale exits WITH friendly junctions - seed44/47 catastrophic drops
 e1842b3_nem	0.671	seeds42-47 (0.582,0.490,0.940,0.829,0.627,0.559)	1000	discard	nemotron LLM working (100-270 responses/seed): LLM HURTS! 0.671 vs 0.816 scripted - current prompt worse than scripted fallback
+03d257a_det	0.813	seeds42-47 (0.81,0.86,0.95,0.85,0.63,0.78) llm_timeout_s=0.001 deterministic	1000	discard	aligner-blacklist-2 DETERMINISTIC: 0.813 vs 0.817/0.818 baseline - slight regression (-0.005). Seed42 +0.04 but seed44 -0.06.
+e1842b3_mt72	0.792	seeds42-47 (0.78,0.81,0.99,0.76,0.63,0.78) det	1000	discard	mine_timeout=72 det: worse than 75 (seed43 0.86→0.81, seed45 0.85→0.76)
+e1842b3_mt74	0.803	seeds42-47 (0.77,0.86,0.99,0.79,0.63,0.78) det	1000	discard	mine_timeout=74 det: worse than 75 (seed44/45 hurt)
+e1842b3_mt76	0.803	seeds42-47 (0.77,0.86,0.99,0.79,0.63,0.78) det	1000	discard	mine_timeout=76 det: same pattern as 74, worse than 75
+e1842b3_mt78	0.788	seeds42-47 (0.77,0.86,0.99,0.78,0.63,0.70) det	1000	discard	mine_timeout=78 det: seed47 drops 0.79→0.70 catastrophically
+e1842b3_mt80_det	0.792	seeds42-47 (0.77,0.86,0.99,0.72,0.63,0.78) det	1000	discard	mine_timeout=80 det: seed45 drops 0.85→0.72. mine_timeout=75 confirmed goldilocks with deterministic protocol
