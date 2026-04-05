@@ -108,3 +108,17 @@ c6d5b71	0.525	seeds42-47 (0.371,0.384,0.600,0.705,0.627,0.464)	1000	discard	retu
 146a34c	0.428	seeds42-47 partial (0.419,0.287,?,0.566,?,0.641)	1000	discard	imbalance-threshold-10: catastrophic! seed43=0.287 seed42=0.419 - threshold 7 is goldilocks (silicon routing needs to fire early in seed44)
 d1982b9	0.673	seeds42-47 (0.687,0.533,0.790,0.731,0.709,0.587)	1000	discard	mine_timeout=100: seed43=0.533 bad seed44=0.790 (was 0.931) - mine_timeout=75 confirmed goldilocks
 d1982b9_b	0.642	seeds42-47 (0.629,0.466,0.934,0.665,0.628,0.530)	1000	discard	mine_timeout=85: seed43=0.466 catastrophic - mine_timeout=75 strongly confirmed goldilocks
+e1842b3	0.816	seeds42-47 (0.771,0.857,1.009,0.852,0.627,0.779)	1000	keep	gemma-3-12b-it:free model: NEW BEST +9.4% over 0.746 (NOTE: actually scripted fallback - free LLM tier gets 429 on all requests)
+e1842b3_mt65	0.792	seeds42-47 (0.789,0.806,0.916,0.798,0.664,0.779)	1000	discard	mine_timeout=65 scripted: seed44 drops 1.009->0.916 - 75 confirmed goldilocks
+e1842b3_mt70	0.795	seeds42-47 (0.785,0.806,0.986,0.777,0.637,0.779)	1000	discard	mine_timeout=70 scripted: seed44 drops 1.009->0.986 - 75 confirmed goldilocks
+e1842b3_mt80	0.791	seeds42-47 (0.771,0.857,0.986,0.723,0.627,0.779)	1000	discard	mine_timeout=80 scripted: seed45 drops 0.852->0.723 - 75 confirmed goldilocks
+e1842b3_dt140	0.785	seeds42-47 (0.770,0.806,1.009,0.840,0.642,0.640)	1000	discard	deposit_timeout=140: seed47 drops 0.779->0.640 - 155 confirmed goldilocks
+e1842b3_dt170	0.755	seeds42-47 (0.774,0.857,0.923,0.729,0.627,0.618)	1000	discard	deposit_timeout=170: seed44/45/47 drop - 155 confirmed goldilocks
+e1842b3_dt200	0.792	seeds42-47 (0.770,0.857,0.981,0.760,0.628,0.757)	1000	discard	deposit_timeout=200: seed44/45/47 worse - 155 confirmed goldilocks
+e1842b3_mst15	0.787	seeds42-47 (0.770,0.733,1.009,0.692,0.627,0.892)	1000	discard	miner_stuck_threshold=15: seed43/45 drop - default 0 optimal
+e1842b3_mst17	0.804	seeds42-47 (0.770,0.685,1.009,0.852,0.664,0.846)	1000	discard	miner_stuck_threshold=17: seed43 catastrophic drop 0.857->0.685
+e1842b3_mst18	0.764	seeds42-47 (0.770,0.565,1.009,0.781,0.664,0.795)	1000	discard	miner_stuck_threshold=18: seed43=0.565 catastrophic - 0 confirmed optimal
+593880d	0.762	seeds42-47 (0.770,0.857,0.958,0.777,0.627,0.585)	1000	discard	hub-crowd-dispersal: disperse after 5 stale exits - seed44 drops 1.009->0.958 seed47 catastrophic 0.585
+9549989	0.816	seeds42-47 (identical to base)	1000	discard	imbalance-threshold-8: no change vs 7 - oxygen imbalance already >=8 when firing
+c2d6875	0.736	seeds42-47 (0.747,0.857,0.931,0.665,0.627,0.587)	1000	discard	hub-crowd-defend-v2: defend after 3 stale exits WITH friendly junctions - seed44/47 catastrophic drops
+e1842b3_nem	0.671	seeds42-47 (0.582,0.490,0.940,0.829,0.627,0.559)	1000	discard	nemotron LLM working (100-270 responses/seed): LLM HURTS! 0.671 vs 0.816 scripted - current prompt worse than scripted fallback
