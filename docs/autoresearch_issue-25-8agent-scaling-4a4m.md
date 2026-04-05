@@ -1375,3 +1375,15 @@ When nemotron LLM actually works (100-270 responses/seed), it gets 0.671 vs scri
 2. **Lower team_deposits threshold to 12**: Start team-scarce routing sooner (currently requires 14 total deposits)
 3. **mine_until_full team-scarce exit**: When team-scarce routing, exit early if mined enough (>= 20 items) even before return_load
 4. **aligner timeout reduced from 100 to 70 steps**: Faster recovery from stuck aligners
+
+## 2026-04-05T21:09:58Z: session 26 starting - fresh experiment loop
+
+**Current state**: HEAD=9803c14 (docs commit, code at d5dde4a reverted). Best = 0.817 avg (0.77,0.86,1.01,0.85,0.63,0.79). Baseline confirmed deterministic.
+
+**Plan**:
+1. Try aligner timeout reduced: `stuck_threshold * 3.5` instead of `* 5` (70 vs 100 steps for get_heart/align_neutral timeout)
+2. Try team_deposits total threshold=12 (start routing sooner)
+3. Try SharedMap step counter + time-adaptive behavior (after step 700, defend mode)
+4. Investigate aligner crowding at hub for seed 46 specifically - try staggered access
+
+**Hypothesis**: Reducing the aligner skill timeout from 100 steps to 70 steps would make aligners give up faster on stuck navigation to hub/junctions, allowing them to quickly try alternate paths or explore. This could help seeds where aligners repeatedly get stuck trying to get hearts from a congested hub.
