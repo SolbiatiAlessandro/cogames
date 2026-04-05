@@ -154,4 +154,7 @@ fe9f0d3	0.778	seeds42-47 (0.75,0.86,0.88,0.85,0.63,0.70) det	1000	discard	shared
 6aad611_ss	0.738	seeds42-47 (0.71,0.66,0.93,0.77,0.63,0.73) det	1000	discard	sector-spread alignment: 0.738 WORSE - seeds 43/44 catastrophic; farther junctions hurt cycle time
 75c1b95	0.677	seeds42-47 (0.75,0.65,0.79,0.78,0.63,0.46) det	1000	discard	hub-stale-unstuck: 0.677 CATASTROPHIC - unstuck escapes hub, seed47 0.78→0.46; explore-after-stale was correct behavior
 6aad611_hsd28	0.772	seeds42-47 (0.77,0.81,1.01,0.87,0.63,0.54) det	1000	discard	hub_search_distance=28 (was 20): 0.772 WORSE - seed47 catastrophic 0.78→0.54; aligners explore too far from hub initially
-75c1b95	0.677	seeds42-47 (0.75,0.65,0.79,0.78,0.63,0.46) det	1000	discard	hub-stale-unstuck: CATASTROPHIC - unstuck escapes hub area; explore-after-stale was correct
+65c8067_hp40	0.663	seeds42-47 (0.60,0.68,0.83,0.66,0.63,0.58) det	1000	discard	hub_patience=40: CATASTROPHIC - aligners wait too long at empty hub; 20 steps confirmed goldilocks
+65c8067_hp25	0.700	seeds42-47 (0.82,0.74,0.69,0.68,0.63,0.64) det	1000	discard	hub_patience=25: WORSE - hub wait 5 extra steps hurts alignment throughput
+65c8067_hp15	0.743	seeds42-47 (0.73,0.85,0.75,0.72,0.63,0.78) det	1000	discard	hub_patience=15: WORSE - less patience hurts; 20 steps is goldilocks for hub wait
+48e9874	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	circuit-patrol: NO CHANGE - last_aligned_junction preference; already selecting nearest naturally
