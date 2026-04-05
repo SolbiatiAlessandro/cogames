@@ -38,6 +38,8 @@ class LLMMinerState(MinerSkillState):
     retreating: bool = False
     # Issue-25: count consecutive mine_until_full timeouts (no deposit between them)
     mine_timeout_count: int = 0
+    # Count deposit failures (stuck/timeout) to implement backoff exploration
+    deposit_stuck_count: int = 0
 
 
 class LLMMinerPlannerClient:
@@ -231,6 +233,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             max_hp_seen=state.max_hp_seen,
             retreating=state.retreating,
             mine_timeout_count=state.mine_timeout_count,
+            deposit_stuck_count=state.deposit_stuck_count,
         )
 
     def _event(self, state: LLMMinerState, message: str) -> None:
@@ -403,14 +406,20 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             self._event(state, "deposit_to_hub completed after deposit")
             state.current_skill = None
             state.mine_timeout_count = 0  # Reset timeout counter after successful deposit
+            state.deposit_stuck_count = 0  # Reset backoff counter after successful deposit
         elif state.current_skill == "explore" and len(state.known_extractors) > state.explore_start_extractors:
             self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
             state.current_skill = None
         # Issue-25: explore timeout so full-cargo miners retry deposit rather than exploring forever
-        # After deposit timeout: use shorter explore (1x threshold) when hub is already known
+        # After deposit timeout: use backoff explore (2^n * threshold) when hub is already known
         elif state.current_skill == "explore":
-            deposit_timed_out_prev = any("deposit_to_hub timed out" in e for e in state.recent_events[-3:]) if state.recent_events else False
-            explore_timeout = self._stuck_threshold if (deposit_timed_out_prev and state.known_hubs) else self._stuck_threshold * 5
+            deposit_timed_out_prev = any("deposit_to_hub timed out" in e or "deposit_to_hub" in e for e in state.recent_events[-3:]) if state.recent_events else False
+            if deposit_timed_out_prev and state.known_hubs:
+                # Exponential backoff: 1x, 2x, 4x, 4x (capped) based on deposit_stuck_count
+                backoff_multiplier = min(2 ** state.deposit_stuck_count, 4)
+                explore_timeout = self._stuck_threshold * backoff_multiplier
+            else:
+                explore_timeout = self._stuck_threshold * 5
             if state.skill_steps >= explore_timeout:
                 self._event(state, f"explore timed out after {state.skill_steps} steps without new extractors")
                 state.current_skill = None
@@ -430,7 +439,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill == "deposit_to_hub" and state.skill_steps >= self._deposit_timeout_steps:
             self._event(state, f"deposit_to_hub timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
+            state.deposit_stuck_count += 1
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
+            if state.current_skill == "deposit_to_hub":
+                state.deposit_stuck_count += 1
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
@@ -438,6 +450,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             if state.current_skill == "mine_until_full" and current_abs in state.known_extractors:
                 state.known_extractors.discard(current_abs)
                 self._event(state, f"removed depleted extractor at {current_abs} from memory")
+            if state.current_skill == "deposit_to_hub":
+                state.deposit_stuck_count += 1
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
