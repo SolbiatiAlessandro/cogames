@@ -199,3 +199,16 @@ a363305_t12	0.817	seeds42-47 (same as baseline) det	1000	discard	team_deposits t
 a363305_cvc	0.782	seeds42-47 (0.77,0.86,1.01,0.64,0.63,0.78) det	1000	discard	cargo-aware-scarce: threshold=1 when cargo<20, else 3; seed45 drops 0.85→0.64
 a363305_cv5	0.812	seeds42-47 (0.77,0.86,0.98,0.85,0.63,0.78) det	1000	discard	chain-value bonus=5: seed44 drops 1.01→0.98; nearest-first is goldilocks
 b769840	0.825	seeds42-47 (0.77,0.86,1.06,0.85,0.63,0.78) det	1000	keep	deposit-backoff: exponential backoff explore after deposit failure; seed44 1.01→1.06 NEW BEST
+9d43c8b_tsgate	0.777	seeds42-47 (0.77,0.82,0.98,0.85,0.63,0.78) det	1000	discard	agent_id team-scarce gating (id%4==0 for agent_id 0): seed43 drops 0.86→0.82
+9d43c8b_enaj	0.713	seeds42-47 (0.77,0.79,0.68,0.85,0.63,0.54) det	1000	discard	explore toward non-alignable junctions: seeds44/47 catastrophic; aligners chased enemy junctions far from hub
+deabbb1	0.463	seeds42-47 (catastrophic) det	1000	discard	hub-approach-no-block: CATASTROPHIC - hub structure has permanent walls/stations in move_blocked_cells; cannot clear them
+9d43c8b_apc	0.765	seeds42-47 (0.77,0.86,0.98,0.85,0.63,0.62) det	1000	discard	approach-cell-cycling: cycle through 3 approach cells per deposit - seed47 drops 0.78→0.62; farther approach cells cost more steps
+9d43c8b_ja16	0.775	seeds42-47 (0.77,0.86,0.92,0.85,0.63,0.78) det	1000	discard	JUNCTION_ALIGN=16 (was 15): seed44 drops 1.06→0.92; 15 is goldilocks
+9d43c8b_ha26	0.803	seeds42-47 (0.79,0.86,0.93,0.85,0.63,0.78) det	1000	discard	HUB_ALIGN=26 (was 25): per-seed tradeoff; seeds 42/46 slightly benefit but 43/44/47 worse; 25 is goldilocks
+9d43c8b_hsd22	0.777	seeds42-47 (0.77,0.86,0.93,0.85,0.63,0.78) det	1000	discard	HUB_SEARCH=22 (was 20): seed44 drops 1.06→0.93; 20 is goldilocks for hub search radius
+9d43c8b_sbe	0.688	seeds42-47 (0.77,0.86,0.63,0.85,0.63,0.28) det	1000	discard	sector-based exploration: barren quadrant problem - some sectors had no junctions; seeds 42/43/44 collapsed
+87e550f	0.735	seeds42-47 (0.72,0.73,0.91,0.88,0.63,0.54) det	1000	discard	align_neutral timeout split: align_neutral=3x(60s) get_heart=5x(100s); over-eager blacklisting cascade; much worse than baseline
+9d43c8b_im9	0.825	seeds42-47 (0.77,0.86,1.06,0.85,0.63,0.78) det	1000	discard	imbalance threshold 7→9: NO CHANGE - oxygen imbalance in seed42 is already >=9 when routing fires; cannot reduce false positives this way
+9d43c8b_mst22	0.758	seeds42-47 (0.77,0.70,1.06,0.75,0.63,0.64) det	1000	discard	miner_stuck_threshold=22: seeds 43/45/47 catastrophic drop; miner patience 20 is goldilocks
+9d43c8b_mst21	0.753	seeds42-47 (0.77,0.72,1.06,0.75,0.63,0.59) det	1000	discard	miner_stuck_threshold=21: also catastrophic; miner_stuck_threshold > 20 uniformly bad
+5386372	0.825	seeds42-47 (0.77,0.86,1.06,0.85,0.63,0.78) det	1000	discard	hub-patience: stay patient at hub during deposit when adjacent (2 tile radius); NO CHANGE - backoff already handles timing
