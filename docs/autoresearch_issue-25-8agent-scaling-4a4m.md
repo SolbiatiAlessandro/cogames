@@ -1375,3 +1375,16 @@ When nemotron LLM actually works (100-270 responses/seed), it gets 0.671 vs scri
 2. **Lower team_deposits threshold to 12**: Start team-scarce routing sooner (currently requires 14 total deposits)
 3. **mine_until_full team-scarce exit**: When team-scarce routing, exit early if mined enough (>= 20 items) even before return_load
 4. **aligner timeout reduced from 100 to 70 steps**: Faster recovery from stuck aligners
+
+## 2026-03-31T22:00:00Z: session 4 starting - new experiment loop
+
+**State**: HEAD=b15e046, best = 0.817 avg (0.77,0.86,1.01,0.85,0.63,0.78). Deterministic baseline.
+
+**Analysis**: After 70+ experiments, still at 0.817 plateau. Key bottlenecks:
+- Seed 42 (0.77): oxygen false-positive team-scarce routing
+- Seed 46 (0.63): hub crowding structural issue
+- Seed 47 (0.78): historically got to 0.83 in some configs
+
+**New idea**: The oxygen false positive in seed 42 fires because team_deposits shows oxygen=0 (never deposited). The `total >= 14` check still allows routing when oxygen=0 if other elements have deposited >14. The fix: require `min_count >= 1` before routing. If any element has 0 deposits, don't fire team-scarce (extractor might be inaccessible).
+
+**Hypothesis**: seed 42 will recover from 0.77 back toward 0.82 (pre-team-scarce performance). Seeds 43/44/45/47 should be unaffected since their scarce elements have been deposited before the routing fires. Net improvement expected.
