@@ -1324,3 +1324,37 @@ When nemotron LLM actually works (100-270 responses/seed), it gets 0.671 vs scri
 - Deterministic baseline = 0.817 avg (0.77,0.86,1.01,0.85,0.63,0.79) - matches historical 0.816
 - All goldilocks confirmed: mine=75, deposit=155, TEAM_SCARCE=80, margin=10, load=40, stuck=20
 - mine_timeout sweep (72-80) all worse than 75 confirming goldilocks
+
+---
+
+## 2026-04-05T00:10:00Z: deposit_timeout fine-tune sweep results
+
+**Sweep**: deposit_timeout_steps = 148, 150, 152, 155(baseline), 158, 160
+
+**Results** (deterministic):
+- dt=148: 0.775 (seed45=0.65 catastrophic)
+- dt=150: 0.787 (seed45=0.75 seed47=0.73 worse)
+- dt=152: 0.773 (seed45=0.72 seed47=0.68 worse)
+- dt=155: **0.817 (BASELINE - confirmed goldilocks)**
+- dt=158: 0.780 (seed45=0.72 seed47=0.68 worse)
+- dt=160: still running...
+
+**CONFIRMED**: deposit_timeout=155 is strongly goldilocks. Values below AND above are worse.
+
+## 2026-04-05T00:10:00Z: multi-heart-2 experiment CATASTROPHIC failure
+
+**Hypothesis**: Aligners collect 2 hearts per hub trip, then chain 2 junction alignments. Should reduce hub congestion and improve efficiency.
+
+**Actual result**: CATASTROPHIC (42=0.63, 43=0.69, 44=0.56, 45=0.47)
+
+**Root cause**: When hub has <= 1 heart (depleted), aligner with hearts_per_trip=2 gets 1 heart then WAITS for second heart. Hub can't provide → aligner waits 100 steps → get_heart_timeout fires → planner switches to DEFEND mode → junctions not aligned → massive reward drop.
+
+**Lesson**: Multi-heart requires graceful fallback when hub has insufficient hearts. Simple implementation without fallback is not viable. Could work if: complete get_heart when has >= 1 heart AND (count >= target OR couldn't get more after trying N steps).
+
+**Reverted to 889e4fa**. 
+
+**Next ideas to try**:
+1. Better explore-for-alignment: focus on areas with known enemy junctions
+2. team_deposits imbalance threshold=6 (currently 7)  
+3. Aligner "preemptive strike": when all friendly junctions are stable, attack nearest enemy junction
+4. mine_timeout_count explore threshold: try cargo<20 instead of <15
