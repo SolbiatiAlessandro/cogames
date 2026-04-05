@@ -1358,3 +1358,20 @@ When nemotron LLM actually works (100-270 responses/seed), it gets 0.671 vs scri
 2. team_deposits imbalance threshold=6 (currently 7)  
 3. Aligner "preemptive strike": when all friendly junctions are stable, attack nearest enemy junction
 4. mine_timeout_count explore threshold: try cargo<20 instead of <15
+
+## 2026-04-05T00:16:00Z: Enemy-priority alignment experiment result
+
+**Result**: NO CHANGE (0.817 avg, identical to baseline)
+
+**Root cause**: `known_enemy_junctions` is only refreshed within visible area per step. Enemy recaptures of our junctions happen outside visibility, so the aligner's stale data shows "0 enemy junctions" when the real state has many. The `enemy_count > friendly_count + 1` condition never fires.
+
+**Lesson**: Any junction-reclaim strategy based on local visibility won't fix seed 42's recapture problem. Would need SharedMap-based junction state tracking to detect recaptures globally.
+
+**Reverted to f0b372d**
+
+## Next experiment ideas:
+
+1. **SharedMap junction state tracking**: Track junction states (neutral/friendly/enemy) in SharedMap so all aligners know globally which junctions are being recaptured
+2. **Lower team_deposits threshold to 12**: Start team-scarce routing sooner (currently requires 14 total deposits)
+3. **mine_until_full team-scarce exit**: When team-scarce routing, exit early if mined enough (>= 20 items) even before return_load
+4. **aligner timeout reduced from 100 to 70 steps**: Faster recovery from stuck aligners
