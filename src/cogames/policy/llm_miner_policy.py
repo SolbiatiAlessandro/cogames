@@ -220,6 +220,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             last_move_target=base.last_move_target,
             last_inventory=base.last_inventory,
             team_scarce_empty_steps=base.team_scarce_empty_steps,
+            local_stale_extractors=base.local_stale_extractors,
             current_skill=state.current_skill,
             current_reason=state.current_reason,
             skill_steps=state.skill_steps,
@@ -437,7 +438,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             current_abs = self._current_abs(obs)
             if state.current_skill == "mine_until_full" and current_abs in state.known_extractors:
                 state.known_extractors.discard(current_abs)
-                self._event(state, f"removed depleted extractor at {current_abs} from memory")
+                state.local_stale_extractors.add(current_abs)
+                self._event(state, f"removed depleted extractor at {current_abs} from memory; added to local stale set")
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 

@@ -44,6 +44,9 @@ class MinerSkillState(StarterCogState):
     last_inventory: dict[str, int] = field(default_factory=dict)
     # Issue-25: count consecutive empty-inv steps trying team-scarce routing (prevent stuck loop)
     team_scarce_empty_steps: int = 0
+    # Per-miner stale extractor avoidance: skip extractors that this miner has been stale at
+    # (avoids re-routing to temporarily blocked extractors; cleared after successful deposit)
+    local_stale_extractors: set[Coord] = field(default_factory=set)
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -471,7 +474,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     if team_dist <= dist_to_nearest_any + _TEAM_SCARCE_PROXIMITY_MARGIN:
                         action, next_state = self._move_toward_target(state, current_abs, target_abs)
                         return action, replace(next_state, last_mode=state.last_mode, team_scarce_empty_steps=state.team_scarce_empty_steps + 1)
-                team_known = state.extractors_by_element.get(team_scarce, set())
+                team_known = state.extractors_by_element.get(team_scarce, set()) - state.local_stale_extractors
                 if team_known:
                     target_abs = self._nearest_known(current_abs, team_known)
                     if target_abs is not None:
@@ -597,6 +600,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 logger.debug("agent=%s deposit_detected deposits=%s", obs.agent_id, dict(self._shared_map.team_deposits))
                 # Reset team-scarce step counter for the new deposit cycle
                 state.team_scarce_empty_steps = 0
+                # Clear per-miner stale extractor avoidance on deposit (extractors may have freed up)
+                state.local_stale_extractors.clear()
         state.last_inventory = current_inv
 
     def _team_scarce_element(self) -> str | None:
