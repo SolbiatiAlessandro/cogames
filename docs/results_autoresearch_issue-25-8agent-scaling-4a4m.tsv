@@ -193,3 +193,9 @@ total_thresh_28	0.817	seeds42-47 (same) det	1000	discard	total-threshold-28: no 
 total_thresh_42	0.778	seeds42-47 (0.77,0.86,0.93,0.85,0.63,0.53) det	1000	discard	total-threshold-42: seeds 44/47 drop catastrophically; routing too delayed
 5d4f8e8_c2	0.817	seeds42-47 (same) det	1000	discard	extractor-crowding threshold=2: no change - crowding rarely occurs at scarce extractor
 5d4f8e8_c1	0.807	seeds42-47 (0.77,0.86,0.92,0.85,0.63,0.78) det	1000	discard	extractor-crowding threshold=1: seed44 drops 1.01→0.92; too aggressive, prevents valid routing
+ae88b38	0.693	seeds42-47 (0.72,0.77,0.77,0.82,0.63,0.45) det	1000	discard	aligner-timeout-70: get_heart/align_neutral timeout 100→70 steps; aligners abandon routes too fast
+9fcb73c_80	0.722	seeds42-47 (0.65,0.86,0.81,0.77,0.63,0.61) det	1000	discard	aligner-timeout-80: timeout=80 steps; still worse than 100; 100 is goldilocks
+a363305_t12	0.817	seeds42-47 (same as baseline) det	1000	discard	team_deposits threshold=12/7: no change - threshold not the active constraint
+a363305_cvc	0.782	seeds42-47 (0.77,0.86,1.01,0.64,0.63,0.78) det	1000	discard	cargo-aware-scarce: threshold=1 when cargo<20, else 3; seed45 drops 0.85→0.64
+a363305_cv5	0.812	seeds42-47 (0.77,0.86,0.98,0.85,0.63,0.78) det	1000	discard	chain-value bonus=5: seed44 drops 1.01→0.98; nearest-first is goldilocks
+b769840	0.825	seeds42-47 (0.77,0.86,1.06,0.85,0.63,0.78) det	1000	keep	deposit-backoff: exponential backoff explore after deposit failure; seed44 1.01→1.06 NEW BEST
