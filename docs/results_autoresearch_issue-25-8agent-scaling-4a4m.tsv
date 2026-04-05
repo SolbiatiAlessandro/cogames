@@ -158,3 +158,8 @@ fe9f0d3	0.778	seeds42-47 (0.75,0.86,0.88,0.85,0.63,0.70) det	1000	discard	shared
 65c8067_hp25	0.700	seeds42-47 (0.82,0.74,0.69,0.68,0.63,0.64) det	1000	discard	hub_patience=25: WORSE - hub wait 5 extra steps hurts alignment throughput
 65c8067_hp15	0.743	seeds42-47 (0.73,0.85,0.75,0.72,0.63,0.78) det	1000	discard	hub_patience=15: WORSE - less patience hurts; 20 steps is goldilocks for hub wait
 48e9874	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	circuit-patrol: NO CHANGE - last_aligned_junction preference; already selecting nearest naturally
+e4fd84c	0.717	seeds42-47 (0.59,0.72,0.85,0.70,0.65,0.79) det	1000	discard	junction-decay stale 220 step_counts: WORSE - aligners waste hearts re-aligning still-friendly junctions
+756be81	0.780	seeds42-47 (0.77,0.85,0.93,0.85,0.63,0.65) det	1000	discard	defend-on-timeout: WORSE - seed44=0.93 seed47=0.65 regress; get_heart_timeouts>=1 fires even without hub depletion
+f6eec91	0.670	seeds42-47 (0.68,0.77,0.52,0.86,0.63,0.56) det	1000	discard	avoid-hazards-get-heart: CATASTROPHIC - hazard detours make hub trips too long; avg 0.670
+fc7846f	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	territory-distance-10 (was 15): NO CHANGE - retreat mechanism irrelevant to reward in these seeds
+41925fa	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	hp-commit-override (push through alignment when <=8 steps from junction): NO CHANGE - HP retreat rarely/never triggered
