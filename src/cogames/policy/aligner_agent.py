@@ -523,7 +523,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return frontier
 
         aligned_network = set(state.known_hubs) | set(state.known_friendly_junctions)
-        if not aligned_network:
+        # Also bias exploration toward known neutral junctions (to discover more alignable territory)
+        exploration_anchors = aligned_network | set(state.known_neutral_junctions)
+        if not exploration_anchors:
             return frontier
 
         vision_margin = max(self._obs_radius_row, self._obs_radius_col)
@@ -539,10 +541,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                     and abs(cell[0] - anchor[0]) + abs(cell[1] - anchor[1]) <= hub_search_radius
                 )
                 or (
-                    anchor in state.known_friendly_junctions
+                    anchor in (state.known_friendly_junctions | state.known_neutral_junctions)
                     and abs(cell[0] - anchor[0]) + abs(cell[1] - anchor[1]) <= junction_search_radius
                 )
-                for anchor in aligned_network
+                for anchor in exploration_anchors
             )
         }
         return preferred_frontier or frontier
