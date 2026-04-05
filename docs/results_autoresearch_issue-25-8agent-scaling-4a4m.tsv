@@ -135,3 +135,23 @@ e1842b3_dt158	0.780	seeds42-47 (0.77,0.86,1.01,0.72,0.64,0.68) det	1000	discard	
 ee5a781	0.578	seeds42-47 (0.63,0.69,0.56,0.47,?,?) det	1000	discard	multi-heart-2: CATASTROPHIC - aligners wait for 2 hearts but hub depletes, causes get_heart_timeouts → defend mode, kills alignment
 e1842b3_dt160	0.768	seeds42-47 (0.77,0.86,1.01,0.72,0.63,0.62) det	1000	discard	deposit_timeout=160 det: seed45=0.72 seed47=0.62 worse - 155 is the strong goldilocks
 e314831	0.817	seeds42-47 (0.77,0.86,1.01,0.85,0.63,0.78) det	1000	discard	enemy-priority-alignment: NO CHANGE - stale known_enemy_junctions prevents detection of enemy recaptures
+6aad611_ts12	0.817	seeds42-47 (same as baseline) det	1000	discard	team-scarce threshold 14→12 imbalance 7→6: NO CHANGE - routing activated earlier but no impact
+6aad611_5align	0.543	seeds42-47 (catastrophic) det	1000	discard	5 aligners 3 miners: CATASTROPHIC - hub depletes with only 3 miners; 4A4M confirmed optimal split
+6aad611_st15	0.695	seeds42-47 det	1000	discard	aligner stuck_threshold=15: significantly worse - faster give-up hurts alignment persistence
+6aad611_st25	0.628	seeds42-47 det	1000	discard	aligner stuck_threshold=25: catastrophic - longer waits cause cascade blocking
+6aad611_pad30	0.655	seeds42-47 det	1000	discard	post-align defend 30 steps: worse - standing at junctions after aligning reduces total alignment count
+6aad611_pad15	0.700	seeds42-47 det	1000	discard	post-align defend 15 steps: worse - even brief post-align pause hurts throughput
+6aad611_pad50	0.637	seeds42-47 det	1000	discard	post-align defend 50 steps: catastrophic - confirmed post-align defend is uniformly bad
+6aad611_rl30	0.597	seeds42-47 det	1000	discard	return_load=30: too-frequent deposits hurt mining efficiency
+6aad611_rl50	0.572	seeds42-47 det	1000	discard	return_load=50: catastrophic - mine_timeout=75 can't fill 50 items
+6aad611_ad	0.778	seeds42-47 det	1000	discard	align distance increase: slightly worse - 0.778 vs 0.817 baseline
+6aad611_mc20	0.817	seeds42-47 det	1000	discard	mine-timeout cargo<20 explore threshold (was <15): no improvement or slight regression
+6aad611_hd2	0.760	seeds42-47 det	1000	discard	hub-depletion get_heart threshold 1→2 timeouts: 0.760 - aligners switch to defend too late
+6aad611_dt200	0.810	seeds42-47 det	1000	discard	defend timeout 200 steps: 0.810 - slightly worse than 1000 steps full-game (0.817)
+6aad611_dt400	0.810	seeds42-47 det	1000	discard	defend timeout 400 steps: 0.810 - no improvement; full-game defend confirmed better
+6aad611_rcp	0.780	seeds42-47 det	1000	discard	recapture-priority: 0.780 - tracking previously-aligned junctions in SharedMap; seed43 catastrophic 0.86→0.64
+fe9f0d3	0.778	seeds42-47 (0.75,0.86,0.88,0.85,0.63,0.70) det	1000	discard	shared-team-blacklist: WORSE - team blacklist too aggressive; seed44 1.01→0.88 catastrophic
+6aad611_ss	0.738	seeds42-47 (0.71,0.66,0.93,0.77,0.63,0.73) det	1000	discard	sector-spread alignment: 0.738 WORSE - seeds 43/44 catastrophic; farther junctions hurt cycle time
+75c1b95	0.677	seeds42-47 (0.75,0.65,0.79,0.78,0.63,0.46) det	1000	discard	hub-stale-unstuck: 0.677 CATASTROPHIC - unstuck escapes hub, seed47 0.78→0.46; explore-after-stale was correct behavior
+6aad611_hsd28	0.772	seeds42-47 (0.77,0.81,1.01,0.87,0.63,0.54) det	1000	discard	hub_search_distance=28 (was 20): 0.772 WORSE - seed47 catastrophic 0.78→0.54; aligners explore too far from hub initially
+75c1b95	0.677	seeds42-47 (0.75,0.65,0.79,0.78,0.63,0.46) det	1000	discard	hub-stale-unstuck: CATASTROPHIC - unstuck escapes hub area; explore-after-stale was correct
