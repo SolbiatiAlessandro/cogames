@@ -609,8 +609,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         min_count = min(deposits.values())
         max_count = max(deposits.values())
-        if min_count == 0:  # Never deposited means extractors may be inaccessible (false positive)
-            return None
         if max_count - min_count < 7:  # Less than 1 heart worth of imbalance
             return None
         for e in ("carbon", "oxygen", "germanium", "silicon"):
