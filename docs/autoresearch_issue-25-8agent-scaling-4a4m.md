@@ -1408,3 +1408,52 @@ When nemotron LLM actually works (100-270 responses/seed), it gets 0.671 vs scri
 4. Investigate aligner crowding at hub for seed 46 specifically - try staggered access
 
 **Hypothesis**: Reducing the aligner skill timeout from 100 steps to 70 steps would make aligners give up faster on stuck navigation to hub/junctions, allowing them to quickly try alternate paths or explore. This could help seeds where aligners repeatedly get stuck trying to get hearts from a congested hub.
+
+## 2026-04-06T21:00:00Z: Session 29 analysis - both experiments FAILED
+
+**Force-get-heart-override (DISCARD)**:
+- Commit 25ab26e, reverted
+- Seeds 42,43: 0.62, 0.59 (WORSE than baseline 0.77, 0.86)
+- Root cause: LLM's explore decisions ARE correct. When hub_depleted=False but recent get_heart failed, LLM knows hub is probably still empty. Forcing get_heart just adds a wasted 20-step failed attempt.
+
+**Wrong-gear-fix (DISCARD)**:
+- Commit ab51071, reverted  
+- Seeds 42,43: 0.62, 0.63 (WORSE than baseline)
+- Root cause: The needs_gear_up check only fires for gear=="none" in phase 1. The wrong-gear retry code I added was DEAD CODE that never fires because needs_gear_up=False for wrong-gear in phase 1.
+- But the overall wrong-gear fix still caused issues - unclear why seed 42 was also worse.
+
+**Key insights gained this session**:
+1. Don't override LLM's explore decisions - the LLM reasons about recent_events correctly
+2. The "aligner mines 400 steps" issue in seed 46 IS real but needs a different fix
+3. The bootstrap logic in phase 1 only handles gear=="none" - wrong gear in phase 1 falls through to LLM which picks wrong skills
+4. A proper fix would add an explicit override after bootstrap: if aligner has wrong-fallback-gear AND failures==2 AND not gear_up_completed → try gear_up_aligner once more
+
+**Next experiment ideas**:
+1. Targeted wrong-gear recovery: Add an explicit (not bootstrap) override that fires AFTER the bootstrap block, specifically for the case where aligner has miner gear and gear_up_completed=False. Cap at 1 retry only.
+2. LLM prompt improvement: When aligner has miner gear and still needs aligner gear, prompt should explicitly say "you need to get aligner gear" - prevents LLM from choosing mine_until_full with wrong gear
+3. Different approach entirely: Instead of fixing the contamination path, focus on other bottlenecks
+
+**Root cause of 0.62 in seed 42 with my experiments**: Unknown - seed 42 aligners shouldn't be affected by wrong-gear fix (they presumably get aligner gear on first try). Need to investigate why both experiments hurt seed 42.
+
+## 2026-04-07T00:30:00Z: Session 29 critical finding - baseline is no longer stable
+
+**Observation**: The baseline (44aa9ce, no code changes) is now giving 0.62-0.63 for seed 42 instead of 0.77.
+
+**Root cause analysis**:
+- 342 Action Generation Timeouts per 1000 steps
+- Each LLM call takes ~1.7 seconds (exceeding 250ms threshold → noop action for that step)
+- The nvidia/llama-3.3-nemotron-super-49b-v1.5 model now takes longer to respond
+- Previously during our best runs the baseline was 0.77 consistently
+
+**Hypothesis**:
+- OpenRouter rate limiting or routing changes may have affected the model's response speed
+- When the model takes longer, more steps are wasted as noops
+- The noop steps reduce effective exploration and hub visits
+- This could explain the 0.77→0.62 drop without any code changes
+
+**Key insight**: The model's behavior is NOW creating more hub depletion cycles:
+- All 4 aligners explore simultaneously when hub is depleted
+- Explore loops find new junctions but enemies recapture them
+- Net result: few junctions held long-term
+
+**New approach**: Switch to google/gemma-3-12b-it which was previously tested and is faster
