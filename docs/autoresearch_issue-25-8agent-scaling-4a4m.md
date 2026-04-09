@@ -1544,3 +1544,74 @@ Experiments tried:
 3. Try improving miner behavior to deposit more effectively even when hub approach is contested.
 4. Consider reducing stale threshold specifically for get_heart when agents are known to be in doom loop (very hard without global state).
 5. Look at script-level optimizations for miner routing that might help seed 46 specifically (fewer deposit attempts, better path finding around hub congestion).
+
+## 2026-04-09T10:24:48Z: session 33 starting
+
+**Current state**: HEAD=ddb13d8, baseline 0.825 avg (seeds 42-47: 0.77, 0.86, 1.06, 0.85, 0.63, 0.78). Pure scripted fallback (llm_timeout_s=0.001).
+
+### Experiment A result: prefer-nearest-alignable (commit 973cc92, reverted)
+- Results: (0.77, 0.86, 1.06, 0.85, 0.63, 0.78) = 0.825 avg - NO CHANGE
+- Why: In practice, aligners always have neutral junctions available simultaneously. The "enemy fallback" code rarely fires. Merging the sets had no effect on routing.
+- DISCARD
+
+### Experiment B result: stale-get-heart-explore-for-alignment (not committed, reverted)
+- Results: (0.79, 0.83, 1.03, 0.85, 0.64, 0.78) = 0.820 avg - SLIGHTLY WORSE
+- When stale get_heart → use explore_for_alignment instead of explore_near_hub
+- Seeds 42 (+0.02) and 46 (+0.01) marginally improved (doom loop seeds)
+- Seeds 43 (-0.03) and 44 (-0.03) dropped slightly (normal seeds miss explore_near_hub hub approach)
+- DISCARD: net slightly negative
+
+### Experiment C result: team_scarce min_count==0 filter (not committed, reverted)
+- Results: (0.77, 0.86, 0.88, 0.85, 0.63, 0.53) = 0.753 avg - MUCH WORSE
+- Added filter: if min_count == 0, don't route to team_scarce (prevent oxygen false positive in seed 42)
+- Seeds 44 (-0.18) and 47 (-0.25) CATASTROPHIC: early silicon is also 0 deposits in those seeds but IS a true positive
+- DISCARD
+
+**All 3 experiments failed. Baseline 0.825 maintained.**
+
+### Key learnings from session 33:
+1. prefer-nearest-alignable: enemy+neutral merge has no effect - enemy junctions aren't available simultaneously with neutral in normal gameplay
+2. stale-hub-explore-for-alignment: partial improvement for doom seeds but hurts normal seeds; net negative
+3. min_count==0 filter: cannot distinguish early-game 0 deposits (false positive for seed42) from true positives (seed44 silicon)
+
+### Experiment D result: blacklist-fix (not committed, reverted)
+- Changed blacklisting to use actual target junction (from SharedMap aligner_junction_targets) instead of nearest from current position
+- Results: (0.77, 0.86, 1.06, 0.75, 0.63, 0.78) = 0.810 avg - WORSE
+- Seed 45 dropped from 0.85→0.75
+- Key insight: The "wrong" blacklisting (blacklisting nearest junction from current position, not actual target) was accidentally beneficial! Blacklisting the nearest available alternative prevents wasting time on alternatives rather than the actual stuck junction.
+- DISCARD
+
+### Experiment E result: enemy-junction-explore-terminate (not committed, reverted)
+- Added explore termination when enemy junctions discovered AND has_heart AND has_aligner
+- Results: (0.77, 0.86, 1.06, 0.85, 0.63, 0.78) = 0.825 avg - NO CHANGE
+- Why: Doom loop aligners don't have hearts (that's exactly why they're stuck in the doom loop). Without a heart, explore_near_hub never terminates early.
+- DISCARD
+
+### Experiment F result: stale-count-explore-direction (not committed, reverted)
+- Added stale_get_heart_count tracking; after 2+ stale exits, redirect explore near_hub to explore_for_alignment
+- Results: (0.77, 0.86, 1.06, 0.85, 0.63, 0.73) = 0.815 avg - SLIGHTLY WORSE
+- The counter fires in working seeds (42/44/45) too, causing those to change behavior. Seed 47 dropped 0.78→0.73.
+- DISCARD
+
+**All 6 session 33 experiments failed. Baseline 0.825 maintained.**
+
+### Key learnings from complete session 33:
+1. prefer-nearest-alignable: no effect - enemy+neutral junctions don't coexist at the decision point
+2. stale-hub-explore-for-alignment: partial improvement for doom seeds but hurts normal seeds; net negative
+3. min_count==0 filter: cannot distinguish early-game zeros from true imbalances
+4. blacklist-fix: the "wrong" blacklist position was accidentally beneficial - preserving the original stuck target for retry
+5. enemy-junction-explore-terminate: doom loop aligners have NO hearts, so condition can never fire
+6. stale-count-explore-direction: counter fires in working seeds too, causing regressions in seeds 44/47
+
+### Pattern: ALL doom-loop fixes hurt working seeds
+Every approach to fix seeds 42/46 (hub doom loop) either:
+- Has NO effect (the condition never fires)
+- Hurts seeds 44/47 or 43 (fires in working cases too)
+This suggests the doom loop is NOT solvable by local aligner-side logic without global coordination state.
+
+### Next ideas for session 34:
+1. Look at miner-side improvements for seeds 45/47 - different bottleneck, potentially orthogonal
+2. Try adding global state: count of hearts_currently_being_sought across all aligners, broadcast via SharedMap
+3. Random explore direction with small probability (epsilon-greedy for hub approach diversity)
+4. Pre-explore hub surroundings before first get_heart attempt - only for agents starting empty
+5. Mine_timeout exploration improvement: when mine times out AND team is imbalanced, route toward known scarce extractors
