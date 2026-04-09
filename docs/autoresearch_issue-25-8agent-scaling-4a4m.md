@@ -1615,3 +1615,56 @@ This suggests the doom loop is NOT solvable by local aligner-side logic without 
 3. Random explore direction with small probability (epsilon-greedy for hub approach diversity)
 4. Pre-explore hub surroundings before first get_heart attempt - only for agents starting empty
 5. Mine_timeout exploration improvement: when mine times out AND team is imbalanced, route toward known scarce extractors
+
+## Session 34-35 (2026-03-31)
+
+### Experiments run (all DISCARD):
+
+**0865775_g - hub-approach-coordination**
+Result: 0.818. Agents announce their approach cell via SharedMap to avoid crowding. Seed46 +0.02 but marginal - average 0.818.
+
+**0865775_h - explore-timeout-80steps**
+Result: 0.825 NO CHANGE. Extended explore timeout from 60→80 steps. Confirmed: explore terminates naturally before timeout; timeout is irrelevant.
+
+**0865775_i - hub-adjacent-no-move-block**
+Result: CATASTROPHIC ~0.54. Don't add hub-adjacent cells to move_blocked_cells. Miners skip hub entirely - worse than blocking.
+
+**0865775_j - post-stale-explore-stagger**
+Result: 0.795. Stagger explore restart timing after get_heart stale. Seed47 drops 0.78→0.50 CATASTROPHIC.
+
+**0865775_k - blacklist-clear-after-5**
+Result: 0.825 NO CHANGE. Clear junction blacklist after 5 consecutive get_heart stales. Doom loop is NOT caused by blacklisting.
+
+**da5b60e_L (stale sweep: 25/30/35/40)**
+Result: ALL WORSE (0.705/0.728/0.682/0.663). Stale=20 confirmed goldilocks. Higher values monotonically worse by increasing hub crowding.
+
+**e0ab26f_M - explore-far-no-junctions**
+Result: 0.795. Use generic explore (not near_hub) when no friendly junctions known. Seed47 drops 0.78→0.60 from missing early hearts.
+
+**mine_timeout cargo<20 (uncommitted)**
+Result: NO CHANGE. Tried raising mine_timed_out_low_cargo threshold from <15 to <20. No effect.
+
+**team_scarce threshold 6/5 (uncommitted)**
+Result: NO CHANGE. Adjusted scarce detection threshold. No effect.
+
+**3851ecc_N - move-block-agent-aware**
+Result: CATASTROPHIC 0.628 (seed42=0.55, seed44=0.35). Attempt to detect agent-occupied cells and selectively clear move_blocked_cells for non-agent-occupied visible cells. FAILED because:
+1. Junctions have team:cogs tag after alignment - caused false positives in agent detection
+2. Clearing move_blocked_cells caused miners to retry hub approach cells too aggressively
+3. When another agent IS still there, this causes wasted retries
+
+### Key insights from sessions 34-35:
+- Doom loop exits are STALE (not timeout). Defend mechanism fires only on timeout exits = dead code for doom-loop seeds.
+- Hub has 4 approach cells (N/E/S/W). With 4 aligners, all 4 cells can be simultaneously occupied AND/OR in move_blocked_cells.
+- When approach cells are in move_blocked_cells, miners CAN'T deposit (navigate_to_blocked_target returns None for blocked approaches).
+- This explains seed 46's ~6 deposits vs 160 for 0A8M config.
+- All local aligner-side logic to fix doom loop either: (a) has NO effect, or (b) fires in working seeds causing regression.
+- move-blocked clearing approaches have been CATASTROPHIC twice now (experiments i and N).
+- Stale threshold is a confirmed goldilocks at 20. Any deviation worse.
+
+### Ideas for next session:
+1. Miner-side approach: detect when ALL known hub approach cells are in move_blocked_cells → try approaching from diagonal or other direction
+2. Periodic move_blocked_cells reset: every 100 steps, clear all cells that are within radius 3 of hub (timer-based, not vision-based)
+3. Miner detour: when normal hub approach fails, try going to hub from a random direction (pick random cell within 2 of hub)
+4. Aligner coordination via SharedMap: limit to max 2 aligners simultaneously getting hearts (others wait)
+5. Hub priority lanes: designate specific approach cells for miners vs aligners
