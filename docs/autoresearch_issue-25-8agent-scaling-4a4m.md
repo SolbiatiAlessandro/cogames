@@ -1493,3 +1493,54 @@ When nemotron LLM actually works (100-270 responses/seed), it gets 0.671 vs scri
 3. Try different junction selection heuristics (lookahead, cluster-aware)
 4. Consider cycle-time weighting with ultra-mild bias (0.1x) that might net-positive
 5. Investigate if the doom loop can be broken by having aligners do actual useful work (defend known junctions) while waiting for hub to restock
+
+
+## 2026-03-31 Session 32 Start
+
+**Timestamp**: 2026-03-31
+
+**Baseline confirmed**: 0.825 avg (seeds 42-47: 0.77, 0.86, 1.06, 0.85, 0.63, 0.78)
+
+### Session 32 Analysis
+
+**Key findings from session 31 analysis:**
+
+1. Seed 42: 74 stale get_heart exits (20 steps each = 1480 wasted steps). Doom loop exists but less severe than seed 46.
+2. Seed 46: 169 stale exits - severe doom loop. Hub blocked by aligners waiting, miners can't deposit.
+3. Seed 47: 5 gear_up timeouts (200 steps each = 1000 wasted steps), 5 align_neutral timeouts. Agents dying (losing aligner gear) and spending 200 steps trying to re-gear.
+4. Seed 45: 102 stale exits, moderate doom loop.
+
+**Critical insight**: The doom-loop-detect from session 31 regressed (0.763) despite never firing. Root cause: the new state field was NOT added to `_copy_with`, so it reset every step. This means doom-loop-detect was never properly tested.
+
+### Session 32 Plan
+
+1. **Experiment A**: Proper doom-loop-detect - add consecutive stale counter to `_copy_with` so it persists across steps. If 3+ consecutive stale get_heart exits, explore instead of immediately going back to hub. Target: help seeds 42, 45, 46.
+
+2. **Experiment B**: After doom-loop detect triggers, use explore_for_alignment (near friendly junctions) instead of explore_near_hub, to discover adjacent junctions while waiting for hub to restock.
+
+3. **Experiment C**: When an aligner loses its gear (has_aligner=False), if it has a heart, abandon the heart (explore and let it be lost naturally) to avoid the 200-step gear_up timeout cycle. Actually wrong - hearts are precious. Better: after gear_up times out once, switch to explore and let the aligner find the station naturally.
+
+**Starting new experiment loop - doom-loop-detect-fixed**: Properly persist the consecutive_get_heart_stale counter.
+
+### Session 32 Experiment Results
+
+**All experiments in session 32 are DISCARD. Baseline 0.825 maintained.**
+
+Experiments tried:
+1. **doom-loop-detect-threshold=3**: Counter now persists via _copy_with fix. But fires too eagerly - seed44 gets 6 fires just from normal hub congestion. Result: 0.777 (seed44 0.92 CATASTROPHIC).
+2. **doom-loop-detect-threshold=7**: Same issue, seed44 still fires 6 times. Result: 0.803 (seed44 0.96, seed46 0.64, seed47 0.80). Net still worse.
+3. **defend-timeout-fix-thresh2**: Override explore->defend after 2+ timeouts (fix the timeout→explore→get_heart→timeout loop). Result: 0.762 (seed47 CATASTROPHIC 0.55, seed44 0.92). Defend fires in too many working seeds.
+4. **hub-token-limit-2**: Limit hub to 2 simultaneous aligners. CATASTROPHIC for seed44 (0.45). Prevents critical early-game heart rushes where all 4 aligners should get hearts simultaneously.
+
+**Key insights from session 32:**
+- The hub doom loop fires in ALL seeds (seeds 42, 44, 45, 46, 47), not just the worst ones.
+- The difference is degree: seed 46 has 169 stale exits (never gets hearts), seed 44 has 73 stale exits but still gets 29 hearts.
+- Any mechanism that limits hub access hurts seed 44 which relies on all 4 aligners getting hearts quickly.
+- The doom-loop-detect counter approach works (counter persists now), but the threshold cannot be tuned to distinguish good seeds from bad.
+
+**Next directions for next agent:**
+1. Try making aligners smarter about WHEN to queue at hub - maybe based on time since last success rather than consecutive count.
+2. Look at improving junction hold time for seed 42 specifically (different bottleneck from doom loop seeds).
+3. Try improving miner behavior to deposit more effectively even when hub approach is contested.
+4. Consider reducing stale threshold specifically for get_heart when agents are known to be in doom loop (very hard without global state).
+5. Look at script-level optimizations for miner routing that might help seed 46 specifically (fewer deposit attempts, better path finding around hub congestion).
