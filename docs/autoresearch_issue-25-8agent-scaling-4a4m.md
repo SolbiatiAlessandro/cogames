@@ -1457,3 +1457,39 @@ When nemotron LLM actually works (100-270 responses/seed), it gets 0.671 vs scri
 - Net result: few junctions held long-term
 
 **New approach**: Switch to google/gemma-3-12b-it which was previously tested and is faster
+
+## 2026-04-09T09:30:00Z: Session 30 summary - all experiments failed (0.825 baseline maintained)
+
+**Experiments tried this session:**
+
+1. **hub-stale-count (e2ecf99)**: 0.825 NO CHANGE
+   - Added hub_stale_count to track consecutive get_heart stale exits
+   - Suppressed force-get_heart when hub_stale_count >= 2
+   - Did NOT work: decay mechanism was too aggressive (hub_stale_count decays before suppression is effective)
+   - The doom loop (stale, explore, stale, explore, explore, get_heart, repeat) still happened
+
+2. **initial-hub-stagger (75df54b)**: 0.542 CATASTROPHIC
+   - Added agent_id % 4 explore cycles before first hub visit
+   - CATASTROPHIC: delayed critical early heart acquisition by 30-90 steps per agent
+   - Seeds 43, 44, 45 all dropped catastrophically
+
+3. **get-heart-stale-10 (b644999)**: 0.647 WORSE
+   - Halved get_heart stale threshold from 20 to 10 steps
+   - WORSE: seeds 43, 44, 47 dropped significantly
+   - 20 is the goldilocks hub patience value
+   - Seed 46 only improved slightly (0.63 → 0.65) confirming doom loop is not purely about wasted stale time
+
+**Branch safety issue**: Multiple commits were accidentally made to local main branch instead of experiment branch. This happened because `git reset --hard origin/autoresearch/issue-25-8agent-scaling-4a4m` while on main moves main's HEAD without switching branches. Fixed by always using `git checkout autoresearch/issue-25-8agent-scaling-4a4m` to get on experiment branch first.
+
+**Key learnings from seed 46 analysis**:
+- 40 stale exits * 20 steps = 800 wasted steps per 1000-step game
+- Hub is dispensing hearts (heart.gained = 0.75/200 steps) but 4 aligners all try simultaneously
+- Reducing stale threshold to 10 only gave +0.02 improvement (0.63 → 0.65), confirming that most of the issue is the DOOM LOOP itself, not the wait time per stale
+- Need to fundamentally break the doom loop, not just reduce wait time per cycle
+
+**Directions for next session**:
+1. Focus on seeds 42 and 47 instead (0.77, 0.78) - they may have more tractable improvements
+2. Look for miner improvements specific to seeds 42/47
+3. Try different junction selection heuristics (lookahead, cluster-aware)
+4. Consider cycle-time weighting with ultra-mild bias (0.1x) that might net-positive
+5. Investigate if the doom loop can be broken by having aligners do actual useful work (defend known junctions) while waiting for hub to restock
