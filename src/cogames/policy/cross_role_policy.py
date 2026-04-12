@@ -283,7 +283,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         self,
         policy_env_info: PolicyEnvInterface,
         agent_id: int,
-        planner: LLMMinerPlannerClient,
+        planner: LLMMinerPlannerClient | None,
         stuck_threshold: int,
         unstuck_horizon: int,
         return_load: int,
