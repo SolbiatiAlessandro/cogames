@@ -113,4 +113,20 @@ Per-agent breakdown:
 
 **Status: KEEP** — Combined with smart greedy v3, this is the new best configuration.
 
+**Confirmation run:** 0.69/agent on default seed (90.0% move success, 100 avg failed). LLM temperature=0.0 makes runs deterministic — only first run with novel state produces different results. Average across 2 distinct runs: 0.83 reward, 88.2% move success.
+
+---
+
+## 2026-04-12T15:30:00Z: Experiment 4 - 2-pass BFS with move_blocked relaxation (FAILED)
+
+**Hypothesis:** BFS pathfinding routes through move_blocked cells. Adding a 2-pass approach (first avoid move_blocked, then allow if no path found) should reduce failures.
+
+**Results:**
+- v1 (separate move_blocked from blocked_cells): 0.20 reward on seed 123 vs 0.44 previous. Catastrophic — removing the merge left permanent obstacles (extractors, hubs detected only by move failure) unblocked.
+- v2 (keep merge, relaxed 2nd pass): 0.53 on default seed vs 0.69. Regression — relaxed pass routes through permanent obstacles.
+
+**Root cause:** `move_blocked_cells` contains BOTH permanent obstacles (extractors, hubs) and transient obstacles (agent collisions). Cannot relax move_blocked without also unblocking permanent obstacles. Would need to classify move_blocked cells by type, but there's no reliable way to distinguish them.
+
+**Status: DISCARD** — Reverted to perp-dodge code. Learning: move_blocked MUST stay in blocked_cells.
+
 ---
