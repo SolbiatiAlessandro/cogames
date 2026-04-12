@@ -20,3 +20,4 @@ d6c6270	0.434701	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	discar
 d6c6270	0.374696	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	discard	Fix: 8-agent cross_role 3A+5M return_load=20 at 1k; too many short trips
 d6c6270	0.370000	junction.held=2714;junction.gained=4;heart.withdrawn=5	1000	discard	Fix: 8-agent cross_role 3A+5M return_load=60 at 1k; miners die before depositing
 d6c6270	1.500000	junction.held=?;junction.gained=?;heart.withdrawn=9	10000	keep	Comparison: MachinaLLMRolesPolicy 4A+4M scripted_miners at 10k; 1.50/agent; 67min
+6f6fa6d	0.196000	junction.held=?;junction.gained=?;heart.withdrawn=5	1000	keep	Fix: 8-agent cross_role 3A+5M NO API KEY (all scripted fallback); 0.20/agent; 1m11s; no crash

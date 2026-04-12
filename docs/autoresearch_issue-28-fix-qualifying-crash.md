@@ -233,4 +233,31 @@ Uploaded two v7 variants:
 - `cross_role_3a5m_5s_v7:v1` (5s timeout)
 - `cross_role_3a5m_10s_v7:v1` (10s timeout)
 
-Waiting for qualifying results...
+v7 also failed — setup-script runs in subprocess, can't write to read-only installed package dir.
+
+**v8 approach (WORKING):** Include ALL `.py` files from `cogames/` in `_full_cogames/cogames/` directory. The `_find_package_source_root` function finds `_full_cogames/cogames/__init__.py`, sets module_root to `_full_cogames`, purges cached `cogames.*` modules, adds to sys.path[0], imports everything from bundle. 206 KB, verified locally.
+
+Uploaded: `cross_role_full_v8:v1` (5s) and `cross_role_full_10s_v8:v1` (10s).
+
+---
+
+## 2026-04-12T09:00:00Z: QUALIFYING MATCHES PASSING!
+
+**BREAKTHROUGH: First qualifying match completed with 1.59/agent!**
+
+| Match | Policy | Status | Score |
+|-------|--------|--------|-------|
+| 005d836c | cross_role_full_v8 (5s) | **completed** | **1.59** |
+| 99b980dc | cross_role_full_10s_v8 (10s) | **completed** | **1.59** |
+| 8584ef5f | cross_role_full_v8 (5s) | running | — |
+| 93a1942f | cross_role_full_10s_v8 (10s) | running | — |
+
+Key findings:
+- 5s and 10s timeout variants score identically (1.59) on the server
+- Server HAS OPENROUTER_API_KEY (score is 1.59, not 0.20 scripted fallback)
+- Full-package bundle approach works: no crashes, correct imports
+- Server score (1.59) matches local score (1.61) closely
+
+No-API-key test: cross_role scores 0.20/agent at 1k with pure scripted fallback (all LLM calls fail gracefully). Completes in 1m11s without crash.
+
+Waiting for 2nd qualifying match to complete (2/2 needed for competition pool entry)...
