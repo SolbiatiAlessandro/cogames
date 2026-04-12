@@ -120,4 +120,12 @@ Key hypothesis chain to test:
   This confirms 4A4M is not the local optimum for 8A; 3A5M is cleaner. KEEP. 97% of the
   way to stretch 6.0. Next: exp5 try pushing further with tuned `stuck_threshold` or
   retry with seed variety to check it's not a seed-42 fluke.
+- `2026-04-12T02:30Z`: starting new experiment loop — exp5 "stuck_threshold=12 on 3A5M".
+  Hypothesis: agent 0 in exp4 still had `action.failed=727` indicating it spammed the
+  hub approach cell for ~70% of the episode. The `stuck_threshold` knob controls how
+  many no-move steps before the skill exits stale. Lowering 20 → 12 should abandon
+  stale get_heart faster and free the slot for unstuck/explore. Comment #22 in issue #25
+  already found that `TEAM_SCARCE_MAX_EMPTY_STEPS=80` (similar idea on miner side) was
+  worth +6.6% at 3-agent; this is the aligner analogue. Config adds
+  `kw.stuck_threshold=12` to the exp4 best. Seed 42.
 
