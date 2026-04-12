@@ -232,4 +232,25 @@ Key hypothesis chain to test:
   to `avoid_hazards=False` if the clean path is unreachable. Also apply the greedy
   fallback with `avoid_hazards=True`. This should zero out `scout.gained` /
   `scrambler.gained` on seeds 43/44. Multi-seed test.
+- `2026-04-12T04:50Z`: **exp12 results:**
+  | seed | exp11 | exp12 | Δ |
+  | --- | --- | --- | --- |
+  | 42 | 7.38 | 4.43 | **-2.95** |
+  | 43 | 4.13 | 5.04 | +0.91 |
+  | 44 | 3.60 | 5.43 | **+1.83** |
+  | avg | 5.04 | 4.97 | -0.07 |
+  | min | 3.60 | **4.43** | **+0.83** |
+
+  Average dropped 0.07 but minimum jumped 0.83 and **all three seeds now clear the
+  primary 4.0 target**, whereas exp11 failed on seed 44 (3.60 < 4.0). This is a
+  much more robust config: the per-seed variance shrank dramatically and the
+  worst seed is much closer to the best.
+  Contamination zeroed out on seeds 42 and 44; seed 43 still has 1 scout + 1
+  scrambler (likely a different path — possibly during `gear_up` with the greedy
+  fallback + avoid_hazards, where both directions land on hazards and `safe_wander`
+  then drifts into one anyway). Will investigate separately.
+  The "average vs minimum" trade-off matters for issue target interpretation: the
+  issue says "0.50/agent avg" meaning total 4.0. If that's per-run (min > 4.0 per
+  seed), exp12 is the clear winner. If it's cross-seed avg, exp11 is 0.07 better.
+  Keeping exp12 because robust minimum > fragile peak.
 
