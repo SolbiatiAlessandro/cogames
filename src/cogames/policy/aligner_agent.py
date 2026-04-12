@@ -512,26 +512,6 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return self._safe_wander(state, current_abs)
         return self._move_to(state, current_abs, best_frontier)
 
-    def _congestion_penalty(self, cell: Coord, agent_id: int) -> int:
-        """Return a mild penalty for cells very near other agents (issue-35).
-
-        A small tiebreaker that encourages agents to spread out during explore,
-        without overriding proximity to useful targets (hub, extractors).
-        """
-        sm = self._shared_map
-        if sm is None or not hasattr(sm, "agent_positions") or len(sm.agent_positions) <= 1:
-            return 0
-        penalty = 0
-        for other_id, other_pos in sm.agent_positions.items():
-            if other_id == agent_id:
-                continue
-            dist = abs(cell[0] - other_pos[0]) + abs(cell[1] - other_pos[1])
-            if dist < 3:
-                penalty += 3  # immediate neighbors — mild push
-            elif dist < 6:
-                penalty += 1
-        return penalty
-
     def _explore_frontier(
         self,
         obs: AgentObservation,
@@ -545,17 +525,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # Issue-35: prefer frontier cells away from other agents to reduce congestion
-        agent_id = obs.agent_id if hasattr(obs, "agent_id") else -1
-        target_abs = min(
-            frontier_cells,
-            key=lambda cell: (
-                abs(cell[0] - current_abs[0]) + abs(cell[1] - current_abs[1])
-                + self._congestion_penalty(cell, agent_id),
-                cell,
-            ),
-            default=None,
-        )
+        target_abs = self._nearest_known(current_abs, frontier_cells)
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
