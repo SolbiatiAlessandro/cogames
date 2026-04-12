@@ -130,3 +130,50 @@ Per-agent breakdown:
 **Status: DISCARD** — Reverted to perp-dodge code. Learning: move_blocked MUST stay in blocked_cells.
 
 ---
+
+## 2026-04-12T16:00:00Z: Experiment 5 - Classify move_blocked (FAILED)
+
+Attempted to classify move_blocked cells as permanent vs transient:
+- v1 (don't persist transient): 0.32 on default (vs 0.69). Agents keep re-colliding at same spots.
+- v2 (block all, expire transient when visible): 0.27 on default. Expiry clears permanent obstacles.
+
+**Root cause:** Observation tag system unreliable for classifying obstacle permanence.
+
+---
+
+## 2026-04-12T16:30:00Z: Experiment 6 - Progressive evasion (NEUTRAL)
+
+Extended perp dodge to fire on steps 1-3 (perpendicular, other perpendicular, reverse). Result: identical trajectories — single perp dodge at step 1 handles everything.
+
+**Status: KEEP** (neutral, logically sound as safety net).
+
+---
+
+## 2026-04-12T17:00:00Z: Experiment 7 - Pre-block extractors (FAILED)
+
+Added known_extractors to blocked_cells preemptively. Result: 0.10 reward — catastrophic. Extractors are WALKABLE cells where miners mine resources. Blocking them prevents mining entirely.
+
+**Status: DISCARD** — Reverted.
+
+---
+
+## 2026-04-12T17:30:00Z: Summary and Conclusions
+
+**Best configuration:** Smart greedy v3 + perpendicular dodge + progressive evasion
+- Average reward: 0.83/agent (2 runs on default seed: 0.97, 0.69)
+- Move success rate: ~88-90% (up from 79% baseline)
+- Average failures: ~100-118/agent (down from 207 baseline)
+
+**What worked:**
+1. Soft/hard obstacle-aware greedy fallback (+5.4pp move success)
+2. Perpendicular dodge on first failure (+7.4pp move success, +33% reward on best run)
+
+**What didn't work:**
+- Congestion avoidance in explore (damages strategic positioning)
+- BFS relaxation of move_blocked (can't distinguish permanent from transient obstacles)
+- Move_blocked classification/expiry (unreliable observation tags)
+- Pre-blocking extractors (they're walkable, not obstacles)
+
+**Remaining issue:** ~10% of moves still fail, primarily from agent-to-agent collisions in congested areas and first encounters with uncharted obstacles. Further improvement requires either LLM-level route planning or game-engine level changes (e.g., agent collision prediction).
+
+---

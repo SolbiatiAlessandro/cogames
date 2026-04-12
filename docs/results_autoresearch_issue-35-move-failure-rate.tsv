@@ -7,3 +7,6 @@ d2561ed	0.587701	junction.held=4877;junction.gained=7;heart.withdrawn=7;move.suc
 3f09fb0	0.690000	junction.held=5938;junction.gained=10;heart.withdrawn=8;move.success_rate=90.0;move.failed_avg=100	1000	keep	Perp dodge confirmation run 2 (deterministic with default seed); navigation improvement confirmed
 6e84a9a	0.530000	junction.held=N/A;move.success_rate=83.0;move.failed_avg=125	1000	discard	BFS 2-pass relax-move-blocked: route through transient collision points; regression because permanent obstacles also relaxed
 70a5335	0.200000	junction.held=N/A;move.success_rate=N/A	1000	discard	BFS soft-avoid: separate move_blocked from blocked_cells; catastrophic — permanent obstacles (extractors/hubs) unblocked
+838e3a0	0.320000	junction.held=N/A;move.success_rate=86.7;move.failed_avg=133	1000	discard	Classify move_blocked: don't persist transient collisions; agents keep re-colliding
+9567060	0.270000	junction.held=N/A;move.success_rate=N/A	1000	discard	Expire transient move_blocked: block all then expire visible tagless; clears permanent obstacles
+b425698	0.100000	junction.held=N/A;move.success_rate=N/A	1000	discard	Pre-block extractors: add known_extractors to blocked_cells; extractors are walkable (breaks mining)
