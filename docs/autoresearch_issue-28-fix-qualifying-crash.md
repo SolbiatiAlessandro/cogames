@@ -104,3 +104,60 @@ Starting issue #28. Root cause: CrossRolePolicy crashes in 8-agent qualifying be
 - Test gear contamination mitigation (wider hazard zone avoidance)
 - Try gemma-3-12b model (was +24% at 3 agents, might help at 8 agents too)
 - Upload fixed code with `--include-files` to get into qualifying
+
+---
+
+## 2026-04-12T07:00:00Z: starting new experiment loop, in this experiment I want to try...
+
+**Hypothesis:** The all-LLM variant (0.63/agent at 1k) significantly outperforms scripted_miners (0.40/agent) because LLM miners make smarter decisions about when to explore vs mine vs deposit. With retry-sleep removed and HTTP pooling added, all-LLM should be stable at 10k steps. Testing 4A+4M all-LLM to find the best aligner/miner split.
+
+**Experiments:**
+1. 4A+4M all-LLM at 1k steps (compare to 3A+5M all-LLM's 0.63)
+2. Wait for 3A+5M all-LLM 10k test (PID 13475, already running ~35min)
+3. If stable, run 4A+4M all-LLM at 10k steps
+
+### Experiment results:
+
+**Bug found**: `source .env.openrouter.local` does NOT export env vars to child processes. Several tests (gemma, timeout) returned 0.196 because they ran pure scripted. Fixed by using `export OPENROUTER_API_KEY=...`.
+
+| Config | Reward/agent | Steps | Wall time | Notes |
+|--------|-------------|-------|-----------|-------|
+| 3A+5M all-LLM nemotron (stuck-aware) | **0.60** | 1000 | ~8min | Replicated earlier 0.63, consistent |
+| 3A+5M all-LLM nemotron | **1.61** | 10000 | 68min | **BEST RESULT! NO CRASH!** |
+| 4A+4M all-LLM nemotron | 0.45 | 1000 | ~8min | Worse split than 3A+5M |
+| 4A+4M scripted_miners+stuck-aware | 0.43 | 1000 | ~3.5min | Marginal improvement |
+| 3A+5M gemma-3-12b-it (paid) | 0.54 | 1000 | ~3min | Worse than nemotron at 8 agents |
+| 2A+6M all-LLM nemotron | 0.18 | 1000 | ~3min | Too few aligners |
+| 3A+5M gemma-3-12b:free | 0.20 | 1000 | ~2.5min | Rate limited, all calls failed |
+
+**Key findings:**
+1. **3A+5M all-LLM nemotron is the optimal config**: 1.61/agent at 10k, no crash, stable 68min run
+2. All-LLM (1.61) is +20% better than scripted_miners (1.34) at 10k
+3. 3A+5M is better than 4A+4M (0.60 vs 0.45 at 1k) — more miners = more resources = more make_heart
+4. gemma-3-12b-it paid works (0.54) but worse than nemotron (0.60) at 8 agents
+5. The stuck-aware scripted fallback gives marginal improvement (0.43 vs 0.40)
+
+---
+
+## 2026-04-12T07:10:00Z: I run my experiment, findings and next steps
+
+**Result: ALL-LLM 3A+5M is the best qualifying config at 1.61/agent (10k steps, no crash)**
+
+The original hypothesis was correct: with retry-sleep removed and HTTP pooling added, all-LLM is stable enough for 10k qualifying. The 3A+5M split (3 LLM aligners + 5 LLM miners) outperforms all other configs because LLM miners make smarter decisions than scripted miners.
+
+**What worked:**
+- Removing retry-with-sleep was critical for stability
+- HTTP connection pooling reduced overhead
+- 3A+5M is the sweet spot — enough aligners for junction control, enough miners for make_heart
+
+**Deployment needed:**
+The fixes must be deployed to the tournament. Options:
+1. New PyPI release with the fixed code
+2. `--include-files` in upload bundle with modified policy files
+3. `--setup-script` to monkey-patch at runtime
+
+**Next researcher should try:**
+- Deploy to tournament and pass qualifying
+- Compare cross_role vs MachinaLLMRolesPolicy at 10k (MachinaLLMRolesPolicy was 0.59/agent at 1k)
+- Try different num_aligners at 10k (3 is optimal at 1k but might differ at 10k)
+- Investigate gear contamination (agents losing miner gear to scout/scrambler stations)

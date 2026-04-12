@@ -6,3 +6,10 @@ commit	mission_reward	secondary_rewards	steps	status	description
 6354a2c	0.190000	junction.held=?;junction.gained=?;heart.withdrawn=?	500	discard	Fix: 8-agent cross_role 3A+5M scripted_miners=true; 0.19/agent; fewer aligners = less alignment
 6354a2c	0.240000	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	discard	Fix: 8-agent cross_role 5A+3M scripted_miners=true; 0.24/agent; too many LLM agents
 6354a2c	0.590000	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	keep	Comparison: MachinaLLMRolesPolicy 4A+4M scripted_miners at 1k; 0.59/agent reference point
+6354a2c	0.449596	junction.held=3496;junction.gained=5;heart.withdrawn=7	1000	keep	Fix: 8-agent cross_role 4A+4M all-LLM (no scripted_miners) at 1k; 0.45/agent
+d6c6270	0.429198	junction.held=3292;junction.gained=6;heart.withdrawn=9	1000	keep	Fix: 8-agent cross_role 4A+4M scripted_miners+stuck_aware at 1k; 0.43/agent (+7.5% vs 0.40)
+6354a2c	0.182002	junction.held=820;junction.gained=1;heart.withdrawn=6	1000	discard	Fix: 8-agent cross_role 2A+6M all-LLM at 1k; too few aligners
+6354a2c	0.196202	junction.held=962;junction.gained=1;heart.withdrawn=5	1000	discard	Fix: 8-agent cross_role 3A+5M gemma-3-12b:free at 1k; all LLM calls failed (rate limited)
+6354a2c	1.609440	junction.held=?;junction.gained=?;heart.withdrawn=?	10000	keep	Fix: 8-agent cross_role 3A+5M all-LLM nemotron at 10k; BEST RESULT 1.61/agent; NO CRASH; 68min
+d6c6270	0.597305	junction.held=4973;junction.gained=8;heart.withdrawn=5	1000	keep	Fix: 8-agent cross_role 3A+5M all-LLM nemotron stuck-aware at 1k; 0.60/agent
+d6c6270	0.540103	junction.held=4401;junction.gained=7;heart.withdrawn=5	1000	keep	Fix: 8-agent cross_role 3A+5M gemma-3-12b-it paid at 1k; 0.54/agent; works but slower
