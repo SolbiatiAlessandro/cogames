@@ -75,4 +75,9 @@ Key hypothesis chain to test:
   2. Miner role split sweep: 3A5M (more mining → more hearts → more aligner throughput).
   3. Reduce `stuck_threshold` / speed up abandonment of stale get_heart — agent 0 hit 727
      action.failed at hub.
+- `2026-04-12T01:22Z`: starting new experiment loop — exp2 "gemma-3-12b-it:free".
+  Hypothesis: swapping aligner LLM model to `google/gemma-3-12b-it:free` gives the same
+  +9.4% that comment #23 saw at 3-agent. With 4 aligners at 8-agent, faster responses
+  mean more decisions per episode; even a fraction of that improvement lands us past the
+  6.0 stretch. Config change only, no code diff.
 
