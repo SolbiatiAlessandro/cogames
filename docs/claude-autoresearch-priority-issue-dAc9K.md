@@ -57,4 +57,22 @@ Key hypothesis chain to test:
   stuck for **661 of 1000 steps** (status.max_steps_without_motion=661, 804 action.failed).
   Comment #21 already recorded that setting `num_scouts=0` was worth ~+31% at 3-agent scale
   (seed 44 went 0.358 → 0.945). First experiment will fix this — cheapest free win.
+- `2026-04-12T00:55Z`: starting new experiment loop — exp1 "num_scouts=0 + LLM on".
+  Hypothesis: setting `kw.num_scouts=0` actually yields 4A4M (vs the buggy 4A1S3M) and
+  unblocks agent 4 from stuck loops. Combined with the LLM now being reachable
+  (OPENROUTER_API_KEY added), the aligner planner should make better choices when the
+  hub depletes and miner balance goes lopsided. Note that session #24 suggested LLM was
+  slightly worse than pure scripted at 3 agents, but that was at 3-agent where scripted
+  is already tuned. At 8 agents with hub congestion, LLM planning *might* net-help.
+  If LLM hurts, I'll disable via `kw.llm_timeout_s=0.001` in exp2.
+- `2026-04-12T01:15Z`: **exp1 result: 5.55 total (0.69/agent), +58% vs baseline.**
+  Primary target (>4.0) **EXCEEDED**. Stretch (>6.0) still 8% away.
+  Notable: `cogs/aligned.junction.held=5936` (vs 3400), 9 junctions gained (vs 8), 8 hearts
+  withdrawn, 4 miner deaths (down from 6). Agent 4 stuck count 11 vs 661 — bug confirmed
+  fixed. LLM calls did succeed this time (nemotron-super). KEEP. Next: squeeze the last
+  ~8% toward the stretch goal. Likely levers (priority order):
+  1. Swap to `google/gemma-3-12b-it:free` — comment #23 showed +9.4% at 3-agent scale.
+  2. Miner role split sweep: 3A5M (more mining → more hearts → more aligner throughput).
+  3. Reduce `stuck_threshold` / speed up abandonment of stale get_heart — agent 0 hit 727
+     action.failed at hub.
 
