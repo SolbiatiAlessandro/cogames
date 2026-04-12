@@ -211,15 +211,17 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
 
-        # Classify move failure: permanent obstacle vs transient agent collision
+        # Add ALL move failures to move_blocked immediately (prevents repeated collisions)
         if failed_target is not None and self._shared_map is not None:
-            if failed_target not in visible_cells:
-                # Not visible — assume permanent (safe default)
-                self._shared_map.move_blocked_cells.add(failed_target)
-            elif failed_target in visible_tag_ids_by_cell:
-                # Visible with tags — permanent structure (extractor/hub/station/wall)
-                self._shared_map.move_blocked_cells.add(failed_target)
-            # else: visible but no tags — transient (other agent), don't persist
+            self._shared_map.move_blocked_cells.add(failed_target)
+
+        # Expire transient collisions: if a move_blocked cell is visible and has no
+        # structure tags, the blocking agent has moved — remove from move_blocked.
+        if self._shared_map is not None and self._shared_map.move_blocked_cells:
+            visible_move_blocked = self._shared_map.move_blocked_cells & visible_cells
+            for cell in visible_move_blocked:
+                if cell not in visible_tag_ids_by_cell and cell not in blocked_now:
+                    self._shared_map.move_blocked_cells.discard(cell)
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
