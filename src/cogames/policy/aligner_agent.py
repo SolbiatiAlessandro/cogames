@@ -55,6 +55,8 @@ class SharedMap:
         self.known_enemy_junctions: set[Coord] = set()
         # Agent gear tracking for team coordination
         self.agent_gears: dict[int, str] = {}
+        # Agent position tracking for congestion avoidance (issue-35)
+        self.agent_positions: dict[int, Coord] = {}
         # Hub depletion tracking (issue-16): count total hearts withdrawn across team
         self.hub_hearts_withdrawn: int = 0
 
@@ -510,6 +512,26 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return self._safe_wander(state, current_abs)
         return self._move_to(state, current_abs, best_frontier)
 
+    def _congestion_penalty(self, cell: Coord, agent_id: int) -> int:
+        """Return a penalty score for cells near other agents (issue-35).
+
+        The penalty encourages agents to spread out by preferring frontier cells
+        that are far from teammates. Returns 0 if no shared map or no other agents.
+        """
+        sm = self._shared_map
+        if sm is None or not hasattr(sm, "agent_positions") or len(sm.agent_positions) <= 1:
+            return 0
+        penalty = 0
+        for other_id, other_pos in sm.agent_positions.items():
+            if other_id == agent_id:
+                continue
+            dist = abs(cell[0] - other_pos[0]) + abs(cell[1] - other_pos[1])
+            if dist < 5:
+                penalty += 10  # very close — strong penalty
+            elif dist < 10:
+                penalty += 3
+        return penalty
+
     def _explore_frontier(
         self,
         obs: AgentObservation,
@@ -523,7 +545,17 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, frontier_cells)
+        # Issue-35: prefer frontier cells away from other agents to reduce congestion
+        agent_id = obs.agent_id if hasattr(obs, "agent_id") else -1
+        target_abs = min(
+            frontier_cells,
+            key=lambda cell: (
+                abs(cell[0] - current_abs[0]) + abs(cell[1] - current_abs[1])
+                + self._congestion_penalty(cell, agent_id),
+                cell,
+            ),
+            default=None,
+        )
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 

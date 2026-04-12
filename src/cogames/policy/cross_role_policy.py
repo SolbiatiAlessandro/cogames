@@ -384,6 +384,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # Additionally update miner-specific structures (extractors, miner stations)
         # We reuse the miner's _update_map_memory but pass our CrossRoleState (duck typing)
         self._miner._update_map_memory(obs, state)
+        # Issue-35: Track agent positions for congestion avoidance
+        if self._shared_map is not None:
+            self._shared_map.agent_positions[obs.agent_id] = current_abs
         return current_abs
 
     def _update_progress(self, obs: AgentObservation, state: CrossRoleState) -> None:
