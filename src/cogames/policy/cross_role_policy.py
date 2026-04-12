@@ -538,44 +538,45 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         hub_on_cooldown = state.get_heart_cooldown_steps > 0
         hub_depleted = hub_on_cooldown
 
-        prompt = build_cross_role_prompt(
-            current_gear=gear,
-            has_heart=has_heart,
-            carried_resources=carried,
-            return_load=self._return_load,
-            hub_visible=self._hub_visible(obs),
-            known_hubs=len(state.known_hubs),
-            known_neutral_junctions=len(state.known_neutral_junctions),
-            known_friendly_junctions=len(state.known_friendly_junctions),
-            known_enemy_junctions=len(state.known_enemy_junctions),
-            known_extractors=len(state.known_extractors),
-            current_skill=state.current_skill,
-            no_move_steps=state.no_move_steps,
-            recent_events=state.recent_events,
-            team_aligners=team_aligners,
-            team_miners=team_miners,
-            team_size=team_size,
-            preferred_role=state.phase_preferred_gear or self._preferred_initial_gear,
-            hub_depleted=hub_depleted,
-            hub_hard_depleted=hub_hard_depleted,
-        )
-        logger.info("agent=%s cross_role_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
-        started_at = time.perf_counter()
+        # Skip LLM call when planner is None (scripted_miners mode)
         text = ""
-        for attempt in range(3):
+        if self._planner is not None:
+            prompt = build_cross_role_prompt(
+                current_gear=gear,
+                has_heart=has_heart,
+                carried_resources=carried,
+                return_load=self._return_load,
+                hub_visible=self._hub_visible(obs),
+                known_hubs=len(state.known_hubs),
+                known_neutral_junctions=len(state.known_neutral_junctions),
+                known_friendly_junctions=len(state.known_friendly_junctions),
+                known_enemy_junctions=len(state.known_enemy_junctions),
+                known_extractors=len(state.known_extractors),
+                current_skill=state.current_skill,
+                no_move_steps=state.no_move_steps,
+                recent_events=state.recent_events,
+                team_aligners=team_aligners,
+                team_miners=team_miners,
+                team_size=team_size,
+                preferred_role=state.phase_preferred_gear or self._preferred_initial_gear,
+                hub_depleted=hub_depleted,
+                hub_hard_depleted=hub_hard_depleted,
+            )
+            logger.info("agent=%s cross_role_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
+            started_at = time.perf_counter()
             try:
                 text = self._planner.complete(prompt)
-                break
             except Exception as exc:
-                wait_s = 3.0 * (attempt + 1)
-                logger.warning("agent=%s LLM attempt %d failed (%s), retrying in %.0fs", obs.agent_id, attempt + 1, exc, wait_s)
-                if attempt < 2:
-                    time.sleep(wait_s)
-        latency_ms = (time.perf_counter() - started_at) * 1000.0
-        logger.info(
-            "agent=%s cross_role_response_ms=%.1f response=%s",
-            obs.agent_id, latency_ms, text.replace("\n", " "),
-        )
+                latency_ms = (time.perf_counter() - started_at) * 1000.0
+                logger.warning("agent=%s cross_role_llm_error_ms=%.1f error=%s", obs.agent_id, latency_ms, exc)
+            else:
+                latency_ms = (time.perf_counter() - started_at) * 1000.0
+            logger.info(
+                "agent=%s cross_role_response_ms=%.1f response=%s",
+                obs.agent_id, latency_ms, text.replace("\n", " "),
+            )
+        else:
+            logger.info("agent=%s cross_role_scripted_only (no planner)", obs.agent_id)
         skill, reason = _parse_cross_role_skill(text)
         was_stuck = bool(
             state.recent_events and (
@@ -1211,8 +1212,10 @@ class CrossRolePolicy(MultiAgentPolicy):
         llm_timeout_s: float | str = 10.0,
         llm_responder: Callable[[str], str] | None = None,
         llm_local_model_path: str | None = None,
+        scripted_miners: bool | str = False,
     ):
         super().__init__(policy_env_info, device=device)
+        self._scripted_miners = str(scripted_miners).lower() in ("true", "1", "yes")
         self._shared_map = SharedMap()
         self._planner = LLMMinerPlannerClient(
             api_url=llm_api_url,
@@ -1233,10 +1236,16 @@ class CrossRolePolicy(MultiAgentPolicy):
     def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[CrossRoleState]:
         if agent_id not in self._agent_policies:
             preferred = "aligner" if agent_id < self._num_aligners else "miner"
+            # scripted_miners: miner-designated agents skip LLM calls entirely,
+            # using only scripted fallback logic. This reduces concurrent API calls
+            # from 8 to num_aligners, preventing BackoffLimitExceeded in qualifying.
+            use_planner = self._planner
+            if self._scripted_miners and preferred == "miner":
+                use_planner = None
             impl = CrossRolePolicyImpl(
                 self._policy_env_info,
                 agent_id,
-                planner=self._planner,
+                planner=use_planner,
                 stuck_threshold=self._stuck_threshold,
                 unstuck_horizon=self._unstuck_horizon,
                 return_load=self._return_load,

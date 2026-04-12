@@ -51,6 +51,9 @@ class LLMMinerPlannerClient:
         self._app_name = app_name
         self._timeout_s = timeout_s
         self._responder = responder
+        # Persistent HTTP client for connection pooling (avoids creating a new
+        # TCP+TLS connection per LLM call — critical for 8-agent qualifying).
+        self._http_client: httpx.Client | None = None
         # Resolve local model path: explicit arg > env var
         _local_path = local_model_path or os.environ.get("LOCAL_LLM_MODEL_PATH", "")
         if _local_path:
@@ -60,6 +63,11 @@ class LLMMinerPlannerClient:
             logger.info("LLMMinerPlannerClient: using local model at %s", _local_path)
         else:
             self._local_inference = None
+
+    def _get_http_client(self) -> httpx.Client:
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.Client(timeout=self._timeout_s)
+        return self._http_client
 
     def complete(self, prompt: str) -> str:
         if self._responder is not None:
@@ -71,10 +79,10 @@ class LLMMinerPlannerClient:
             return self._complete_openrouter(prompt, api_key)
         if not self._api_url:
             raise RuntimeError("LLM planner API is not configured")
-        with httpx.Client(timeout=self._timeout_s) as client:
-            response = client.post(self._api_url, json={"prompt": prompt})
-            response.raise_for_status()
-            payload = response.json()
+        client = self._get_http_client()
+        response = client.post(self._api_url, json={"prompt": prompt})
+        response.raise_for_status()
+        payload = response.json()
         text = payload.get("text")
         if not isinstance(text, str) or not text.strip():
             raise RuntimeError("LLM planner response missing non-empty 'text'")
@@ -107,14 +115,14 @@ class LLMMinerPlannerClient:
             "temperature": 0.0,
             "max_tokens": 120,
         }
-        with httpx.Client(timeout=self._timeout_s) as client:
-            response = client.post(
-                self._api_url or "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            response.raise_for_status()
-            data = response.json()
+        client = self._get_http_client()
+        response = client.post(
+            self._api_url or "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
         choices = data.get("choices")
         if not isinstance(choices, list) or not choices:
             raise RuntimeError("OpenRouter response missing choices")
