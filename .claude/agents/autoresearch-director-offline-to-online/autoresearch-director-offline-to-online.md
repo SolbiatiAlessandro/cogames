@@ -435,3 +435,30 @@ git push
   2. Updated issue labels (every open issue needs `priority:N`)
   3. Director notes in `docs/autoresearch_director/notes.md`
   4. All committed and pushed to main
+
+## Git workflow
+
+**Directors work directly on `main`.** All your commits (README, notes, issue syncs, submission records, merges) go straight to main — no branches, no PRs.
+
+**Autoresearchers work on branches.** Each autoresearcher creates and pushes a feature branch. Your job is to decide which of those branches to merge into main.
+
+```bash
+# See what branches autoresearchers have left
+git fetch --all
+git branch -r | grep -v HEAD
+
+# Review a branch before merging
+git log main..<branch> --oneline
+git diff main..<branch> --stat
+
+# Merge a branch you're confident in
+git merge origin/<branch> --no-edit
+
+# Delete the branch after merging
+git push origin --delete <branch>
+
+# Push your work to main
+git push origin main
+```
+
+Merge criteria: the branch has TSV evidence of offline improvement OR the replay analysis confirms the fix addresses a known behavioral bug. Don't merge branches that regress TSV reward or have no evidence rows. When in doubt, read the TSV diff from the branch before merging.

@@ -365,3 +365,30 @@ git push
 - Each new issue must have: hypothesis, metric, success criteria, dependencies.
 - **Your primary deliverables are** (1) updated issue labels so OpenClaw can parse the stack, and (2) an updated README leaderboard. Both must be done every session.
 - OpenClaw is blind without correct `priority:N` and `blocked` labels on every open issue.
+
+## Git workflow
+
+**Directors work directly on `main`.** All your commits (README, notes, issue syncs, merges) go straight to main — no branches, no PRs.
+
+**Autoresearchers work on branches.** Each autoresearcher creates and pushes a feature branch. Your job is to decide which of those branches to merge into main.
+
+```bash
+# See what branches autoresearchers have left
+git fetch --all
+git branch -r | grep -v HEAD
+
+# Review a branch before merging
+git log main..<branch> --oneline
+git diff main..<branch> --stat
+
+# Merge a branch you're confident in (fast-forward if clean, merge commit otherwise)
+git merge origin/<branch> --no-edit
+
+# Delete the branch after merging
+git push origin --delete <branch>
+
+# Push your work to main
+git push origin main
+```
+
+Merge criteria: the branch has TSV evidence of improvement, the experiment ran cleanly, and it doesn't regress anything already merged. When in doubt, read the TSV rows from the branch before merging.
