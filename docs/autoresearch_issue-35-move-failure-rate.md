@@ -76,3 +76,41 @@ Key learning: `move_blocked_cells` contains BOTH permanent obstacles (extractors
 Agent 6 still has 462 failures (54% success) - likely congestion hotspot. Next: agent position tracking to reduce congestion.
 
 ---
+
+## 2026-04-12T13:00:00Z: Experiment 2 - Congestion avoidance (FAILED)
+
+**v1 (congestion penalty 10/3 in explore):** 0.235 reward, catastrophic. Penalty pushed agents too far from hub/junctions.
+
+**v2 (congestion penalty reduced to 3/1):** 0.430 reward, still bad. Reverted entirely - congestion avoidance in explore hurts strategic positioning more than it helps navigation.
+
+Key learning: Agent position tracking in SharedMap works for data collection, but using it to penalize explore targets near other agents damages strategic play. Agents NEED to be near hub/junctions for alignment tasks.
+
+---
+
+## 2026-04-12T14:00:00Z: Experiment 3 - Perpendicular dodge (BREAKTHROUGH)
+
+**Change:** On first move failure (no_move_steps == 1), immediately try perpendicular dodge instead of waiting for next planning cycle. If agent tried to go north and failed, try east or west (perpendicular to failed direction). Avoids both walls and move_blocked cells.
+
+**Results: 0.970/agent (+33% vs baseline 0.729)**
+- Move success rate: 86.4% (6899 success / 1085 failed) — up from 79.0% baseline
+- Average failed/agent: 136 (down from 207 baseline, -34%)
+- junction.held: 8695 (up from 6291 baseline, +38%)
+- junction.gained: 20 (up from 11 baseline, +82%)
+- heart.withdrawn: 12 (up from 10 baseline, +20%)
+- carbon.deposited: 131, silicon: 122, oxygen: 94, germanium: 131
+
+Per-agent breakdown:
+- Agent 0 (aligner): 94.2% success (58 failed)
+- Agent 1 (aligner): 80.7% success (193 failed)
+- Agent 2 (aligner): 77.7% success (223 failed — still high, congestion hotspot?)
+- Agent 3 (aligner): 90.2% success (98 failed)
+- Agent 4 (miner): 89.3% success (107 failed)
+- Agent 5 (miner): 74.1% success (256 failed — highest failure, likely congested route)
+- Agent 6 (miner): 77.7% success (223 failed)
+- Agent 7 (miner): 91.3% success (87 failed)
+
+**Interpretation:** The perpendicular dodge turns a wasted step (failed move → re-plan) into a useful step (slide sideways, then continue). The move success improvement is moderate (+7.4pp), but the strategic impact is massive (+33% reward) because agents spend less time stuck and more time doing productive work. The junction.gained doubling (11→20) suggests agents reach more junctions for alignment.
+
+**Status: KEEP** — Combined with smart greedy v3, this is the new best configuration.
+
+---
