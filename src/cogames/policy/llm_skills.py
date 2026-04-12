@@ -37,6 +37,7 @@ class MinerSkillState(StarterCogState):
     extractors_by_element: dict[str, set[Coord]] = field(default_factory=lambda: {e: set() for e in ("carbon", "oxygen", "germanium", "silicon")})
     known_hazard_stations: set[Coord] = field(default_factory=set)
     # Move-failure tracking (same mechanism as AlignerState)
+    move_blocked_cells: set[Coord] = field(default_factory=set)
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
 
@@ -92,6 +93,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return
         state.known_free_cells = sm.known_free_cells
         state.blocked_cells = sm.blocked_cells
+        state.move_blocked_cells = sm.move_blocked_cells
         state.known_hubs = sm.known_hubs
         state.known_miner_stations = sm.known_miner_stations
         state.known_extractors = sm.known_extractors
@@ -209,9 +211,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Re-apply persistent move-blocked cells from shared map
-        if self._shared_map and self._shared_map.move_blocked_cells:
-            state.blocked_cells.update(self._shared_map.move_blocked_cells)
+        # move_blocked_cells are NOT merged into blocked_cells — they're soft-avoided
+        # in 2-pass BFS so agents can route through transient collision points if needed
         state.known_free_cells.update(visible_cells - blocked_now)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
@@ -260,11 +261,21 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         return predicted
 
     def _bfs_first_direction(self, state: MinerSkillState, start: Coord, goal: Coord) -> str | None:
+        """Conservative BFS through known_free_cells only.
+        2-pass: first avoids move_blocked_cells, then allows them if no path found."""
         if start == goal:
             return self._starter._fallback_action_name
         if goal not in state.known_free_cells:
             return None
         avoid = state.known_hazard_stations - {goal}
+        # Pass 1: avoid move_blocked_cells
+        result = self._bfs_first_inner(state, start, goal, avoid, soft_avoid=state.move_blocked_cells)
+        if result is not None:
+            return result
+        # Pass 2: only known_free + hard avoid
+        return self._bfs_first_inner(state, start, goal, avoid, soft_avoid=None)
+
+    def _bfs_first_inner(self, state: MinerSkillState, start: Coord, goal: Coord, avoid: set[Coord], soft_avoid: set[Coord] | None) -> str | None:
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier:
@@ -273,6 +284,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 break
             for direction, neighbor in self._neighbors(cell):
                 if neighbor in parents or neighbor not in state.known_free_cells or neighbor in avoid:
+                    continue
+                if soft_avoid is not None and neighbor in soft_avoid:
                     continue
                 parents[neighbor] = (cell, direction)
                 frontier.append(neighbor)
@@ -286,9 +299,18 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         return parents[step][1]
 
     def _bfs_optimistic_direction(self, state: MinerSkillState, start: Coord, goal: Coord, max_cells: int = 20000) -> str | None:
-        """Optimistic BFS: treat unknown cells as traversable, only avoid known walls."""
+        """Optimistic BFS: treat unknown cells as traversable, only avoid known walls.
+        2-pass: first avoids move_blocked_cells, then allows them if no path found."""
         if start == goal:
             return self._starter._fallback_action_name
+        # Pass 1: avoid move_blocked_cells
+        result = self._bfs_optimistic_inner(state, start, goal, max_cells, soft_avoid=state.move_blocked_cells)
+        if result is not None:
+            return result
+        # Pass 2: only hard blocks
+        return self._bfs_optimistic_inner(state, start, goal, max_cells, soft_avoid=None)
+
+    def _bfs_optimistic_inner(self, state: MinerSkillState, start: Coord, goal: Coord, max_cells: int, soft_avoid: set[Coord] | None) -> str | None:
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier and len(parents) < max_cells:
@@ -297,6 +319,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 break
             for direction, neighbor in self._neighbors(cell):
                 if neighbor in parents or neighbor in state.blocked_cells:
+                    continue
+                if soft_avoid is not None and neighbor in soft_avoid:
                     continue
                 parents[neighbor] = (cell, direction)
                 frontier.append(neighbor)
@@ -485,7 +509,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         not in known_free_cells. Navigate to the nearest adjacent free cell instead,
         then step into the blocked cell to trigger the interaction handler.
         """
-        # Find adjacent cells that aren't blocked
+        # Find adjacent cells that aren't blocked, prefer non-move-blocked
         approach_candidates = []
         for _, (dr, dc) in (("north", (-1, 0)), ("south", (1, 0)), ("east", (0, 1)), ("west", (0, -1))):
             neighbor = (blocked_target[0] + dr, blocked_target[1] + dc)
@@ -493,7 +517,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 approach_candidates.append(neighbor)
         if not approach_candidates:
             return None
-        approach = min(approach_candidates, key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
+        approach = min(approach_candidates, key=lambda c: (c in state.move_blocked_cells, abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])))
         if current_abs == approach:
             # Already adjacent — step into the blocked target
             dr = blocked_target[0] - current_abs[0]

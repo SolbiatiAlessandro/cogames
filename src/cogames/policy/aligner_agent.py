@@ -456,7 +456,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        state.blocked_cells.update(state.move_blocked_cells)  # persist move-failure blocks
+        # move_blocked_cells are NOT merged into blocked_cells — they're soft-avoided
+        # in 2-pass BFS so agents can route through transient collision points if needed
         state.known_free_cells.update(visible_cells - blocked_now)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
