@@ -140,4 +140,15 @@ Key hypothesis chain to test:
   junction and HP. If the opposite is also true, more patience should stabilize the
   held junctions further and push past 6.0. Risk: a stuck aligner burns more cycles on
   a doomed target. Config: exp4 + `kw.stuck_threshold=28`. Seed 42 1000 steps.
+- `2026-04-12T02:58Z`: **exp6 result: 6.71 total (0.839/agent) — STRETCH TARGET EXCEEDED.**
+  +14.9% over exp4. Big numbers:
+  - aligned.junction.gained: 13 (vs 9 exp4, vs 8 baseline) — +44%
+  - aligned.junction.held: 7393 (vs 6299) — +17%
+  - heart.withdrawn: 10 (vs 7) — matches the junctions gained
+  - max action.failed: 343 (vs 727 exp1) — no more permanent hub-approach spam
+  Deaths went up to 10 (vs 3 in exp4), mostly miners taking clip damage, but each
+  additional junction is worth so much reward that the trade is very net-positive.
+  KEEP. Now both the primary (>4.0) and stretch (>6.0) targets are hit on seed 42.
+  Next: try `stuck_threshold=36` to see if there's more headroom, then multi-seed
+  verification.
 
