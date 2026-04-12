@@ -646,19 +646,15 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
-        # Prefer a hazard-free path to the junction; only allow crossing scout/scrambler
-        # stations when the clean path is unreachable. Walking through a wrong-role station
-        # auto-equips that gear and drops aligner, which has been the dominant
-        # mid-episode contamination path on seeds 43/44 (issue #12).
-        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
-        if direction is None:
-            direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
+        # Primary BFS uses the un-modified (hazards allowed) path because junction
+        # targets are often on the far side of station clusters. The greedy fallback
+        # still refuses to step onto a hazard station so we don't lose aligner gear
+        # while falling off the BFS plan.
+        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # BFS failed: try optimistic BFS (treat unknown cells as traversable)
-        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
-        if direction is None:
-            direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
+        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # Last resort: greedy absolute navigation toward known junction position,

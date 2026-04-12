@@ -253,4 +253,13 @@ Key hypothesis chain to test:
   issue says "0.50/agent avg" meaning total 4.0. If that's per-run (min > 4.0 per
   seed), exp12 is the clear winner. If it's cross-seed avg, exp11 is 0.07 better.
   Keeping exp12 because robust minimum > fragile peak.
+- `2026-04-12T05:00Z`: starting new experiment loop — exp13 "revert _align_neutral".
+  Hypothesis: exp12 lost seed 42 (7.38 → 4.43, 13 → 7 junctions) mainly because
+  `_align_neutral` now avoids hazards first. Neutral-junction targets are often on
+  the far side of station clusters, so hazard-free BFS forces very long detours that
+  eat the 1000-step budget. The data from exp12 shows contamination is mostly
+  through `_get_heart` (fixed in exp12) and `_gear_up` (fixed in exp11), so aligning
+  shouldn't need the hazard-free preference. Revert `_align_neutral` BFS to
+  `avoid_hazards=False`, but keep the greedy fallback with `avoid_hazards=True` as a
+  safety net. All three seeds.
 
