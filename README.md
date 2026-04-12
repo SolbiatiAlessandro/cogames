@@ -24,35 +24,61 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-03-31 (Session 5)_
+_Updated by Director: 2026-04-12 (Session 6)_
 
-| Rank | Reward/agent | Total | Commit | Config | Agents | Steps | Notes |
-|------|-------------|-------|--------|--------|--------|-------|-------|
-| 1 | 0.77 | 2.31 | `97886dd` | 2A1M, cross_role v15 | 3 | 1000 | 12 hearts (7 from make_heart), 11 junctions |
-| 2 | 0.753 | 2.26 | `7493f42` | 3A, machina_llm | 3 | 1000 | Old policy best, 7 junctions |
-| 3 | 0.71 | 2.12 | (session 5) | 2A1M, cross_role (main) | 3 | 1000 | Post PR #18 merge, stale exits 300→25 |
-| 4 | 0.70 | 2.10 | `11008eb` | 2A1M, cross_role+gemma-12b | 3 | 1000 | Faster model = more mining cycles |
-| **5** | **0.42** | **3.36** | (session 4) | **4A4M(scripted)** | **8** | **1000** | **Best 8-agent** (4.2x old 8-agent) |
-| 6 | 0.40 | 3.23 | (session 5) | 4A4M, cross_role | 8 | 1000 | Post-merge; hub awareness helps but not enough |
-| 7 | 1.24 | 4.96 | `6857db1` | 4A, cross_role | 4 | 2000 | Reclaim enemy junctions |
+### Online Tournament (beta-cvc, 10k steps, 8 agents)
 
-**Current bottleneck**: PR #18 merged! Hub depletion partially solved. New bottleneck: 8-agent make_heart cycle can't keep up with 4 aligners' heart demand. Scripted miners outperform LLM miners at 8 agents.
-**Next up**: #25 (8-agent scaling: cross_role aligners + scripted miners hybrid) → #24 (make_heart optimization)
+| Rank | Score | Policy | Matches | Notes |
+|------|-------|--------|---------|-------|
+| **#283/344** | **3.24** | `lessandro-fast-llm-v1:v1` | 20 | Best online; machina_llm 4A4M |
+| #291/344 | 2.82 | `cross_role_full_10s_v8:v1` | 22 | **NEW** — issue #28 fix; avg 2.94, range 0.36–6.97 |
+| #298/344 | 2.61 | `cross_role_full_v8:v1` | 22 | 5s timeout variant |
+| _(ref)_ | 27.63 | `dinky:v27` (top-1) | 100+ | 220 junctions gained, 453 hearts, 9822 moves/agent |
+
+### Offline Best Results
+
+| Rank | Reward | Commit | Config | Agents | Steps | Notes |
+|------|--------|--------|--------|--------|-------|-------|
+| 1 | 1.61/agent | `53ac781` | 3A5M all-LLM, cross_role | 8 | 10000 | **NEW** — issue #28; qualifying passed |
+| 2 | 0.77 | `97886dd` | 2A1M, cross_role v15 | 3 | 1000 | 12 hearts (7 from make_heart) |
+| 3 | 0.753 | `7493f42` | 3A, machina_llm | 3 | 1000 | 7 junctions |
+| 4 | 0.70 | `11008eb` | 2A1M, cross_role+gemma-12b | 3 | 1000 | Faster model |
+| 5 | 1.24 | `6857db1` | 4A, cross_role | 4 | 2000 | Reclaim enemy junctions |
+
+### Gap Analysis (us vs top-1 `dinky:v27`)
+
+```
+Metric                    Us (best match)    dinky (best)    Gap
+─────────────────────────────────────────────────────────────────
+Online score              7.68               43.75           5.7x
+Junctions gained          56                 220             3.9x
+Junctions held/tick       7.68               43.75           5.7x
+Hearts gained/agent       10.4               56.6            5.4x
+Move success rate         47%                98.5%           2.1x
+Deposits (carbon)         582                3244            5.6x
+Cell coverage/agent       810                2468            3.0x
+```
+
+**Current bottleneck**: **Heart pipeline throughput**. dinky gains 56 hearts/agent (via mining→make_heart) vs our 10. This 5.4x gap directly causes the 5.7x score gap. Our agents deposit enough resources for ~11 make_hearts but fail to withdraw/use the crafted hearts at 10k steps (hub_depleted flag blocks get_heart prematurely). Secondary: 53% move failure rate in self-play (vs 1.5% for dinky) wastes half our actions.
+
+**Next up**: #34 (heart pipeline) → #35 (move failure rate) → #29 (10k eval alignment)
 
 **Research tree:**
 ```
-ACTIVE (8-agent optimization):
-  #25 8-Agent Scaling (priority:1) — combine cross_role aligners + scripted miners
-  #24 Balanced Mining (priority:1) — make_heart cycle + element diversity
-  #12 Gear Acquisition (priority:2) — 8-agent gear_up failures
+CRITICAL (online competitiveness):
+  #34 Heart Pipeline Throughput (priority:1) — 5.4x gap to dinky
+  #35 Move Failure Rate (priority:1) — 53% failure, need <10%
+  #29 10k Step Eval Alignment (priority:1) — offline metric doesn't predict online
 
-OPTIMIZATION:
-  #10 Role Tuning (priority:2) | #20 Coordinated Exploration (priority:2)
-  #17 LLM Skill Validation (priority:2)
+ACTIVE:
+  #28 Qualifying Crash Fix (priority:1, in-progress) — DONE: cross_role in competition pool
+  #30 8-Agent Self-Play (priority:2) — partially fixed by #28
+  #25 8-Agent Scaling (priority:2) | #24 Mining Strategy (priority:2)
 
-RESEARCH:
-  #19 LLM Code Gen | #21 Intrinsic Motivation | #11 Active Inference (all priority:2)
-  #22 Social Influence | #23 Meta-Learning (priority:3)
+DEPRIORITIZED:
+  #31 change_vibe actions (priority:3) — confirmed non-issue: no policy uses them
+  #32 Partner robustness (priority:3) — dinky also varies 1–43x; absolute perf matters more
+  #12 Gear Acquisition (priority:3) | #10 Role Tuning (priority:3)
 ```
 <!-- LEADERBOARD_END -->
 
