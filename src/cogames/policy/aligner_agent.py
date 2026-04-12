@@ -280,27 +280,36 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if direction is not None:
             return direction
         # Greedy toward the approach cell, avoiding known obstacles
-        blocked = state.blocked_cells | state.move_blocked_cells
         candidates = []
         for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
             neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
             dist = abs(neighbor[0] - approach[0]) + abs(neighbor[1] - approach[1])
-            is_blocked = neighbor in blocked
-            candidates.append((is_blocked, dist, dir_name))
+            hard_blocked = neighbor in state.blocked_cells
+            soft_blocked = neighbor in state.move_blocked_cells
+            candidates.append((hard_blocked, soft_blocked, dist, dir_name))
         candidates.sort()
-        return candidates[0][2]
+        return candidates[0][3]
 
     def _safe_wander(self, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
-        """Wander avoiding hazard stations, blocked cells, and move-blocked cells."""
-        avoid = state.known_hazard_stations | state.blocked_cells | state.move_blocked_cells
+        """Wander avoiding hazard stations and blocked cells (hard walls)."""
+        hard_avoid = state.known_hazard_stations | state.blocked_cells
+        # First pass: avoid both hard blocks and move-blocked cells
         for i in range(4):
             idx = (state.wander_direction_index + i) % 4
             direction, (dr, dc) = _DIRECTION_DELTAS[idx]
             neighbor = (current_abs[0] + dr, current_abs[1] + dc)
-            if neighbor not in avoid:
+            if neighbor not in hard_avoid and neighbor not in state.move_blocked_cells:
                 state.wander_direction_index = (idx + 1) % 4
                 return self._starter._action(f"move_{direction}"), state
-        # All directions blocked — cycle to at least try something different
+        # Second pass: accept move-blocked (transient), still avoid hard blocks
+        for i in range(4):
+            idx = (state.wander_direction_index + i) % 4
+            direction, (dr, dc) = _DIRECTION_DELTAS[idx]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in hard_avoid:
+                state.wander_direction_index = (idx + 1) % 4
+                return self._starter._action(f"move_{direction}"), state
+        # All blocked — cycle anyway
         state.wander_direction_index = (state.wander_direction_index + 1) % 4
         return self._starter._wander(state)
 
@@ -312,20 +321,20 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _greedy_move_toward_abs(self, state: AlignerState, current_abs: Coord, target_abs: Coord) -> tuple[Action, AlignerState]:
         """Move greedily toward a known absolute position, avoiding known obstacles.
 
-        Ranks all 4 directions by Manhattan distance reduction to target,
-        then picks the best direction whose target cell is not in blocked_cells
-        or move_blocked_cells. Falls back to the Manhattan-best direction if all
-        are blocked (some obstacles are dynamic / transient).
+        Ranks all 4 directions by: (1) hard-blocked (walls), (2) soft-blocked
+        (move failures — may be transient agent collisions), (3) Manhattan distance.
+        Prefers non-wall, non-move-blocked directions, but will accept move-blocked
+        if all else fails (those obstacles may have moved).
         """
-        blocked = state.blocked_cells | state.move_blocked_cells
         candidates = []
         for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
             neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
             dist = abs(neighbor[0] - target_abs[0]) + abs(neighbor[1] - target_abs[1])
-            is_blocked = neighbor in blocked
-            candidates.append((is_blocked, dist, dir_name))
-        candidates.sort()  # False < True, then by distance
-        direction = candidates[0][2]
+            hard_blocked = neighbor in state.blocked_cells
+            soft_blocked = neighbor in state.move_blocked_cells
+            candidates.append((hard_blocked, soft_blocked, dist, dir_name))
+        candidates.sort()
+        direction = candidates[0][3]
         return self._starter._action(f"move_{direction}"), state
 
     def _move_to(self, state: AlignerState, current_abs: Coord, target_abs: Coord | None) -> tuple[Action, AlignerState]:
@@ -418,10 +427,14 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             else:
                 neutral_now.add(abs_cell)
 
+        # Expire transient move-blocked cells: if we can now SEE a cell and
+        # it has no wall tag, it was likely blocked by a moving agent — clear it.
+        visible_free = visible_cells - blocked_now
+        state.move_blocked_cells.difference_update(visible_free)
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
         state.blocked_cells.update(state.move_blocked_cells)  # persist move-failure blocks
-        state.known_free_cells.update(visible_cells - blocked_now)
+        state.known_free_cells.update(visible_free)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 

@@ -207,12 +207,16 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
 
+        # Expire transient move-blocked cells: visible cells without wall tags are free
+        visible_free = visible_cells - blocked_now
+        if self._shared_map and self._shared_map.move_blocked_cells:
+            self._shared_map.move_blocked_cells.difference_update(visible_free)
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
         # Re-apply persistent move-blocked cells from shared map
         if self._shared_map and self._shared_map.move_blocked_cells:
             state.blocked_cells.update(self._shared_map.move_blocked_cells)
-        state.known_free_cells.update(visible_cells - blocked_now)
+        state.known_free_cells.update(visible_free)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 

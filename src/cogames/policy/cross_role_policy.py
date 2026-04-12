@@ -827,21 +827,29 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
 
     def _unstuck_move(self, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
-        """Escape pattern that avoids known obstacles."""
+        """Escape pattern that avoids hard obstacles (walls), prefers non-move-blocked."""
         state.last_mode = "unstuck"
         current_abs = state.last_pos if state.last_pos else (0, 0)
-        avoid = state.blocked_cells | state.move_blocked_cells
         _DIR_DELTAS = {"north": (-1, 0), "east": (0, 1), "south": (1, 0), "west": (0, -1)}
-        # Try directions in cycle order, pick first non-blocked
+        # First pass: avoid walls AND move-blocked
         for i in range(4):
             idx = (state.wander_direction_index + i) % len(self._UNSTUCK_DIRECTIONS)
             direction = self._UNSTUCK_DIRECTIONS[idx]
             dr, dc = _DIR_DELTAS[direction]
             neighbor = (current_abs[0] + dr, current_abs[1] + dc)
-            if neighbor not in avoid:
+            if neighbor not in state.blocked_cells and neighbor not in state.move_blocked_cells:
                 state.wander_direction_index = (idx + 1) % len(self._UNSTUCK_DIRECTIONS)
                 return self._aligner._starter._action(f"move_{direction}"), state
-        # All blocked — just cycle anyway
+        # Second pass: accept move-blocked (transient), avoid walls only
+        for i in range(4):
+            idx = (state.wander_direction_index + i) % len(self._UNSTUCK_DIRECTIONS)
+            direction = self._UNSTUCK_DIRECTIONS[idx]
+            dr, dc = _DIR_DELTAS[direction]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in state.blocked_cells:
+                state.wander_direction_index = (idx + 1) % len(self._UNSTUCK_DIRECTIONS)
+                return self._aligner._starter._action(f"move_{direction}"), state
+        # All blocked — cycle anyway
         direction = self._UNSTUCK_DIRECTIONS[state.wander_direction_index % len(self._UNSTUCK_DIRECTIONS)]
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._aligner._starter._action(f"move_{direction}"), state
