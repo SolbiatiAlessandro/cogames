@@ -211,8 +211,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # move_blocked_cells are NOT merged into blocked_cells — they're soft-avoided
-        # in 2-pass BFS so agents can route through transient collision points if needed
+        # Re-apply persistent move-blocked cells from shared map
+        state.blocked_cells.update(state.move_blocked_cells)
         state.known_free_cells.update(visible_cells - blocked_now)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
@@ -262,20 +262,24 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     def _bfs_first_direction(self, state: MinerSkillState, start: Coord, goal: Coord) -> str | None:
         """Conservative BFS through known_free_cells only.
-        2-pass: first avoids move_blocked_cells, then allows them if no path found."""
+        2-pass: first with all blocked_cells (incl. move_blocked), then relaxed
+        allowing move_blocked cells (transient collision points) if no path found."""
         if start == goal:
             return self._starter._fallback_action_name
         if goal not in state.known_free_cells:
             return None
         avoid = state.known_hazard_stations - {goal}
-        # Pass 1: avoid move_blocked_cells
-        result = self._bfs_first_inner(state, start, goal, avoid, soft_avoid=state.move_blocked_cells)
+        # Pass 1: normal BFS (blocked_cells includes move_blocked)
+        result = self._bfs_first_inner(state, start, goal, avoid, relax_move_blocked=False)
         if result is not None:
             return result
-        # Pass 2: only known_free + hard avoid
-        return self._bfs_first_inner(state, start, goal, avoid, soft_avoid=None)
+        # Pass 2: relax move_blocked — allow routing through transient collision points
+        if state.move_blocked_cells:
+            return self._bfs_first_inner(state, start, goal, avoid, relax_move_blocked=True)
+        return None
 
-    def _bfs_first_inner(self, state: MinerSkillState, start: Coord, goal: Coord, avoid: set[Coord], soft_avoid: set[Coord] | None) -> str | None:
+    def _bfs_first_inner(self, state: MinerSkillState, start: Coord, goal: Coord, avoid: set[Coord], relax_move_blocked: bool) -> str | None:
+        relaxed = state.move_blocked_cells if relax_move_blocked else None
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier:
@@ -283,9 +287,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if cell == goal:
                 break
             for direction, neighbor in self._neighbors(cell):
-                if neighbor in parents or neighbor not in state.known_free_cells or neighbor in avoid:
+                if neighbor in parents or neighbor in avoid:
                     continue
-                if soft_avoid is not None and neighbor in soft_avoid:
+                in_free = neighbor in state.known_free_cells
+                in_relaxed = relaxed is not None and neighbor in relaxed
+                if not in_free and not in_relaxed:
                     continue
                 parents[neighbor] = (cell, direction)
                 frontier.append(neighbor)
@@ -300,17 +306,20 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     def _bfs_optimistic_direction(self, state: MinerSkillState, start: Coord, goal: Coord, max_cells: int = 20000) -> str | None:
         """Optimistic BFS: treat unknown cells as traversable, only avoid known walls.
-        2-pass: first avoids move_blocked_cells, then allows them if no path found."""
+        2-pass: first with full blocked_cells, then relaxing move_blocked."""
         if start == goal:
             return self._starter._fallback_action_name
-        # Pass 1: avoid move_blocked_cells
-        result = self._bfs_optimistic_inner(state, start, goal, max_cells, soft_avoid=state.move_blocked_cells)
+        # Pass 1: normal (blocked_cells includes move_blocked)
+        result = self._bfs_optimistic_inner(state, start, goal, max_cells, relax_move_blocked=False)
         if result is not None:
             return result
-        # Pass 2: only hard blocks
-        return self._bfs_optimistic_inner(state, start, goal, max_cells, soft_avoid=None)
+        # Pass 2: relax move_blocked
+        if state.move_blocked_cells:
+            return self._bfs_optimistic_inner(state, start, goal, max_cells, relax_move_blocked=True)
+        return None
 
-    def _bfs_optimistic_inner(self, state: MinerSkillState, start: Coord, goal: Coord, max_cells: int, soft_avoid: set[Coord] | None) -> str | None:
+    def _bfs_optimistic_inner(self, state: MinerSkillState, start: Coord, goal: Coord, max_cells: int, relax_move_blocked: bool) -> str | None:
+        relaxed = state.move_blocked_cells if relax_move_blocked else None
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier and len(parents) < max_cells:
@@ -318,10 +327,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if cell == goal:
                 break
             for direction, neighbor in self._neighbors(cell):
-                if neighbor in parents or neighbor in state.blocked_cells:
+                if neighbor in parents:
                     continue
-                if soft_avoid is not None and neighbor in soft_avoid:
-                    continue
+                if neighbor in state.blocked_cells:
+                    if relaxed is None or neighbor not in relaxed:
+                        continue
                 parents[neighbor] = (cell, direction)
                 frontier.append(neighbor)
         if goal not in parents:
