@@ -207,4 +207,19 @@ Key hypothesis chain to test:
   contamination events per episode on seeds 43 and 44. Expect: reduced
   `scout.gained`, `scrambler.gained`, and fewer `aligner.lost` events on seeds 43/44.
   Testing on all three seeds 42/43/44.
+- `2026-04-12T04:20Z`: **exp11 results:**
+  | seed | exp6 (stuck=28) | exp11 (+fix) | Δ |
+  | --- | --- | --- | --- |
+  | 42 | 6.71 | **7.38** | +0.67 |
+  | 43 | 4.29 | 4.13 | -0.16 |
+  | 44 | 3.76 | 3.60 | -0.16 |
+  | **avg** | **4.92** | **5.04** | **+0.12** |
+
+  Big win on seed 42 (new single-seed best 7.38, 0 contamination, 8228 held).
+  On 43/44 contamination is unchanged (1 scout.gained, 1 scrambler.gained,
+  1–2 aligner.lost each). The fix helps the BFS-fail path in `_gear_up` but
+  43/44 contamination happens elsewhere — most likely in `_get_heart` which
+  uses `avoid_hazards=False` intentionally. Net-avg positive so **keep**.
+  Next: exp12 try `_get_heart` with `avoid_hazards=True` to see if it shuts
+  the remaining contamination path without blocking hub access.
 
