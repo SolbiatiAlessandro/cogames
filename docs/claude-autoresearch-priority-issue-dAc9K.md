@@ -161,4 +161,7 @@ Key hypothesis chain to test:
   in exp6, -15%), `action.failed` peak climbed back to 476, confirming the "doomed target
   burns budget" risk. Discard; exp6 remains best. Next: multi-seed verification of exp6
   on seeds 43 and 44 to ensure the gain isn't seed-42 specific.
+- `2026-04-12T03:15Z`: starting multi-seed verification loop for exp6 (3A5M + stuck=28).
+  Running seeds 43 and 44 with the same config. If either drops below 6.0 total, the
+  exp6 config overfits to seed 42 and I'll need to re-evaluate.
 
