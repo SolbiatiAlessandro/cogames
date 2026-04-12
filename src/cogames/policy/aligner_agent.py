@@ -387,13 +387,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _update_map_memory(self, obs: AgentObservation, state: AlignerState) -> Coord:
         current_abs = self._spawn_offset(obs)
 
-        # Detect move failure (deferred — classified after observation processing below)
-        move_failed = (
-            state.last_pos is not None
-            and state.last_move_target is not None
-            and current_abs == state.last_pos
-        )
-        failed_target = state.last_move_target if move_failed else None
+        # If we tried to move last step but didn't move, the target cell blocks movement.
+        # Add to move_blocked_cells (persists across observation updates) so BFS avoids it.
+        if state.last_pos is not None and state.last_move_target is not None:
+            if current_abs == state.last_pos:
+                state.move_blocked_cells.add(state.last_move_target)
         state.last_pos = current_abs
         state.last_move_target = None  # reset; set by callers before returning a move action
 
@@ -417,19 +415,6 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 stations_now.add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
-
-        # Add ALL move failures to move_blocked immediately (prevents repeated collisions)
-        if failed_target is not None:
-            state.move_blocked_cells.add(failed_target)
-
-        # Expire transient collisions: if a move_blocked cell is visible and has no
-        # structure tags, the blocking agent has moved — remove from move_blocked.
-        # Permanent obstacles (extractors/hubs) always have tags, so they stay blocked.
-        if state.move_blocked_cells:
-            visible_move_blocked = state.move_blocked_cells & visible_cells
-            for cell in visible_move_blocked:
-                if cell not in visible_tag_ids_by_cell and cell not in blocked_now:
-                    state.move_blocked_cells.discard(cell)
 
         neutral_now: set[Coord] = set()
         friendly_now: set[Coord] = set()

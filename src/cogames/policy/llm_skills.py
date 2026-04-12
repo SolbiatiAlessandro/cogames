@@ -173,18 +173,15 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     def _update_map_memory(self, obs: AgentObservation, state: MinerSkillState) -> None:
         current_abs = self._current_abs(obs)
 
-        # Detect move failure (deferred — classified after observation processing below)
-        move_failed = (
-            state.last_pos is not None
-            and state.last_move_target is not None
-            and current_abs == state.last_pos
-        )
-        failed_target = state.last_move_target if move_failed else None
+        # Move-failure tracking: if we tried to move but didn't, mark target as blocked
+        if state.last_pos is not None and state.last_move_target is not None:
+            if current_abs == state.last_pos:
+                if self._shared_map is not None:
+                    self._shared_map.move_blocked_cells.add(state.last_move_target)
         state.last_pos = current_abs
         state.last_move_target = None
 
         visible_cells = self._visible_abs_cells(current_abs)
-        visible_tag_ids_by_cell: dict[Coord, set[int]] = {}
         blocked_now: set[Coord] = set()
         hubs_now: set[Coord] = set()
         miner_stations_now: set[Coord] = set()
@@ -195,7 +192,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if token.feature.name != "tag" or token.location is None:
                 continue
             abs_cell = self._visible_abs_cell(current_abs, token.location)
-            visible_tag_ids_by_cell.setdefault(abs_cell, set()).add(int(token.value))
             if token.value in self._wall_tags:
                 blocked_now.add(abs_cell)
             if token.value in self._hub_tags:
@@ -210,18 +206,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                         state.extractors_by_element[element].add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
-
-        # Add ALL move failures to move_blocked immediately (prevents repeated collisions)
-        if failed_target is not None and self._shared_map is not None:
-            self._shared_map.move_blocked_cells.add(failed_target)
-
-        # Expire transient collisions: if a move_blocked cell is visible and has no
-        # structure tags, the blocking agent has moved — remove from move_blocked.
-        if self._shared_map is not None and self._shared_map.move_blocked_cells:
-            visible_move_blocked = self._shared_map.move_blocked_cells & visible_cells
-            for cell in visible_move_blocked:
-                if cell not in visible_tag_ids_by_cell and cell not in blocked_now:
-                    self._shared_map.move_blocked_cells.discard(cell)
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
