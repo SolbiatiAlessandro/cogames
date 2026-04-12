@@ -135,4 +135,9 @@ Key hypothesis chain to test:
   aligners bouncing between targets expose themselves to clip damage for longer. The
   default 20 is the right floor for aligner persistence. Discard. Next: opposite
   direction — `stuck_threshold=28` (more patient).
+- `2026-04-12T02:45Z`: starting new experiment loop — exp6 "stuck_threshold=28 on 3A5M".
+  Exp5 proved less patience hurts because mid-alignment interruptions cost both the
+  junction and HP. If the opposite is also true, more patience should stabilize the
+  held junctions further and push past 6.0. Risk: a stuck aligner burns more cycles on
+  a doomed target. Config: exp4 + `kw.stuck_threshold=28`. Seed 42 1000 steps.
 
