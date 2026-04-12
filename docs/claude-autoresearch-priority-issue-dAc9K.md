@@ -128,4 +128,11 @@ Key hypothesis chain to test:
   already found that `TEAM_SCARCE_MAX_EMPTY_STEPS=80` (similar idea on miner side) was
   worth +6.6% at 3-agent; this is the aligner analogue. Config adds
   `kw.stuck_threshold=12` to the exp4 best. Seed 42.
+- `2026-04-12T02:43Z`: **exp5 result: 5.25 total (0.657/agent) — worse than exp4 (5.84).**
+  Surprising failure mode: `aligned.junction.gained` went UP (9→10) but `held` went DOWN
+  (6299→5566) and deaths DOUBLED (3→6, with 3 agents each dying twice). The too-early
+  bailout kills mid-alignment attempts so junctions flip back to neutral/enemy, and
+  aligners bouncing between targets expose themselves to clip damage for longer. The
+  default 20 is the right floor for aligner persistence. Discard. Next: opposite
+  direction — `stuck_threshold=28` (more patient).
 
