@@ -427,14 +427,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             else:
                 neutral_now.add(abs_cell)
 
-        # Expire transient move-blocked cells: if we can now SEE a cell and
-        # it has no wall tag, it was likely blocked by a moving agent — clear it.
-        visible_free = visible_cells - blocked_now
-        state.move_blocked_cells.difference_update(visible_free)
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
         state.blocked_cells.update(state.move_blocked_cells)  # persist move-failure blocks
-        state.known_free_cells.update(visible_free)
+        state.known_free_cells.update(visible_cells - blocked_now)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 
