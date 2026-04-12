@@ -281,4 +281,7 @@ Key hypothesis chain to test:
   Next angles to try: (a) target `_get_heart` stuck-target detection — agent 0
   still spams the hub approach — and (b) seeds 45-47 to make sure exp12 isn't
   over-fit to seeds 42-44.
+- `2026-04-12T05:20Z`: starting new experiment loop — exp14 "verify exp12 on seeds 45-47".
+  The current best config is at commit 1980e8a (functionally identical to exp12).
+  Running seeds 45, 46, 47 to expand the verification set to six seeds total.
 
