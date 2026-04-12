@@ -279,22 +279,29 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         direction = self._bfs_optimistic_direction(state, current_abs, approach, avoid_hazards=avoid_hazards)
         if direction is not None:
             return direction
-        # Greedy toward the approach cell
-        dr = approach[0] - current_abs[0]
-        dc = approach[1] - current_abs[1]
-        if abs(dr) >= abs(dc):
-            return "south" if dr > 0 else "north"
-        return "east" if dc > 0 else "west"
+        # Greedy toward the approach cell, avoiding known obstacles
+        blocked = state.blocked_cells | state.move_blocked_cells
+        candidates = []
+        for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
+            neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
+            dist = abs(neighbor[0] - approach[0]) + abs(neighbor[1] - approach[1])
+            is_blocked = neighbor in blocked
+            candidates.append((is_blocked, dist, dir_name))
+        candidates.sort()
+        return candidates[0][2]
 
     def _safe_wander(self, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
-        """Wander but avoid stepping onto known hazard stations."""
-        for _, (name, delta) in zip(range(4), _DIRECTION_DELTAS):
-            idx = (state.wander_direction_index + _) % 4
+        """Wander avoiding hazard stations, blocked cells, and move-blocked cells."""
+        avoid = state.known_hazard_stations | state.blocked_cells | state.move_blocked_cells
+        for i in range(4):
+            idx = (state.wander_direction_index + i) % 4
             direction, (dr, dc) = _DIRECTION_DELTAS[idx]
             neighbor = (current_abs[0] + dr, current_abs[1] + dc)
-            if neighbor not in state.known_hazard_stations:
+            if neighbor not in avoid:
                 state.wander_direction_index = (idx + 1) % 4
                 return self._starter._action(f"move_{direction}"), state
+        # All directions blocked — cycle to at least try something different
+        state.wander_direction_index = (state.wander_direction_index + 1) % 4
         return self._starter._wander(state)
 
     def _move_target(self, current_abs: Coord, direction: str) -> Coord:
@@ -303,13 +310,22 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         return (current_abs[0] + dr, current_abs[1] + dc)
 
     def _greedy_move_toward_abs(self, state: AlignerState, current_abs: Coord, target_abs: Coord) -> tuple[Action, AlignerState]:
-        """Move greedily toward a known absolute position without BFS (ignores terrain knowledge)."""
-        dr = target_abs[0] - current_abs[0]
-        dc = target_abs[1] - current_abs[1]
-        if abs(dr) >= abs(dc):
-            direction = "south" if dr > 0 else "north"
-        else:
-            direction = "east" if dc > 0 else "west"
+        """Move greedily toward a known absolute position, avoiding known obstacles.
+
+        Ranks all 4 directions by Manhattan distance reduction to target,
+        then picks the best direction whose target cell is not in blocked_cells
+        or move_blocked_cells. Falls back to the Manhattan-best direction if all
+        are blocked (some obstacles are dynamic / transient).
+        """
+        blocked = state.blocked_cells | state.move_blocked_cells
+        candidates = []
+        for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
+            neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
+            dist = abs(neighbor[0] - target_abs[0]) + abs(neighbor[1] - target_abs[1])
+            is_blocked = neighbor in blocked
+            candidates.append((is_blocked, dist, dir_name))
+        candidates.sort()  # False < True, then by distance
+        direction = candidates[0][2]
         return self._starter._action(f"move_{direction}"), state
 
     def _move_to(self, state: AlignerState, current_abs: Coord, target_abs: Coord | None) -> tuple[Action, AlignerState]:
