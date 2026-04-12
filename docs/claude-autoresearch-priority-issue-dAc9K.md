@@ -111,4 +111,13 @@ Key hypothesis chain to test:
   The question is whether 3 aligners can cover junction coverage as effectively as 4
   — if their throughput was 2.25 alignments each, 3 × 2.25 = 6.75 junctions, which
   would still be far above the 5-hearts-needed floor for 4.0 target. Seed 42 1000 steps.
+- `2026-04-12T02:25Z`: **exp4 result: 5.84 total (0.73/agent) — NEW BEST (+5.2% over exp1).**
+  9 junctions gained (same as exp1), but `aligned.junction.held=6299` (+6%). 7 heart
+  withdrawals are still enough because 3 aligners make fewer hub trips. Critically:
+  - no aligner gear losses (vs 1 in exp1, 3 in exp3)
+  - only 3 deaths (vs 4 exp1, 6 baseline)
+  - max stuck agent: 20 (vs 63 in exp1)
+  This confirms 4A4M is not the local optimum for 8A; 3A5M is cleaner. KEEP. 97% of the
+  way to stretch 6.0. Next: exp5 try pushing further with tuned `stuck_threshold` or
+  retry with seed variety to check it's not a seed-42 fluke.
 
