@@ -1,0 +1,60 @@
+# autoresearch: issue #25 — 8-Agent Scaling with Scripted Miners (4A4M)
+
+Branch: `claude/autoresearch-priority-issue-dAc9K`
+Target issue: [#25](https://github.com/SolbiatiAlessandro/cogames/issues/25) — priority:1, in-progress
+
+## Plan
+
+**2026-04-12 session start**: autoresearch starting, my plan is to pick up issue #25
+(highest priority, in-progress, unblocked post PR #18). The issue success criteria
+(overriding general mission reward):
+- primary: `mission_reward_total > 4.0` at 1000 steps with 8 agents (0.50/agent avg)
+- stretch: `> 6.0` total (0.75/agent)
+
+History context (from issue comments & director notes):
+- 8-agent pre-merge (session 4, main): 0.4195/agent = 3.356 total (4A4M scripted miners, machina_llm_roles)
+- 8-agent post-merge (session 5, cross_role): 0.4043/agent = 3.234 total (4A4M LLM miners)
+- Best hybrid never run: `cross_role` aligners + `scripted_miners=true`
+- 3-agent best: 0.825/agent (6-seed avg, deterministic scripted with `llm_timeout_s=0.001`)
+- Plateau at ~175 failed experiments on 3-agent — 8-agent unexplored
+- Plot from comment #1: pre-merge 8A decelerated from 0.06/100→0.01/100 at step 700 due to hub depletion.
+
+Key hypothesis chain to test:
+1. **Hybrid config** (cross_role aligners + scripted miners) has never been run — it's the
+   top-ranked "highest leverage" experiment in the director notes (Q1).
+2. With hub depletion + make_heart cycle both present, the step-700 deceleration should
+   vanish, and 0.06/100 could maintain through 1000 → 4.8 total (above the 4.0 target).
+3. Next-level: try different aligner/miner splits (3A5M, 5A3M) on top of the hybrid.
+
+## Environment setup notes
+
+- Fresh container; mettagrid had to be built from scratch via bazel.
+- Proxy required: bazel fetches `bcr.bazel.build` which is behind an auth+TLS-inspection egress.
+  Workarounds applied:
+  - Installed bazelisk to `$HOME/bin/bazel`.
+  - Created `/root/.bazelrc` with `startup --host_jvm_args=...` entries for proxy host/port/user/pass
+    plus `-Djdk.http.auth.tunneling.disabledSchemes=` so Java permits Basic auth on CONNECT.
+  - Created `/root/custom_truststore.jks` containing the egress-gateway CA (imported from
+    `/usr/local/share/ca-certificates/*.crt`) and pointed bazel there via
+    `-Djavax.net.ssl.trustStore`. Without this, bcr.bazel.build TLS handshake fails (PKIX).
+- Disabled optional Nim renderers (mettascope) by renaming their source dir — those are not
+  needed for headless `-r log` runs.
+- No `.env.openrouter.local` present. Running the "cross_role" policy therefore falls back
+  to scripted behavior for all LLM calls. Session #24 comments on issue #25 showed that
+  pure-scripted actually *outperforms* the LLM variant at 3-agent (0.816 vs 0.671), so this
+  is fine for the 8-agent experiment.
+
+## Log
+
+- `2026-04-12T00:26Z`: autoresearch starting, plan logged above.
+- `2026-04-12T00:40Z`: starting to run baseline.
+- `2026-04-12T00:52Z`: **baseline result is 3.52 total (0.44/agent), 1000 steps, seed 42.**
+  Config: `machina_llm_roles kw.num_aligners=4 kw.llm_timeout_s=30 kw.scripted_miners=true`
+  (this is the literal config from the issue #25 body). 8 aligned junctions, 7 hearts
+  withdrawn, 6 deaths total, 3400 cogs/aligned.junction.held.
+  **Critical regression versus comment #21 finding reproduced:** `num_scouts` defaults to 1
+  in `machina_llm_roles`, so we actually got 4A1S3M, not 4A4M. Agent 4 is the scout and was
+  stuck for **661 of 1000 steps** (status.max_steps_without_motion=661, 804 action.failed).
+  Comment #21 already recorded that setting `num_scouts=0` was worth ~+31% at 3-agent scale
+  (seed 44 went 0.358 → 0.945). First experiment will fix this — cheapest free win.
+

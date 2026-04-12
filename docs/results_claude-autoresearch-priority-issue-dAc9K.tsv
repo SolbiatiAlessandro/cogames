@@ -1,0 +1,2 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+34212b3	3.519980	aligned.junction.gained=8;hearts.withdrawn=7;deaths=6;agent4_stuck=661	1000	keep	Baseline 8A machina_llm_roles num_aligners=4 scripted_miners=true (config from issue #25 body). Seed 42. total=3.52 per-agent=0.44. Target >4.0. Agent 4 (scout due to num_scouts default=1) stuck 661/1000 steps — same bug as comment #21.
