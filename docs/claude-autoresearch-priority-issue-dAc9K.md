@@ -181,4 +181,17 @@ Key hypothesis chain to test:
   seed-42-specific? Running 3A5M stuck=20 on both seeds. If exp4 matches or beats exp6
   on those seeds, we should revert stuck_threshold back to 20 for the final config
   (trade a bit of seed-42 peak for better generalization).
+- `2026-04-12T03:50Z`: **exp10 control results — stuck=28 confirmed net-better across 3 seeds.**
+  | seed | stuck=20 | stuck=28 | Δ |
+  | --- | --- | --- | --- |
+  | 42 | 5.84 | **6.71** | +0.87 |
+  | 43 | 4.02 | **4.29** | +0.27 |
+  | 44 | 3.80 | 3.76 | -0.04 |
+  | **avg** | **4.55** | **4.92** | **+0.37** |
+
+  Stuck=28 is retained as the best config. The remaining headroom on seeds 43/44 is
+  almost entirely in gear contamination: 1–2 scout/scrambler pickups each. That's
+  a structural issue from issue #12 — routes to aligner/miner station cross other
+  stations and a station step auto-equips the wrong gear. Attempting a targeted code
+  fix next.
 
