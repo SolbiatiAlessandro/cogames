@@ -197,11 +197,21 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         return min(candidates, key=lambda coord: (abs(coord[0] - current_abs[0]) + abs(coord[1] - current_abs[1]), coord))
 
     def _bfs_first_direction(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True) -> str | None:
+        """Conservative BFS through known_free_cells only.
+        2-pass: first avoids move_blocked_cells, then allows them if no path found."""
         if start == goal:
             return self._starter._fallback_action_name
         if goal not in state.known_free_cells:
             return None
         avoid = (state.known_hazard_stations - {goal}) if avoid_hazards else set()
+        # Pass 1: avoid move_blocked_cells
+        result = self._bfs_first_inner(state, start, goal, avoid, soft_avoid=state.move_blocked_cells)
+        if result is not None:
+            return result
+        # Pass 2: only known_free + hard avoid
+        return self._bfs_first_inner(state, start, goal, avoid, soft_avoid=None)
+
+    def _bfs_first_inner(self, state: AlignerState, start: Coord, goal: Coord, avoid: set[Coord], soft_avoid: set[Coord] | None) -> str | None:
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier:
@@ -210,6 +220,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 break
             for direction, neighbor in self._ordered_neighbors_toward(cell, goal):
                 if neighbor in parents or neighbor not in state.known_free_cells or neighbor in avoid:
+                    continue
+                if soft_avoid is not None and neighbor in soft_avoid:
                     continue
                 parents[neighbor] = (cell, direction)
                 frontier.append(neighbor)
@@ -224,10 +236,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _bfs_optimistic_direction(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True, max_cells: int = 20000) -> str | None:
         """Optimistic BFS: treat unknown cells as traversable (only avoids known walls/hazards).
-        Useful when the path to goal goes through unexplored territory."""
+        Useful when the path to goal goes through unexplored territory.
+        2-pass: first avoids move_blocked_cells, then allows them if no path found."""
         if start == goal:
             return self._starter._fallback_action_name
         avoid = (state.known_hazard_stations - {goal}) if avoid_hazards else set()
+        # Pass 1: avoid move_blocked_cells too
+        result = self._bfs_optimistic_inner(state, start, goal, avoid, max_cells, soft_avoid=state.move_blocked_cells)
+        if result is not None:
+            return result
+        # Pass 2: only avoid hard blocks
+        return self._bfs_optimistic_inner(state, start, goal, avoid, max_cells, soft_avoid=None)
+
+    def _bfs_optimistic_inner(self, state: AlignerState, start: Coord, goal: Coord, avoid: set[Coord], max_cells: int, soft_avoid: set[Coord] | None) -> str | None:
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier and len(parents) < max_cells:
@@ -236,6 +257,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 break
             for direction, neighbor in self._ordered_neighbors_toward(cell, goal):
                 if neighbor in parents or neighbor in state.blocked_cells or neighbor in avoid:
+                    continue
+                if soft_avoid is not None and neighbor in soft_avoid:
                     continue
                 parents[neighbor] = (cell, direction)
                 frontier.append(neighbor)
@@ -251,7 +274,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _best_approach_cell(self, state: AlignerState, current_abs: Coord, blocked_target: Coord) -> Coord | None:
         """Find the best adjacent cell to a blocked target (e.g., a station object) to navigate toward.
 
-        Returns the adjacent cell closest to current_abs that is not in blocked_cells."""
+        Returns the adjacent cell closest to current_abs that is not in blocked_cells.
+        Prefers cells not in move_blocked_cells (soft preference)."""
         candidates = [
             (blocked_target[0] + dr, blocked_target[1] + dc)
             for _, (dr, dc) in _DIRECTION_DELTAS
@@ -259,7 +283,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         ]
         if not candidates:
             return None
-        return min(candidates, key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
+        # Sort by (move_blocked, distance) - prefer non-move-blocked approach cells
+        return min(candidates, key=lambda c: (c in state.move_blocked_cells, abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])))
 
     def _navigate_to_station(self, state: AlignerState, current_abs: Coord, station_abs: Coord, avoid_hazards: bool = True) -> str | None:
         """Navigate toward a station object (which is in blocked_cells).
