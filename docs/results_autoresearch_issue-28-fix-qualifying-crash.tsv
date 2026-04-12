@@ -13,3 +13,10 @@ d6c6270	0.429198	junction.held=3292;junction.gained=6;heart.withdrawn=9	1000	kee
 6354a2c	1.609440	junction.held=?;junction.gained=?;heart.withdrawn=?	10000	keep	Fix: 8-agent cross_role 3A+5M all-LLM nemotron at 10k; BEST RESULT 1.61/agent; NO CRASH; 68min
 d6c6270	0.597305	junction.held=4973;junction.gained=8;heart.withdrawn=5	1000	keep	Fix: 8-agent cross_role 3A+5M all-LLM nemotron stuck-aware at 1k; 0.60/agent
 d6c6270	0.540103	junction.held=4401;junction.gained=7;heart.withdrawn=5	1000	keep	Fix: 8-agent cross_role 3A+5M gemma-3-12b-it paid at 1k; 0.54/agent; works but slower
+d6c6270	0.661806	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	keep	Fix: 8-agent cross_role 3A+5M llm_timeout=5s at 1k; 0.66/agent; faster timeout = less blocking
+d6c6270	0.625503	junction.held=5255;junction.gained=10;heart.withdrawn=8	1000	keep	Fix: 8-agent cross_role 3A+5M llm_timeout=5s (run2) at 1k; 0.63/agent
+d6c6270	0.495198	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	discard	Fix: 8-agent cross_role 3A+5M stuck_threshold=15 at 1k; 0.50/agent; too frequent replanning
+d6c6270	0.434701	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	discard	Fix: 8-agent cross_role 3A+5M stuck_threshold=25 at 1k; 0.43/agent
+d6c6270	0.374696	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	discard	Fix: 8-agent cross_role 3A+5M return_load=20 at 1k; too many short trips
+d6c6270	0.370000	junction.held=2714;junction.gained=4;heart.withdrawn=5	1000	discard	Fix: 8-agent cross_role 3A+5M return_load=60 at 1k; miners die before depositing
+d6c6270	1.500000	junction.held=?;junction.gained=?;heart.withdrawn=9	10000	keep	Comparison: MachinaLLMRolesPolicy 4A+4M scripted_miners at 10k; 1.50/agent; 67min

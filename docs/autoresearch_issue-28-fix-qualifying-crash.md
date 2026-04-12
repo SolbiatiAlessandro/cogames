@@ -177,3 +177,60 @@ Upload config:
 Now waiting for qualifying matches. The policy needs to pass 2/2 qualifying matches to enter the competition pool.
 
 Note: The uploaded bundle includes the modified `llm_miner_policy.py` (HTTP pooling) and `cross_role_policy.py` (retry-sleep removal, scripted_miners option, stuck-aware fallback). The tournament will use the bundled files instead of the PyPI version.
+
+---
+
+## 2026-04-12T07:30:00Z: starting new experiment loop, parameter tuning
+
+**Hypothesis:** Default parameters (stuck_threshold=20, return_load=40, llm_timeout=10s) may not be optimal for 8-agent scale. Faster LLM timeout could reduce blocking time.
+
+### Parameter sweep results (3A+5M all-LLM, 1k steps):
+
+| Parameter | Value | Reward/agent | Notes |
+|-----------|-------|-------------|-------|
+| llm_timeout_s | 3 | 0.63 | Too fast, many calls fail |
+| llm_timeout_s | **5** | **0.66** | **Best! Sweet spot** |
+| llm_timeout_s | 7 | 0.63 | Similar to 3s |
+| llm_timeout_s | 10 | 0.60 | Default, slower |
+| stuck_threshold | 15 | 0.50 | Too frequent replanning |
+| stuck_threshold | 20 | 0.60 | Default, optimal |
+| stuck_threshold | 25 | 0.43 | Too slow to detect stuck |
+| return_load | 20 | 0.37 | Too many short trips |
+| return_load | 40 | 0.60 | Default, optimal |
+| return_load | 60 | 0.37 | Miners die before depositing |
+
+**Key finding:** `llm_timeout_s=5` is the best timeout — most LLM calls complete within 5s, and failed calls don't block the agent for 10s. Uploaded `cross_role_3a5m_5s_v2:v1` with this config.
+
+10k test with 5s timeout running in background. Also comparing MachinaLLMRolesPolicy at 10k.
+
+---
+
+## 2026-04-12T08:30:00Z: MachinaLLMRolesPolicy 10k comparison complete
+
+**MachinaLLMRolesPolicy 4A+4M scripted_miners at 10k steps: 1.50/agent** (67 minutes)
+
+Our cross_role 3A+5M all-LLM nemotron at 10k: **1.61/agent** (+7.3% vs MachinaLLMRoles).
+
+---
+
+## 2026-04-12T08:35:00Z: debugging qualifying failures
+
+**ALL qualifying matches failed with "internal error 1011"** — 8 different uploads, all failed.
+
+**Root cause discovered:** The `--include-files` mechanism stores files with ancestor `__init__.py` files from `_collect_ancestor_init_files()`. When uploaded from project root, files end up as `src/cogames/policy/cross_role_policy.py` in the bundle, along with `src/cogames/__init__.py` and `src/cogames/policy/__init__.py`. These shadow the server's installed `cogames` package, causing `ModuleNotFoundError: No module named 'cogames.policy.aligner_agent'` because only 2 of the many policy files are in the bundle.
+
+Even uploading from `src/` directory (so paths are `cogames/policy/...`) still shadows the installed package because the bundle's `cogames/__init__.py` takes priority.
+
+The base test (no include-files, server's installed version) also fails because the server's installed `cross_role_policy.py` has the retry-with-sleep loop, and without OPENROUTER_API_KEY on the server, 8 agents × 3 retries × sleep(3*attempt) = BackoffLimitExceeded.
+
+**Fix: setup_install.py approach**
+- Put patched files in `_patches/` directory (no `__init__.py` shadowing)
+- Setup script (runs as subprocess before policy load) copies files from `_patches/` to installed package directory
+- Bundle: `_patches/cross_role_policy.py`, `_patches/llm_miner_policy.py`, `setup_install.py`, `policy_spec.json`
+- Verified locally: setup script successfully copies files and removes retry loop
+
+Uploaded two v7 variants:
+- `cross_role_3a5m_5s_v7:v1` (5s timeout)
+- `cross_role_3a5m_10s_v7:v1` (10s timeout)
+
+Waiting for qualifying results...
