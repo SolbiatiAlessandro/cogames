@@ -513,10 +513,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         return self._move_to(state, current_abs, best_frontier)
 
     def _congestion_penalty(self, cell: Coord, agent_id: int) -> int:
-        """Return a penalty score for cells near other agents (issue-35).
+        """Return a mild penalty for cells very near other agents (issue-35).
 
-        The penalty encourages agents to spread out by preferring frontier cells
-        that are far from teammates. Returns 0 if no shared map or no other agents.
+        A small tiebreaker that encourages agents to spread out during explore,
+        without overriding proximity to useful targets (hub, extractors).
         """
         sm = self._shared_map
         if sm is None or not hasattr(sm, "agent_positions") or len(sm.agent_positions) <= 1:
@@ -526,10 +526,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             if other_id == agent_id:
                 continue
             dist = abs(cell[0] - other_pos[0]) + abs(cell[1] - other_pos[1])
-            if dist < 5:
-                penalty += 10  # very close — strong penalty
-            elif dist < 10:
-                penalty += 3
+            if dist < 3:
+                penalty += 3  # immediate neighbors — mild push
+            elif dist < 6:
+                penalty += 1
         return penalty
 
     def _explore_frontier(
