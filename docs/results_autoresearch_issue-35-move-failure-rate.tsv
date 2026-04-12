@@ -10,3 +10,4 @@ d2561ed	0.587701	junction.held=4877;junction.gained=7;heart.withdrawn=7;move.suc
 838e3a0	0.320000	junction.held=N/A;move.success_rate=86.7;move.failed_avg=133	1000	discard	Classify move_blocked: don't persist transient collisions; agents keep re-colliding
 9567060	0.270000	junction.held=N/A;move.success_rate=N/A	1000	discard	Expire transient move_blocked: block all then expire visible tagless; clears permanent obstacles
 b425698	0.100000	junction.held=N/A;move.success_rate=N/A	1000	discard	Pre-block extractors: add known_extractors to blocked_cells; extractors are walkable (breaks mining)
+4560628	1.700000	junction.held=6974;junction.gained=11;heart.withdrawn=9;move.success_rate=88.3;move.failed_avg=1169	10000	keep	10k validation: smart greedy v3 + perp dodge + progressive evasion; 78% fewer failures vs baseline (1169 vs 5289)

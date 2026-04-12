@@ -177,3 +177,28 @@ Added known_extractors to blocked_cells preemptively. Result: 0.10 reward — ca
 **Remaining issue:** ~10% of moves still fail, primarily from agent-to-agent collisions in congested areas and first encounters with uncharted obstacles. Further improvement requires either LLM-level route planning or game-engine level changes (e.g., agent collision prediction).
 
 ---
+
+## 2026-04-12T18:00:00Z: 10k Step Validation
+
+**Results: 1.70 score/cog, 88.3% move success, 1169 avg failed/agent**
+
+| Metric | Issue Target | Baseline (10k est.) | Our Result | Status |
+|--------|-------------|---------------------|------------|--------|
+| move.failed/agent | <=500 | 5289 | **1169** | 78% improvement, not fully met |
+| Move success rate | >=90% | 47% | **88.3%** | Close (from 47%) |
+
+Per-agent breakdown at 10k steps:
+- Agent 0: 99.9% (8 failed) — nearly perfect
+- Agent 1: 84.9% (1511 failed)
+- Agent 2: 95.3% (471 failed) — meets target!
+- Agent 3: 89.9% (1012 failed)
+- Agent 4: 53.4% (4655 failed) — massive outlier (1.1M cells visited)
+- Agent 5: 89.1% (1085 failed)
+- Agent 6: 95.0% (501 failed)
+- Agent 7: 98.9% (111 failed)
+
+**Key insight:** Huge variance between agents. Agent 4 alone accounts for 50% of all failures. Without Agent 4, average would be 671 failures/agent. The highly mobile miners (Agent 4: 1.1M cells visited) accumulate more failures than stationary agents.
+
+**Game metrics:** junction.held=6974, junction.gained=11, heart.withdrawn=9, 13 hearts gained.
+
+---
