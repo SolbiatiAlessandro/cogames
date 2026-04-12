@@ -151,4 +151,9 @@ Key hypothesis chain to test:
   KEEP. Now both the primary (>4.0) and stretch (>6.0) targets are hit on seed 42.
   Next: try `stuck_threshold=36` to see if there's more headroom, then multi-seed
   verification.
+- `2026-04-12T03:02Z`: starting new experiment loop — exp7 "stuck_threshold=36 on 3A5M".
+  The 20 → 28 step was a big win. Probing whether the trend keeps going. Hypothesis:
+  36 is past the congestion-resolution horizon, so it should mostly match 28, but if
+  it's meaningfully better that tells us the 28 bound isn't tight. Risk: doomed targets
+  burn more of the 1000-step budget. Seed 42, single run.
 
