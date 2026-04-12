@@ -164,4 +164,16 @@ Key hypothesis chain to test:
 - `2026-04-12T03:15Z`: starting multi-seed verification loop for exp6 (3A5M + stuck=28).
   Running seeds 43 and 44 with the same config. If either drops below 6.0 total, the
   exp6 config overfits to seed 42 and I'll need to re-evaluate.
+- `2026-04-12T03:30Z`: **exp8/exp9 multi-seed results:**
+  - seed 42: 6.71 (exp6)
+  - seed 43: 4.29 (+primary, -stretch)
+  - seed 44: 3.76 (-primary)
+  - **avg 4.92** (+40% over 3.356 pre-merge baseline, above primary but below stretch)
+
+  The stretch-target result on seed 42 was significantly seed-specific. Both alternate
+  seeds show more gear contamination (scout/scrambler picked up on the navigation path)
+  and fewer junctions in the map, so fewer alignment opportunities. The `stuck=28` tune
+  may or may not beat `stuck=20` on those seeds — need to isolate. Next: rerun exp4
+  (stuck=20, 3A5M) on seed 43 and 44 as control, to see if the stuck=28 choice is
+  actually helping or hurting on the harder seeds.
 
