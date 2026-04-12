@@ -80,4 +80,11 @@ Key hypothesis chain to test:
   +9.4% that comment #23 saw at 3-agent. With 4 aligners at 8-agent, faster responses
   mean more decisions per episode; even a fraction of that improvement lands us past the
   6.0 stretch. Config change only, no code diff.
+- `2026-04-12T01:50Z`: **exp2 result: 4.72 total (0.59/agent) — WORSE than exp1 (5.55).**
+  Hypothesis busted. Rereading comment #23 + #24 in context: the +9.4% was because gemma
+  was rate-limited into silence, and *nemotron was also being rate-limited*, so both runs
+  were effectively pure-scripted, and the small seed-level variance looked like a gemma
+  win. In this session nemotron actually completes 1.5–4.5 s responses and the policy
+  benefits from real decisions at hub-congestion points. **Discard c7f493a**, reset to
+  ad049c2. Next: exp3 aligner/miner split sweep.
 
