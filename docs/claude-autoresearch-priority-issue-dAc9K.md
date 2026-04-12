@@ -87,4 +87,12 @@ Key hypothesis chain to test:
   win. In this session nemotron actually completes 1.5–4.5 s responses and the policy
   benefits from real decisions at hub-congestion points. **Discard c7f493a**, reset to
   ad049c2. Next: exp3 aligner/miner split sweep.
+- `2026-04-12T01:55Z`: starting new experiment loop — exp3 "5A3M split".
+  Hypothesis: exp1 had each of 4 aligners average only 2.25 alignments/1000 steps
+  (9 junctions gained / 4). The map has plenty of neutral junctions (11 known early).
+  With 3 scripted miners, heart production in exp1 was 8 hearts withdrawn — enough
+  for 8 alignments. If the bottleneck is aligner throughput (hub trips, route
+  contention) rather than heart supply, adding a 5th aligner and dropping a miner
+  should yield more junctions, at modest heart cost. Target: >6.0 total (stretch).
+  Config: `kw.num_aligners=5,kw.num_scouts=0,...`. Seed 42. 1000 steps.
 
