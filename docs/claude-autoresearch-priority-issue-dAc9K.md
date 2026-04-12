@@ -262,4 +262,23 @@ Key hypothesis chain to test:
   shouldn't need the hazard-free preference. Revert `_align_neutral` BFS to
   `avoid_hazards=False`, but keep the greedy fallback with `avoid_hazards=True` as a
   safety net. All three seeds.
+- `2026-04-12T05:15Z`: **exp13 results: clear discard.**
+  | seed | exp12 | exp13 | Δ |
+  | --- | --- | --- | --- |
+  | 42 | 4.43 | 4.94 | +0.51 |
+  | 43 | 5.04 | **3.59** | **-1.45** |
+  | 44 | 5.43 | **3.49** | **-1.94** |
+  | avg | 4.97 | 4.01 | -0.96 |
+  | min | 4.43 | 3.49 | -0.94 |
+
+  Seed 42 recovered a little (junctions 7→13), but seeds 43/44 collapsed.
+  Conclusion: the hazard-free preference in `_align_neutral` was actually doing
+  real work on seeds 43/44 — aligners must pass near stations multiple times
+  during alignment, and on those maps stations are placed badly enough that the
+  default `avoid_hazards=False` path contaminates or damages aligners. The
+  exp12 config is the right trade-off. Restore `aligner_agent.py` from 8e7792e
+  and discard this branch tip.
+  Next angles to try: (a) target `_get_heart` stuck-target detection — agent 0
+  still spams the hub approach — and (b) seeds 45-47 to make sure exp12 isn't
+  over-fit to seeds 42-44.
 
