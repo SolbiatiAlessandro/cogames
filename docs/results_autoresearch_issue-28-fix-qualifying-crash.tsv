@@ -1,0 +1,8 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+6354a2c	0.349000	junction.held=2990;junction.gained=9;heart.withdrawn=8;aligner.gained=2;miner.gained=5	500	discard	Baseline: 8-agent cross_role 3A+5M all-LLM; 0.35/agent at 500 steps; no crash locally but retry-with-sleep present
+6354a2c	0.402100	junction.held=3021;junction.gained=7;heart.withdrawn=9;aligner.gained=5;miner.gained=5	1000	keep	Fix: 8-agent cross_role 4A+4M scripted_miners=true; 0.40/agent at 1k; no retry sleep; HTTP pooling
+6354a2c	0.625503	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	keep	Fix: 8-agent cross_role 3A+5M all-LLM (no retry sleep + pooling); 0.63/agent but 7min wall time
+6354a2c	1.341034	junction.held=3409;junction.gained=9;heart.withdrawn=10;clips_held=1184541	10000	keep	Fix: 8-agent cross_role 4A+4M scripted_miners=true at 10k steps; NO CRASH; qualifying scenario passed
+6354a2c	0.190000	junction.held=?;junction.gained=?;heart.withdrawn=?	500	discard	Fix: 8-agent cross_role 3A+5M scripted_miners=true; 0.19/agent; fewer aligners = less alignment
+6354a2c	0.240000	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	discard	Fix: 8-agent cross_role 5A+3M scripted_miners=true; 0.24/agent; too many LLM agents
+6354a2c	0.590000	junction.held=?;junction.gained=?;heart.withdrawn=?	1000	keep	Comparison: MachinaLLMRolesPolicy 4A+4M scripted_miners at 1k; 0.59/agent reference point
