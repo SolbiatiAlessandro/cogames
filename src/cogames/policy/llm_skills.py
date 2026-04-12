@@ -212,6 +212,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         # Re-apply persistent move-blocked cells from shared map
         if self._shared_map and self._shared_map.move_blocked_cells:
             state.blocked_cells.update(self._shared_map.move_blocked_cells)
+        # Pre-block extractors: they don't have wall tags but block movement.
+        # Once discovered by any agent, all agents should route around them.
+        state.blocked_cells.update(state.known_extractors)
+        state.blocked_cells.update(state.known_hubs)
         state.known_free_cells.update(visible_cells - blocked_now)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
@@ -448,6 +452,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             visible_scarce = self._closest_visible_location(obs, scarce_tags)
             if visible_scarce is not None:
                 target_abs = self._visible_abs_cell(current_abs, visible_scarce)
+                result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+                if result is not None:
+                    return result[0], replace(result[1], last_mode=state.last_mode)
                 action, next_state = self._move_toward_target(state, current_abs, target_abs)
                 return action, replace(next_state, last_mode=state.last_mode)
             # Try navigating to a known scarce-element extractor
@@ -455,12 +462,19 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if scarce_known:
                 target_abs = self._nearest_known(current_abs, scarce_known)
                 if target_abs is not None:
+                    result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+                    if result is not None:
+                        return result[0], replace(result[1], last_mode=state.last_mode)
                     action, next_state = self._move_toward_target(state, current_abs, target_abs)
                     return action, replace(next_state, last_mode=state.last_mode)
 
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
+            # Extractors are blocked objects — use approach-cell navigation
+            result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+            if result is not None:
+                return result[0], replace(result[1], last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_extractors)
@@ -469,10 +483,17 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 predicted = self._predicted_extractor_positions(state)
                 predicted_target = self._nearest_known(current_abs, predicted)
                 if predicted_target is not None:
+                    result = self._navigate_to_blocked_target(state, current_abs, predicted_target)
+                    if result is not None:
+                        return result[0], replace(result[1], last_mode=state.last_mode)
                     action, next_state = self._move_toward_target(state, current_abs, predicted_target)
                     return action, replace(next_state, last_mode=state.last_mode)
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
+        # Known extractor — navigate as blocked target (approach cell)
+        result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+        if result is not None:
+            return result[0], replace(result[1], last_mode=state.last_mode)
         action, next_state = self._move_toward_target(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
