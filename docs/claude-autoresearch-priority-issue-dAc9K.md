@@ -284,4 +284,37 @@ Key hypothesis chain to test:
 - `2026-04-12T05:20Z`: starting new experiment loop — exp14 "verify exp12 on seeds 45-47".
   The current best config is at commit 1980e8a (functionally identical to exp12).
   Running seeds 45, 46, 47 to expand the verification set to six seeds total.
+- `2026-04-12T05:35Z`: **exp14 results — 6-seed picture for exp12 config:**
+  | seed | total | per-agent | hearts | junctions gained | contam |
+  | --- | --- | --- | --- | --- | --- |
+  | 42 | 4.43 | 0.554 | 7 | 7 | 0 |
+  | 43 | 5.04 | 0.629 | 6 | 7 | leak |
+  | 44 | 5.43 | 0.678 | 6 | 9 | 0 |
+  | 45 | 2.51 | 0.314 | 5 | 4 | 0 |
+  | 46 | 3.63 | 0.454 | 5 | 5 | 0 |
+  | 47 | **7.96** | **0.996** | 8 | 12 | 0 |
+  | **avg** | **4.83** | 0.604 | | | |
+  | **min** | 2.51 | | | | |
+
+  Seed 47 is a new single-seed best (stretch exceeded by 33%). Seed 45/46 fall
+  well below primary — both show only 4–5 junctions gained, 5 hearts, near-zero
+  deaths. So on those seeds aligners aren't dying or getting contaminated; they
+  simply aren't finding enough alignable junctions. Comment #24 from earlier
+  sessions noted seed 46 has structural hub crowding. This matches — aligners
+  are alive but the supply side (junction discovery and heart supply) is
+  bottlenecked.
+
+  Conclusion: gear contamination is largely solved (0 contamination on 5 of 6
+  seeds). Remaining headroom is on junction discovery / heart supply on
+  map-hard seeds. That's a totally different direction from the current work.
+
+  **Issue #25 status as of this commit:**
+  - Config: 3A5M scripted miners, `stuck_threshold=28`, hazard-aware BFS
+    (commit 1980e8a / e5740a5).
+  - 6-seed average: 4.83 total (+44% over the 3.356 pre-merge baseline in
+    director session 4).
+  - 6-seed min: 2.51 (seed 45, map-hard).
+  - Primary target (>4.0) met on avg and on 4 of 6 seeds.
+  - Stretch target (>6.0) met on seed 47 (and would be exceeded by exp11 on
+    seed 42 if we traded robustness for peak).
 
