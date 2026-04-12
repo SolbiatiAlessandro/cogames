@@ -176,4 +176,9 @@ Key hypothesis chain to test:
   may or may not beat `stuck=20` on those seeds — need to isolate. Next: rerun exp4
   (stuck=20, 3A5M) on seed 43 and 44 as control, to see if the stuck=28 choice is
   actually helping or hurting on the harder seeds.
+- `2026-04-12T03:33Z`: starting new experiment loop — exp10 "exp4 stuck=20 on seeds 43/44".
+  Control experiment: did `stuck_threshold=28` actually help on seeds 43/44, or is it
+  seed-42-specific? Running 3A5M stuck=20 on both seeds. If exp4 matches or beats exp6
+  on those seeds, we should revert stuck_threshold back to 20 for the final config
+  (trade a bit of seed-42 peak for better generalization).
 
