@@ -581,17 +581,24 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         was_stuck = bool(
             state.recent_events and (
                 "exited as stuck" in state.recent_events[-1]
-                or "exited as stale" in state.recent_events[-1]
                 or "timed out after" in state.recent_events[-1]
             )
+        )
+        was_stale = bool(
+            state.recent_events and "exited as stale" in state.recent_events[-1]
         )
 
         # Scripted fallback if LLM returns invalid skill
         if skill is None:
             if gear == "none":
-                skill = "gear_up_aligner" if len(known_alignable) >= len(state.known_extractors) else "gear_up_miner"
+                if was_stuck or was_stale:
+                    skill = "explore"
+                else:
+                    skill = "gear_up_aligner" if len(known_alignable) >= len(state.known_extractors) else "gear_up_miner"
             elif gear == "aligner":
-                if hub_depleted and not has_heart:
+                if was_stuck or was_stale:
+                    skill = "explore"
+                elif hub_depleted and not has_heart:
                     skill = "explore"
                 elif not has_heart and state.known_hubs:
                     skill = "get_heart"
@@ -601,7 +608,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     skill = "explore"
             elif gear == "miner":
                 if carried >= self._return_load:
-                    skill = "deposit_to_hub"
+                    if was_stuck:
+                        skill = "explore"
+                    else:
+                        skill = "deposit_to_hub"
+                elif was_stale:
+                    skill = "explore"
+                elif was_stuck:
+                    skill = "explore"
                 elif state.known_extractors:
                     skill = "mine_until_full"
                 else:
