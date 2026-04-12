@@ -269,20 +269,53 @@ EOF
 
 Also update existing issues with online performance data — add comments showing whether offline improvements translated online.
 
-# Step 5: Submit Best Policy If Needed
+# Step 5: Submit Best Policy If It Will Score Higher Online
 
-If the current best offline policy hasn't been submitted to the active season:
+This is where your offline→online analysis pays off: don't just look at TSV reward, think about whether a new submission would actually improve your online score.
 
 ```bash
-# Check what's already submitted
-cogames submissions --season beta-cvc
+COGAMES=/Users/lessandro/Projects/softmax/cogames/.venv/bin/cogames
 
-# If latest best commit isn't uploaded yet, submit it
-cogames upload -p class=<POLICY_CLASS>,data=./train_dir/<RUN_ID>/model.pt \
-  -n <policy-name> --season beta-cvc --skip-validation
+# What's currently submitted?
+$COGAMES submissions --season beta-cvc
+
+# What runs exist locally?
+ls -lt train_dir/ | head -10
 ```
 
-Only do this if there's a clear improvement to submit. Do NOT submit for every director session.
+**Submit if ANY of these are true:**
+- The TSV best reward is >5% better than what's currently live
+- The replay analysis revealed a behavioral bug in the current submission (e.g. zero vibe transitions) and a fix has been merged
+- A qualitatively different architecture is ready that addresses the identified offline→online gap
+- The current submission is more than 2 weeks old and new experiments have happened since
+
+**Do NOT submit if:**
+- The offline reward improvement is marginal (<5%) and the online gap analysis suggests the bottleneck is elsewhere
+- You're unsure if the new policy is actually better online (check `cogames leaderboard` first)
+- The same policy is already submitted under a different name
+
+```bash
+# Upload a checkpoint bundle + auto-submit (most common)
+$COGAMES upload -p ./train_dir/<RUN_ID> \
+  -n lessandro-<descriptor>-v<N> \
+  --season beta-cvc \
+  --skip-validation
+
+# OR: upload with explicit class + weights
+$COGAMES upload \
+  -p "class=<PolicyClass>,data=./train_dir/<RUN_ID>/model_000001.pt" \
+  -n lessandro-<descriptor>-v<N> \
+  --season beta-cvc \
+  --skip-validation
+
+# OR: re-submit an already-uploaded policy to the current season
+$COGAMES submit lessandro-<descriptor>:v<N> --season beta-cvc
+
+# Validate without uploading
+$COGAMES upload -p ./train_dir/<RUN_ID> -n lessandro-<descriptor>-v<N> --dry-run --skip-validation
+```
+
+Naming convention: `lessandro-<short-descriptor>-v<N>` (e.g. `lessandro-crossrole-v2`). Run `cogames submissions` first to avoid name collisions. After submitting, note the policy name in the README leaderboard online table.
 
 # Step 6: Update README Leaderboard
 

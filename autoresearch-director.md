@@ -214,7 +214,48 @@ gh issue comment N --repo SolbiatiAlessandro/cogames \
 gh issue close N --repo SolbiatiAlessandro/cogames --comment "Resolved by <commit> / superseded by #M"
 ```
 
-# Step 5: Update README Leaderboard
+# Step 5: Submit Best Policy If It's Better Than What's Live
+
+Check what's currently submitted vs. what the TSV says is the best offline result:
+
+```bash
+COGAMES=/Users/lessandro/Projects/softmax/cogames/.venv/bin/cogames
+
+# What's currently submitted to the active season?
+$COGAMES submissions --season beta-cvc
+
+# What runs are available locally?
+ls -lt train_dir/ | head -10
+```
+
+**Submit if**: the TSV best reward is meaningfully better (>5% or qualitatively different architecture) than what's currently live, OR the best local run hasn't been uploaded yet.
+
+**Do NOT submit** if: you're not sure it's better, if it's the same config with tiny reward variance, or if the upload would overwrite a currently-running policy mid-tournament.
+
+```bash
+# Upload a checkpoint bundle + auto-submit to season (most common)
+$COGAMES upload -p ./train_dir/<RUN_ID> \
+  -n lessandro-<descriptor>-v<N> \
+  --season beta-cvc \
+  --skip-validation
+
+# OR: upload with class + weights explicitly
+$COGAMES upload \
+  -p "class=<PolicyClass>,data=./train_dir/<RUN_ID>/model_000001.pt" \
+  -n lessandro-<descriptor>-v<N> \
+  --season beta-cvc \
+  --skip-validation
+
+# OR: re-submit an already-uploaded policy to a season
+$COGAMES submit lessandro-<descriptor>:v<N> --season beta-cvc
+
+# Dry-run to validate before uploading
+$COGAMES upload -p ./train_dir/<RUN_ID> -n lessandro-<descriptor>-v<N> --dry-run --skip-validation
+```
+
+Naming convention: `lessandro-<short-descriptor>-v<N>` (e.g. `lessandro-crossrole-v2`, `lessandro-scripted-fast-v2`). Check `cogames submissions` to avoid reusing names.
+
+# Step 6: Update README Leaderboard
 
 This is mandatory every director session. The README has a `## Research Leaderboard` section near the top (after the badges). Overwrite it with the current best results from all TSV files.
 
