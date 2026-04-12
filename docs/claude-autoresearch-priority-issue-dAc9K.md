@@ -222,4 +222,14 @@ Key hypothesis chain to test:
   uses `avoid_hazards=False` intentionally. Net-avg positive so **keep**.
   Next: exp12 try `_get_heart` with `avoid_hazards=True` to see if it shuts
   the remaining contamination path without blocking hub access.
+- `2026-04-12T04:30Z`: starting new experiment loop — exp12 "get_heart + align_neutral prefer hazard-free BFS".
+  Code change in `aligner_agent.py`: both `_get_heart` and `_align_neutral` previously
+  called BFS with `avoid_hazards=False` on the assumption that aligners already holding
+  aligner gear couldn't be contaminated. The data refutes that: seeds 43/44 show 1–2
+  mid-episode `aligner.lost` events per run with matching `scout.gained` /
+  `scrambler.gained`, so walking through a wrong-role station does swap gear even for
+  an already-equipped aligner. Fix: try `avoid_hazards=True` first and only fall back
+  to `avoid_hazards=False` if the clean path is unreachable. Also apply the greedy
+  fallback with `avoid_hazards=True`. This should zero out `scout.gained` /
+  `scrambler.gained` on seeds 43/44. Multi-seed test.
 
