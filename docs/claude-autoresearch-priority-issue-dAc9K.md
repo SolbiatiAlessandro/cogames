@@ -104,4 +104,11 @@ Key hypothesis chain to test:
   count. Next idea: try the **opposite** — 3A5M — which reduces station contention and
   leans on the extra miner for heart supply. If that also regresses, swing to exp4
   (stuck_threshold tune).
+- `2026-04-12T02:13Z`: starting new experiment loop — exp4 "3A5M split".
+  Hypothesis: with only 3 aligners competing for the aligner station, initial gear
+  acquisition should be cleaner. 5 scripted miners will overproduce hearts (exp1 had
+  7 deposit runs from 4 miners; 5 miners should comfortably match or exceed that).
+  The question is whether 3 aligners can cover junction coverage as effectively as 4
+  — if their throughput was 2.25 alignments each, 3 × 2.25 = 6.75 junctions, which
+  would still be far above the 5-hearts-needed floor for 4.0 target. Seed 42 1000 steps.
 
