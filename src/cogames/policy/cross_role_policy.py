@@ -1040,24 +1040,35 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
-        # Issue-35: Immediate evasion on first move failure — try perpendicular direction
-        # instead of waiting 5 steps for navigation shake. Saves wasted actions.
+        # Issue-35: Progressive evasion on consecutive move failures.
+        # Step 1: perpendicular dodge (clockwise rotation)
+        # Step 2: other perpendicular (counter-clockwise rotation)
+        # Step 3: reverse direction
+        # Step 5+: navigation shake (existing unstuck mechanism)
+        _DIR_LOOKUP = (("north", (-1, 0)), ("east", (0, 1)), ("south", (1, 0)), ("west", (0, -1)))
         if (state.current_skill not in {None, "unstuck", "defend"}
-                and state.no_move_steps == 1
+                and 1 <= state.no_move_steps <= 3
                 and state.last_pos is not None
                 and state.last_move_target is not None
                 and current_abs == state.last_pos):
             failed_dr = state.last_move_target[0] - current_abs[0]
             failed_dc = state.last_move_target[1] - current_abs[1]
-            # Try perpendicular directions (rotated 90 degrees)
-            perp_options = [(-failed_dc, failed_dr), (failed_dc, -failed_dr)]
+            if state.no_move_steps == 1:
+                # Perpendicular (clockwise rotation)
+                evasion_options = [(-failed_dc, failed_dr), (failed_dc, -failed_dr)]
+            elif state.no_move_steps == 2:
+                # Other perpendicular (counter-clockwise first)
+                evasion_options = [(failed_dc, -failed_dr), (-failed_dc, failed_dr)]
+            else:  # no_move_steps == 3
+                # Reverse direction
+                evasion_options = [(-failed_dr, -failed_dc)]
             blocked = state.blocked_cells
-            for pdr, pdc in perp_options:
+            for pdr, pdc in evasion_options:
                 if pdr == 0 and pdc == 0:
                     continue
                 neighbor = (current_abs[0] + pdr, current_abs[1] + pdc)
                 if neighbor not in blocked:
-                    for dir_name, (ddr, ddc) in (("north", (-1, 0)), ("east", (0, 1)), ("south", (1, 0)), ("west", (0, -1))):
+                    for dir_name, (ddr, ddc) in _DIR_LOOKUP:
                         if (ddr, ddc) == (pdr, pdc):
                             state.skill_steps += 1
                             state.last_move_target = neighbor
