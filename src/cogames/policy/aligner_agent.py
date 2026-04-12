@@ -302,15 +302,39 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         dr, dc = _DIRECTION_DELTA_MAP.get(direction, (0, 0))
         return (current_abs[0] + dr, current_abs[1] + dc)
 
-    def _greedy_move_toward_abs(self, state: AlignerState, current_abs: Coord, target_abs: Coord) -> tuple[Action, AlignerState]:
-        """Move greedily toward a known absolute position without BFS (ignores terrain knowledge)."""
+    def _greedy_move_toward_abs(
+        self,
+        state: AlignerState,
+        current_abs: Coord,
+        target_abs: Coord,
+        avoid_hazards: bool = False,
+    ) -> tuple[Action, AlignerState]:
+        """Move greedily toward a known absolute position without BFS (ignores terrain knowledge).
+
+        When ``avoid_hazards`` is True, reject directions whose immediate step
+        lands on a known hazard station (scout/scrambler/wrong-role gear), try the
+        alternative axis, and fall back to safe_wander if every greedy option is
+        contaminated. This stops the gear-up fallback from walking an aligner
+        through a scout/scrambler station (issue #12 + #25 multi-seed regression)."""
         dr = target_abs[0] - current_abs[0]
         dc = target_abs[1] - current_abs[1]
+        # Candidate directions in preference order (primary axis first).
         if abs(dr) >= abs(dc):
-            direction = "south" if dr > 0 else "north"
+            primary = "south" if dr > 0 else "north"
+            secondary = "east" if dc > 0 else ("west" if dc < 0 else None)
         else:
-            direction = "east" if dc > 0 else "west"
-        return self._starter._action(f"move_{direction}"), state
+            primary = "east" if dc > 0 else "west"
+            secondary = "south" if dr > 0 else ("north" if dr < 0 else None)
+        candidates = [d for d in (primary, secondary) if d is not None]
+        if avoid_hazards:
+            for direction in candidates:
+                step = self._move_target(current_abs, direction)
+                if step not in state.known_hazard_stations:
+                    return self._starter._action(f"move_{direction}"), state
+            # All greedy options contaminated — escape via safe_wander so we
+            # re-plan from a cleaner position instead of picking up wrong gear.
+            return self._safe_wander(state, current_abs)
+        return self._starter._action(f"move_{candidates[0]}"), state
 
     def _move_to(self, state: AlignerState, current_abs: Coord, target_abs: Coord | None) -> tuple[Action, AlignerState]:
         if target_abs is None:
@@ -552,7 +576,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             # All adjacents also blocked - fall back to greedy toward station
-            action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+            # but refuse to walk through known scout/scrambler/miner stations.
+            action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_aligner_stations)
         if target_abs is None:
@@ -569,8 +594,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # All adjacents blocked - greedy toward station
-        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+        # All adjacents blocked - greedy toward station, avoiding hazard stations.
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 
     def _get_heart(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:

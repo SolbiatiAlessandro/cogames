@@ -194,4 +194,17 @@ Key hypothesis chain to test:
   a structural issue from issue #12 — routes to aligner/miner station cross other
   stations and a station step auto-equips the wrong gear. Attempting a targeted code
   fix next.
+- `2026-04-12T04:00Z`: starting new experiment loop — exp11 "gear_up greedy fallback avoid hazards".
+  Code change in `src/cogames/policy/aligner_agent.py`:
+  - `_greedy_move_toward_abs` gains an `avoid_hazards` flag. When set, it refuses
+    directions whose immediate step lands on a known hazard station, tries the
+    orthogonal axis, and falls back to `_safe_wander` if both greedy options are
+    contaminated.
+  - The two `_gear_up` greedy fallbacks now pass `avoid_hazards=True`.
+  Previously, if BFS-to-station failed (e.g. an adjacent cell is blocked by another
+  agent), the fallback walked the aligner straight into the nearest scout/scrambler
+  station and auto-equipped wrong gear. The multi-seed runs showed 1–2 such
+  contamination events per episode on seeds 43 and 44. Expect: reduced
+  `scout.gained`, `scrambler.gained`, and fewer `aligner.lost` events on seeds 43/44.
+  Testing on all three seeds 42/43/44.
 
