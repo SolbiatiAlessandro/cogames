@@ -156,4 +156,9 @@ Key hypothesis chain to test:
   36 is past the congestion-resolution horizon, so it should mostly match 28, but if
   it's meaningfully better that tells us the 28 bound isn't tight. Risk: doomed targets
   burn more of the 1000-step budget. Seed 42, single run.
+- `2026-04-12T03:13Z`: **exp7 result: 6.29 total (0.786/agent).** Between exp4 (5.84) and
+  exp6 (6.71), so 28 is the local maximum in this direction. 11 junctions gained (vs 13
+  in exp6, -15%), `action.failed` peak climbed back to 476, confirming the "doomed target
+  burns budget" risk. Discard; exp6 remains best. Next: multi-seed verification of exp6
+  on seeds 43 and 44 to ensure the gain isn't seed-42 specific.
 
