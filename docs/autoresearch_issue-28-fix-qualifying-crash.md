@@ -161,3 +161,19 @@ The fixes must be deployed to the tournament. Options:
 - Compare cross_role vs MachinaLLMRolesPolicy at 10k (MachinaLLMRolesPolicy was 0.59/agent at 1k)
 - Try different num_aligners at 10k (3 is optimal at 1k but might differ at 10k)
 - Investigate gear contamination (agents losing miner gear to scout/scrambler stations)
+
+---
+
+## 2026-04-12T07:13:00Z: Uploaded to tournament
+
+**Uploaded `cross_role_3a5m_allllm_v1:v1` to qualifying pool (beta-cvc season)**
+
+Upload config:
+- `class=cross_role,kw.num_aligners=3,kw.llm_timeout_s=10`
+- Include files: `cross_role_policy.py`, `llm_miner_policy.py`
+- Skipped Docker validation (tested locally at 10k steps)
+- Compat version 0.24 (had to reinstall with `SETUPTOOLS_SCM_PRETEND_VERSION=0.24.0.dev1`)
+
+Now waiting for qualifying matches. The policy needs to pass 2/2 qualifying matches to enter the competition pool.
+
+Note: The uploaded bundle includes the modified `llm_miner_policy.py` (HTTP pooling) and `cross_role_policy.py` (retry-sleep removal, scripted_miners option, stuck-aware fallback). The tournament will use the bundled files instead of the PyPI version.
