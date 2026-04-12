@@ -95,4 +95,13 @@ Key hypothesis chain to test:
   contention) rather than heart supply, adding a 5th aligner and dropping a miner
   should yield more junctions, at modest heart cost. Target: >6.0 total (stretch).
   Config: `kw.num_aligners=5,kw.num_scouts=0,...`. Seed 42. 1000 steps.
+- `2026-04-12T02:10Z`: **exp3 result: 3.44 total (0.43/agent) — WORSE than baseline even.**
+  Gear contamination exploded: 3 aligner-lost events (vs 1 in exp1), 1 scout.gained, 2
+  scrambler.gained (both picked up + lost). Agent 2 lost 1300 hp on the contamination
+  journey. The extra 5th aligner has to route past additional stations and keeps bumping
+  into scout/scrambler. `aligned.junction.held=3292` (vs exp1 5936). Clear DISCARD.
+  Lesson: 4A4M seems locally optimal for this map layout; the bottleneck isn't aligner
+  count. Next idea: try the **opposite** — 3A5M — which reduces station contention and
+  leans on the extra miner for heart supply. If that also regresses, swing to exp4
+  (stuck_threshold tune).
 
