@@ -59,3 +59,20 @@ Key observations:
 **First experiment: Smart Greedy Fallback** - Make greedy navigation obstacle-aware by checking blocked_cells before choosing direction.
 
 ---
+
+## 2026-04-12T12:00:00Z: Experiment 1 results (smart greedy)
+
+**v1 (hard block all move_blocked):** 0.588 reward, 87.3% move success. Regression because move_blocked_cells includes transient agent collisions that then trap agents as phantom obstacles.
+
+**v2 (added move_blocked expiry):** 0.109 reward, catastrophic. Expiring move_blocked when visible cleared PERMANENT obstacles (extractors, hubs) that don't have wall tags.
+
+**v3 (soft/hard blocking, no expiry):** 0.705 reward, 84.4% move success, 156 failed/agent avg (down from 207). This is the keeper.
+- Greedy: hard-avoid walls, soft-prefer avoiding move_blocked
+- Wander: 2-pass (avoid move_blocked first, then accept if needed)  
+- Unstuck: same 2-pass
+
+Key learning: `move_blocked_cells` contains BOTH permanent obstacles (extractors, hubs) and transient obstacles (other agents). Can't expire them without distinguishing. The soft-preference approach works: prefer non-blocked, but accept move_blocked directions rather than getting trapped.
+
+Agent 6 still has 462 failures (54% success) - likely congestion hotspot. Next: agent position tracking to reduce congestion.
+
+---
