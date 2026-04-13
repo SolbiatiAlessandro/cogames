@@ -495,3 +495,30 @@ This is a particularly insidious bug because:
 - Aligners stay within retreat-survivable range of hub
 - Fewer aligner deaths from exploring too far and failing to retreat in time
 
+---
+
+## V12: Fix depleted extractor detection (stationary_on_valid_target bug)
+
+**Bug found:** `stationary_on_valid_target` for `mine_until_full` checked `near_hub` instead
+of `near_extractor`. Since miners mine at extractors (not hub), this was always False.
+Consequence: `no_progress_on_target_steps` never incremented during mining, making the
+depleted-extractor removal code unreachable.
+
+**Infinite loop:** Miners at depleted extractors hit the `no_move_steps >= stuck_threshold`
+path, exit as "stuck" (not "stale"), replan `mine_until_full` via fast-path (known extractors
+exist), and navigate right back to the same depleted extractor. Hundreds of steps wasted per
+cycle.
+
+**Changes:**
+1. Added `near_extractor` proximity check (dist ≤ 1 from any known extractor)
+2. Fixed `stationary_on_valid_target` to use `near_extractor` for `mine_until_full`
+3. Fixed extractor removal to check adjacent cells (V8 pre-blocking means miners are at
+   approach cells, dist 1 from extractor)
+4. Also removes from `extractors_by_element` for per-element tracking consistency
+
+**Expected impact:**
+- Depleted extractors correctly detected and removed after 20 steps of no cargo gain
+- Miners move to next available extractor instead of looping on depleted ones
+- Significant mining throughput improvement (eliminates wasted cycles)
+- More deposits → more hearts → more alignments → higher score
+
