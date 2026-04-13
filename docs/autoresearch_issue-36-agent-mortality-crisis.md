@@ -259,3 +259,52 @@ pipeline. By staying closer to hub, the miner:
 3. More hearts → more junction alignments (14 vs 12)
 4. Higher alignment rate → higher junction held count
 
+**V6 seed 44 (contamination recovery validation):**
+- mission_reward: **1.9037** (identical to V5 — expected, since contaminated agent doesn't align)
+- aligned.junction.held: 9035 (same as V5)
+- Deaths: 1 (same as V5 — the death is a different agent, not from contamination)
+- **contamination_explore fired 112 times** — V6 switched agent 0 from infinite gear_up
+  retries to explore cycles near hub
+- **LLM calls: 53** vs V5's ~200+ → **75% reduction in LLM latency**
+- Agent 0 moved **1374 successful moves** vs 1122 in V5 → **+22% more productive moves**
+- V6 doesn't improve reward here (contaminated agent can't align regardless), but it
+  dramatically improves efficiency: fewer LLM calls, more moves, same reward
+
+**Full V6 results summary across all seeds:**
+
+| Seed | V5 reward | V6 reward | V5 deaths | V6 deaths | V6 key feature activated |
+|------|-----------|-----------|-----------|-----------|--------------------------|
+| 42   | 1.532     | 1.532     | 1         | 1         | None (no contamination/far mining) |
+| 43   | 1.548     | **1.596** | 1         | **0**     | 14 miner tethers, 0 deaths |
+| 44   | 1.904     | 1.904     | 1         | 1         | 112 contam explores, 75% fewer LLM calls |
+
+**V6 average reward: 1.677** (V5 average: 1.661, +1.0%)
+
+---
+
+## 2026-04-13T08:00:00Z: issue #36 conclusions and next steps
+
+**Success criteria assessment:**
+1. **Primary (≥2 agents survive to step 10,000)**: ✅ MET — all runs have ≥2 agents surviving
+2. **Stretch (all 8 agents survive)**: ⚠️ Partially met — 0 deaths on seed 43, 1 death on seeds 42/44
+3. **Online score ≥50% increase**: ❓ NOT YET TESTED — need online submission
+
+**All improvements implemented (V1→V6):**
+1. Fast-path skill selection: skip LLM for obvious decisions (37-100% LLM call savings)
+2. Deposit tracking: count hub deposits to estimate when make_heart creates hearts
+3. Deposit-aware cooldown reset: trigger get_heart retry when crafted hearts available
+4. Periodic hub return: force aligners to hub every 200 heartless steps
+5. HP retreat: cancel current skill and navigate to hub when HP < 70%
+6. HP cap: max_hp_seen capped at base HP (100) to prevent infinite retreat from hub healing
+7. Mine precondition: explore instead of mine when no extractors known
+8. Miner explore fast-path: skip LLM when miner has no extractors → explore directly
+9. Contamination recovery: explore near hub after 4+ gear_up failures for contaminated agents
+10. Miner hub tethering: keep miners within 40 cells of hub to prevent death and improve deposits
+
+**Remaining issues (not addressed):**
+- Agent permanently stuck against walls (seed 42, agent 0, 8827 no-motion steps) — needs navigation fix
+- Mining throughput still 100x below dinky — needs fundamental mining strategy improvement (issue #34)
+- Online submission not tested — need to verify ≥50% score increase criterion
+
+**Next: submit to online leaderboard to test the ≥50% score increase criterion.**
+

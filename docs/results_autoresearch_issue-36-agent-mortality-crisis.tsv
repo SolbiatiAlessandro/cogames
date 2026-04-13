@@ -13,3 +13,4 @@ commit	mission_reward	secondary_rewards	steps	status	description
 363b216	1.531853	held=5317 hearts_withdrawn=5 deaths=1 survived_10k=2/3 aligned_gained=8 hp_retreats=11 tethers=0	10000	keep	v6: contamination-recovery+miner-tethering seed42 10k
 363b216	1.596331	held=5962 hearts_withdrawn=9 deaths=0 survived_10k=3/3 aligned_gained=14 hp_retreats=6 tethers=14	10000	keep	v6: contamination-recovery+miner-tethering seed43 10k (0 deaths! 14 gained! miner 40 of each element!)
 30e1798	1.903657	held=9035 hearts_withdrawn=6 deaths=1 survived_10k=2/3 aligned_gained=9 hp_retreats=4	10000	keep	v5: hp-cap-100+threshold-0.70 seed44 10k (agent0 contaminated with scout for 8k steps)
+f38e5ae	1.903657	held=9035 hearts_withdrawn=6 deaths=1 survived_10k=2/3 aligned_gained=9 hp_retreats=4 contam_explore=112 llm_calls=53	10000	keep	v6: contamination-recovery+miner-tethering seed44 10k (contam fix saves 75% LLM calls! agent0 +22% moves)
