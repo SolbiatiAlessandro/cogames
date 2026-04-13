@@ -8,3 +8,8 @@ aee3685	0.480000	junction.held=3833;junction.gained=8;heart.withdrawn=8;carbon.d
 2f2546f	0.580000	junction.held=4799;junction.gained=9;heart.withdrawn=8;carbon.deposited=101	1000	keep	v6: +HP emergency deposit; BEST! 0.58 (+45% over baseline); 0 miner deaths; 3.3x deposits
 b0feaae	0.842491	junction.held=7425;junction.gained=13;heart.withdrawn=10;carbon.deposited=100	1000	keep	v7: +persistent aligner retry +hub heart filter; BEST! 0.84 (+45% over v6); 3 aligners maintained; 0 miner heart theft
 8a0c03d	0.640000	junction.held=5397;junction.gained=7;heart.withdrawn=7;carbon.deposited=40	1000	keep	v8: +hub cell blacklist for get_heart; 0.64 (lower due to seed variance); deposits low (40 C)
+c11a6eb	0.753802	junction.held=6538;junction.gained=9;heart.withdrawn=8;carbon.deposited=50	1000	discard	v9: +smart hub cooldown; 0.75 (worse than v7 0.84); agent 0 stuck 32 gear_up failures; 2 miner deaths
+470529e	0.796402	junction.held=6964;junction.gained=13;heart.withdrawn=11;carbon.deposited=100	1000	discard	v10: hub patience 50 steps; 0.80 (~v7); +1 heart but less junction held; camping too long wastes time
+a73ca4e	0.797202	junction.held=6972;junction.gained=13;heart.withdrawn=11;carbon.deposited=100	1000	keep	v11: +gear_up hazard bypass after 5 failures; same as v7 at 1k (expected; fix is for 10k)
+b0feaae	1.744000	junction.held=7438;junction.gained=12;heart.withdrawn=11;carbon.deposited=121	10000	keep	v7 @10k: +30% over baseline; team collapses (2/4 aligners stuck); miner deaths (4-5 per agent)
+2f2546f	1.745000	junction.held=7447;junction.gained=9;heart.withdrawn=7;carbon.deposited=92	10000	keep	v6 @10k: reference; v7 is +33% junctions, +57% hearts; both far from issue targets

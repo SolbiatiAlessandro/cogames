@@ -110,3 +110,101 @@ At 10k steps, v6 had `team_aligners: 1, team_miners: 7`. Only 1 of 4 designated 
 **Remaining issue**: Agent 2 spent entire episode failing to reach hub. "get_heart exited as stale after 20 steps" repeatedly. This is a navigation bottleneck, not a heart availability issue.
 
 **Running v7 at 10k steps to measure full improvement.**
+
+---
+
+## 2026-04-13T07:40:00Z: v8/v9 - hub blacklist + smart cooldown (DISCARDED)
+
+**v8** added hub cell blacklisting: when get_heart fails, blacklist the nearest hub cell so next attempt tries a different one. Reset when all cells blacklisted or on success.
+
+**v9** added smart hub cooldown on top of v8: re-enable lightweight cooldown (explore instead of hammering) after 3+ consecutive get_heart failures.
+
+| Config | Reward | Junctions | Hearts | Carbon | Status |
+|--------|--------|-----------|--------|--------|--------|
+| v7 (baseline) | 0.84 | 13 gained | 10 | 100 | **BEST** |
+| v8 (+blacklist) | 0.64 | 7 gained | 7 | 40 | discard |
+| v9 (+cooldown) | 0.75 | 9 gained | 8 | 50 | discard |
+
+**Why v8/v9 failed**: Agent 0 stuck for 32 gear_up_aligner attempts (navigation to aligner station failing repeatedly). Only 2 aligners maintained vs 3 in v7. 2 miner deaths. The hub blacklist doesn't fix the root cause (navigation pathfinding) and adds complexity that may interfere with other behaviors.
+
+**Conclusion**: Hub blacklist and smart cooldown are not the right approach. The get_heart stale exit problem is fundamentally a navigation issue (agent can't find path to hub within 20 steps), not a "wrong hub cell" problem. **Revert to v7 as baseline for further experiments.**
+
+---
+
+## 2026-04-13T07:45:00Z: v7/v6 10k runs in progress
+
+Monitoring two concurrent 10k runs to measure long-horizon improvement:
+
+**Interim comparison at matched steps:**
+| Metric | v7 @ 3425 | v6 @ 4466 | Notes |
+|--------|-----------|-----------|-------|
+| Reward | 1.086 | 1.191 | v6 ahead by ~1000 steps |
+| Per-step rate | 0.000317 | 0.000267 | v7 earning 18.7% faster |
+| Team aligners | 3 | 1 | v7 persistent retry working |
+| Team miners | 2 | 0 | v6 agents losing all gear |
+
+v6 at step 4466 shows catastrophic aligner loss: only 1 aligner and 0 miners remain. Agent 2 stuck in gear_up_aligner→stale cycle. This is exactly the problem v7 was designed to fix.
+
+**Waiting for both runs to complete for final comparison.**
+
+---
+
+## 2026-04-13T08:15:00Z: v10 - hub patience increase (DISCARDED)
+
+**Hypothesis**: "get_heart exited as stale after 20 steps" means agent IS at hub but no hearts available. Increasing patience to 50 steps should catch the next make_heart cycle.
+
+**v10 result at 1000 steps: 0.796/agent (vs v7's 0.842)**
+- Same junction.gained (13) but less junction.held (6964 vs 7425)
+- +1 heart withdrawn (11 vs 10) — marginal
+- Agent camped 50 steps at empty hub = 30 extra wasted steps per stale exit
+- 28 hub patience stale exits × 50 steps = 1400 agent-steps wasted camping
+
+**Conclusion**: Longer hub patience doesn't help because heart production rate is the bottleneck, not patience. The extra 30 steps camping delays junction alignment, reducing held time.
+
+---
+
+## 2026-04-13T08:30:00Z: v11 - gear_up hazard bypass (KEY 10K FIX)
+
+**Root cause from 10k data**: At step 5517, v7 10k dropped from 4 to 1 aligner. Agents 0 and 2 stuck in gear_up_aligner→stale loops (31+ failures each). After contamination (walked through scrambler/scout), they can't navigate BACK to aligner station because the only path goes through hazard stations. With hazard avoidance enabled, BFS fails. Greedy fallback hits walls.
+
+**Fix**: After 5+ gear_up failures, disable hazard avoidance for BFS navigation entirely. The intermediate contamination (picking up scout/scrambler gear en route) is transient — the aligner station overrides it on arrival.
+
+**Expected impact**: Maintain 3+ aligners at 10k steps instead of dropping to 1. This should be a ~3x multiplier on alignment rate.
+
+**Testing**: v11 at 1k steps for regression check (fix mainly matters at 10k). Then v11 at 10k to measure aligner retention.
+
+**v11 at 1k: 0.797 (no regression, same as v7's 0.84 range).**
+
+---
+
+## 2026-04-13T09:30:00Z: 10k results - v7 vs v6 comparison
+
+| Metric | v6 10k | v7 10k | Change |
+|--------|--------|--------|--------|
+| Reward | 1.745 | 1.744 | ~0% |
+| Junction gained | 9 | **12** | +33% |
+| Junction held | 7447 | 7438 | ~0% |
+| Heart withdrawn | 7 | **11** | +57% |
+| Carbon deposited | 92 | **121** | +32% |
+| Deaths (total agents) | ? | 14 | - |
+| Junctions held at end | 0 | 0 | clips: 144 |
+
+**Critical findings at 10k:**
+1. **Alignment rate collapses**: 12 junctions in 10k steps ≈ same as 13 in 1k. Team stops being productive after ~1000 steps.
+2. **Heart pipeline stalls**: 11 hearts in 10k (vs 10 in 1k). Mining deposits barely increase (121 vs 100 carbon).
+3. **Agent mortality**: 14 deaths across 8 agents. Agent 4 died 4 times, Agent 7 died 5 times. HP emergency deposit helps but doesn't prevent all deaths.
+4. **Aligner contamination**: Agent 1 permanently lost to scrambler contamination (never re-geared). Agent 2 stuck in navigation loops, 0 junctions aligned.
+5. **Only 2 productive aligners**: Agent 0 (5 junctions) and Agent 3 (7 junctions) did all the work.
+6. **Clips dominance**: Clips held 144 junctions at end vs cogs 0. Clips accumulated 1.18M junction-held steps.
+
+**vs issue targets:**
+- heart.gained/agent: 1.38 (need 25) → **18x gap**
+- junction.gained: 12 (need 100) → **8x gap**
+
+**Root causes (priority order):**
+1. **Aligner loss after contamination** — agents can't navigate back to aligner station → v11 fix
+2. **Mining throughput stalls** — miners die frequently, resetting carried resources
+3. **Heart production rate** — not enough deposits for make_heart to fire frequently
+4. **Clips overpowering** — clips has 4 dedicated agents gaining 144 junctions while we struggle with 12
+
+**v11 10k run started to test gear_up bypass fix.**
