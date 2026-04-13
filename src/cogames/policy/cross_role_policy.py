@@ -940,7 +940,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, "deposit_to_hub completed")
             state.current_skill = None
         elif state.current_skill == "explore" and (
-            len(state.known_neutral_junctions) > state.explore_start_junctions
+            # Issue-36 v17: miners should only complete explore on extractor discovery,
+            # not junction discovery. Junction discoveries come from aligner teammates
+            # via SharedMap and interrupt miner exploration prematurely — the miner
+            # replans to mine_until_full and heads to a known extractor instead of
+            # continuing to discover new extractor types.
+            (gear != "miner" and len(state.known_neutral_junctions) > state.explore_start_junctions)
             or len(state.known_extractors) > state.explore_start_extractors
         ):
             new_junctions = len(state.known_neutral_junctions) - state.explore_start_junctions
