@@ -98,6 +98,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._aligner_station_tags = self._starter._resolve_tag_ids(self._gear_station_names(policy_env_info.tags))
         self._hazard_station_tags = self._resolve_non_aligner_station_tags(policy_env_info)
         self._wall_tags = self._starter._resolve_tag_ids(["wall"])
+        # Issue-36 v8: track extractors as blocked for navigation (they block movement)
+        self._extractor_tags = self._starter._extractor_tags
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
 
@@ -394,6 +396,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 stations_now.add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+            # Issue-36 v8: objects like extractors, hubs, and stations block movement
+            # but have their own tags (not wall tags). Pre-block them so BFS doesn't
+            # route through these cells. Navigation to these objects uses
+            # _navigate_to_station / _navigate_to_blocked_target which target
+            # adjacent approach cells, so this is safe.
+            if token.value in self._extractor_tags:
+                blocked_now.add(abs_cell)
+            if token.value in self._hub_tags:
+                blocked_now.add(abs_cell)
+            if token.value in self._aligner_station_tags:
+                blocked_now.add(abs_cell)
+            if token.value in self._hazard_station_tags:
+                blocked_now.add(abs_cell)
 
         neutral_now: set[Coord] = set()
         friendly_now: set[Coord] = set()

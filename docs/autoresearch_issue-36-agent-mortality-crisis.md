@@ -386,3 +386,34 @@ This ensures only non-miner agents (aligners, scouts, scramblers, no-gear) can w
 - Deposit tracking now counts ALL miner deposits (not just during deposit_to_hub skill)
 - get_heart cooldown now decrements every step (was frozen during explore)
 
+---
+
+## V8: Pre-block grid objects for navigation (move failure reduction)
+
+**Root cause analysis (issue #35 overlap):**
+In 8-agent self-play, 53% of all move actions fail (5289 failures vs 4711 successes per agent).
+Root cause: extractors, hubs, and stations occupy grid cells and block movement, but have their
+own tags (not "wall" tags). The map update only treated "wall" tags as blocked. So BFS routes
+through extractor/hub/station cells thinking they're free, agent tries to walk through, fails.
+
+With ~222 extractors on the map plus hubs and stations, a huge fraction of BFS-planned paths
+go through non-wall blocked objects. Every failed move wastes a step and delays navigation to
+targets, including hub during HP retreat (potentially fatal).
+
+**Changes:**
+1. **Pre-block objects in aligner_agent.py `_update_map_memory`**: Add extractors, hubs,
+   aligner stations, and hazard stations to `blocked_now`. BFS no longer routes through these.
+2. **Pre-block objects in llm_skills.py `_update_map_memory`**: Same treatment for extractors,
+   hubs, miner stations, and hazard stations.
+3. **Extractor approach navigation in `mine_until_full`**: Since extractors are now blocked,
+   the miner uses `_navigate_to_blocked_target` (same pattern as hubs in `deposit_to_hub`) to
+   navigate to the adjacent cell, then step into the extractor to mine.
+4. **Station approach navigation in `_gear_up`**: Same blocked-target pattern for miner stations.
+5. Junctions left unblocked — agents walk ON them to align.
+
+**Expected impact:**
+- Move failure rate should drop dramatically (target: 53% → <10%)
+- Faster navigation during HP retreat → fewer deaths
+- Faster mining cycle → more deposits → more hearts → fewer deaths
+- Direct improvement for both issue #35 (move failures) and #36 (mortality)
+

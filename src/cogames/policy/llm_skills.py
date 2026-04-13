@@ -207,6 +207,16 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
 
+        # Issue-36 v8: pre-block extractors, hubs, and stations for navigation.
+        # These occupy cells and block movement, but have their own tags (not wall tags).
+        # Without this, BFS routes through these cells → agent tries to walk through → fails.
+        # This was a major source of the 53% move failure rate (issue #35).
+        # Objects are still tracked in their respective sets for targeted navigation.
+        blocked_now.update(extractors_now)
+        blocked_now.update(hubs_now)
+        blocked_now.update(miner_stations_now)
+        blocked_now.update(hazard_stations_now)
+
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
         # Re-apply persistent move-blocked cells from shared map
@@ -411,6 +421,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         visible_target = self._closest_visible_location(obs, self._miner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
+            # Issue-36 v8: stations are blocked objects — use approach-cell navigation
+            result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+            if result is not None:
+                action, next_state = result
+                return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_miner_stations)
@@ -418,6 +433,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if state.known_hubs:
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
+        # Issue-36 v8: stations are blocked objects — use approach-cell navigation
+        result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+        if result is not None:
+            action, next_state = result
+            return action, replace(next_state, last_mode=state.last_mode)
         action, next_state = self._move_toward_target(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
@@ -448,6 +468,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             visible_scarce = self._closest_visible_location(obs, scarce_tags)
             if visible_scarce is not None:
                 target_abs = self._visible_abs_cell(current_abs, visible_scarce)
+                # Issue-36 v8: extractors are blocked objects — navigate to adjacent cell
+                result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+                if result is not None:
+                    action, next_state = result
+                    return action, replace(next_state, last_mode=state.last_mode)
                 action, next_state = self._move_toward_target(state, current_abs, target_abs)
                 return action, replace(next_state, last_mode=state.last_mode)
             # Try navigating to a known scarce-element extractor
@@ -455,12 +480,22 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if scarce_known:
                 target_abs = self._nearest_known(current_abs, scarce_known)
                 if target_abs is not None:
+                    # Issue-36 v8: extractors are blocked — use approach-cell navigation
+                    result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+                    if result is not None:
+                        action, next_state = result
+                        return action, replace(next_state, last_mode=state.last_mode)
                     action, next_state = self._move_toward_target(state, current_abs, target_abs)
                     return action, replace(next_state, last_mode=state.last_mode)
 
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
+            # Issue-36 v8: extractors are blocked objects — navigate to adjacent cell
+            result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+            if result is not None:
+                action, next_state = result
+                return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_extractors)
@@ -469,10 +504,20 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 predicted = self._predicted_extractor_positions(state)
                 predicted_target = self._nearest_known(current_abs, predicted)
                 if predicted_target is not None:
+                    # Issue-36 v8: predicted positions may also be blocked
+                    result = self._navigate_to_blocked_target(state, current_abs, predicted_target)
+                    if result is not None:
+                        action, next_state = result
+                        return action, replace(next_state, last_mode=state.last_mode)
                     action, next_state = self._move_toward_target(state, current_abs, predicted_target)
                     return action, replace(next_state, last_mode=state.last_mode)
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
+        # Issue-36 v8: extractors are blocked — use approach-cell navigation
+        result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+        if result is not None:
+            action, next_state = result
+            return action, replace(next_state, last_mode=state.last_mode)
         action, next_state = self._move_toward_target(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
