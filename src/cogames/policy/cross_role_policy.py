@@ -547,8 +547,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.get_heart_cooldown_steps = 0
         state._last_seen_deposits = hub_deposits_total
         hub_hard_depleted = False  # v13: removed hard block to allow make_heart retries
-        hub_on_cooldown = state.get_heart_cooldown_steps > 0
-        hub_depleted = hub_on_cooldown
+        # Issue-34: Disable hub_depleted entirely. The cooldown caused aligners to
+        # explore AWAY from hub, then waste steps navigating back. At 10k steps,
+        # miners deposit frequently enough that make_heart creates hearts regularly.
+        # Aligners should always have get_heart available and stay near hub.
+        hub_on_cooldown = False
+        hub_depleted = False
 
         # Skip LLM call when planner is None (scripted_miners mode)
         text = ""
@@ -609,8 +613,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     skill = "gear_up_aligner" if len(known_alignable) >= len(state.known_extractors) else "gear_up_miner"
             elif gear == "aligner":
                 if was_stuck or was_stale:
-                    skill = "explore"
-                elif hub_depleted and not has_heart:
                     skill = "explore"
                 elif not has_heart and state.known_hubs:
                     skill = "get_heart"

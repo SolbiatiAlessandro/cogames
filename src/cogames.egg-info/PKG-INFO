@@ -62,21 +62,69 @@ Dynamic: license-file
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-03-29_
+_Updated by Director: 2026-04-12 (Session 6)_
 
-| Rank | Reward | Commit | Config | Steps | Notes |
-|------|--------|--------|--------|-------|-------|
-| 1 | 0.92 | `7321afc` | 3A+miner, LLM | 1000 | action_timeout 3000ms, baseline |
-| 2 | 0.90 | `a07334f` | 3A, LLM | 1000 | get_heart navigate-to-approach-cell fix |
-| 3 | **0.72** | `3d2b232` | 2A1M, LLM | 1000 | **#16 breakthrough**: make_heart cycle, +28% (branch only) |
-| 4 | 0.71 | `802fcdd` | 3A, LLM | 1000 | forget-stuck-junction after 1 timeout |
-| 5 | 0.69 | `0f7a64a` | 3A, LLM | 1000 | optimistic BFS + max_cells 20k |
+### Online Tournament (beta-cvc, 10k steps, 8 agents)
 
-_Note: March 21 results (2.260 best) used different reward normalization and are not directly comparable._
+| Rank | Score | Policy | Matches | Notes |
+|------|-------|--------|---------|-------|
+| **#283/344** | **3.24** | `lessandro-fast-llm-v1:v1` | 20 | Best online; machina_llm 4A4M |
+| #291/344 | 2.82 | `cross_role_full_10s_v8:v1` | 22 | **NEW** — issue #28 fix; avg 2.94, range 0.36–6.97 |
+| #298/344 | 2.61 | `cross_role_full_v8:v1` | 22 | 5s timeout variant |
+| _(ref)_ | 27.63 | `dinky:v27` (top-1) | 100+ | 220 junctions gained, 453 hearts, 9822 moves/agent |
 
-**Current bottleneck**: Hub depletion → get_heart death loop (74% of LLM decisions have has_heart=False). Issue #16 v13 eliminates this (83→0 stale exits) but is not yet merged.
-**Next up**: Merge #16 to main, then #10 — optimize deposit_to_hub navigation for make_heart cycle
+### Offline Best Results
+
+| Rank | Reward | Commit | Config | Agents | Steps | Notes |
+|------|--------|--------|--------|--------|-------|-------|
+| 1 | 1.61/agent | `53ac781` | 3A5M all-LLM, cross_role | 8 | 10000 | **NEW** — issue #28; qualifying passed |
+| 2 | 0.77 | `97886dd` | 2A1M, cross_role v15 | 3 | 1000 | 12 hearts (7 from make_heart) |
+| 3 | 0.753 | `7493f42` | 3A, machina_llm | 3 | 1000 | 7 junctions |
+| 4 | 0.70 | `11008eb` | 2A1M, cross_role+gemma-12b | 3 | 1000 | Faster model |
+| 5 | 1.24 | `6857db1` | 4A, cross_role | 4 | 2000 | Reclaim enemy junctions |
+
+### Gap Analysis (us vs top-1 `dinky:v27`)
+
+```
+Metric                    Us (best match)    dinky (best)    Gap
+─────────────────────────────────────────────────────────────────
+Online score              7.68               43.75           5.7x
+Junctions gained          56                 220             3.9x
+Junctions held/tick       7.68               43.75           5.7x
+Hearts gained/agent       10.4               56.6            5.4x
+Move success rate         47%                98.5%           2.1x
+Deposits (carbon)         582                3244            5.6x
+Cell coverage/agent       810                2468            3.0x
+```
+
+**Current bottleneck**: **Heart pipeline throughput**. dinky gains 56 hearts/agent (via mining→make_heart) vs our 10. This 5.4x gap directly causes the 5.7x score gap. Our agents deposit enough resources for ~11 make_hearts but fail to withdraw/use the crafted hearts at 10k steps (hub_depleted flag blocks get_heart prematurely). Secondary: 53% move failure rate in self-play (vs 1.5% for dinky) wastes half our actions.
+
+**Next up**: #34 (heart pipeline) → #35 (move failure rate) → #29 (10k eval alignment)
+
+**Research tree:**
+```
+CRITICAL (online competitiveness):
+  #34 Heart Pipeline Throughput (priority:1) — 5.4x gap to dinky
+  #35 Move Failure Rate (priority:1) — 53% failure, need <10%
+  #29 10k Step Eval Alignment (priority:1) — offline metric doesn't predict online
+
+ACTIVE:
+  #28 Qualifying Crash Fix (priority:1, in-progress) — DONE: cross_role in competition pool
+  #30 8-Agent Self-Play (priority:2) — partially fixed by #28
+  #25 8-Agent Scaling (priority:2) | #24 Mining Strategy (priority:2)
+
+DEPRIORITIZED:
+  #31 change_vibe actions (priority:3) — confirmed non-issue: no policy uses them
+  #32 Partner robustness (priority:3) — dinky also varies 1–43x; absolute perf matters more
+  #12 Gear Acquisition (priority:3) | #10 Role Tuning (priority:3)
+```
 <!-- LEADERBOARD_END -->
+
+### Autoresearch Progress
+
+Autonomous Claude Code agents continuously experiment with policy improvements across multiple research issues. Each dot is an experiment; solid lines track the running best per issue.
+
+![Autoresearch Progress](docs/autoresearch_progress.png)
 
 The [Alignment League Benchmark (ALB)](https://www.softmax.com/alignmentleague) is a suite of multi-agent games, designed to measure how well AI agents align, coordinate, and collaborate with others (both AIs and humans).
 
