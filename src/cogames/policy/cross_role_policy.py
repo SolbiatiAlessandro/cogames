@@ -265,7 +265,11 @@ class CrossRoleState:
 
     # Gear acquisition tracking (for retry + fallback logic)
     gear_up_failures: int = 0
+    gear_up_failures_total: int = 0  # Issue-34 v12: cumulative counter that never resets on contamination
     gear_up_completed: bool = False  # True once any gear_up succeeds; prevents retry after accidental gear change
+
+    # Issue-34: deposit tracking for heart availability signaling
+    _last_seen_deposits: int = 0
 
     # Gear test harness (issue-12)
     episode_step: int = 0  # incremented once per game step
@@ -500,13 +504,26 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             if failures == 0:
                 bootstrap_gear = effective_preferred
                 reason = f"phase{state.phase} gear target: {bootstrap_gear} (attempt 1)"
+            elif effective_preferred == "aligner":
+                # Issue-34 v7: Designated aligners persist retrying aligner gear.
+                # Issue-34 v12: But after 10 TOTAL failures (across contamination resets),
+                # the aligner station is likely permanently unreachable.
+                # Convert to miner to reclaim the agent as a productive miner.
+                # Use gear_up_failures_total (never resets) instead of gear_up_failures
+                # (resets on contamination, which happens during hazard-bypass navigation).
+                if state.gear_up_failures_total >= 10:
+                    bootstrap_gear = "miner"
+                    state.phase_preferred_gear = "miner"
+                    reason = f"phase{state.phase} aligner->miner conversion: {state.gear_up_failures_total} total gear_up failures, station unreachable"
+                    logger.info("agent=%s gear_up_failure_ceiling: converting aligner->miner after %d total failures", obs.agent_id, state.gear_up_failures_total)
+                else:
+                    bootstrap_gear = "aligner"
+                    reason = f"phase{state.phase} persistent aligner retry (attempt {failures + 1}, failures={failures})"
             elif failures == 1:
                 bootstrap_gear = "miner" if effective_preferred == "aligner" else "aligner"
                 reason = f"phase{state.phase} fallback gear: {bootstrap_gear} (preferred {effective_preferred} failed)"
             elif state.phase == 2:
                 # v7: in phase 2, keep retrying the preferred gear after 2+ failures
-                # (fallback to the other gear is a no-op when agent already has that gear;
-                #  LLM would just pick mining/aligning which is wrong — keep trying the switch)
                 bootstrap_gear = effective_preferred
                 reason = f"phase2 persistent retry: {bootstrap_gear} (attempt {failures + 1}, failures={failures})"
             else:
@@ -527,16 +544,27 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         team_aligners, team_miners = self._team_gear_counts()
         team_size = max(1, len(self._shared_map.agent_gears) if self._shared_map and hasattr(self._shared_map, "agent_gears") else 8)
 
-        # Issue-16: hub depletion awareness
-        # Only use cooldown-based blocking (no hard block). After cooldown expires,
-        # agents retry get_heart. If make_heart created new hearts from deposited
-        # resources, the retry succeeds. If not, failure sets a new cooldown.
+        # Issue-34: Remove cooldown-based blocking entirely. The cooldown caused
+        # aligners to waste time exploring instead of staying near hub and retrying
+        # get_heart as soon as make_heart creates new hearts from deposits.
+        # At 10k steps, continuous retry is better than cooldown because miners
+        # deposit frequently and make_heart triggers on each deposit visit.
         if state.get_heart_cooldown_steps > 0:
             state.get_heart_cooldown_steps -= 1
+        # Issue-34: Reset failures when team has deposited new resources
+        # (indicates make_heart may have created new hearts)
         hub_hearts_used = self._shared_map.hub_hearts_withdrawn if self._shared_map else 0
+        hub_deposits_total = self._shared_map.hub_deposits_total if self._shared_map and hasattr(self._shared_map, 'hub_deposits_total') else 0
+        if hasattr(state, '_last_seen_deposits') and hub_deposits_total > state._last_seen_deposits:
+            # New deposits arrived — reset cooldown so aligner retries get_heart
+            state.consecutive_get_heart_failures = 0
+            state.get_heart_cooldown_steps = 0
+        state._last_seen_deposits = hub_deposits_total
         hub_hard_depleted = False  # v13: removed hard block to allow make_heart retries
-        hub_on_cooldown = state.get_heart_cooldown_steps > 0
-        hub_depleted = hub_on_cooldown
+        # Issue-34 v10: Removed v9 smart cooldown. Instead of short cooldowns that
+        # cause explore→get_heart cycling, we increase hub patience (50 steps at hub)
+        # so agents camp at hub long enough to catch the next make_heart cycle.
+        hub_depleted = hub_hard_depleted
 
         # Skip LLM call when planner is None (scripted_miners mode)
         text = ""
@@ -597,8 +625,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     skill = "gear_up_aligner" if len(known_alignable) >= len(state.known_extractors) else "gear_up_miner"
             elif gear == "aligner":
                 if was_stuck or was_stale:
-                    skill = "explore"
-                elif hub_depleted and not has_heart:
                     skill = "explore"
                 elif not has_heart and state.known_hubs:
                     skill = "get_heart"
@@ -750,6 +776,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried == 0:
             self._event(state, "deposit_to_hub completed")
+            # Issue-34: track deposits to signal aligners when new hearts may be available
+            if self._shared_map is not None:
+                self._shared_map.hub_deposits_total += 1
+                logger.info("agent=%s hub_deposits_total=%d", obs.agent_id, self._shared_map.hub_deposits_total)
             state.current_skill = None
         elif state.current_skill == "explore" and (
             len(state.known_neutral_junctions) > state.explore_start_junctions
@@ -773,6 +803,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill in {"gear_up_aligner", "gear_up_miner"} and state.skill_steps >= self._stuck_threshold * 10:
             state.gear_up_failures += 1
+            state.gear_up_failures_total += 1
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps (failure #{state.gear_up_failures})")
             state.current_skill = None
         elif state.current_skill in {"mine_until_full", "deposit_to_hub"} and state.skill_steps >= self._stuck_threshold * 20:
@@ -799,17 +830,22 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
                 state.consecutive_get_heart_failures += 1
-                # Issue-16: escalating cooldown — explore between retries
-                state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures * 2, 8)
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_move_steps >= self._stuck_threshold:
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
+                state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
-                state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures * 2, 8)
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
+            state.current_skill = None
+        elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= self._stuck_threshold // 2:
+            # Issue-34 v12: Shorter stale threshold for get_heart (10 steps instead of 20).
+            # Aligners waste less time camping at empty hub. Faster cycling means
+            # more time spent exploring/aligning and more frequent heart pickup attempts.
+            state.consecutive_get_heart_failures += 1
+            self._event(state, f"get_heart exited as stale after {state.no_progress_on_target_steps} steps (short threshold)")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_progress_on_target_steps >= self._stuck_threshold:
             # Remove depleted extractors
@@ -820,9 +856,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._event(state, f"removed depleted extractor at {current_abs}")
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
+                state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
-                state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures * 2, 8)
             self._event(state, f"{state.current_skill} exited as stale after {state.no_progress_on_target_steps} steps")
             state.current_skill = None
 
@@ -1012,6 +1048,24 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         self._update_progress(obs, state)
         self._maybe_finish_skill(obs, state)
 
+        # Issue-34: HP-based emergency deposit for miners.
+        # When a miner's HP drops below 50%, immediately switch to deposit_to_hub
+        # to save resources before dying. Miner deaths at 10k steps cause massive
+        # resource loss (deposits barely increase from 1k to 10k in baseline).
+        gear = self._current_gear(obs)
+        if gear == "miner" and self._carried_total(obs) > 0:
+            hp = self._aligner._read_hp(obs)
+            if hp is not None:
+                if hp > state.max_hp_seen:
+                    state.max_hp_seen = hp
+                if state.max_hp_seen > 0 and hp < state.max_hp_seen * _HP_RETREAT_THRESHOLD:
+                    if state.current_skill != "deposit_to_hub":
+                        self._event(state, f"HP_LOW ({hp}/{state.max_hp_seen}): emergency deposit")
+                        logger.info("agent=%s HP_LOW hp=%d/%d emergency_deposit", obs.agent_id, hp, state.max_hp_seen)
+                        state.current_skill = "deposit_to_hub"
+                        state.skill_steps = 0
+                        state.no_move_steps = 0
+
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
@@ -1027,7 +1081,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             # v5: when agent has miner gear, miner station is safe to pass through
             # (re-equips same gear → no net change; removes it as a navigation blocker)
             gear = self._current_gear(obs)
-            if gear == "miner" and state.known_miner_stations:
+            if state.gear_up_failures >= 5:
+                # Issue-34 v11: After 5+ gear_up failures, disable hazard avoidance entirely.
+                # The agent can't find a safe path to the aligner station (likely blocked by
+                # hazard stations). Allow routing through scout/scrambler stations — the
+                # intermediate contamination is transient since the aligner station will
+                # override any gear change upon arrival.
+                nav_state = replace(state, known_hazard_stations=set())
+                logger.info("agent=%s gear_up_aligner hazard_bypass: failures=%d, clearing hazard avoidance",
+                            obs.agent_id, state.gear_up_failures)
+            elif gear == "miner" and state.known_miner_stations:
                 nav_state = replace(state, known_hazard_stations=state.known_hazard_stations - state.known_miner_stations)
             else:
                 nav_state = state
@@ -1045,7 +1108,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             # Use safe version: hazard-aware navigation (avoids other gear stations)
             # v5: when agent has aligner gear, aligner station is safe to pass through
             gear = self._current_gear(obs)
-            if gear == "aligner" and state.known_aligner_stations:
+            if state.gear_up_failures >= 5:
+                # Issue-34 v11: same hazard bypass as gear_up_aligner
+                aligner_nav_state = replace(state, known_hazard_stations=set())
+            elif gear == "aligner" and state.known_aligner_stations:
                 aligner_nav_state = replace(state, known_hazard_stations=state.known_hazard_stations - state.known_aligner_stations)
             else:
                 aligner_nav_state = state
