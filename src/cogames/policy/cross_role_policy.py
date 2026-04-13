@@ -828,14 +828,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.consecutive_get_heart_failures += 1
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
-        # Issue-34 v10: get_heart gets 2.5x patience at hub (50 steps vs 20).
-        # Agent is AT the hub but no hearts available; camping longer catches the next
-        # make_heart cycle instead of wasting time in get_heart→unstuck→get_heart loops.
-        elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= int(self._stuck_threshold * 2.5):
-            state.consecutive_get_heart_failures += 1
-            self._event(state, f"get_heart exited as stale after {state.no_progress_on_target_steps} steps (hub patience)")
-            state.current_skill = None
-        elif state.current_skill is not None and state.current_skill not in {"defend", "get_heart"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+        elif state.current_skill is not None and state.current_skill != "defend" and state.no_progress_on_target_steps >= self._stuck_threshold:
             # Remove depleted extractors
             if state.current_skill == "mine_until_full":
                 current_abs = self._current_abs(obs)
@@ -844,6 +837,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._event(state, f"removed depleted extractor at {current_abs}")
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
+            if state.current_skill == "get_heart":
+                state.consecutive_get_heart_failures += 1
             self._event(state, f"{state.current_skill} exited as stale after {state.no_progress_on_target_steps} steps")
             state.current_skill = None
 
@@ -1066,7 +1061,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             # v5: when agent has miner gear, miner station is safe to pass through
             # (re-equips same gear → no net change; removes it as a navigation blocker)
             gear = self._current_gear(obs)
-            if gear == "miner" and state.known_miner_stations:
+            if state.gear_up_failures >= 5:
+                # Issue-34 v11: After 5+ gear_up failures, disable hazard avoidance entirely.
+                # The agent can't find a safe path to the aligner station (likely blocked by
+                # hazard stations). Allow routing through scout/scrambler stations — the
+                # intermediate contamination is transient since the aligner station will
+                # override any gear change upon arrival.
+                nav_state = replace(state, known_hazard_stations=set())
+                logger.info("agent=%s gear_up_aligner hazard_bypass: failures=%d, clearing hazard avoidance",
+                            obs.agent_id, state.gear_up_failures)
+            elif gear == "miner" and state.known_miner_stations:
                 nav_state = replace(state, known_hazard_stations=state.known_hazard_stations - state.known_miner_stations)
             else:
                 nav_state = state
@@ -1084,7 +1088,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             # Use safe version: hazard-aware navigation (avoids other gear stations)
             # v5: when agent has aligner gear, aligner station is safe to pass through
             gear = self._current_gear(obs)
-            if gear == "aligner" and state.known_aligner_stations:
+            if state.gear_up_failures >= 5:
+                # Issue-34 v11: same hazard bypass as gear_up_aligner
+                aligner_nav_state = replace(state, known_hazard_stations=set())
+            elif gear == "aligner" and state.known_aligner_stations:
                 aligner_nav_state = replace(state, known_hazard_stations=state.known_hazard_stations - state.known_aligner_stations)
             else:
                 aligner_nav_state = state
