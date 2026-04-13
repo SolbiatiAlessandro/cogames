@@ -517,6 +517,28 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         gears = sm.agent_gears.values()
         return sum(1 for g in gears if g == "aligner"), sum(1 for g in gears if g == "miner")
 
+    def _set_skill_fast(self, obs: AgentObservation, state: CrossRoleState, skill: str, reason: str) -> None:
+        """Issue-36 v18: centralized fast-path skill assignment with SharedMap cleanup.
+
+        All fast-path returns in _plan_skill use this to ensure heart queue and
+        aligner target tracking stay consistent.
+        """
+        # Clean up SharedMap tracking from previous skill and register for new skill
+        if self._shared_map is not None:
+            if skill == "get_heart":
+                self._shared_map.agents_getting_hearts.add(obs.agent_id)
+            else:
+                self._shared_map.agents_getting_hearts.discard(obs.agent_id)
+            if skill != "align_neutral":
+                self._shared_map.aligner_targets.pop(obs.agent_id, None)
+
+        state.current_skill = skill
+        state.current_reason = reason
+        state.skill_steps = 0
+        state.no_move_steps = 0
+        state.no_progress_on_target_steps = 0
+        self._event(state, f"planner selected {skill}: {reason}")
+
     def _plan_skill(self, obs: AgentObservation, state: CrossRoleState) -> None:
         gear = self._current_gear(obs)
         has_heart = self._inventory_count(obs, "heart") > 0
@@ -573,15 +595,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 # The gear_up navigation is failing (stale after 20 steps), so wandering near hub
                 # is safer (territory healing) and may walk through the correct gear station.
                 if contaminated and failures >= 4:
-                    skill = "explore"
-                    reason = f"contamination recovery: explore near hub after {failures} gear_up failures"
                     logger.info("agent=%s issue36_contamination_explore: failures=%d gear=%s", obs.agent_id, failures, gear)
-                    state.current_skill = skill
-                    state.current_reason = reason
-                    state.skill_steps = 0
-                    state.no_move_steps = 0
-                    state.no_progress_on_target_steps = 0
-                    self._event(state, f"planner selected {skill}: {reason}")
+                    self._set_skill_fast(obs, state, "explore",
+                        f"contamination recovery: explore near hub after {failures} gear_up failures")
                     return
                 bootstrap_gear = effective_preferred  # Phase 1 with 2-3 failures: keep trying preferred
                 reason = f"phase{state.phase} persistent retry: {bootstrap_gear} (attempt {failures + 1}, failures={failures})"
@@ -590,12 +606,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 skill = f"gear_up_{bootstrap_gear}"
                 logger.info("agent=%s bootstrap_skill=%s failures=%d phase=%d", obs.agent_id, skill, failures, state.phase)
                 if skill in CROSS_ROLE_SKILLS:
-                    state.current_skill = skill
-                    state.current_reason = reason
-                    state.skill_steps = 0
-                    state.no_move_steps = 0
-                    state.no_progress_on_target_steps = 0
-                    self._event(state, f"planner selected {skill}: {reason}")
+                    self._set_skill_fast(obs, state, skill, reason)
                     return
 
         team_aligners, team_miners = self._team_gear_counts()
@@ -657,80 +668,47 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # per decision, which is critical at 10k steps where throughput matters.
         if gear == "aligner":
             if has_heart and known_alignable:
-                skill = "align_neutral"
-                reason = f"fast-path: have heart and {len(known_alignable)} alignable targets"
-                state.current_skill = skill
-                state.current_reason = reason
-                state.skill_steps = 0
-                state.no_move_steps = 0
-                state.no_progress_on_target_steps = 0
-                self._event(state, f"planner selected {skill}: {reason}")
+                self._set_skill_fast(obs, state, "align_neutral",
+                    f"fast-path: have heart and {len(known_alignable)} alignable targets")
                 return
             if not has_heart and not hub_depleted and state.known_hubs:
-                skill = "get_heart"
-                reason = "fast-path: aligner needs heart, hub not on cooldown"
+                # Issue-36 v18: heart queue management — don't send more aligners to hub
+                # than estimated hearts available. Prevents 3 aligners rushing for 1 heart.
+                if self._shared_map is not None:
+                    estimated_available = max(0,
+                        5 + self._shared_map.hearts_crafted_estimate - self._shared_map.hub_hearts_withdrawn
+                    )
+                    others_getting = len(self._shared_map.agents_getting_hearts - {obs.agent_id})
+                    if others_getting >= max(1, estimated_available):
+                        self._set_skill_fast(obs, state, "explore",
+                            f"fast-path: heart queue full ({others_getting} in flight, ~{estimated_available} available)")
+                        return
                 logger.info("agent=%s issue36_fast_path: skipping LLM, selecting get_heart directly", obs.agent_id)
-                state.current_skill = skill
-                state.current_reason = reason
-                state.skill_steps = 0
-                state.no_move_steps = 0
-                state.no_progress_on_target_steps = 0
-                self._event(state, f"planner selected {skill}: {reason}")
+                self._set_skill_fast(obs, state, "get_heart",
+                    "fast-path: aligner needs heart, hub not on cooldown")
                 return
             # Issue-36 v7: fast-path for remaining aligner states (eliminates more LLM calls)
             if has_heart and not known_alignable:
-                # Have heart but no known targets — explore to find junctions
-                skill = "explore"
-                reason = "fast-path: aligner has heart but no alignable junctions, exploring"
-                state.current_skill = skill
-                state.current_reason = reason
-                state.skill_steps = 0
-                state.no_move_steps = 0
-                state.no_progress_on_target_steps = 0
-                self._event(state, f"planner selected {skill}: {reason}")
+                self._set_skill_fast(obs, state, "explore",
+                    "fast-path: aligner has heart but no alignable junctions, exploring")
                 return
             if not has_heart and hub_depleted:
-                # No heart and hub on cooldown — explore near hub until cooldown expires
-                skill = "explore"
-                reason = f"fast-path: no heart, hub on cooldown (cd={state.get_heart_cooldown_steps})"
-                state.current_skill = skill
-                state.current_reason = reason
-                state.skill_steps = 0
-                state.no_move_steps = 0
-                state.no_progress_on_target_steps = 0
-                self._event(state, f"planner selected {skill}: {reason}")
+                self._set_skill_fast(obs, state, "explore",
+                    f"fast-path: no heart, hub on cooldown (cd={state.get_heart_cooldown_steps})")
                 return
         elif gear == "miner":
             if carried >= self._return_load:
-                skill = "deposit_to_hub"
-                reason = f"fast-path: cargo full ({carried}/{self._return_load})"
-                state.current_skill = skill
-                state.current_reason = reason
-                state.skill_steps = 0
-                state.no_move_steps = 0
-                state.no_progress_on_target_steps = 0
-                self._event(state, f"planner selected {skill}: {reason}")
+                self._set_skill_fast(obs, state, "deposit_to_hub",
+                    f"fast-path: cargo full ({carried}/{self._return_load})")
                 return
             if state.known_extractors and carried < self._return_load:
-                skill = "mine_until_full"
-                reason = f"fast-path: have {len(state.known_extractors)} extractors, cargo {carried}/{self._return_load}"
-                state.current_skill = skill
-                state.current_reason = reason
-                state.skill_steps = 0
-                state.no_move_steps = 0
-                state.no_progress_on_target_steps = 0
-                self._event(state, f"planner selected {skill}: {reason}")
+                self._set_skill_fast(obs, state, "mine_until_full",
+                    f"fast-path: have {len(state.known_extractors)} extractors, cargo {carried}/{self._return_load}")
                 return
             # Issue-36: fast-path explore when miner has no known extractors
             if not state.known_extractors and carried < self._return_load:
-                skill = "explore"
-                reason = "fast-path: miner has no known extractors, exploring to discover some"
-                state.current_skill = skill
-                state.current_reason = reason
-                state.skill_steps = 0
-                state.no_move_steps = 0
-                state.no_progress_on_target_steps = 0
-                self._event(state, f"planner selected {skill}: {reason}")
+                self._set_skill_fast(obs, state, "explore",
+                    "fast-path: miner has no known extractors, exploring to discover some")
                 return
 
         prompt = build_cross_role_prompt(
@@ -885,6 +863,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # Issue-36 v16: clear aligner target when switching skills
         if self._shared_map is not None and skill != "align_neutral":
             self._shared_map.aligner_targets.pop(obs.agent_id, None)
+        # Issue-36 v18: update heart queue — add when starting get_heart, remove otherwise
+        if self._shared_map is not None:
+            if skill == "get_heart":
+                self._shared_map.agents_getting_hearts.add(obs.agent_id)
+            else:
+                self._shared_map.agents_getting_hearts.discard(obs.agent_id)
 
         state.current_skill = skill
         state.current_reason = reason

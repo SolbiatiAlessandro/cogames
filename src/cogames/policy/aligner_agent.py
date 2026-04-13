@@ -66,6 +66,9 @@ class SharedMap:
         # Issue-36 v16: aligner junction coordination — track which junction each aligner
         # is targeting so other aligners avoid picking the same one.
         self.aligner_targets: dict[int, Coord | None] = {}
+        # Issue-36 v18: heart queue management — track which aligners are en route to get hearts.
+        # Prevents all aligners from rushing to hub when only 1-2 hearts are available.
+        self.agents_getting_hearts: set[int] = set()
 
 
 @dataclass
