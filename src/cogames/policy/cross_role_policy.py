@@ -269,6 +269,8 @@ class CrossRoleState:
 
     # Issue-34: deposit tracking for heart availability signaling
     _last_seen_deposits: int = 0
+    # Issue-34: hub cell blacklist for get_heart navigation failures
+    blacklisted_hub_cells: set[tuple[int, int]] = field(default_factory=set)
 
     # Gear test harness (issue-12)
     episode_step: int = 0  # incremented once per game step
@@ -754,6 +756,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, "get_heart completed: acquired heart")
             state.get_heart_timeouts = 0
             state.consecutive_get_heart_failures = 0  # Issue-16: reset on success
+            state.blacklisted_hub_cells.clear()  # Issue-34: reset blacklist on success
             # Issue-16: track hub heart withdrawals for depletion awareness
             if self._shared_map is not None:
                 self._shared_map.hub_hearts_withdrawn += 1
@@ -821,7 +824,17 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
                 state.consecutive_get_heart_failures += 1
-                # Issue-16: escalating cooldown — explore between retries
+                # Issue-34: blacklist the nearest hub cell so next attempt tries a different one
+                current_abs = self._current_abs(obs)
+                non_bl_hubs = state.known_hubs - state.blacklisted_hub_cells
+                nearest_hub = self._aligner._nearest_known(current_abs, non_bl_hubs) if non_bl_hubs else None
+                if nearest_hub:
+                    state.blacklisted_hub_cells.add(nearest_hub)
+                    logger.info("agent=%s blacklisted hub cell %s (%d/%d hubs blacklisted)",
+                                obs.agent_id, nearest_hub, len(state.blacklisted_hub_cells), len(state.known_hubs))
+                # Reset blacklist if all hubs are blacklisted (cycle through again)
+                if state.blacklisted_hub_cells and len(state.blacklisted_hub_cells) >= len(state.known_hubs):
+                    state.blacklisted_hub_cells.clear()
                 state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures, 3)
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps")
             state.current_skill = None
@@ -830,6 +843,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
+                # Issue-34: also blacklist hub on stuck exit
+                current_abs = self._current_abs(obs)
+                non_bl_hubs = state.known_hubs - state.blacklisted_hub_cells
+                nearest_hub = self._aligner._nearest_known(current_abs, non_bl_hubs) if non_bl_hubs else None
+                if nearest_hub:
+                    state.blacklisted_hub_cells.add(nearest_hub)
+                if state.blacklisted_hub_cells and len(state.blacklisted_hub_cells) >= len(state.known_hubs):
+                    state.blacklisted_hub_cells.clear()
                 state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures, 3)
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
@@ -844,6 +865,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
+                # Issue-34: also blacklist hub on stale exit
+                current_abs = self._current_abs(obs)
+                non_bl_hubs = state.known_hubs - state.blacklisted_hub_cells
+                nearest_hub = self._aligner._nearest_known(current_abs, non_bl_hubs) if non_bl_hubs else None
+                if nearest_hub:
+                    state.blacklisted_hub_cells.add(nearest_hub)
+                if state.blacklisted_hub_cells and len(state.blacklisted_hub_cells) >= len(state.known_hubs):
+                    state.blacklisted_hub_cells.clear()
                 state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures, 3)
             self._event(state, f"{state.current_skill} exited as stale after {state.no_progress_on_target_steps} steps")
             state.current_skill = None
@@ -1100,7 +1129,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             ))
 
         elif skill == "get_heart":
+            # Issue-34: temporarily filter blacklisted hub cells so _get_heart tries different ones
+            original_hubs = state.known_hubs
+            if state.blacklisted_hub_cells:
+                filtered = state.known_hubs - state.blacklisted_hub_cells
+                if filtered:  # only filter if some hubs remain
+                    state.known_hubs = filtered
             action, base_state = self._aligner._get_heart(obs, state, current_abs)
+            state.known_hubs = original_hubs  # restore full hub set
             state = self._copy_with_shared(replace(state,
                 wander_direction_index=base_state.wander_direction_index,
                 wander_steps_remaining=base_state.wander_steps_remaining,
