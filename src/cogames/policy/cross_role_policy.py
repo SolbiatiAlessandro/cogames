@@ -330,6 +330,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.known_neutral_junctions = sm.known_neutral_junctions
         state.known_friendly_junctions = sm.known_friendly_junctions
         state.known_enemy_junctions = sm.known_enemy_junctions
+        # Issue-36 v20: share per-element extractor locations across all agents
+        state.extractors_by_element = sm.extractors_by_element
 
     def _copy_with_shared(self, state: CrossRoleState) -> CrossRoleState:
         """Return state with shared map fields re-bound (after delegate calls may have returned new state)."""
@@ -349,6 +351,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             known_neutral_junctions=sm.known_neutral_junctions,
             known_friendly_junctions=sm.known_friendly_junctions,
             known_enemy_junctions=sm.known_enemy_junctions,
+            extractors_by_element=sm.extractors_by_element,
         )
 
     def _event(self, state: CrossRoleState, message: str) -> None:

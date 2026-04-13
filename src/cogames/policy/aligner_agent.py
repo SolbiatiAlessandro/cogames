@@ -69,6 +69,13 @@ class SharedMap:
         # Issue-36 v18: heart queue management — track which aligners are en route to get hearts.
         # Prevents all aligners from rushing to hub when only 1-2 hearts are available.
         self.agents_getting_hearts: set[int] = set()
+        # Issue-36 v20: shared per-element extractor locations. When one miner discovers
+        # a silicon extractor, all miners immediately know where it is. Critical for
+        # team_scarce_element (V15) — without shared data, a miner told to mine silicon
+        # can't find the extractor if it hasn't visited one yet.
+        self.extractors_by_element: dict[str, set[Coord]] = {
+            e: set() for e in ("carbon", "oxygen", "germanium", "silicon")
+        }
 
 
 @dataclass
