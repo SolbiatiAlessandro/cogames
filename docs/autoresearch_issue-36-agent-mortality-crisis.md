@@ -334,3 +334,12 @@ agents will either break free via the unstuck pattern or resume normal operation
 50 steps. In the worst case (agent dies after retreat cancel), the respawned agent starts
 fresh and can contribute — far better than 8000+ wasted steps.
 
+**Additional V7 change — Miner tether skill assignment:**
+Previously when the miner tether fired (>40 cells from hub), it set `current_skill=None`
+and navigated toward hub. On the next step, `_plan_skill` fast-path picked `mine_until_full`
+again (because extractors are known and cargo isn't full), sending the miner BACK to the
+far extractors → tether fires again → oscillation. Now the tether sets a concrete skill:
+- If carrying resources → `deposit_to_hub` (deposits partial cargo, feeds make_heart pipeline)
+- If empty → `explore` (look for closer extractors near hub)
+This eliminates tether oscillation and increases deposit frequency for the heart pipeline.
+

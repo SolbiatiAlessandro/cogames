@@ -1188,10 +1188,22 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             if hub_abs is not None:
                 hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
                 if hub_dist > _MAX_HUB_DISTANCE:
-                    # Too far from hub — cancel current skill and navigate back
-                    state.current_skill = None
-                    self._event(state, f"miner hub tether: distance {hub_dist} > {_MAX_HUB_DISTANCE}, returning")
-                    logger.info("agent=%s MINER_TETHER dist=%d returning to hub", obs.agent_id, hub_dist)
+                    # Too far from hub — set skill to deposit (if carrying) or explore near hub.
+                    # Issue-36 v7: previously set current_skill=None, causing oscillation:
+                    # tether→navigate back→replan→mine_until_full→tether again. Now we set
+                    # a concrete skill so the miner does something useful near hub.
+                    carried = self._carried_total(obs)
+                    if carried > 0:
+                        state.current_skill = "deposit_to_hub"
+                        state.current_reason = f"miner tether: deposit {carried} cargo (dist {hub_dist} > {_MAX_HUB_DISTANCE})"
+                    else:
+                        state.current_skill = "explore"
+                        state.current_reason = f"miner tether: explore near hub (dist {hub_dist} > {_MAX_HUB_DISTANCE})"
+                    state.skill_steps = 0
+                    state.no_move_steps = 0
+                    state.no_progress_on_target_steps = 0
+                    self._event(state, f"miner hub tether: distance {hub_dist} > {_MAX_HUB_DISTANCE}, {state.current_skill}")
+                    logger.info("agent=%s MINER_TETHER dist=%d skill=%s carried=%d", obs.agent_id, hub_dist, state.current_skill, carried)
                     direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
                     if direction:
                         return self._aligner._starter._action(f"move_{direction}"), state
