@@ -552,6 +552,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._event(state, f"planner selected {skill}: {reason}")
                     return
                 bootstrap_gear = effective_preferred  # Phase 1 with 2-3 failures: keep trying preferred
+                reason = f"phase{state.phase} persistent retry: {bootstrap_gear} (attempt {failures + 1}, failures={failures})"
 
             if bootstrap_gear:
                 skill = f"gear_up_{bootstrap_gear}"
