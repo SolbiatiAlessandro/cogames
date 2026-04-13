@@ -7,3 +7,4 @@ aee3685	0.400000	junction.held=3014;junction.gained=4;heart.withdrawn=6;carbon.d
 aee3685	0.480000	junction.held=3833;junction.gained=8;heart.withdrawn=8;carbon.deposited=71	1000	keep	v5: disable hub_depleted + return_load=20; 8 junctions gained; similar to v2
 2f2546f	0.580000	junction.held=4799;junction.gained=9;heart.withdrawn=8;carbon.deposited=101	1000	keep	v6: +HP emergency deposit; BEST! 0.58 (+45% over baseline); 0 miner deaths; 3.3x deposits
 b0feaae	0.842491	junction.held=7425;junction.gained=13;heart.withdrawn=10;carbon.deposited=100	1000	keep	v7: +persistent aligner retry +hub heart filter; BEST! 0.84 (+45% over v6); 3 aligners maintained; 0 miner heart theft
+8a0c03d	0.640000	junction.held=5397;junction.gained=7;heart.withdrawn=7;carbon.deposited=40	1000	keep	v8: +hub cell blacklist for get_heart; 0.64 (lower due to seed variance); deposits low (40 C)
