@@ -425,8 +425,16 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        state.blocked_cells.update(state.move_blocked_cells)  # persist move-failure blocks
-        state.known_free_cells.update(visible_cells - blocked_now)
+        # Issue-36 v10: correct move_blocked_cells false positives.
+        # move_blocked_cells is never cleared, so temporary obstacles (other agents
+        # standing in a cell) create permanent false positives. Over 10k steps this
+        # progressively constrains BFS navigation. Fix: if we can currently SEE that
+        # a cell is free (visible and not actually blocked), remove it from
+        # move_blocked_cells. Trust current observations over historical failures.
+        visually_free = visible_cells - blocked_now
+        state.move_blocked_cells.difference_update(visually_free)
+        state.blocked_cells.update(state.move_blocked_cells)  # persist remaining move-failure blocks
+        state.known_free_cells.update(visually_free)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 

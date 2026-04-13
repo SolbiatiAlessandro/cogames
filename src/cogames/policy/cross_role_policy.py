@@ -1340,11 +1340,11 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         carried = self._carried_total(obs)
                         gear = self._current_gear(obs)
                         has_heart = self._inventory_count(obs, "heart") > 0
-                        should_step_into_hub = dist == 1 and (
+                        wants_hub_interaction = (
                             (gear == "miner" and carried > 0)  # deposit cargo
                             or (gear != "miner" and not has_heart)  # collect heart
                         )
-                        if should_step_into_hub:
+                        if dist == 1 and wants_hub_interaction:
                             dr = hub_abs[0] - current_abs[0]
                             dc = hub_abs[1] - current_abs[1]
                             if abs(dr) >= abs(dc):
@@ -1358,6 +1358,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                             action = self._aligner._starter._action(f"move_{direction}")
                             self._track_move_target(action, current_abs, state)
                             return action, state
+                        # Issue-36 v10: at dist==2, approach hub to reach dist==1 for interaction.
+                        # Without this, agents noop at dist 2 and never trigger hub handlers
+                        # (deposit, get_heart). Moving 1 step closer enables hub interaction
+                        # on the next step while still being in AOE heal range.
+                        if dist == 2 and wants_hub_interaction:
+                            direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                            if direction:
+                                action = self._aligner._starter._action(f"move_{direction}")
+                                self._track_move_target(action, current_abs, state)
+                                return action, state
                         # Hold position for healing
                         return self._aligner._starter._action("noop"), state
                     direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)

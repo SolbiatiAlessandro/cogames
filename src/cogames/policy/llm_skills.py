@@ -219,10 +219,16 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Re-apply persistent move-blocked cells from shared map
+        # Issue-36 v10: correct move_blocked_cells false positives.
+        # move_blocked_cells never clears, so temporary obstacles (other agents
+        # standing in cells) become permanent false positives. Over 10k steps this
+        # degrades BFS navigation. Fix: remove cells from move_blocked_cells when
+        # we can visually confirm they are free (visible + no blocking object).
+        visually_free = visible_cells - blocked_now
         if self._shared_map and self._shared_map.move_blocked_cells:
+            self._shared_map.move_blocked_cells.difference_update(visually_free)
             state.blocked_cells.update(self._shared_map.move_blocked_cells)
-        state.known_free_cells.update(visible_cells - blocked_now)
+        state.known_free_cells.update(visually_free)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 
