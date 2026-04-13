@@ -1030,6 +1030,24 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         self._update_progress(obs, state)
         self._maybe_finish_skill(obs, state)
 
+        # Issue-34: HP-based emergency deposit for miners.
+        # When a miner's HP drops below 50%, immediately switch to deposit_to_hub
+        # to save resources before dying. Miner deaths at 10k steps cause massive
+        # resource loss (deposits barely increase from 1k to 10k in baseline).
+        gear = self._current_gear(obs)
+        if gear == "miner" and self._carried_total(obs) > 0:
+            hp = self._aligner._read_hp(obs)
+            if hp is not None:
+                if hp > state.max_hp_seen:
+                    state.max_hp_seen = hp
+                if state.max_hp_seen > 0 and hp < state.max_hp_seen * _HP_RETREAT_THRESHOLD:
+                    if state.current_skill != "deposit_to_hub":
+                        self._event(state, f"HP_LOW ({hp}/{state.max_hp_seen}): emergency deposit")
+                        logger.info("agent=%s HP_LOW hp=%d/%d emergency_deposit", obs.agent_id, hp, state.max_hp_seen)
+                        state.current_skill = "deposit_to_hub"
+                        state.skill_steps = 0
+                        state.no_move_steps = 0
+
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
