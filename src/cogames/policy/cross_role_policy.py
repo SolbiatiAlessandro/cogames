@@ -1112,6 +1112,43 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         self._update_progress(obs, state)
         self._maybe_finish_skill(obs, state)
 
+        # Issue-36: HP retreat — navigate to hub when HP is dangerously low
+        # Hub provides AOE heal in its territory. Retreating keeps agents alive at 10k steps.
+        current_hp = self._feature_value(obs, "hp") or 0
+        if current_hp > state.max_hp_seen:
+            state.max_hp_seen = current_hp
+        if state.max_hp_seen > 0:
+            hp_fraction = current_hp / state.max_hp_seen
+            if hp_fraction < _HP_RETREAT_THRESHOLD and not state.retreating:
+                state.retreating = True
+                state.current_skill = None  # cancel current skill
+                self._event(state, f"HP retreat: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
+                logger.info("agent=%s HP_RETREAT hp=%d/%d frac=%.2f", obs.agent_id, current_hp, state.max_hp_seen, hp_fraction)
+            elif hp_fraction >= 0.80 and state.retreating:
+                state.retreating = False
+                state.current_skill = None  # replan after recovery
+                self._event(state, f"HP recovered: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
+                logger.info("agent=%s HP_RECOVERED hp=%d/%d", obs.agent_id, current_hp, state.max_hp_seen)
+
+        if state.retreating and state.known_hubs:
+            # Navigate toward hub for healing
+            hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if dist <= 2:
+                    # Already near hub — hold position for healing
+                    return self._aligner._starter._action("noop"), state
+                direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                if direction:
+                    return self._aligner._starter._action(f"move_{direction}"), state
+                action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                state = self._copy_with_shared(replace(state,
+                    wander_direction_index=base_state.wander_direction_index,
+                    wander_steps_remaining=base_state.wander_steps_remaining,
+                    last_mode=base_state.last_mode,
+                ))
+                return action, state
+
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
