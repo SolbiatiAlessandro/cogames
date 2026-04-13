@@ -713,3 +713,36 @@ though the retreating aligner isn't actually heading to hub.
 `agents_getting_hearts` and `aligner_targets`. Called at all 5 external skill cancellation
 points. For aligner tether, also registers get_heart in queue when applicable.
 
+---
+
+## V20: Share per-element extractor locations across team
+
+**Problem:** V15 introduced `team_scarce_element()` which directs miners to mine underrepresented
+elements. But when a miner is told "mine silicon", it can only navigate to silicon extractors
+it has *personally* visited. If it hasn't explored that part of the map yet, it falls through
+to generic extractor navigation, defeating the purpose of element-targeted mining.
+
+Each miner maintains `state.extractors_by_element` (a dict mapping element names to sets of
+extractor coordinates). This was per-agent local state — miner A discovering a silicon extractor
+at (50, 30) didn't help miner B find it.
+
+**Analysis:** The SharedMap already shares `known_extractors` (all extractors, no element info)
+across the team. The fix is to share `extractors_by_element` the same way: store it in SharedMap,
+bind it via `_bind_shared_map`, and let all miners read/write the same sets.
+
+The existing code flow makes this elegant:
+1. `_update_map_memory` (llm_skills.py:206) writes `state.extractors_by_element[element].add(coord)`
+2. `_mine_until_full` (llm_skills.py:518) reads `state.extractors_by_element.get(scarce, set())`
+3. `state` is actually CrossRoleState (duck-typed) — so binding it to SharedMap makes both
+   operations go through the shared data automatically.
+
+**Changes:**
+- `SharedMap.__init__`: added `extractors_by_element: dict[str, set[Coord]]` field
+- `_bind_shared_map`: bind `state.extractors_by_element = sm.extractors_by_element`
+- `_copy_with_shared`: include `extractors_by_element` in `replace()` call
+
+**Expected impact:** Miners directed to mine scarce elements can now navigate directly to the
+right extractors even if a teammate discovered them. This makes V15's team_scarce_element
+much more effective in practice — previously it could identify the scarce element but miners
+often couldn't find the right extractor type.
+
