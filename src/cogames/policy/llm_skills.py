@@ -581,7 +581,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         target_abs = self._nearest_known(current_abs, state.known_hubs)
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
-            state.known_free_cells.add(target_abs)
+            # Issue-36 v11: add to known_hubs + blocked_cells (not known_free_cells).
+            # Hub is a blocked object (V8). Adding to known_free_cells caused BFS to
+            # route through the hub cell, which fails on move.
+            state.known_hubs.add(target_abs)
+            state.blocked_cells.add(target_abs)
         if target_abs is None:
             return self._explore(obs, state)
         # Issue-16: hub is a blocked object — use approach-cell navigation

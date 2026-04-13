@@ -1297,6 +1297,47 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._track_move_target(action, current_abs, state)
                     return action, state
 
+        # Issue-36 v11: aligner hub tethering — prevent aligners from wandering too far
+        # from hub during explore. _is_alignable limits junction targets to 25 cells from
+        # hub, so aligners should stay within ~35 cells. Beyond that, retreat at 70% HP
+        # may not reach hub in time (~30 steps to navigate back).
+        _MAX_ALIGNER_HUB_DISTANCE = 35
+        if (
+            not state.retreating
+            and gear == "aligner"
+            and state.known_hubs
+            and state.current_skill == "explore"
+        ):
+            hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if hub_dist > _MAX_ALIGNER_HUB_DISTANCE:
+                    has_heart = self._inventory_count(obs, "heart") > 0
+                    if has_heart and self._known_alignable_junctions(state):
+                        state.current_skill = "align_neutral"
+                        state.current_reason = f"aligner tether: align nearest target (dist {hub_dist} > {_MAX_ALIGNER_HUB_DISTANCE})"
+                    else:
+                        state.current_skill = "get_heart" if not has_heart and state.known_hubs else "explore"
+                        state.current_reason = f"aligner tether: return toward hub (dist {hub_dist} > {_MAX_ALIGNER_HUB_DISTANCE})"
+                    state.skill_steps = 0
+                    state.no_move_steps = 0
+                    state.no_progress_on_target_steps = 0
+                    self._event(state, f"aligner hub tether: distance {hub_dist} > {_MAX_ALIGNER_HUB_DISTANCE}, {state.current_skill}")
+                    logger.info("agent=%s ALIGNER_TETHER dist=%d skill=%s", obs.agent_id, hub_dist, state.current_skill)
+                    direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction:
+                        action = self._aligner._starter._action(f"move_{direction}")
+                        self._track_move_target(action, current_abs, state)
+                        return action, state
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                    state = self._copy_with_shared(replace(state,
+                        wander_direction_index=base_state.wander_direction_index,
+                        wander_steps_remaining=base_state.wander_steps_remaining,
+                        last_mode=base_state.last_mode,
+                    ))
+                    self._track_move_target(action, current_abs, state)
+                    return action, state
+
         if state.retreating and state.known_hubs:
             # Issue-36 v7: track stuck steps during retreat to prevent permanent stuck loops.
             # In V6 seed 42, agent 0 spent 8827 steps stuck against walls while retreating.
