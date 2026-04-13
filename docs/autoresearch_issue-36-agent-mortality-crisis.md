@@ -126,3 +126,41 @@ area near the miner station may not have extractors in observation range.
   3. Periodic hub return prevents explore drift ✓
   4. HP retreat added for extreme cases ✓
 
+---
+
+## 2026-04-13T05:00:00Z: experiment v3 - mine precondition + miner explore fast-path
+
+**Additional changes:**
+1. Precondition: override mine_until_full to explore when no extractors known
+   (prevents 400-step timeout navigating to predicted positions that may be wrong)
+2. Fast-path: skip LLM call when miner has no known extractors → explore directly
+
+**V3 10k result (seed 42, all fixes):**
+- mission_reward: **1.5319** (vs 1.416 v1, +8.2%)
+- aligned.junction.held: 5317 (vs 4158 v1, +28%)
+- aligned.junction.gained: 8 (same as v1)
+- heart.withdrawn: 5 (only initial hearts — pipeline stalls after)
+- Deaths: 0 — **all 3 agents alive at step 10k!** ✓
+- HP retreats: 4 (all recovered to 100% HP) — retreat mechanism saves lives
+- Agent 0 (aligner): 4 hearts, 4 junctions aligned, 9321 successful moves
+- Agent 1 (aligner): 4 hearts, 4 junctions aligned, 9491 successful moves
+- Agent 2 (miner): gained 30 carbon + 20 germanium, deposited 20 of each, 9998 successful moves (99.98%)
+
+**Key observations:**
+- HP retreat mechanism activated 4 times, all successful recoveries
+- Miner has excellent move efficiency (99.98%) but low resource throughput
+- Only 5 hearts withdrawn (initial stock) — crafted hearts aren't being collected
+- Mining throughput: 30 carbon in 10k steps vs dinky's 3244 — still a 100x gap
+- Junction alignment rate: 8 junctions in 10k steps is low but agents survive to keep holding
+
+**Comparison with v1 (seed 42):**
+| Metric | V1 | V3 | Change |
+|--------|-----|-----|--------|
+| mission_reward | 1.416 | 1.532 | +8.2% |
+| aligned.junction.held | 4158 | 5317 | +28% |
+| heart.withdrawn | 7 | 5 | -29% |
+| Deaths | 3 (all survived) | 0 | -100% |
+| HP retreats | 0 | 4 | new |
+
+**V2 10k (seed 43, HP retreat only, no mine fix) still running...**
+
