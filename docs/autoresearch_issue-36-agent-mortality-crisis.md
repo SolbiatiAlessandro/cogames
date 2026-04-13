@@ -438,3 +438,37 @@ targets, including hub during HP retreat (potentially fatal).
 - Faster transition from explore to alignment when enemy junctions discovered
 - Both improve junction.held ticks (more alignment time per episode)
 
+---
+
+## V10: Fix move_blocked_cells false positive accumulation + retreat approach
+
+**Root cause:** `move_blocked_cells` (SharedMap) was never cleared. When an agent failed to move
+into a cell — often because another agent was temporarily standing there — the cell was
+permanently added to `move_blocked_cells`. Every `_update_map_memory` call re-applied the full
+set to `blocked_cells`, even when the cell was currently visible and confirmed free. Over 10k
+steps, this set grew monotonically, progressively constraining BFS navigation as more and more
+passable cells were falsely blocked.
+
+This is a particularly insidious bug because:
+- False positives accumulate over time (monotonic growth)
+- BFS search space shrinks progressively
+- Agents are forced into longer paths or fallback wandering
+- The effect compounds: more wandering → more move failures → more false positives
+
+**Changes:**
+1. **Visual correction of move_blocked_cells** (aligner_agent.py + llm_skills.py):
+   After computing `visually_free = visible_cells - blocked_now`, remove these confirmed-free
+   cells from `move_blocked_cells`. Trust current observations over historical failures.
+   Applied to both aligner and miner map update functions.
+
+2. **Retreat hub approach at dist==2** (cross_role_policy.py):
+   Previously, retreating agents at manhattan distance 2 from hub just nooped (healed).
+   Now agents that need hub interaction (miners with cargo, heartless aligners) navigate
+   one step closer to reach dist==1, enabling deposit/heart handlers on the next step.
+
+**Expected impact:**
+- BFS navigation quality remains stable over 10k steps instead of degrading
+- Fewer agents getting stuck due to falsely blocked paths
+- Retreat survival improved: miners deposit cargo, aligners collect hearts during healing
+- Heart pipeline improved: fewer wasted hearts (miners deposit before dying)
+
