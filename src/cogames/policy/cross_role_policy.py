@@ -410,6 +410,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         else:
             state.steps_since_last_heart += 1
 
+        # Issue-36 v7: decrement get_heart cooldown every step (was only in _plan_skill).
+        # Bug: cooldown only counted down during replanning, not while exploring.
+        # With max cooldown of 8 and explore taking 200+ steps, cooldown was effectively frozen.
+        if state.get_heart_cooldown_steps > 0:
+            state.get_heart_cooldown_steps -= 1
+
         # Issue-36: track deposit events for heart pipeline awareness
         if state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total:
             deposited = state.last_carried_total - carried_total
@@ -574,8 +580,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # Only use cooldown-based blocking (no hard block). After cooldown expires,
         # agents retry get_heart. If make_heart created new hearts from deposited
         # resources, the retry succeeds. If not, failure sets a new cooldown.
-        if state.get_heart_cooldown_steps > 0:
-            state.get_heart_cooldown_steps -= 1
+        # Note: cooldown is decremented in _update_progress (every step), not here.
         hub_hearts_used = self._shared_map.hub_hearts_withdrawn if self._shared_map else 0
         hub_hard_depleted = False  # v13: removed hard block to allow make_heart retries
         hub_on_cooldown = state.get_heart_cooldown_steps > 0
@@ -918,6 +923,19 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             if contaminated and state.gear_up_failures >= 4:
                 state.gear_up_failures = 0
                 self._event(state, "contamination: reset gear_up_failures after explore")
+            state.current_skill = None
+        # Issue-36 v7: interrupt explore when get_heart cooldown expires.
+        # Heartless aligners explore during cooldown. When cooldown expires, they should
+        # immediately switch to get_heart instead of waiting for explore to find something.
+        elif (
+            state.current_skill == "explore"
+            and gear == "aligner"
+            and not has_heart
+            and state.get_heart_cooldown_steps == 0
+            and state.known_hubs
+            and state.skill_steps > 0
+        ):
+            self._event(state, "explore interrupted: cooldown expired, switching to get_heart")
             state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             # Issue-16: agent got a heart while defending — switch to aligning

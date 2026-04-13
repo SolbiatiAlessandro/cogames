@@ -360,3 +360,12 @@ Based on issue #34 findings (return_load=20 > 40, HP-based emergency deposit):
    step into hub to trigger deposit handler before healing. This saves resources that
    would be lost if the miner dies during or after retreat.
 
+**Additional V7 change — Cooldown fix + explore interrupt:**
+Bug fix: `get_heart_cooldown_steps` was only decremented inside `_plan_skill`, which only
+runs when `current_skill is None`. During explore (which can run 200+ steps), the cooldown
+was frozen. Fix: decrement cooldown in `_update_progress` (runs every step).
+
+Additionally: when cooldown expires during explore, heartless aligners now interrupt explore
+immediately and switch to get_heart. Previously they'd finish the full explore cycle (finding
+a new junction/extractor), potentially missing a window when hearts were available.
+
