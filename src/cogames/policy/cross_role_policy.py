@@ -652,6 +652,17 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.no_progress_on_target_steps = 0
                 self._event(state, f"planner selected {skill}: {reason}")
                 return
+            # Issue-36: fast-path explore when miner has no known extractors
+            if not state.known_extractors and carried < self._return_load:
+                skill = "explore"
+                reason = "fast-path: miner has no known extractors, exploring to discover some"
+                state.current_skill = skill
+                state.current_reason = reason
+                state.skill_steps = 0
+                state.no_move_steps = 0
+                state.no_progress_on_target_steps = 0
+                self._event(state, f"planner selected {skill}: {reason}")
+                return
 
         prompt = build_cross_role_prompt(
             current_gear=gear,
@@ -754,6 +765,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if skill == "mine_until_full" and gear != "miner":
             skill = "gear_up_miner"
             reason = f"overrode to gear_up_miner: need miner gear for mining (current={gear})"
+        # Issue-36: prevent mine_until_full with no known extractors — wastes 400 steps on predicted positions
+        if skill == "mine_until_full" and gear == "miner" and not state.known_extractors:
+            skill = "explore"
+            reason = "overrode mine_until_full to explore: no known extractors (discover some first)"
         if skill == "deposit_to_hub" and gear != "miner":
             skill = "gear_up_miner"
             reason = f"overrode to gear_up_miner: need miner gear for deposit (current={gear})"
