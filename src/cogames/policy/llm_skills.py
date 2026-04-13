@@ -454,11 +454,38 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         min_count = min(counts.get(e, 0) for e in ELEMENTS)
         max_count = max(counts.get(e, 0) for e in ELEMENTS)
-        if max_count - min_count < 5:
+        # Issue-36 v15: reduced threshold from 5 to 3 for faster individual balancing.
+        # With return_load=20, miners carry ~20 resources. A threshold of 5 means a miner
+        # mines 5 of one element before seeking diversity; 3 triggers earlier balancing.
+        if max_count - min_count < 3:
             return None
         for e in ELEMENTS:
             if counts.get(e, 0) == min_count:
                 return e
+        return None
+
+    def _team_scarce_element(self) -> str | None:
+        """Issue-36 v15: return the element the team has deposited least of.
+
+        Uses SharedMap.total_deposits to identify which element is bottlenecking
+        heart crafting. Hearts need 7 of EACH element, so the limiting element
+        determines throughput. By routing miners to the team-scarce element,
+        we maximize heart crafting rate across the team.
+        """
+        sm = self._shared_map
+        if sm is None or not hasattr(sm, "total_deposits"):
+            return None
+        deposits = sm.total_deposits
+        if all(v == 0 for v in deposits.values()):
+            return None
+        min_val = min(deposits.values())
+        max_val = max(deposits.values())
+        # Only trigger when imbalance is significant (>= 5 resources difference)
+        if max_val - min_val < 5:
+            return None
+        for elem, val in deposits.items():
+            if val == min_val:
+                return elem
         return None
 
     def _mine_until_full(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
@@ -467,8 +494,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.last_mode = "mine_until_full"
         current_abs = self._current_abs(obs)
 
-        # Issue-16: prefer scarce element extractors for make_heart balance
-        scarce = self._scarce_element(obs)
+        # Issue-36 v15: prefer team-scarce element first (global optimization),
+        # then fall back to individual scarce element (local balance).
+        # Team-scarce targets the element bottlenecking heart crafting across ALL miners.
+        scarce = self._team_scarce_element() or self._scarce_element(obs)
         if scarce and scarce in self._extractor_tags_by_element:
             scarce_tags = self._extractor_tags_by_element[scarce]
             visible_scarce = self._closest_visible_location(obs, scarce_tags)

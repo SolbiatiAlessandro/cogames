@@ -264,6 +264,8 @@ class CrossRoleState:
 
     # Miner LLM tracking
     last_carried_total: int = 0
+    # Issue-36 v15: per-element inventory tracking for accurate deposit accounting
+    last_inventory_counts: dict[str, int] = field(default_factory=lambda: {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0})
     explore_start_extractors: int = 0
 
     # Gear acquisition tracking (for retry + fallback logic)
@@ -425,15 +427,19 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # Issue-36: track deposit events for heart pipeline awareness
         # Issue-36 v7: track ANY deposit (not just during deposit_to_hub skill).
         # Emergency deposits during retreat and auto-deposits near hub should also be counted.
+        # Issue-36 v15: use per-element inventory tracking for accurate deposit accounting.
+        # Previously approximated by distributing evenly, which misreported when miners
+        # carried unbalanced loads (e.g., 15 carbon + 5 oxygen → reported as 5 each).
         gear = self._current_gear(obs)
+        current_inv = self._miner._inventory_counts(obs) if gear == "miner" else {}
         if gear == "miner" and carried_total < state.last_carried_total:
-            deposited = state.last_carried_total - carried_total
             if self._shared_map is not None:
-                # We don't know exactly which elements were deposited, but the miner
-                # carries mixed resources. Approximate by distributing evenly.
-                per_element = max(1, deposited // 4)
                 for elem in ("carbon", "oxygen", "germanium", "silicon"):
-                    self._shared_map.total_deposits[elem] += per_element
+                    prev = state.last_inventory_counts.get(elem, 0)
+                    curr = current_inv.get(elem, 0)
+                    deposited_elem = max(0, prev - curr)
+                    if deposited_elem > 0:
+                        self._shared_map.total_deposits[elem] += deposited_elem
                 # Estimate hearts that could have been crafted from all deposits
                 min_deposits = min(self._shared_map.total_deposits.values())
                 new_estimate = min_deposits // 7  # 7 of each element per heart
@@ -447,6 +453,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.last_has_heart = has_heart
         state.last_friendly_junctions = friendly_count
         state.last_carried_total = carried_total
+        if gear == "miner":
+            state.last_inventory_counts = {e: current_inv.get(e, 0) for e in ("carbon", "oxygen", "germanium", "silicon")}
 
         last_action_move = self._feature_value(obs, "last_action_move")
         gear = self._current_gear(obs)
