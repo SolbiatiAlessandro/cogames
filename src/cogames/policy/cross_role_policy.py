@@ -553,12 +553,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.get_heart_cooldown_steps = 0
         state._last_seen_deposits = hub_deposits_total
         hub_hard_depleted = False  # v13: removed hard block to allow make_heart retries
-        # Issue-34: Disable hub_depleted entirely. The cooldown caused aligners to
-        # explore AWAY from hub, then waste steps navigating back. At 10k steps,
-        # miners deposit frequently enough that make_heart creates hearts regularly.
-        # Aligners should always have get_heart available and stay near hub.
-        hub_on_cooldown = False
-        hub_depleted = False
+        # Issue-34 v9: Re-enable LIGHTWEIGHT cooldown after consecutive get_heart failures.
+        # Agents were wasting 20+ steps per attempt when hub had 0 hearts, cycling
+        # get_heart→stale→unstuck endlessly. Short cooldown (1-3 steps) lets them
+        # explore briefly while waiting for deposits. Resets on new deposits (above).
+        hub_on_cooldown = state.get_heart_cooldown_steps > 0 and state.consecutive_get_heart_failures >= 3
+        hub_depleted = hub_on_cooldown
 
         # Skip LLM call when planner is None (scripted_miners mode)
         text = ""
