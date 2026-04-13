@@ -302,15 +302,39 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         dr, dc = _DIRECTION_DELTA_MAP.get(direction, (0, 0))
         return (current_abs[0] + dr, current_abs[1] + dc)
 
-    def _greedy_move_toward_abs(self, state: AlignerState, current_abs: Coord, target_abs: Coord) -> tuple[Action, AlignerState]:
-        """Move greedily toward a known absolute position without BFS (ignores terrain knowledge)."""
+    def _greedy_move_toward_abs(
+        self,
+        state: AlignerState,
+        current_abs: Coord,
+        target_abs: Coord,
+        avoid_hazards: bool = False,
+    ) -> tuple[Action, AlignerState]:
+        """Move greedily toward a known absolute position without BFS (ignores terrain knowledge).
+
+        When ``avoid_hazards`` is True, reject directions whose immediate step
+        lands on a known hazard station (scout/scrambler/wrong-role gear), try the
+        alternative axis, and fall back to safe_wander if every greedy option is
+        contaminated. This stops the gear-up fallback from walking an aligner
+        through a scout/scrambler station (issue #12 + #25 multi-seed regression)."""
         dr = target_abs[0] - current_abs[0]
         dc = target_abs[1] - current_abs[1]
+        # Candidate directions in preference order (primary axis first).
         if abs(dr) >= abs(dc):
-            direction = "south" if dr > 0 else "north"
+            primary = "south" if dr > 0 else "north"
+            secondary = "east" if dc > 0 else ("west" if dc < 0 else None)
         else:
-            direction = "east" if dc > 0 else "west"
-        return self._starter._action(f"move_{direction}"), state
+            primary = "east" if dc > 0 else "west"
+            secondary = "south" if dr > 0 else ("north" if dr < 0 else None)
+        candidates = [d for d in (primary, secondary) if d is not None]
+        if avoid_hazards:
+            for direction in candidates:
+                step = self._move_target(current_abs, direction)
+                if step not in state.known_hazard_stations:
+                    return self._starter._action(f"move_{direction}"), state
+            # All greedy options contaminated — escape via safe_wander so we
+            # re-plan from a cleaner position instead of picking up wrong gear.
+            return self._safe_wander(state, current_abs)
+        return self._starter._action(f"move_{candidates[0]}"), state
 
     def _move_to(self, state: AlignerState, current_abs: Coord, target_abs: Coord | None) -> tuple[Action, AlignerState]:
         if target_abs is None:
@@ -552,7 +576,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             # All adjacents also blocked - fall back to greedy toward station
-            action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+            # but refuse to walk through known scout/scrambler/miner stations.
+            action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_aligner_stations)
         if target_abs is None:
@@ -569,8 +594,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # All adjacents blocked - greedy toward station
-        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+        # All adjacents blocked - greedy toward station, avoiding hazard stations.
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 
     def _get_heart(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
@@ -578,20 +603,27 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         visible_target = self._starter._closest_tag_location(obs, self._hub_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
-            # Hub is a blocked object; navigate to adjacent approach cell then step into hub
-            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
+            # Hub is a blocked object; navigate to adjacent approach cell then step into hub.
+            # Prefer a hazard-free path; fall back to hazard-allowing BFS only if the clean
+            # path is unreachable. This stops aligners from walking through scout/scrambler
+            # stations and losing their gear mid-episode (issue #12 / #25 seed 43/44 contam).
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+            if direction is None:
+                direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-            action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+            action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_hubs)
         if target_abs is None:
             return self._explore(obs, state)
-        # Hub known but not visible - navigate to approach cell via BFS/optimistic-BFS/greedy
-        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
+        # Hub known but not visible - prefer hazard-free BFS, then hazard-allowing, then greedy.
+        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
@@ -614,16 +646,24 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
-        # Already have aligner gear - no need to avoid other stations, can't re-equip
-        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
+        # Prefer a hazard-free path to the junction; only allow crossing scout/scrambler
+        # stations when the clean path is unreachable. Walking through a wrong-role station
+        # auto-equips that gear and drops aligner, which has been the dominant
+        # mid-episode contamination path on seeds 43/44 (issue #12).
+        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # BFS failed: try optimistic BFS (treat unknown cells as traversable)
-        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
+        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # Last resort: greedy absolute navigation toward known junction position
-        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs)
+        # Last resort: greedy absolute navigation toward known junction position,
+        # still refusing to step onto known hazard stations.
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
