@@ -517,6 +517,17 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         gears = sm.agent_gears.values()
         return sum(1 for g in gears if g == "aligner"), sum(1 for g in gears if g == "miner")
 
+    def _clear_shared_map_tracking(self, agent_id: int) -> None:
+        """Issue-36 v19: clean up SharedMap coordination state for this agent.
+
+        Called when an agent's skill is cancelled externally (retreat, phase switch,
+        tether) without going through _plan_skill. Without this, the agent stays
+        registered in heart queue / aligner targets during retreat, blocking teammates.
+        """
+        if self._shared_map is not None:
+            self._shared_map.agents_getting_hearts.discard(agent_id)
+            self._shared_map.aligner_targets.pop(agent_id, None)
+
     def _set_skill_fast(self, obs: AgentObservation, state: CrossRoleState, skill: str, reason: str) -> None:
         """Issue-36 v18: centralized fast-path skill assignment with SharedMap cleanup.
 
@@ -1221,6 +1232,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.gear_up_completed = False
         state.gear_up_failures = 0
         state.current_skill = None
+        self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19
         state.phase2_hub_cleared = False  # v13: reset hub waypoint for hub-first navigation
 
     def step_with_state(self, obs: AgentObservation, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
@@ -1267,12 +1279,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.retreating = True
                 state.retreat_stuck_steps = 0  # Issue-36 v7: reset stuck counter on retreat start
                 state.current_skill = None  # cancel current skill
+                self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19: release coordination slots
                 self._event(state, f"HP retreat: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
                 logger.info("agent=%s HP_RETREAT hp=%d/%d frac=%.2f", obs.agent_id, current_hp, state.max_hp_seen, hp_fraction)
             elif hp_fraction >= 0.80 and state.retreating:
                 state.retreating = False
                 state.retreat_stuck_steps = 0  # Issue-36 v7: reset stuck counter on recovery
                 state.current_skill = None  # replan after recovery
+                self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19: release coordination slots
                 self._event(state, f"HP recovered: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
                 logger.info("agent=%s HP_RECOVERED hp=%d/%d", obs.agent_id, current_hp, state.max_hp_seen)
 
@@ -1343,6 +1357,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     else:
                         state.current_skill = "get_heart" if not has_heart and state.known_hubs else "explore"
                         state.current_reason = f"aligner tether: return toward hub (dist {hub_dist} > {_MAX_ALIGNER_HUB_DISTANCE})"
+                    # Issue-36 v19: update SharedMap coordination for tether skill change
+                    self._clear_shared_map_tracking(obs.agent_id)
+                    if self._shared_map is not None and state.current_skill == "get_heart":
+                        self._shared_map.agents_getting_hearts.add(obs.agent_id)
                     state.skill_steps = 0
                     state.no_move_steps = 0
                     state.no_progress_on_target_steps = 0
@@ -1379,6 +1397,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.retreating = False
                 state.retreat_stuck_steps = 0
                 state.current_skill = None
+                self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19
                 self._event(state, f"retreat cancelled: stuck for {_RETREAT_STUCK_LIMIT} steps, replanning")
                 logger.info("agent=%s RETREAT_CANCELLED stuck=%d, giving up retreat", obs.agent_id, _RETREAT_STUCK_LIMIT)
                 # Fall through to normal skill planning below
