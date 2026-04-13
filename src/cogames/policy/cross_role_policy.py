@@ -647,6 +647,29 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.no_progress_on_target_steps = 0
                 self._event(state, f"planner selected {skill}: {reason}")
                 return
+            # Issue-36 v7: fast-path for remaining aligner states (eliminates more LLM calls)
+            if has_heart and not known_alignable:
+                # Have heart but no known targets — explore to find junctions
+                skill = "explore"
+                reason = "fast-path: aligner has heart but no alignable junctions, exploring"
+                state.current_skill = skill
+                state.current_reason = reason
+                state.skill_steps = 0
+                state.no_move_steps = 0
+                state.no_progress_on_target_steps = 0
+                self._event(state, f"planner selected {skill}: {reason}")
+                return
+            if not has_heart and hub_depleted:
+                # No heart and hub on cooldown — explore near hub until cooldown expires
+                skill = "explore"
+                reason = f"fast-path: no heart, hub on cooldown (cd={state.get_heart_cooldown_steps})"
+                state.current_skill = skill
+                state.current_reason = reason
+                state.skill_steps = 0
+                state.no_move_steps = 0
+                state.no_progress_on_target_steps = 0
+                self._event(state, f"planner selected {skill}: {reason}")
+                return
         elif gear == "miner":
             if carried >= self._return_load:
                 skill = "deposit_to_hub"

@@ -343,3 +343,12 @@ far extractors → tether fires again → oscillation. Now the tether sets a con
 - If empty → `explore` (look for closer extractors near hub)
 This eliminates tether oscillation and increases deposit frequency for the heart pipeline.
 
+**Additional V7 change — Complete fast-path coverage:**
+Added fast-path for the two remaining aligner states that previously required LLM calls:
+- Aligner with heart but no known alignable junctions → explore (find junctions)
+- Aligner without heart and hub on cooldown → explore (wait for cooldown)
+
+Combined with existing fast-paths, all aligner and miner states now have deterministic
+fast-path coverage. LLM calls should only fire for contaminated agents (which are handled
+by bootstrap). This eliminates virtually all LLM latency (~2s per call) at 10k steps.
+
