@@ -258,6 +258,8 @@ class CrossRoleState:
     get_heart_cooldown_steps: int = 0  # Issue-16: steps remaining before get_heart is allowed again
     max_hp_seen: int = 0
     retreating: bool = False
+    steps_since_last_heart: int = 0  # Issue-36: steps since agent last acquired a heart
+    last_deposit_hearts_estimate: int = 0  # Issue-36: last known hearts_crafted_estimate, to detect new hearts
 
     # Miner LLM tracking
     last_carried_total: int = 0
@@ -401,6 +403,31 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if state.current_skill == "mine_until_full" and carried_total > state.last_carried_total:
             self._event(state, f"cargo increased {state.last_carried_total}→{carried_total}")
 
+        # Issue-36: track steps since last heart acquisition for periodic hub return
+        if has_heart and not state.last_has_heart:
+            state.steps_since_last_heart = 0
+        else:
+            state.steps_since_last_heart += 1
+
+        # Issue-36: track deposit events for heart pipeline awareness
+        if state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total:
+            deposited = state.last_carried_total - carried_total
+            if self._shared_map is not None:
+                # We don't know exactly which elements were deposited, but the miner
+                # carries mixed resources. Approximate by distributing evenly.
+                per_element = max(1, deposited // 4)
+                for elem in ("carbon", "oxygen", "germanium", "silicon"):
+                    self._shared_map.total_deposits[elem] += per_element
+                # Estimate hearts that could have been crafted from all deposits
+                min_deposits = min(self._shared_map.total_deposits.values())
+                new_estimate = min_deposits // 7  # 7 of each element per heart
+                if new_estimate > self._shared_map.hearts_crafted_estimate:
+                    self._shared_map.hearts_crafted_estimate = new_estimate
+                    logger.info(
+                        "agent=%s hearts_crafted_estimate=%d deposits=%s",
+                        obs.agent_id, new_estimate, self._shared_map.total_deposits,
+                    )
+
         state.last_has_heart = has_heart
         state.last_friendly_junctions = friendly_count
         state.last_carried_total = carried_total
@@ -536,7 +563,95 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         hub_hearts_used = self._shared_map.hub_hearts_withdrawn if self._shared_map else 0
         hub_hard_depleted = False  # v13: removed hard block to allow make_heart retries
         hub_on_cooldown = state.get_heart_cooldown_steps > 0
+
+        # Issue-36: deposit-aware cooldown reset
+        # When team deposits suggest make_heart has created new hearts,
+        # immediately reset cooldown so aligners return to collect them.
+        if self._shared_map is not None and hub_on_cooldown:
+            estimated_hearts = self._shared_map.hearts_crafted_estimate
+            hearts_consumed = self._shared_map.hub_hearts_withdrawn
+            # If estimated crafted hearts exceed what's been withdrawn (minus initial 5),
+            # there should be hearts available in the hub
+            hearts_from_crafting_consumed = max(0, hearts_consumed - 5)  # 5 initial hearts
+            if estimated_hearts > hearts_from_crafting_consumed:
+                state.get_heart_cooldown_steps = 0
+                state.consecutive_get_heart_failures = 0
+                hub_on_cooldown = False
+                logger.info(
+                    "agent=%s issue36_cooldown_reset: estimated_crafted=%d consumed_crafted=%d",
+                    obs.agent_id, estimated_hearts, hearts_from_crafting_consumed,
+                )
+                self._event(state, f"hub cooldown reset: deposits suggest {estimated_hearts - hearts_from_crafting_consumed} hearts available")
+
+        # Issue-36: periodic hub return for aligners without hearts
+        # After 200 steps without a heart, force aligner to try get_heart regardless of cooldown
+        # This prevents the explore drift where agents wander away from hub forever
+        _HUB_RETURN_INTERVAL = 200
+        if (
+            gear == "aligner"
+            and not has_heart
+            and hub_on_cooldown
+            and state.steps_since_last_heart >= _HUB_RETURN_INTERVAL
+            and state.known_hubs
+        ):
+            state.get_heart_cooldown_steps = 0
+            state.consecutive_get_heart_failures = 0
+            hub_on_cooldown = False
+            state.steps_since_last_heart = 0  # reset to prevent immediate re-trigger
+            logger.info(
+                "agent=%s issue36_periodic_hub_return after %d steps without heart",
+                obs.agent_id, _HUB_RETURN_INTERVAL,
+            )
+            self._event(state, f"periodic hub return after {_HUB_RETURN_INTERVAL} steps without heart")
+
         hub_depleted = hub_on_cooldown
+
+        # Issue-36: fast-path for aligner heart acquisition and alignment
+        # Skip LLM call when the optimal action is obvious. This saves ~2 seconds
+        # per decision, which is critical at 10k steps where throughput matters.
+        if gear == "aligner":
+            if has_heart and known_alignable:
+                skill = "align_neutral"
+                reason = f"fast-path: have heart and {len(known_alignable)} alignable targets"
+                state.current_skill = skill
+                state.current_reason = reason
+                state.skill_steps = 0
+                state.no_move_steps = 0
+                state.no_progress_on_target_steps = 0
+                self._event(state, f"planner selected {skill}: {reason}")
+                return
+            if not has_heart and not hub_depleted and state.known_hubs:
+                skill = "get_heart"
+                reason = "fast-path: aligner needs heart, hub not on cooldown"
+                logger.info("agent=%s issue36_fast_path: skipping LLM, selecting get_heart directly", obs.agent_id)
+                state.current_skill = skill
+                state.current_reason = reason
+                state.skill_steps = 0
+                state.no_move_steps = 0
+                state.no_progress_on_target_steps = 0
+                self._event(state, f"planner selected {skill}: {reason}")
+                return
+        elif gear == "miner":
+            if carried >= self._return_load:
+                skill = "deposit_to_hub"
+                reason = f"fast-path: cargo full ({carried}/{self._return_load})"
+                state.current_skill = skill
+                state.current_reason = reason
+                state.skill_steps = 0
+                state.no_move_steps = 0
+                state.no_progress_on_target_steps = 0
+                self._event(state, f"planner selected {skill}: {reason}")
+                return
+            if state.known_extractors and carried < self._return_load:
+                skill = "mine_until_full"
+                reason = f"fast-path: have {len(state.known_extractors)} extractors, cargo {carried}/{self._return_load}"
+                state.current_skill = skill
+                state.current_reason = reason
+                state.skill_steps = 0
+                state.no_move_steps = 0
+                state.no_progress_on_target_steps = 0
+                self._event(state, f"planner selected {skill}: {reason}")
+                return
 
         prompt = build_cross_role_prompt(
             current_gear=gear,
