@@ -636,3 +636,33 @@ being scarce (each costs 28 mined resources), wasting aligner trips is expensive
 - Fewer wasted trips → more junctions aligned per heart
 - Better junction coverage of the map (aligners fan out)
 
+---
+
+## V17: Fix team-scarce premature trigger + miner explore completion
+
+**Bug 1: Team-scarce herding**
+The V15 `_team_scarce_element` had no minimum deposit threshold. After the first miner's
+deposit (e.g., carbon=5, others=0), `max_val - min_val = 5 >= 5`, routing ALL miners to the
+same scarce element. With 5 miners, this created a herd: all mine oxygen/germanium/silicon
+simultaneously, then all switch to carbon. This oscillation is worse than no coordination.
+
+**Fix:** Require `total deposits >= 28` (one heart's worth of resources) before activating
+team-level coordination. Below this threshold, individual `_scarce_element` handles balancing.
+
+**Bug 2: Miner explore interrupted by aligner junction discovery**
+The explore completion check `len(known_neutral_junctions) > explore_start_junctions` uses
+the shared map. When an aligner teammate discovers a new neutral junction, the miner's
+junction count increases, triggering explore completion. The miner replans to mine_until_full
+and heads to a known extractor — cutting short its exploration for new extractor types.
+
+**Fix:** Miners only complete explore on extractor discovery, not junction discovery:
+```python
+(gear != "miner" and len(state.known_neutral_junctions) > state.explore_start_junctions)
+or len(state.known_extractors) > state.explore_start_extractors
+```
+
+**Expected impact:**
+- Miners spread across different extractor types instead of herding to one element
+- Miners explore more thoroughly, discovering all 4 extractor types
+- Better element balance in deposits → more hearts per total resources
+
