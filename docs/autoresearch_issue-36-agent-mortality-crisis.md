@@ -666,3 +666,29 @@ or len(state.known_extractors) > state.explore_start_extractors
 - Miners explore more thoroughly, discovering all 4 extractor types
 - Better element balance in deposits → more hearts per total resources
 
+---
+
+## V18: Heart queue management + _set_skill_fast refactor
+
+**Problem:** With 3 aligners and limited hearts (often 1-2 in hub), all aligners rush to hub
+simultaneously. Only 1-2 succeed; the rest waste ~100 steps traveling to hub, failing, getting
+cooldown, exploring, then trying again. This is a multi-agent coordination failure.
+
+**Changes:**
+
+1. **Heart queue tracking** (SharedMap.agents_getting_hearts): Set of agent_ids currently
+   doing get_heart. Before routing an aligner to get_heart, check if `others_in_flight >=
+   max(1, estimated_hearts_available)`. If queue is full, route to explore instead.
+
+   Estimated hearts: `5 (initial) + hearts_crafted_estimate - hub_hearts_withdrawn`
+
+2. **_set_skill_fast refactor**: New centralized method for fast-path skill assignment.
+   Handles SharedMap cleanup (heart queue add/remove, aligner target clear) consistently
+   on every skill change. Replaced 8 instances of duplicated state-reset code, eliminating
+   the risk of forgotten cleanup that caused tracking drift.
+
+**Expected impact:**
+- Only 1-2 aligners go to hub at a time (matching available hearts)
+- Excess aligners explore or align instead of queuing at hub
+- Reduced wasted travel time → more total alignments per episode
+
