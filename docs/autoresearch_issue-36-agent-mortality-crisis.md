@@ -308,3 +308,29 @@ pipeline. By staying closer to hub, the miner:
 
 **Next: submit to online leaderboard to test the ≥50% score increase criterion.**
 
+---
+
+## 2026-04-13T09:00:00Z: experiment v7 - retreat stuck escape
+
+**Root cause of 8827 no-motion steps (V6 seed 42, agent 0):**
+The HP retreat logic at `step_with_state` runs BEFORE skill planning and the nav shake.
+When a retreating agent can't reach hub (all movement directions blocked by walls),
+the retreat code returns a move→wall→fail loop every step. The nav shake (which handles
+stuck detection for normal skills) never fires because the retreat code returns early.
+Result: agent stuck in retreat loop for 8827 steps, contributing nothing.
+
+**V7 changes:**
+1. **Retreat stuck counter**: New `retreat_stuck_steps` field tracks consecutive failed
+   move steps during retreat (via `last_action_move == 0`).
+2. **Retreat nav shake**: After 5+ stuck steps during retreat, cycle through unstuck
+   directions (every 3 steps, same pattern as the normal nav shake) to try to break free.
+3. **Retreat cancellation**: After 50+ stuck steps during retreat, cancel the retreat entirely.
+   A stuck-retreating agent contributes zero value — better to let it replan and potentially
+   do useful work at low HP, or die trying and respawn.
+
+**Hypothesis:** Agents stuck in retreat loops waste thousands of steps doing nothing. By
+adding stuck detection to the retreat logic (which was the only code path without it),
+agents will either break free via the unstuck pattern or resume normal operations after
+50 steps. In the worst case (agent dies after retreat cancel), the respawned agent starts
+fresh and can contribute — far better than 8000+ wasted steps.
+

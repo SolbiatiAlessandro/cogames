@@ -258,6 +258,7 @@ class CrossRoleState:
     get_heart_cooldown_steps: int = 0  # Issue-16: steps remaining before get_heart is allowed again
     max_hp_seen: int = 0
     retreating: bool = False
+    retreat_stuck_steps: int = 0  # Issue-36 v7: consecutive no-move steps while retreating
     steps_since_last_heart: int = 0  # Issue-36: steps since agent last acquired a heart
     last_deposit_hearts_estimate: int = 0  # Issue-36: last known hearts_crafted_estimate, to detect new hearts
 
@@ -1161,11 +1162,13 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             hp_fraction = current_hp / state.max_hp_seen
             if hp_fraction < _HP_RETREAT_THRESHOLD and not state.retreating:
                 state.retreating = True
+                state.retreat_stuck_steps = 0  # Issue-36 v7: reset stuck counter on retreat start
                 state.current_skill = None  # cancel current skill
                 self._event(state, f"HP retreat: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
                 logger.info("agent=%s HP_RETREAT hp=%d/%d frac=%.2f", obs.agent_id, current_hp, state.max_hp_seen, hp_fraction)
             elif hp_fraction >= 0.80 and state.retreating:
                 state.retreating = False
+                state.retreat_stuck_steps = 0  # Issue-36 v7: reset stuck counter on recovery
                 state.current_skill = None  # replan after recovery
                 self._event(state, f"HP recovered: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
                 logger.info("agent=%s HP_RECOVERED hp=%d/%d", obs.agent_id, current_hp, state.max_hp_seen)
@@ -1201,23 +1204,50 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     return action, state
 
         if state.retreating and state.known_hubs:
-            # Navigate toward hub for healing
-            hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
-            if hub_abs is not None:
-                dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
-                if dist <= 2:
-                    # Already near hub — hold position for healing
-                    return self._aligner._starter._action("noop"), state
-                direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
-                if direction:
-                    return self._aligner._starter._action(f"move_{direction}"), state
-                action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
-                state = self._copy_with_shared(replace(state,
-                    wander_direction_index=base_state.wander_direction_index,
-                    wander_steps_remaining=base_state.wander_steps_remaining,
-                    last_mode=base_state.last_mode,
-                ))
+            # Issue-36 v7: track stuck steps during retreat to prevent permanent stuck loops.
+            # In V6 seed 42, agent 0 spent 8827 steps stuck against walls while retreating.
+            last_action_move = self._feature_value(obs, "last_action_move")
+            if last_action_move == 0:
+                state.retreat_stuck_steps += 1
+            else:
+                state.retreat_stuck_steps = 0
+
+            # Issue-36 v7: if stuck for 50+ steps during retreat, cancel retreat entirely.
+            # A stuck-retreating agent contributes nothing — better to let it replan and
+            # potentially do useful work even at low HP, or die trying.
+            _RETREAT_STUCK_LIMIT = 50
+            if state.retreat_stuck_steps >= _RETREAT_STUCK_LIMIT:
+                state.retreating = False
+                state.retreat_stuck_steps = 0
+                state.current_skill = None
+                self._event(state, f"retreat cancelled: stuck for {_RETREAT_STUCK_LIMIT} steps, replanning")
+                logger.info("agent=%s RETREAT_CANCELLED stuck=%d, giving up retreat", obs.agent_id, _RETREAT_STUCK_LIMIT)
+                # Fall through to normal skill planning below
+
+            # Issue-36 v7: if stuck for 5+ steps during retreat, use unstuck move to break free
+            elif state.retreat_stuck_steps >= 5 and state.retreat_stuck_steps % 3 == 0:
+                action, state = self._unstuck_move(state)
                 return action, state
+
+            else:
+                # Normal retreat navigation
+                hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+                if hub_abs is not None:
+                    dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                    if dist <= 2:
+                        # Already near hub — hold position for healing
+                        state.retreat_stuck_steps = 0  # not stuck, intentionally holding
+                        return self._aligner._starter._action("noop"), state
+                    direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction:
+                        return self._aligner._starter._action(f"move_{direction}"), state
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                    state = self._copy_with_shared(replace(state,
+                        wander_direction_index=base_state.wander_direction_index,
+                        wander_steps_remaining=base_state.wander_steps_remaining,
+                        last_mode=base_state.last_mode,
+                    ))
+                    return action, state
 
         if state.current_skill is None:
             self._plan_skill(obs, state)
