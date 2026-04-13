@@ -504,11 +504,18 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 bootstrap_gear = effective_preferred
                 reason = f"phase{state.phase} gear target: {bootstrap_gear} (attempt 1)"
             elif effective_preferred == "aligner":
-                # Issue-34: Designated aligners NEVER fall back to miner.
-                # Contamination + miner fallback was causing 3/4 aligners to become miners
-                # at 10k steps, bottlenecking the entire heart pipeline.
-                bootstrap_gear = "aligner"
-                reason = f"phase{state.phase} persistent aligner retry (attempt {failures + 1}, failures={failures})"
+                # Issue-34 v7: Designated aligners persist retrying aligner gear.
+                # Issue-34 v12: But after 10 consecutive failures, the aligner station
+                # is likely permanently unreachable (walls, not just hazards).
+                # Convert to miner to reclaim the agent as a productive miner.
+                if failures >= 10:
+                    bootstrap_gear = "miner"
+                    state.phase_preferred_gear = "miner"
+                    reason = f"phase{state.phase} aligner->miner conversion: {failures} consecutive gear_up failures, station unreachable"
+                    logger.info("agent=%s gear_up_failure_ceiling: converting aligner->miner after %d failures", obs.agent_id, failures)
+                else:
+                    bootstrap_gear = "aligner"
+                    reason = f"phase{state.phase} persistent aligner retry (attempt {failures + 1}, failures={failures})"
             elif failures == 1:
                 bootstrap_gear = "miner" if effective_preferred == "aligner" else "aligner"
                 reason = f"phase{state.phase} fallback gear: {bootstrap_gear} (preferred {effective_preferred} failed)"
@@ -827,6 +834,13 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
+            state.current_skill = None
+        elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= self._stuck_threshold // 2:
+            # Issue-34 v12: Shorter stale threshold for get_heart (10 steps instead of 20).
+            # Aligners waste less time camping at empty hub. Faster cycling means
+            # more time spent exploring/aligning and more frequent heart pickup attempts.
+            state.consecutive_get_heart_failures += 1
+            self._event(state, f"get_heart exited as stale after {state.no_progress_on_target_steps} steps (short threshold)")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_progress_on_target_steps >= self._stuck_threshold:
             # Remove depleted extractors
