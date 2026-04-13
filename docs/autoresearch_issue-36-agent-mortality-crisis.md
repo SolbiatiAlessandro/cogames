@@ -692,3 +692,24 @@ cooldown, exploring, then trying again. This is a multi-agent coordination failu
 - Excess aligners explore or align instead of queuing at hub
 - Reduced wasted travel time → more total alignments per episode
 
+---
+
+## V19: Fix SharedMap coordination leak on retreat/tether/phase switch
+
+**Bug:** V16 (aligner_targets) and V18 (agents_getting_hearts) track coordination state in
+SharedMap. But `current_skill` is cancelled at several points outside `_plan_skill`:
+
+1. **HP retreat entry**: `state.current_skill = None` without SharedMap cleanup
+2. **HP retreat recovery**: same
+3. **Retreat stuck cancellation**: same
+4. **Phase switch**: same
+5. **Aligner hub tether**: sets skill to get_heart/explore without queue management
+
+When an aligner doing get_heart enters retreat, it stays in `agents_getting_hearts` during the
+entire retreat (potentially 100+ steps). Other aligners see "1 in flight" and defer, even
+though the retreating aligner isn't actually heading to hub.
+
+**Fix:** Added `_clear_shared_map_tracking(agent_id)` helper that removes the agent from both
+`agents_getting_hearts` and `aligner_targets`. Called at all 5 external skill cancellation
+points. For aligner tether, also registers get_heart in queue when applicable.
+
