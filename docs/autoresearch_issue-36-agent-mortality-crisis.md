@@ -543,3 +543,23 @@ remove them from `known_free_cells`.
 - Fewer move failures from routing through stations
 - Reduced gear contamination risk
 
+---
+
+## V14: Miner deposit at friendly junctions (remote deposit points)
+
+**Discovery:** Junction `on_use_handlers` include `deposit_{team}` handlers that deposit
+resources directly to the team's hub via `queryDeposit`. When a miner walks onto a friendly
+junction, the deposit fires first (`FirstMatch` mode: deposit before scramble before align).
+
+Friendly junctions are effectively remote deposit points for miners.
+
+**Changes:**
+In `deposit_to_hub` dispatch (cross_role_policy.py): check if a friendly junction is closer
+than the hub. If so, navigate to the junction instead. Junctions are walkable (not blocking),
+so direct BFS navigation works — no approach-cell indirection needed.
+
+**Expected impact:**
+- Dramatically reduced deposit cycle time when friendly junctions are between extractors and hub
+- More mining throughput → more heart crafting → more alignment → higher score
+- Virtuous cycle: more aligned junctions = more deposit points = faster deposits
+
