@@ -1114,7 +1114,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
 
         # Issue-36: HP retreat — navigate to hub when HP is dangerously low
         # Hub provides AOE heal in its territory. Retreating keeps agents alive at 10k steps.
-        current_hp = self._feature_value(obs, "hp") or 0
+        current_hp = self._inventory_count(obs, "hp")
         if current_hp > state.max_hp_seen:
             state.max_hp_seen = current_hp
         if state.max_hp_seen > 0:
