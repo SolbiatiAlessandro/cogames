@@ -563,3 +563,44 @@ so direct BFS navigation works — no approach-cell indirection needed.
 - More mining throughput → more heart crafting → more alignment → higher score
 - Virtuous cycle: more aligned junctions = more deposit points = faster deposits
 
+---
+
+## V15: Team-level element balancing for mining throughput
+
+**Analysis:** Hearts need 7 of EACH of 4 elements (28 total). The limiting element determines
+heart crafting throughput. Three bottlenecks identified:
+
+1. **No team-level coordination on element selection:** Each miner independently balanced its
+   own inventory (via `_scarce_element`), but had no awareness of what the team needed. If all
+   miners happened to mine carbon, the hub accumulated excess carbon while being starved of
+   the other 3 elements. Heart crafting is gated by `min(deposits.values()) // 7`.
+
+2. **Individual scarce threshold too high:** `_scarce_element` only triggered when the gap
+   between most/least carried element was ≥5. With return_load=20, a miner mines 5 of one
+   element before seeking diversity — too slow for balanced delivery.
+
+3. **Deposit tracking inaccuracy:** `_update_progress` approximated deposits by dividing total
+   deposited evenly across 4 elements (`per_element = deposited // 4`). When miners carried
+   unbalanced loads (e.g., 15 carbon + 5 oxygen), this reported 5 of each — badly misreporting
+   the actual element distribution. This corrupted `hearts_crafted_estimate` and the cooldown
+   reset logic that depends on it.
+
+**Changes:**
+
+1. **Team-scarce element detection** (llm_skills.py): New `_team_scarce_element()` method uses
+   `SharedMap.total_deposits` to find which element the team has deposited least of. When the
+   gap is ≥5, it returns that element. In `_mine_until_full`, team-scarce takes priority over
+   individual-scarce: `scarce = self._team_scarce_element() or self._scarce_element(obs)`.
+
+2. **Reduced individual scarce threshold** (llm_skills.py): Threshold lowered from 5 to 3.
+   Miners switch to a different element extractor after mining just 3 of one type (was 5).
+
+3. **Per-element deposit tracking** (cross_role_policy.py): Added `last_inventory_counts` to
+   `CrossRoleState`. On deposit detection, compares per-element previous vs current inventory
+   to determine exactly which elements were deposited, instead of even approximation.
+
+**Expected impact:**
+- Better element balance in hub → more hearts crafted per total resources deposited
+- Faster heart pipeline recovery after initial 5 hearts depleted
+- More accurate `hearts_crafted_estimate` → better cooldown reset timing for aligners
+
