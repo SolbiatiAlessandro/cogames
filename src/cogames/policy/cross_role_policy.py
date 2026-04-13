@@ -265,6 +265,7 @@ class CrossRoleState:
 
     # Gear acquisition tracking (for retry + fallback logic)
     gear_up_failures: int = 0
+    gear_up_failures_total: int = 0  # Issue-34 v12: cumulative counter that never resets on contamination
     gear_up_completed: bool = False  # True once any gear_up succeeds; prevents retry after accidental gear change
 
     # Issue-34: deposit tracking for heart availability signaling
@@ -505,14 +506,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 reason = f"phase{state.phase} gear target: {bootstrap_gear} (attempt 1)"
             elif effective_preferred == "aligner":
                 # Issue-34 v7: Designated aligners persist retrying aligner gear.
-                # Issue-34 v12: But after 10 consecutive failures, the aligner station
-                # is likely permanently unreachable (walls, not just hazards).
+                # Issue-34 v12: But after 10 TOTAL failures (across contamination resets),
+                # the aligner station is likely permanently unreachable.
                 # Convert to miner to reclaim the agent as a productive miner.
-                if failures >= 10:
+                # Use gear_up_failures_total (never resets) instead of gear_up_failures
+                # (resets on contamination, which happens during hazard-bypass navigation).
+                if state.gear_up_failures_total >= 10:
                     bootstrap_gear = "miner"
                     state.phase_preferred_gear = "miner"
-                    reason = f"phase{state.phase} aligner->miner conversion: {failures} consecutive gear_up failures, station unreachable"
-                    logger.info("agent=%s gear_up_failure_ceiling: converting aligner->miner after %d failures", obs.agent_id, failures)
+                    reason = f"phase{state.phase} aligner->miner conversion: {state.gear_up_failures_total} total gear_up failures, station unreachable"
+                    logger.info("agent=%s gear_up_failure_ceiling: converting aligner->miner after %d total failures", obs.agent_id, state.gear_up_failures_total)
                 else:
                     bootstrap_gear = "aligner"
                     reason = f"phase{state.phase} persistent aligner retry (attempt {failures + 1}, failures={failures})"
@@ -800,6 +803,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill in {"gear_up_aligner", "gear_up_miner"} and state.skill_steps >= self._stuck_threshold * 10:
             state.gear_up_failures += 1
+            state.gear_up_failures_total += 1
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps (failure #{state.gear_up_failures})")
             state.current_skill = None
         elif state.current_skill in {"mine_until_full", "deposit_to_hub"} and state.skill_steps >= self._stuck_threshold * 20:
@@ -831,6 +835,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_move_steps >= self._stuck_threshold:
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
+                state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
@@ -851,6 +856,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._event(state, f"removed depleted extractor at {current_abs}")
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
+                state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
             self._event(state, f"{state.current_skill} exited as stale after {state.no_progress_on_target_steps} steps")
