@@ -55,6 +55,8 @@ class SharedMap:
         self.known_enemy_junctions: set[Coord] = set()
         # Agent gear tracking for team coordination
         self.agent_gears: dict[int, str] = {}
+        # Agent position tracking for congestion avoidance (issue-35)
+        self.agent_positions: dict[int, Coord] = {}
         # Hub depletion tracking (issue-16): count total hearts withdrawn across team
         self.hub_hearts_withdrawn: int = 0
         # Issue-34: track total deposits to signal aligners when new hearts may be available
@@ -281,22 +283,38 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         direction = self._bfs_optimistic_direction(state, current_abs, approach, avoid_hazards=avoid_hazards)
         if direction is not None:
             return direction
-        # Greedy toward the approach cell
-        dr = approach[0] - current_abs[0]
-        dc = approach[1] - current_abs[1]
-        if abs(dr) >= abs(dc):
-            return "south" if dr > 0 else "north"
-        return "east" if dc > 0 else "west"
+        # Greedy toward the approach cell, avoiding known obstacles
+        candidates = []
+        for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
+            neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
+            dist = abs(neighbor[0] - approach[0]) + abs(neighbor[1] - approach[1])
+            hard_blocked = neighbor in state.blocked_cells
+            soft_blocked = neighbor in state.move_blocked_cells
+            candidates.append((hard_blocked, soft_blocked, dist, dir_name))
+        candidates.sort()
+        return candidates[0][3]
 
     def _safe_wander(self, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
-        """Wander but avoid stepping onto known hazard stations."""
-        for _, (name, delta) in zip(range(4), _DIRECTION_DELTAS):
-            idx = (state.wander_direction_index + _) % 4
+        """Wander avoiding hazard stations and blocked cells (hard walls)."""
+        hard_avoid = state.known_hazard_stations | state.blocked_cells
+        # First pass: avoid both hard blocks and move-blocked cells
+        for i in range(4):
+            idx = (state.wander_direction_index + i) % 4
             direction, (dr, dc) = _DIRECTION_DELTAS[idx]
             neighbor = (current_abs[0] + dr, current_abs[1] + dc)
-            if neighbor not in state.known_hazard_stations:
+            if neighbor not in hard_avoid and neighbor not in state.move_blocked_cells:
                 state.wander_direction_index = (idx + 1) % 4
                 return self._starter._action(f"move_{direction}"), state
+        # Second pass: accept move-blocked (transient), still avoid hard blocks
+        for i in range(4):
+            idx = (state.wander_direction_index + i) % 4
+            direction, (dr, dc) = _DIRECTION_DELTAS[idx]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in hard_avoid:
+                state.wander_direction_index = (idx + 1) % 4
+                return self._starter._action(f"move_{direction}"), state
+        # All blocked — cycle anyway
+        state.wander_direction_index = (state.wander_direction_index + 1) % 4
         return self._starter._wander(state)
 
     def _move_target(self, current_abs: Coord, direction: str) -> Coord:
@@ -311,32 +329,26 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         target_abs: Coord,
         avoid_hazards: bool = False,
     ) -> tuple[Action, AlignerState]:
-        """Move greedily toward a known absolute position without BFS (ignores terrain knowledge).
+        """Move greedily toward a known absolute position, avoiding known obstacles.
 
-        When ``avoid_hazards`` is True, reject directions whose immediate step
-        lands on a known hazard station (scout/scrambler/wrong-role gear), try the
-        alternative axis, and fall back to safe_wander if every greedy option is
-        contaminated. This stops the gear-up fallback from walking an aligner
-        through a scout/scrambler station (issue #12 + #25 multi-seed regression)."""
-        dr = target_abs[0] - current_abs[0]
-        dc = target_abs[1] - current_abs[1]
-        # Candidate directions in preference order (primary axis first).
-        if abs(dr) >= abs(dc):
-            primary = "south" if dr > 0 else "north"
-            secondary = "east" if dc > 0 else ("west" if dc < 0 else None)
-        else:
-            primary = "east" if dc > 0 else "west"
-            secondary = "south" if dr > 0 else ("north" if dr < 0 else None)
-        candidates = [d for d in (primary, secondary) if d is not None]
-        if avoid_hazards:
-            for direction in candidates:
-                step = self._move_target(current_abs, direction)
-                if step not in state.known_hazard_stations:
-                    return self._starter._action(f"move_{direction}"), state
-            # All greedy options contaminated — escape via safe_wander so we
-            # re-plan from a cleaner position instead of picking up wrong gear.
+        Ranks all 4 directions by: (0) hazard station if avoid_hazards,
+        (1) hard-blocked (walls), (2) soft-blocked (move failures — may be
+        transient agent collisions), (3) Manhattan distance.
+        When avoid_hazards is True and all options are contaminated, falls back
+        to safe_wander to escape (issue #12 + #25 multi-seed regression)."""
+        candidates = []
+        for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
+            neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
+            dist = abs(neighbor[0] - target_abs[0]) + abs(neighbor[1] - target_abs[1])
+            is_hazard = neighbor in state.known_hazard_stations if avoid_hazards else False
+            hard_blocked = neighbor in state.blocked_cells
+            soft_blocked = neighbor in state.move_blocked_cells
+            candidates.append((is_hazard, hard_blocked, soft_blocked, dist, dir_name))
+        candidates.sort()
+        if avoid_hazards and candidates[0][0]:
+            # All greedy options contaminated — escape via safe_wander
             return self._safe_wander(state, current_abs)
-        return self._starter._action(f"move_{candidates[0]}"), state
+        return self._starter._action(f"move_{candidates[0][4]}"), state
 
     def _move_to(self, state: AlignerState, current_abs: Coord, target_abs: Coord | None) -> tuple[Action, AlignerState]:
         if target_abs is None:

@@ -1,0 +1,13 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+d009edb	0.729100	junction.held=6291;junction.gained=11;heart.withdrawn=10;move.success_rate=79.0;move.failed_avg=207	1000	keep	Baseline: 8-agent cross_role 3A+5M nemotron llm_timeout=5s
+940bf98	0.705494	junction.held=6055;junction.gained=12;heart.withdrawn=8;move.success_rate=84.4;move.failed_avg=156;carbon.deposited=91;silicon.deposited=111	1000	keep	Smart greedy v3: soft/hard obstacle-aware greedy + wander + unstuck; 25% fewer move failures
+d2561ed	0.587701	junction.held=4877;junction.gained=7;heart.withdrawn=7;move.success_rate=87.3;move.failed_avg=122	1000	discard	Smart greedy v1: obstacle-aware greedy (hard block all move_blocked); phantom obstacle regression
+3f66094	0.109101	junction.held=91;junction.gained=1;heart.withdrawn=6;move.success_rate=42.1	1000	discard	Smart greedy v2: added move_blocked expiry (cleared extractors/hubs - catastrophic regression)
+3f09fb0	0.970000	junction.held=8695;junction.gained=20;heart.withdrawn=12;move.success_rate=86.4;move.failed_avg=136;carbon.deposited=131;silicon.deposited=122;oxygen.deposited=94;germanium.deposited=131	1000	keep	Perp dodge + smart greedy v3: immediate perpendicular evasion on first move failure; +33% reward, +7.4pp move success
+3f09fb0	0.690000	junction.held=5938;junction.gained=10;heart.withdrawn=8;move.success_rate=90.0;move.failed_avg=100	1000	keep	Perp dodge confirmation run 2 (deterministic with default seed); navigation improvement confirmed
+6e84a9a	0.530000	junction.held=N/A;move.success_rate=83.0;move.failed_avg=125	1000	discard	BFS 2-pass relax-move-blocked: route through transient collision points; regression because permanent obstacles also relaxed
+70a5335	0.200000	junction.held=N/A;move.success_rate=N/A	1000	discard	BFS soft-avoid: separate move_blocked from blocked_cells; catastrophic — permanent obstacles (extractors/hubs) unblocked
+838e3a0	0.320000	junction.held=N/A;move.success_rate=86.7;move.failed_avg=133	1000	discard	Classify move_blocked: don't persist transient collisions; agents keep re-colliding
+9567060	0.270000	junction.held=N/A;move.success_rate=N/A	1000	discard	Expire transient move_blocked: block all then expire visible tagless; clears permanent obstacles
+b425698	0.100000	junction.held=N/A;move.success_rate=N/A	1000	discard	Pre-block extractors: add known_extractors to blocked_cells; extractors are walkable (breaks mining)
+4560628	1.700000	junction.held=6974;junction.gained=11;heart.withdrawn=9;move.success_rate=88.3;move.failed_avg=1169	10000	keep	10k validation: smart greedy v3 + perp dodge + progressive evasion; 78% fewer failures vs baseline (1169 vs 5289)

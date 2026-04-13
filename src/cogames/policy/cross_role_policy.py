@@ -388,6 +388,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # Additionally update miner-specific structures (extractors, miner stations)
         # We reuse the miner's _update_map_memory but pass our CrossRoleState (duck typing)
         self._miner._update_map_memory(obs, state)
+        # Issue-35: Track agent positions for congestion avoidance
+        if self._shared_map is not None:
+            self._shared_map.agent_positions[obs.agent_id] = current_abs
         return current_abs
 
     def _update_progress(self, obs: AgentObservation, state: CrossRoleState) -> None:
@@ -863,7 +866,29 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
 
     def _unstuck_move(self, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
+        """Escape pattern that avoids hard obstacles (walls), prefers non-move-blocked."""
         state.last_mode = "unstuck"
+        current_abs = state.last_pos if state.last_pos else (0, 0)
+        _DIR_DELTAS = {"north": (-1, 0), "east": (0, 1), "south": (1, 0), "west": (0, -1)}
+        # First pass: avoid walls AND move-blocked
+        for i in range(4):
+            idx = (state.wander_direction_index + i) % len(self._UNSTUCK_DIRECTIONS)
+            direction = self._UNSTUCK_DIRECTIONS[idx]
+            dr, dc = _DIR_DELTAS[direction]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in state.blocked_cells and neighbor not in state.move_blocked_cells:
+                state.wander_direction_index = (idx + 1) % len(self._UNSTUCK_DIRECTIONS)
+                return self._aligner._starter._action(f"move_{direction}"), state
+        # Second pass: accept move-blocked (transient), avoid walls only
+        for i in range(4):
+            idx = (state.wander_direction_index + i) % len(self._UNSTUCK_DIRECTIONS)
+            direction = self._UNSTUCK_DIRECTIONS[idx]
+            dr, dc = _DIR_DELTAS[direction]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in state.blocked_cells:
+                state.wander_direction_index = (idx + 1) % len(self._UNSTUCK_DIRECTIONS)
+                return self._aligner._starter._action(f"move_{direction}"), state
+        # All blocked — cycle anyway
         direction = self._UNSTUCK_DIRECTIONS[state.wander_direction_index % len(self._UNSTUCK_DIRECTIONS)]
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._aligner._starter._action(f"move_{direction}"), state
@@ -1069,7 +1094,40 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
-        # Navigation shake to break stuck loops
+        # Issue-35: Progressive evasion on consecutive move failures.
+        # Step 1: perpendicular dodge (clockwise rotation)
+        # Step 2: other perpendicular (counter-clockwise rotation)
+        # Step 3: reverse direction
+        # Step 5+: navigation shake (existing unstuck mechanism)
+        _DIR_LOOKUP = (("north", (-1, 0)), ("east", (0, 1)), ("south", (1, 0)), ("west", (0, -1)))
+        if (state.current_skill not in {None, "unstuck", "defend"}
+                and 1 <= state.no_move_steps <= 3
+                and state.last_pos is not None
+                and state.last_move_target is not None
+                and current_abs == state.last_pos):
+            failed_dr = state.last_move_target[0] - current_abs[0]
+            failed_dc = state.last_move_target[1] - current_abs[1]
+            if state.no_move_steps == 1:
+                # Perpendicular (clockwise rotation)
+                evasion_options = [(-failed_dc, failed_dr), (failed_dc, -failed_dr)]
+            elif state.no_move_steps == 2:
+                # Other perpendicular (counter-clockwise first)
+                evasion_options = [(failed_dc, -failed_dr), (-failed_dc, failed_dr)]
+            else:  # no_move_steps == 3
+                # Reverse direction
+                evasion_options = [(-failed_dr, -failed_dc)]
+            blocked = state.blocked_cells
+            for pdr, pdc in evasion_options:
+                if pdr == 0 and pdc == 0:
+                    continue
+                neighbor = (current_abs[0] + pdr, current_abs[1] + pdc)
+                if neighbor not in blocked:
+                    for dir_name, (ddr, ddc) in _DIR_LOOKUP:
+                        if (ddr, ddc) == (pdr, pdc):
+                            state.skill_steps += 1
+                            state.last_move_target = neighbor
+                            return self._aligner._starter._action(f"move_{dir_name}"), state
+        # Navigation shake to break stuck loops (fires after 5+ consecutive failures)
         if state.current_skill not in {None, "unstuck", "defend"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck_move(state)
             state.skill_steps += 1
