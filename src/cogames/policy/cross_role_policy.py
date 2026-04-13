@@ -387,6 +387,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # Additionally update miner-specific structures (extractors, miner stations)
         # We reuse the miner's _update_map_memory but pass our CrossRoleState (duck typing)
         self._miner._update_map_memory(obs, state)
+        # Issue-36 v13: miner update clears+rebuilds blocked_cells from its own blocked_now,
+        # which doesn't include aligner stations. Visible aligner stations get unblocked and
+        # added to known_free_cells. Fix: re-apply blocking for all known aligner stations.
+        if state.known_aligner_stations:
+            state.blocked_cells.update(state.known_aligner_stations)
+            state.known_free_cells.difference_update(state.known_aligner_stations)
         return current_abs
 
     def _update_progress(self, obs: AgentObservation, state: CrossRoleState) -> None:
