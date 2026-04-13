@@ -1535,16 +1535,48 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             ))
 
         elif skill == "deposit_to_hub":
-            action, base_state = self._miner._deposit_to_hub(obs, state)
-            state = self._copy_with_shared(replace(state,
-                wander_direction_index=base_state.wander_direction_index,
-                wander_steps_remaining=base_state.wander_steps_remaining,
-                last_mode=base_state.last_mode,
-                remembered_hub_row_from_spawn=base_state.remembered_hub_row_from_spawn,
-                remembered_hub_col_from_spawn=base_state.remembered_hub_col_from_spawn,
-                last_pos=base_state.last_pos,
-                last_move_target=base_state.last_move_target,
-            ))
+            # Issue-36 v14: friendly junctions have deposit handlers that send resources
+            # directly to hub. If a friendly junction is closer than hub, navigate there
+            # instead. Junctions are walkable — miner walks onto junction, deposit handler
+            # fires (FirstMatch: deposit before scramble/align), cargo goes to hub.
+            junction_target = self._aligner._nearest_known(current_abs, state.known_friendly_junctions)
+            hub_target = self._aligner._nearest_known(current_abs, state.known_hubs)
+            use_junction = False
+            if junction_target is not None and hub_target is not None:
+                jdist = abs(junction_target[0] - current_abs[0]) + abs(junction_target[1] - current_abs[1])
+                hdist = abs(hub_target[0] - current_abs[0]) + abs(hub_target[1] - current_abs[1])
+                use_junction = jdist < hdist  # strict less-than: prefer hub on tie
+            if use_junction:
+                # Navigate to friendly junction (walkable — direct BFS, no approach cell needed)
+                direction = self._aligner._bfs_first_direction(state, current_abs, junction_target, avoid_hazards=False)
+                if direction is None:
+                    direction = self._aligner._bfs_optimistic_direction(state, current_abs, junction_target, avoid_hazards=False)
+                if direction is not None:
+                    action = self._aligner._starter._action(f"move_{direction}")
+                    state.last_move_target = self._aligner._move_target(current_abs, direction)
+                else:
+                    # Fallback to normal hub deposit
+                    action, base_state = self._miner._deposit_to_hub(obs, state)
+                    state = self._copy_with_shared(replace(state,
+                        wander_direction_index=base_state.wander_direction_index,
+                        wander_steps_remaining=base_state.wander_steps_remaining,
+                        last_mode=base_state.last_mode,
+                        remembered_hub_row_from_spawn=base_state.remembered_hub_row_from_spawn,
+                        remembered_hub_col_from_spawn=base_state.remembered_hub_col_from_spawn,
+                        last_pos=base_state.last_pos,
+                        last_move_target=base_state.last_move_target,
+                    ))
+            else:
+                action, base_state = self._miner._deposit_to_hub(obs, state)
+                state = self._copy_with_shared(replace(state,
+                    wander_direction_index=base_state.wander_direction_index,
+                    wander_steps_remaining=base_state.wander_steps_remaining,
+                    last_mode=base_state.last_mode,
+                    remembered_hub_row_from_spawn=base_state.remembered_hub_row_from_spawn,
+                    remembered_hub_col_from_spawn=base_state.remembered_hub_col_from_spawn,
+                    last_pos=base_state.last_pos,
+                    last_move_target=base_state.last_move_target,
+                ))
 
         elif skill == "defend":
             # Issue-16: navigate toward nearest friendly junction and hold position
