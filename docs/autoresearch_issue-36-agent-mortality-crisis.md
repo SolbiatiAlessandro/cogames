@@ -200,3 +200,32 @@ Capped max_hp_seen at 100 (base HP). Now retreat/recovery thresholds are sensibl
 7. Mining throughput remains the main bottleneck (issue #34)
 8. Miner agent still occasionally dies (1 death per run) — needs better retreat for miners
 
+---
+
+## 2026-04-13T07:00:00Z: experiment v6 - contamination recovery + miner hub tethering
+
+**Observations from V5 seed 44 (in progress):**
+Agent 0 got contaminated with scout gear and spent 800+ steps cycling between
+gear_up_aligner (stale after 20 steps) and unstuck. The bootstrap mechanism
+gives up after 2 failures and lets the LLM choose, which always picks
+gear_up_aligner again — creating an infinite loop. Each LLM call costs ~1.5s.
+
+**V6 changes:**
+1. **Contamination recovery via explore**: After 4+ gear_up failures for
+   contaminated agents (scout/scrambler), switch to explore near hub instead
+   of infinite gear_up retries. Exploring near hub is safer (territory healing)
+   and may walk through the correct gear station.
+2. **Bootstrap keeps trying preferred gear**: For 2-3 failures (previously gave
+   up to LLM), bootstrap now keeps trying preferred gear. This saves LLM latency.
+3. **Gear_up_failures reset after explore**: When contaminated agent completes
+   an explore cycle, reset failures counter so it tries gear_up again with fresh
+   position.
+4. **Miner hub tethering**: During explore/mine_until_full, if miner is >40
+   cells from nearest hub, cancel skill and navigate back. At 70% HP threshold
+   agents have ~30 steps to reach hub; 40 cell limit ensures miners stay in range.
+
+**Hypothesis:** Contaminated agents waste hundreds of steps in gear_up→stale loops,
+reducing team effectiveness and increasing mortality risk. Miner hub tethering prevents
+miners from wandering into enemy territory where HP drain kills them before they can
+retreat. Together these should reduce deaths from ~1/run to 0 and improve reward.
+

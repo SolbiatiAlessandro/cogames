@@ -537,7 +537,21 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 bootstrap_gear = effective_preferred
                 reason = f"phase2 persistent retry: {bootstrap_gear} (attempt {failures + 1}, failures={failures})"
             else:
-                bootstrap_gear = ""  # Phase 1 with 2+ failures: let LLM choose
+                # Issue-36 v6: after 4+ failures, explore near hub instead of infinite gear_up retries.
+                # The gear_up navigation is failing (stale after 20 steps), so wandering near hub
+                # is safer (territory healing) and may walk through the correct gear station.
+                if contaminated and failures >= 4:
+                    skill = "explore"
+                    reason = f"contamination recovery: explore near hub after {failures} gear_up failures"
+                    logger.info("agent=%s issue36_contamination_explore: failures=%d gear=%s", obs.agent_id, failures, gear)
+                    state.current_skill = skill
+                    state.current_reason = reason
+                    state.skill_steps = 0
+                    state.no_move_steps = 0
+                    state.no_progress_on_target_steps = 0
+                    self._event(state, f"planner selected {skill}: {reason}")
+                    return
+                bootstrap_gear = effective_preferred  # Phase 1 with 2-3 failures: keep trying preferred
 
             if bootstrap_gear:
                 skill = f"gear_up_{bootstrap_gear}"
@@ -873,6 +887,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             new_junctions = len(state.known_neutral_junctions) - state.explore_start_junctions
             new_extractors = len(state.known_extractors) - state.explore_start_extractors
             self._event(state, f"explore completed: +{new_junctions} junctions, +{new_extractors} extractors")
+            # Issue-36 v6: reset gear_up_failures after explore so contaminated agents
+            # retry gear acquisition after discovering new area (may find gear station)
+            contaminated = gear in ("scrambler", "scout")
+            if contaminated and state.gear_up_failures >= 4:
+                state.gear_up_failures = 0
+                self._event(state, "contamination: reset gear_up_failures after explore")
             state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             # Issue-16: agent got a heart while defending — switch to aligning
@@ -1148,6 +1168,36 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.current_skill = None  # replan after recovery
                 self._event(state, f"HP recovered: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
                 logger.info("agent=%s HP_RECOVERED hp=%d/%d", obs.agent_id, current_hp, state.max_hp_seen)
+
+        # Issue-36 v6: miner hub tethering — prevent miners from wandering too far from hub.
+        # Miners that explore beyond MAX_HUB_DISTANCE can't retreat in time when HP drops.
+        # At 70% HP threshold, agents have ~30 steps to reach hub. Keep miners within range.
+        _MAX_HUB_DISTANCE = 40
+        gear = self._current_gear(obs)
+        if (
+            not state.retreating
+            and gear == "miner"
+            and state.known_hubs
+            and state.current_skill in {"explore", "mine_until_full"}
+        ):
+            hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if hub_dist > _MAX_HUB_DISTANCE:
+                    # Too far from hub — cancel current skill and navigate back
+                    state.current_skill = None
+                    self._event(state, f"miner hub tether: distance {hub_dist} > {_MAX_HUB_DISTANCE}, returning")
+                    logger.info("agent=%s MINER_TETHER dist=%d returning to hub", obs.agent_id, hub_dist)
+                    direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction:
+                        return self._aligner._starter._action(f"move_{direction}"), state
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                    state = self._copy_with_shared(replace(state,
+                        wander_direction_index=base_state.wander_direction_index,
+                        wander_steps_remaining=base_state.wander_steps_remaining,
+                        last_mode=base_state.last_mode,
+                    ))
+                    return action, state
 
         if state.retreating and state.known_hubs:
             # Navigate toward hub for healing
