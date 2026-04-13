@@ -229,3 +229,33 @@ reducing team effectiveness and increasing mortality risk. Miner hub tethering p
 miners from wandering into enemy territory where HP drain kills them before they can
 retreat. Together these should reduce deaths from ~1/run to 0 and improve reward.
 
+**V6 10k results:**
+
+| Seed | V5 reward | V6 reward | V5 deaths | V6 deaths | V5 held | V6 held | V5 gained | V6 gained |
+|------|-----------|-----------|-----------|-----------|---------|---------|-----------|-----------|
+| 42   | 1.532     | 1.532     | 1         | 1         | 5317    | 5317    | 8         | 8         |
+| 43   | 1.548     | **1.596** | 1         | **0**     | 5482    | **5962** | 12       | **14**    |
+
+**Key observations:**
+- **Seed 42**: No change — V6 features (contamination explore, miner tethering) didn't
+  activate because seed 42 doesn't trigger contamination or far mining.
+- **Seed 43**: Significant improvement across all metrics:
+  - **0 deaths** (was 1) — 100% mortality reduction
+  - **3/3 survived** (was 2/3)
+  - **14 junctions gained** (was 12) — highest ever for any seed
+  - **5962 held** (was 5482, +8.8%)
+  - **9 hearts withdrawn** (5 initial + 4 crafted — make_heart pipeline working!)
+  - Agent 0 aligned **11 junctions** (new single-agent record)
+  - Miner gained **40 of each element** (huge throughput vs ~30 carbon in V5)
+  - 14 miner tether events kept miner within 40 cells of hub
+  - HP retreats: 6 (all recovered)
+  - LLM calls: 55 (V5 was ~80+, fast-path + bootstrap saves calls)
+
+**Why miner tethering matters more than expected:**
+The 40-cell hub tether doesn't just prevent miner death — it also improves the heart
+pipeline. By staying closer to hub, the miner:
+1. Makes more frequent deposits (40 each element vs 30 carbon)
+2. Deposits feed make_heart, creating 4 crafted hearts (vs 3 in V5)
+3. More hearts → more junction alignments (14 vs 12)
+4. Higher alignment rate → higher junction held count
+
