@@ -352,3 +352,11 @@ Combined with existing fast-paths, all aligner and miner states now have determi
 fast-path coverage. LLM calls should only fire for contaminated agents (which are handled
 by bootstrap). This eliminates virtually all LLM latency (~2s per call) at 10k steps.
 
+**Additional V7 change — Reduced return_load + emergency deposit:**
+Based on issue #34 findings (return_load=20 > 40, HP-based emergency deposit):
+1. **return_load=20** (was 40): Miners deposit twice as often. Faster deposit cycles
+   mean more frequent make_heart opportunities and less risk per death.
+2. **Emergency deposit**: When a retreating miner reaches hub with cargo (dist==1),
+   step into hub to trigger deposit handler before healing. This saves resources that
+   would be lost if the miner dies during or after retreat.
+

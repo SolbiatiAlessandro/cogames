@@ -1270,8 +1270,23 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 if hub_abs is not None:
                     dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
                     if dist <= 2:
-                        # Already near hub — hold position for healing
                         state.retreat_stuck_steps = 0  # not stuck, intentionally holding
+                        # Issue-36 v7: emergency deposit — miners with cargo step into hub
+                        # to trigger deposit handler before healing. Saves resources that
+                        # would be lost if the miner dies (per issue #34 findings).
+                        carried = self._carried_total(obs)
+                        gear = self._current_gear(obs)
+                        if gear == "miner" and carried > 0 and dist == 1:
+                            # Step into hub to trigger deposit
+                            dr = hub_abs[0] - current_abs[0]
+                            dc = hub_abs[1] - current_abs[1]
+                            if abs(dr) >= abs(dc):
+                                direction = "south" if dr > 0 else "north"
+                            else:
+                                direction = "east" if dc > 0 else "west"
+                            self._event(state, f"emergency deposit: miner stepping into hub with {carried} cargo")
+                            return self._aligner._starter._action(f"move_{direction}"), state
+                        # Hold position for healing
                         return self._aligner._starter._action("noop"), state
                     direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
                     if direction:
@@ -1487,7 +1502,7 @@ class CrossRolePolicy(MultiAgentPolicy):
         policy_env_info: PolicyEnvInterface,
         device: str = "cpu",
         num_aligners: int | str = 3,
-        return_load: int | str = 40,
+        return_load: int | str = 20,  # Issue-36 v7: reduced from 40 to 20 per issue #34 findings
         stuck_threshold: int | str = 20,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
