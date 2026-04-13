@@ -417,7 +417,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.get_heart_cooldown_steps -= 1
 
         # Issue-36: track deposit events for heart pipeline awareness
-        if state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total:
+        # Issue-36 v7: track ANY deposit (not just during deposit_to_hub skill).
+        # Emergency deposits during retreat and auto-deposits near hub should also be counted.
+        gear = self._current_gear(obs)
+        if gear == "miner" and carried_total < state.last_carried_total:
             deposited = state.last_carried_total - carried_total
             if self._shared_map is not None:
                 # We don't know exactly which elements were deposited, but the miner
