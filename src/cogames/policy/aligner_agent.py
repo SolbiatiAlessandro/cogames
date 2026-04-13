@@ -57,6 +57,8 @@ class SharedMap:
         self.agent_gears: dict[int, str] = {}
         # Hub depletion tracking (issue-16): count total hearts withdrawn across team
         self.hub_hearts_withdrawn: int = 0
+        # Issue-34: track total deposits to signal aligners when new hearts may be available
+        self.hub_deposits_total: int = 0
 
 
 @dataclass

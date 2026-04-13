@@ -267,6 +267,9 @@ class CrossRoleState:
     gear_up_failures: int = 0
     gear_up_completed: bool = False  # True once any gear_up succeeds; prevents retry after accidental gear change
 
+    # Issue-34: deposit tracking for heart availability signaling
+    _last_seen_deposits: int = 0
+
     # Gear test harness (issue-12)
     episode_step: int = 0  # incremented once per game step
     phase: int = 1  # 1 = initial gear acquisition, 2 = switched gear acquisition
@@ -527,13 +530,22 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         team_aligners, team_miners = self._team_gear_counts()
         team_size = max(1, len(self._shared_map.agent_gears) if self._shared_map and hasattr(self._shared_map, "agent_gears") else 8)
 
-        # Issue-16: hub depletion awareness
-        # Only use cooldown-based blocking (no hard block). After cooldown expires,
-        # agents retry get_heart. If make_heart created new hearts from deposited
-        # resources, the retry succeeds. If not, failure sets a new cooldown.
+        # Issue-34: Remove cooldown-based blocking entirely. The cooldown caused
+        # aligners to waste time exploring instead of staying near hub and retrying
+        # get_heart as soon as make_heart creates new hearts from deposits.
+        # At 10k steps, continuous retry is better than cooldown because miners
+        # deposit frequently and make_heart triggers on each deposit visit.
         if state.get_heart_cooldown_steps > 0:
             state.get_heart_cooldown_steps -= 1
+        # Issue-34: Reset failures when team has deposited new resources
+        # (indicates make_heart may have created new hearts)
         hub_hearts_used = self._shared_map.hub_hearts_withdrawn if self._shared_map else 0
+        hub_deposits_total = self._shared_map.hub_deposits_total if self._shared_map and hasattr(self._shared_map, 'hub_deposits_total') else 0
+        if hasattr(state, '_last_seen_deposits') and hub_deposits_total > state._last_seen_deposits:
+            # New deposits arrived — reset cooldown so aligner retries get_heart
+            state.consecutive_get_heart_failures = 0
+            state.get_heart_cooldown_steps = 0
+        state._last_seen_deposits = hub_deposits_total
         hub_hard_depleted = False  # v13: removed hard block to allow make_heart retries
         hub_on_cooldown = state.get_heart_cooldown_steps > 0
         hub_depleted = hub_on_cooldown
@@ -750,6 +762,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried == 0:
             self._event(state, "deposit_to_hub completed")
+            # Issue-34: track deposits to signal aligners when new hearts may be available
+            if self._shared_map is not None:
+                self._shared_map.hub_deposits_total += 1
+                logger.info("agent=%s hub_deposits_total=%d", obs.agent_id, self._shared_map.hub_deposits_total)
             state.current_skill = None
         elif state.current_skill == "explore" and (
             len(state.known_neutral_junctions) > state.explore_start_junctions
@@ -800,7 +816,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.get_heart_timeouts += 1
                 state.consecutive_get_heart_failures += 1
                 # Issue-16: escalating cooldown — explore between retries
-                state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures * 2, 8)
+                state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures, 3)
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_move_steps >= self._stuck_threshold:
@@ -808,7 +824,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
-                state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures * 2, 8)
+                state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures, 3)
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_progress_on_target_steps >= self._stuck_threshold:
@@ -822,7 +838,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
-                state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures * 2, 8)
+                state.get_heart_cooldown_steps = min(state.consecutive_get_heart_failures, 3)
             self._event(state, f"{state.current_skill} exited as stale after {state.no_progress_on_target_steps} steps")
             state.current_skill = None
 
