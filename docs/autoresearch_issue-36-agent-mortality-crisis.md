@@ -522,3 +522,24 @@ cycle.
 - Significant mining throughput improvement (eliminates wasted cycles)
 - More deposits → more hearts → more alignments → higher score
 
+---
+
+## V13: Fix aligner station unblocking from dual map update
+
+**Bug found:** `cross_role_policy._update_map_memory` calls both `aligner._update_map_memory`
+and `miner._update_map_memory` sequentially on the same shared state. The miner update wipes
+`blocked_cells` via `difference_update(visible_cells)` then rebuilds from its own `blocked_now`,
+which doesn't include aligner stations (miner doesn't track them). Visible aligner stations get
+removed from `blocked_cells` and wrongly added to `known_free_cells`.
+
+**Result:** BFS routes agents through aligner stations → move failures. Agents stepping through
+aligner stations may also trigger gear re-equip (contamination risk).
+
+**Fix:** After both updates complete, re-apply blocking for all `known_aligner_stations` and
+remove them from `known_free_cells`.
+
+**Expected impact:**
+- Correct BFS routing around aligner stations
+- Fewer move failures from routing through stations
+- Reduced gear contamination risk
+
