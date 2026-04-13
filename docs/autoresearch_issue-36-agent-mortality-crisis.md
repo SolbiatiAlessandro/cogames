@@ -369,3 +369,20 @@ Additionally: when cooldown expires during explore, heartless aligners now inter
 immediately and switch to get_heart. Previously they'd finish the full explore cycle (finding
 a new junction/extractor), potentially missing a window when hearts were available.
 
+**CRITICAL V7 change — Hub heart filter (miners can't steal hearts):**
+Root cause of `heart.withdrawn == 5` in EVERY online match discovered: when miners deposit
+at hub (stepping into the blocked hub object), ALL `on_use_handlers` fire simultaneously.
+This includes `get_heart`, `get_last_heart`, and `get_and_make_heart`. So miners deposit
+resources, `make_heart` fires creating a new heart, and the miner IMMEDIATELY withdraws
+it — all in the same interaction.
+
+Since miners can't align junctions, hearts given to miners are completely wasted. The heart
+pipeline creates hearts but miners steal them before aligners can collect them.
+
+Fix: add `isNot(actorHas({"miner": 1}))` filter to all heart withdrawal handlers in hub.py.
+This ensures only non-miner agents (aligners, scouts, scramblers, no-gear) can withdraw hearts.
+
+**Also fixed:**
+- Deposit tracking now counts ALL miner deposits (not just during deposit_to_hub skill)
+- get_heart cooldown now decrements every step (was frozen during explore)
+
