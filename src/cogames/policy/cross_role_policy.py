@@ -457,6 +457,13 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             abs(current_abs[0] - s[0]) + abs(current_abs[1] - s[1]) <= 1
             for s in state.known_miner_stations
         )
+        # Issue-36 v12: track near_extractor for mine_until_full stale detection.
+        # Previously used near_hub, which is always False at extractors.
+        # This made the depleted-extractor removal code unreachable.
+        near_extractor = any(
+            abs(current_abs[0] - e[0]) + abs(current_abs[1] - e[1]) <= 1
+            for e in state.known_extractors
+        )
 
         made_progress = (
             (state.current_skill == "get_heart" and has_heart and not state.last_has_heart)
@@ -471,7 +478,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             or (state.current_skill == "align_neutral" and current_abs in self._known_alignable_junctions(state))
             or (state.current_skill == "gear_up_aligner" and near_aligner_station)
             or (state.current_skill == "gear_up_miner" and near_miner_station)
-            or (state.current_skill in {"mine_until_full", "deposit_to_hub"} and near_hub)
+            or (state.current_skill == "mine_until_full" and near_extractor)  # v12: was near_hub (bug)
+            or (state.current_skill == "deposit_to_hub" and near_hub)
         )
 
         if made_progress:
@@ -1006,12 +1014,21 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_progress_on_target_steps >= self._stuck_threshold:
-            # Remove depleted extractors
+            # Issue-36 v12: remove depleted extractors — check adjacent cells too.
+            # With V8 pre-blocking, miners are at approach cells (dist 1 from extractor),
+            # not ON the extractor itself. Check current position AND adjacent cells.
             if state.current_skill == "mine_until_full":
                 current_abs = self._current_abs(obs)
-                if current_abs in state.known_extractors:
-                    state.known_extractors.discard(current_abs)
-                    self._event(state, f"removed depleted extractor at {current_abs}")
+                nearby_extractors = {
+                    e for e in state.known_extractors
+                    if abs(current_abs[0] - e[0]) + abs(current_abs[1] - e[1]) <= 1
+                }
+                for e in nearby_extractors:
+                    state.known_extractors.discard(e)
+                    # Also remove from per-element tracking
+                    for elem_set in state.extractors_by_element.values():
+                        elem_set.discard(e)
+                    self._event(state, f"removed depleted extractor at {e}")
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
             if state.current_skill == "get_heart":
