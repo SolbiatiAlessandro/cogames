@@ -1026,6 +1026,19 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._aligner._starter._action(f"move_{direction}"), state
 
+    def _track_move_target(self, action: Action, current_abs: Coord, state: CrossRoleState) -> None:
+        """Issue-36 v9: Set last_move_target for move failure tracking on early returns.
+
+        Without this, retreat/tether moves that hit obstacles aren't tracked in
+        move_blocked_cells, so BFS keeps routing through the same obstacles.
+        """
+        action_name = action.name if hasattr(action, "name") else ""
+        if action_name.startswith("move_"):
+            direction = action_name[len("move_"):]
+            delta_map = {"north": (-1, 0), "east": (0, 1), "south": (1, 0), "west": (0, -1)}
+            dr, dc = delta_map.get(direction, (0, 0))
+            state.last_move_target = (current_abs[0] + dr, current_abs[1] + dc)
+
     def _expand_hazard_zone(self, state: CrossRoleState) -> CrossRoleState:
         """Return a state with hazard zone expanded by 1-cell adjacency buffer.
 
@@ -1272,13 +1285,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     logger.info("agent=%s MINER_TETHER dist=%d skill=%s carried=%d", obs.agent_id, hub_dist, state.current_skill, carried)
                     direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
                     if direction:
-                        return self._aligner._starter._action(f"move_{direction}"), state
+                        action = self._aligner._starter._action(f"move_{direction}")
+                        self._track_move_target(action, current_abs, state)
+                        return action, state
                     action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
                     state = self._copy_with_shared(replace(state,
                         wander_direction_index=base_state.wander_direction_index,
                         wander_steps_remaining=base_state.wander_steps_remaining,
                         last_mode=base_state.last_mode,
                     ))
+                    self._track_move_target(action, current_abs, state)
                     return action, state
 
         if state.retreating and state.known_hubs:
@@ -1305,6 +1321,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             # Issue-36 v7: if stuck for 5+ steps during retreat, use unstuck move to break free
             elif state.retreat_stuck_steps >= 5 and state.retreat_stuck_steps % 3 == 0:
                 action, state = self._unstuck_move(state)
+                self._track_move_target(action, current_abs, state)
                 return action, state
 
             else:
@@ -1338,18 +1355,23 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                                 self._event(state, f"emergency deposit: miner stepping into hub with {carried} cargo")
                             else:
                                 self._event(state, "retreat hub interaction: stepping into hub to collect heart")
-                            return self._aligner._starter._action(f"move_{direction}"), state
+                            action = self._aligner._starter._action(f"move_{direction}")
+                            self._track_move_target(action, current_abs, state)
+                            return action, state
                         # Hold position for healing
                         return self._aligner._starter._action("noop"), state
                     direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
                     if direction:
-                        return self._aligner._starter._action(f"move_{direction}"), state
+                        action = self._aligner._starter._action(f"move_{direction}")
+                        self._track_move_target(action, current_abs, state)
+                        return action, state
                     action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
                     state = self._copy_with_shared(replace(state,
                         wander_direction_index=base_state.wander_direction_index,
                         wander_steps_remaining=base_state.wander_steps_remaining,
                         last_mode=base_state.last_mode,
                     ))
+                    self._track_move_target(action, current_abs, state)
                     return action, state
 
         if state.current_skill is None:
@@ -1359,6 +1381,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if state.current_skill not in {None, "unstuck", "defend"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck_move(state)
             state.skill_steps += 1
+            self._track_move_target(action, current_abs, state)
             return action, state
 
         skill = state.current_skill
