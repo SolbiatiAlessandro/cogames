@@ -472,3 +472,26 @@ This is a particularly insidious bug because:
 - Retreat survival improved: miners deposit cargo, aligners collect hearts during healing
 - Heart pipeline improved: fewer wasted hearts (miners deposit before dying)
 
+---
+
+## V11: Fix hub-in-free-cells bug + aligner hub tethering
+
+**Changes:**
+1. **Hub remembered-from-spawn added to wrong set** (llm_skills.py):
+   When `known_hubs` is empty and the miner falls back to the spawn-remembered hub position,
+   line 584 added it to `known_free_cells`. Post-V8, hubs are blocked objects. BFS was routing
+   through the hub cell → move failure. Fix: add to `known_hubs` + `blocked_cells` instead.
+
+2. **Aligner hub tethering** (cross_role_policy.py):
+   Aligners exploring beyond 35 cells from hub are redirected back. `_is_alignable` limits
+   junction targets to 25 cells from hub, so 35-cell tether allows full alignment range while
+   preventing dangerous wandering that risks death during HP retreat. When tethered:
+   - If aligner has heart + alignable targets → switch to align_neutral
+   - If aligner lacks heart → switch to get_heart and navigate toward hub
+   - Navigate toward hub using BFS/greedy
+
+**Expected impact:**
+- No more BFS routing through hub from spawn-remembered position
+- Aligners stay within retreat-survivable range of hub
+- Fewer aligner deaths from exploring too far and failing to retreat in time
+
