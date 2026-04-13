@@ -940,6 +940,19 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         ):
             self._event(state, "explore interrupted: cooldown expired, switching to get_heart")
             state.current_skill = None
+        # Issue-36 v9: interrupt explore when aligner has heart and alignable targets exist.
+        # Aligner may discover enemy junctions during explore that aren't tracked by
+        # explore_start_junctions (which only counts neutral). This ensures aligners
+        # immediately switch to alignment when any target becomes available.
+        elif (
+            state.current_skill == "explore"
+            and gear == "aligner"
+            and has_heart
+            and self._known_alignable_junctions(state)
+            and state.skill_steps > 0
+        ):
+            self._event(state, f"explore interrupted: found {len(self._known_alignable_junctions(state))} alignable targets")
+            state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             # Issue-16: agent got a heart while defending — switch to aligning
             self._event(state, "defend completed: acquired heart, switching to align")
@@ -1176,6 +1189,15 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
     def step_with_state(self, obs: AgentObservation, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
         state.episode_step += 1
 
+        # Issue-36 v9: periodic blacklist expiry (every 500 steps).
+        # Blacklisted junctions were marked unreachable due to align_neutral timeouts.
+        # Navigation improvements (V8) may have made them reachable. Allow periodic retry.
+        _BLACKLIST_EXPIRY_INTERVAL = 500
+        if state.episode_step % _BLACKLIST_EXPIRY_INTERVAL == 0 and state.blacklisted_junctions:
+            count = len(state.blacklisted_junctions)
+            state.blacklisted_junctions.clear()
+            self._event(state, f"blacklist expired: cleared {count} junctions for retry")
+
         # Phase switch: flip preferred gear at phase_switch_step
         if self._phase_switch_step > 0 and state.episode_step == self._phase_switch_step and state.phase == 1:
             self._handle_phase_switch(obs, state)
@@ -1295,17 +1317,27 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         # Issue-36 v7: emergency deposit — miners with cargo step into hub
                         # to trigger deposit handler before healing. Saves resources that
                         # would be lost if the miner dies (per issue #34 findings).
+                        # Issue-36 v9: also step into hub for non-miners to trigger heart
+                        # collection. Heartless aligners can pick up hearts while healing,
+                        # so they can immediately align after recovery.
                         carried = self._carried_total(obs)
                         gear = self._current_gear(obs)
-                        if gear == "miner" and carried > 0 and dist == 1:
-                            # Step into hub to trigger deposit
+                        has_heart = self._inventory_count(obs, "heart") > 0
+                        should_step_into_hub = dist == 1 and (
+                            (gear == "miner" and carried > 0)  # deposit cargo
+                            or (gear != "miner" and not has_heart)  # collect heart
+                        )
+                        if should_step_into_hub:
                             dr = hub_abs[0] - current_abs[0]
                             dc = hub_abs[1] - current_abs[1]
                             if abs(dr) >= abs(dc):
                                 direction = "south" if dr > 0 else "north"
                             else:
                                 direction = "east" if dc > 0 else "west"
-                            self._event(state, f"emergency deposit: miner stepping into hub with {carried} cargo")
+                            if gear == "miner":
+                                self._event(state, f"emergency deposit: miner stepping into hub with {carried} cargo")
+                            else:
+                                self._event(state, "retreat hub interaction: stepping into hub to collect heart")
                             return self._aligner._starter._action(f"move_{direction}"), state
                         # Hold position for healing
                         return self._aligner._starter._action("noop"), state

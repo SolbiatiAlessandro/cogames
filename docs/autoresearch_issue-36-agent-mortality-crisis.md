@@ -417,3 +417,24 @@ targets, including hub during HP retreat (potentially fatal).
 - Faster mining cycle → more deposits → more hearts → fewer deaths
 - Direct improvement for both issue #35 (move failures) and #36 (mortality)
 
+---
+
+## V9: Hub interaction during retreat + explore interrupts
+
+**Changes:**
+1. **Heart collection during retreat healing**: When a retreating non-miner agent is at
+   dist==1 from hub, step into hub to trigger heart collection via on_use handlers. Previously
+   only miners did this (for deposit). Now heartless aligners also step in, picking up hearts
+   while healing. After recovery, the fast-path immediately selects align_neutral (has heart +
+   alignable targets), eliminating a separate hub trip.
+
+2. **Explore interrupt for aligners with hearts**: If an aligner is exploring with a heart and
+   discovers alignable targets (enemy junctions not tracked by explore_start_junctions), the
+   explore is immediately interrupted. Fast-path then selects align_neutral. This prevents
+   aligners from wasting steps exploring when they could be aligning.
+
+**Expected impact:**
+- Retreating aligners collect hearts as a "free bonus" during healing
+- Faster transition from explore to alignment when enemy junctions discovered
+- Both improve junction.held ticks (more alignment time per episode)
+
