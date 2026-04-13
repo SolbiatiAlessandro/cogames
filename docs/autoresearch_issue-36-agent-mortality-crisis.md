@@ -162,5 +162,41 @@ area near the miner station may not have extractors in observation range.
 | Deaths | 3 (all survived) | 0 | -100% |
 | HP retreats | 0 | 4 | new |
 
-**V2 10k (seed 43, HP retreat only, no mine fix) still running...**
+**V2 10k (seed 43, HP retreat only):**
+- mission_reward: 1.6007, aligned.junction.held: 6006, gained: 9
+- heart.withdrawn: 7 (5+2 crafted), deaths: 4 total (all respawned)
+- Gear contamination dominated — agents 0 and 2 stuck in gear_up loops for 5000+ steps
+
+---
+
+## 2026-04-13T06:00:00Z: experiment v4/v5 - HP retreat bug fixes
+
+**V4 (HP threshold 0.50→0.70, seed 43):**
+Found critical bug: hub territory heals agents above base HP (100→200), making
+max_hp_seen=200. Recovery threshold (80% of 200 = 160 HP) became unreachable
+since actual HP caps at 100. Agent 1 spent 9684/10000 steps doing noop at hub!
+
+**V5 (HP cap fix + threshold 0.70):**
+Capped max_hp_seen at 100 (base HP). Now retreat/recovery thresholds are sensible.
+
+| Seed | V1 (0.50) | V3 (0.50+mine) | V5 (0.70+cap) |
+|------|-----------|----------------|---------------|
+| 42   | 1.416, 0 deaths | 1.532, 0 deaths | 1.532, 1 death |
+| 43   | — | 1.602, 2 deaths | 1.548, 1 death |
+
+**V5 highlights (seed 43):**
+- Agent 0 aligned **9 junctions** (best single-agent score ever)
+- Agent 1 moved 9854/10000 steps (no more noop bug)
+- 15 HP retreat events, all recovered except miner's final death
+- aligned.junction.gained: 12 (best for any seed 43 run)
+
+**Conclusions for issue #36:**
+1. Primary criteria MET: ≥2 agents survive to step 10,000 consistently
+2. HP retreat mechanism prevents most deaths (retreat at 70% HP → navigate to hub)
+3. HP cap fix prevents permanent retreat from hub healing above base HP
+4. Fast-path skill selection eliminates 37-100% of LLM calls at 10k scale
+5. Periodic hub return (every 200 steps) prevents explore drift
+6. Deposit tracking enables cooldown reset when make_heart creates hearts
+7. Mining throughput remains the main bottleneck (issue #34)
+8. Miner agent still occasionally dies (1 death per run) — needs better retreat for miners
 

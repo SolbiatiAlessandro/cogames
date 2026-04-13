@@ -5,4 +5,8 @@ commit	mission_reward	secondary_rewards	steps	status	description
 40f0a99	0.749000	held=6490 hearts_withdrawn=6 deaths=0	1000	keep	v1: fast-path+deposit-tracking+periodic-hub-return seed44 1k
 40f0a99	1.416000	held=4158 hearts_withdrawn=7 deaths=3 survived_10k=3/3	10000	keep	v1: fast-path+deposit-tracking+periodic-hub-return seed42 10k
 68fcb93	1.531853	held=5317 hearts_withdrawn=5 deaths=0 survived_10k=3/3 hp_retreats=4	10000	keep	v3: mine-precondition+miner-explore-fastpath+hp-retreat seed42 10k
+40f0a99	1.600739	held=6006 hearts_withdrawn=7 deaths=4 survived_10k=3/3	10000	keep	v2: hp-retreat-only (threshold=0.50) seed43 10k
 68fcb93	1.601938	held=6018 hearts_withdrawn=8 deaths=2 survived_10k=1/3 hp_retreats=4	10000	keep	v3: mine-precondition+miner-explore-fastpath+hp-retreat seed43 10k
+56faa48	1.559438	held=5593 hearts_withdrawn=5 deaths=1 survived_10k=2/3 hp_retreats=6	10000	keep	v4: hp-threshold-0.70 seed43 10k (BUG: agent1 stuck in retreat 9684 noop steps)
+30e1798	1.531853	held=5317 hearts_withdrawn=5 deaths=1 survived_10k=2/3 aligned_gained=8	10000	keep	v5: hp-cap-100+threshold-0.70 seed42 10k
+30e1798	1.548341	held=5482 hearts_withdrawn=8 deaths=1 survived_10k=2/3 aligned_gained=12	10000	keep	v5: hp-cap-100+threshold-0.70 seed43 10k (bug fixed, agent0 aligned 9 junctions!)
