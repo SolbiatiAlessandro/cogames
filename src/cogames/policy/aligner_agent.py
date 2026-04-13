@@ -63,6 +63,9 @@ class SharedMap:
         # Issue-36: deposit tracking for heart pipeline awareness
         self.total_deposits: dict[str, int] = {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0}
         self.hearts_crafted_estimate: int = 0  # estimated hearts created by make_heart
+        # Issue-36 v16: aligner junction coordination — track which junction each aligner
+        # is targeting so other aligners avoid picking the same one.
+        self.aligner_targets: dict[int, Coord | None] = {}
 
 
 @dataclass

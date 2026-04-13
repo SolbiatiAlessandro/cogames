@@ -882,6 +882,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.explore_start_junctions = len(state.known_neutral_junctions)
             state.explore_start_extractors = len(state.known_extractors)
 
+        # Issue-36 v16: clear aligner target when switching skills
+        if self._shared_map is not None and skill != "align_neutral":
+            self._shared_map.aligner_targets.pop(obs.agent_id, None)
+
         state.current_skill = skill
         state.current_reason = reason
         state.skill_steps = 0
@@ -1520,6 +1524,24 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             # This makes aligners defend recaptured junctions immediately rather than
             # continuing to chase new neutral ones, increasing average hold time.
             merged_neutral = state.known_neutral_junctions | state.known_enemy_junctions
+            # Issue-36 v16: aligner junction coordination — prefer junctions not already
+            # targeted by another aligner to avoid wasting hearts on simultaneous attempts.
+            if self._shared_map is not None:
+                targeted_by_others = {
+                    t for aid, t in self._shared_map.aligner_targets.items()
+                    if aid != obs.agent_id and t is not None
+                }
+                available = merged_neutral - targeted_by_others - state.blacklisted_junctions
+                if available:
+                    # Filter available to only alignable junctions
+                    alignable_available = {j for j in available if self._aligner._is_alignable(j, state)}
+                    if alignable_available:
+                        merged_neutral = alignable_available
+                # Record predicted target (nearest alignable in merged set)
+                bl = state.blacklisted_junctions
+                predict_alignable = {j for j in merged_neutral if self._aligner._is_alignable(j, state) and j not in bl}
+                predicted_target = self._aligner._nearest_known(current_abs, predict_alignable)
+                self._shared_map.aligner_targets[obs.agent_id] = predicted_target
             align_state = replace(state, known_neutral_junctions=merged_neutral)
             action, base_state = self._aligner._align_neutral(obs, align_state, current_abs)
             state = self._copy_with_shared(replace(state,
