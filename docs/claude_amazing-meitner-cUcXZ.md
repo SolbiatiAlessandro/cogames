@@ -36,4 +36,55 @@ The heart pipeline has these stages: mine -> deposit -> make_heart -> get_heart 
 
 ---
 
-## 2026-04-13T00:01:00Z: starting to run baseline
+## 2026-04-13T05:25:00Z: baseline results
+
+**1000-step baseline** (4A+4M, scripted_miners, return_load=40):
+- Reward: 0.40/agent
+- Junctions gained: 6, held: 2985
+- Hearts withdrawn: 8 (5 initial + 3 make_heart)
+- Deposits: C=31, O=32, G=21, S=40
+
+**10k-step baseline** (4A+4M, scripted_miners, return_load=40):
+- Reward: 1.34/agent
+- Junctions gained: 6, held: 3372 (clips: 1,184,541!)
+- Hearts withdrawn: 10 (barely more than 1k!)
+- Deposits: C=51, O=42, G=54, S=61
+- **CRITICAL FINDING**: Deposits barely increase from 1k to 10k because miners die 1-5 times each and lose all resources
+
+---
+
+## 2026-04-13T05:30:00Z: experiments v1-v5 at 1000 steps
+
+| Config | Reward | Junctions | Hearts | Carbon Deposited |
+|--------|--------|-----------|--------|------------------|
+| Baseline (rl=40) | 0.40 | 6 gained | 8 | 31 |
+| v1 (reduced cooldown) | 0.40 | 5 gained | 8 | 40 |
+| v2 (rl=20) | **0.50** | **7 gained** | 7 | **61** |
+| v3 (2A+6M rl=20) | 0.14 | 5 gained | 6 | 74 |
+| v4 (3A+5M rl=20) | 0.40 | 4 gained | 6 | 100 |
+| v5 (no depleted + rl=20) | 0.48 | 8 gained | 8 | 71 |
+
+**Key findings:**
+1. **return_load=20 is key**: +25% reward from faster deposit cycles alone
+2. **More miners ≠ better**: 2A+6M was terrible (0.14); 4A+4M is optimal at 1000 steps
+3. **Disabling hub_depleted**: marginal improvement; the LLM prompt override wasn't the main bottleneck
+4. **Mining throughput**: more deposits help but aligner efficiency is the binding constraint at 1000 steps
+
+---
+
+## 2026-04-13T06:00:00Z: v6 - HP-based emergency deposit (BREAKTHROUGH!)
+
+**Hypothesis**: At 10k steps, miners die 1-5 times each, losing all carried resources. This erases mining progress. If miners detect low HP and immediately deposit, resources are saved.
+
+**Implementation**: Added HP monitoring in step_with_state. When miner HP < 50% of max_seen and carrying resources, immediately switch to deposit_to_hub.
+
+**v6 result at 1000 steps: 0.58/agent (+45% over baseline!)**
+- 9 junctions gained (best yet!)
+- 4799 junction held
+- 0 miner deaths
+- Carbon deposited: 101 (3.3x over baseline!)
+- Combined effect of return_load=20 + no hub_depleted + emergency deposit
+
+**Why this works**: Miners that would have died carrying 20 resources now deposit them first. Each deposit triggers make_heart if hub has enough resources (7 of each element). More successful deposits → more make_hearts → more hearts for aligners.
+
+**Now running v6 at 10k steps to verify the improvement compounds over longer episodes.**

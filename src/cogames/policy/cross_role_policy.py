@@ -503,13 +503,17 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             if failures == 0:
                 bootstrap_gear = effective_preferred
                 reason = f"phase{state.phase} gear target: {bootstrap_gear} (attempt 1)"
+            elif effective_preferred == "aligner":
+                # Issue-34: Designated aligners NEVER fall back to miner.
+                # Contamination + miner fallback was causing 3/4 aligners to become miners
+                # at 10k steps, bottlenecking the entire heart pipeline.
+                bootstrap_gear = "aligner"
+                reason = f"phase{state.phase} persistent aligner retry (attempt {failures + 1}, failures={failures})"
             elif failures == 1:
                 bootstrap_gear = "miner" if effective_preferred == "aligner" else "aligner"
                 reason = f"phase{state.phase} fallback gear: {bootstrap_gear} (preferred {effective_preferred} failed)"
             elif state.phase == 2:
                 # v7: in phase 2, keep retrying the preferred gear after 2+ failures
-                # (fallback to the other gear is a no-op when agent already has that gear;
-                #  LLM would just pick mining/aligning which is wrong — keep trying the switch)
                 bootstrap_gear = effective_preferred
                 reason = f"phase2 persistent retry: {bootstrap_gear} (attempt {failures + 1}, failures={failures})"
             else:
