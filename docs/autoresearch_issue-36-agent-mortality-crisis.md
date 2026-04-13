@@ -604,3 +604,35 @@ heart crafting throughput. Three bottlenecks identified:
 - Faster heart pipeline recovery after initial 5 hearts depleted
 - More accurate `hearts_crafted_estimate` → better cooldown reset timing for aligners
 
+---
+
+## V16: Aligner junction coordination via SharedMap
+
+**Problem:** With 3 aligners, all independently calling `_nearest_known(current_abs, alignable)`,
+they frequently pick the same nearest junction. The first to arrive aligns it; the others
+arrive to find it friendly (wasted trip) or are en route when the junction flips. With hearts
+being scarce (each costs 28 mined resources), wasting aligner trips is expensive.
+
+**Changes:**
+
+1. **SharedMap.aligner_targets** (aligner_agent.py): New `dict[int, Coord | None]` tracking
+   which junction each aligner is heading toward.
+
+2. **Target filtering in align_neutral dispatch** (cross_role_policy.py): Before calling
+   `_align_neutral`, the merged neutral junction set is filtered to exclude junctions already
+   targeted by other aligners. Only alignable junctions in the filtered set are considered.
+   Falls back to unfiltered set if no untargeted junctions remain.
+
+3. **Target prediction and recording**: After filtering, the predicted target (nearest
+   alignable in the filtered set) is recorded in `SharedMap.aligner_targets[agent_id]`.
+   This is an approximation of what `_align_neutral` will actually choose, but since both
+   use `_nearest_known` on the same filtered set, they should agree.
+
+4. **Target cleanup**: Target is cleared in `_plan_skill` when the aligner switches to a
+   different skill (get_heart, explore, etc.).
+
+**Expected impact:**
+- Aligners spread across different junctions instead of clustering on the nearest one
+- Fewer wasted trips → more junctions aligned per heart
+- Better junction coverage of the map (aligners fan out)
+
