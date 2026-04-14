@@ -330,3 +330,62 @@ Now that 4 aligners win, can we push further?
 
 Priority: exp7 (validate issue criterion) and exp6 (might give another few %).
 
+## 2026-04-14T20:05Z: exp8 5A3M — DISCARDED (-16%)
+
+- s42: 6.472 → 4.400 (-2.07!)
+- s43: 4.476 → 5.040 (+0.56)
+- s44: 4.709 → 3.760 (-0.95)
+Avg 5.219 → 4.400 = -16%.
+
+Lesson: 5 aligners need hearts faster than 3 miners can supply materials.
+heart.withdrawn dropped from 14 to 8 on s42, meaning hearts were actually
+crafted LESS because miners couldn't keep up. **4A4M is the sweet spot**.
+Confirmed by exp8 failing symmetrically on the easy seed (s42) — 3 miners
+simply can't fill the hub fast enough.
+
+## 2026-04-14T20:10Z: Next direction
+
+Since role mix is now optimal, prompt/skill improvements are the remaining
+lever. Let me look at what skills/states cause the biggest losses:
+
+- s43 still has O=0 deposit (oxygen extractors not found)
+- s44 s43 both have agent deaths when HP runs low
+- aligner throughput could improve if they consider multiple hearts at once
+
+Next: exp10 — improve aligner prompt to include "nearest heart" + "nearest
+alignable junction" distance cues, so it can pipeline better.
+
+## 2026-04-14T20:45Z: exp7 10k validation
+
+Config: exp4 best (4A4M, stuck=28, seed 42, 10000 steps).
+
+**Result: 1.69/agent = 13.484 total at 10000 steps.**
+
+- junction.held=6854 (vs 7090 at 1k — growth is sub-linear)
+- junction.gained=17 (vs 20 at 1k — saturated map)
+- heart.withdrawn=13 (vs 14 at 1k — saturated)
+- deaths=11 across 8 agents; 3 agents at hp=0 at step 10000
+- Reward scaling: 6.47 → 13.48 = 2.08x for 10x more steps (diminishing returns)
+
+**Issue #37 mortality criterion: FAILED.** 3 of 8 agents dead by step 10000.
+
+Analysis: most of the reward comes from `junction.held` which saturates quickly
+(the map has ~140 junctions, ~40 alignable). After the first ~1500 steps, agents
+mostly defend + re-align lost junctions. Then HP attrition causes deaths.
+
+The long-horizon losses suggest investing in SURVIVAL skill:
+- When hp.amount < 30, route to safe zone / hub to heal
+- Avoid clip-heavy junctions when low HP
+
+Let me try exp11 — add HP retreat logic to the aligner planner.
+
+## 2026-04-14T20:50Z: exp11 aligner HP retreat
+
+**Hypothesis**: 11 deaths in 10k suggests aligners die in clip combat (clips
+flip junctions which deal damage). If aligners retreat at low HP (say < 40)
+to heal via solar, mortality drops and total reward increases.
+
+**Plan**: Add to aligner prompt state: `hp_amount` field. Add precondition:
+"If hp_amount < 40, prefer explore (move to safer terrain) over align_neutral".
+Also surface this in the planner code.
+
