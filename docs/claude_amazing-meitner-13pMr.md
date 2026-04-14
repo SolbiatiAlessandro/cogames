@@ -290,3 +290,43 @@ Hypothesis: 4 aligners = +33% junction-alignment rate, and 4 miners is still
 enough to saturate heart crafting (heart crafting was not fully used anyway
 — heart.withdrawn was only 6, not the 7+ per-miner mining rate allows).
 
+## 2026-04-14T19:35Z: exp4 result — KEEP (+12% improvement, first success!)
+
+**3-seed avg: 5.219 total (0.652/agent) vs baseline 4.658 — +12.0% improvement.**
+All 3 seeds improved.
+
+- **seed 42: 6.472** (0.81/agent, +0.35 vs baseline 6.125)
+  - junction.gained=20 (vs 19), heart.withdrawn=14 (vs 6! DOUBLED)
+  - Deposits: C=110, O=100, Ge=180, Si=160 — balanced
+  - 0 deaths (vs 2 in baseline); aligned_by_agent: 5+4+4+7=20
+- **seed 43: 4.476** (0.56/agent, +0.80 vs baseline 3.678)
+  - Still O=0 (the hard map), but 4 aligners extracted more value from available hearts
+  - heart.withdrawn=5 (same as baseline), junction.gained=6 (same)
+  - Score came from junction.held=4595 (vs 3597), i.e. holding junctions longer
+- **seed 44: 4.709** (0.59/agent, +0.54 vs baseline 4.171)
+  - junction.gained=11 (vs 12), heart.withdrawn=7 (vs 6)
+  - Deposits better balanced: C=170, O=110, Ge=40, Si=170
+
+**Analysis:** The bottleneck in V20 at 8A/3A5M wasn't heart crafting — it was
+aligner-per-heart throughput. With 3 aligners + 5 miners: miners over-produced
+materials but hearts weren't being WITHDRAWN fast enough because only 3 agents
+could collect them. With 4 aligners + 4 miners: more parallel heart-withdraw
++ junction-align trips → higher junction.held.
+
+Key evidence from seed 42: heart.withdrawn went from 6 to 14 with fewer
+miners. Means the bottleneck was throughput of heart-collection, not heart
+supply. Miners were idling or stuck on full cargo waiting for hub space.
+
+**Decision: KEEP.** This is the first meaningful improvement on issue #37.
+Advance the branch with this change.
+
+## 2026-04-14T19:40Z: Next experiment thoughts
+
+Now that 4 aligners win, can we push further?
+- exp5: 5 aligners + 3 miners — likely too few miners; would hit heart shortage
+- exp6: tune stuck_threshold (currently 28; try 20 for faster recovery)
+- exp7: 10k mortality test with 4-aligner config (issue #37 success criterion)
+- exp8: prompt tuning for aligners — e.g. bias toward closest alignable junction
+
+Priority: exp7 (validate issue criterion) and exp6 (might give another few %).
+
