@@ -153,3 +153,43 @@ of baseline; any improvement comes from the variance-reduction (LLM occasionally
 picks suboptimal skill in trivial states, e.g. align_neutral vs explore when both
 are available). Commit: fast-path added to `_plan_skill` in machina_llm_roles_policy.py.
 
+## 2026-04-14T19:40Z: exp1 result — DISCARDED
+
+**Result: 4.459 total (0.56/agent) on seed 42 — -1.67 from baseline (6.125).**
+
+Stats: junction.gained=7 (vs 19), junction.held=4574 (vs 6656), Ge.deposited=20 (imbalanced vs baseline 140).
+Fast-path fired in 61/107 aligner replans (57%). Per-agent:
+- a0 (aligner): 3 junctions aligned (vs baseline 13 for a0) — huge drop
+- a1 (aligner): 2 (vs 4)
+- a2 (aligner): 2 (vs 2)
+
+**Analysis:** The fast-path was TOO aggressive. Even in "trivial" preconditions states,
+the LLM actually uses `recent_events` context to make smarter decisions:
+- When `get_heart exited as stale on target`, the LLM often picks `explore`
+  instead of retrying `get_heart` (hub may be empty/unreachable).
+- When an align_neutral recently `timed out after 140 steps without completion`, the LLM
+  may choose to explore for other junctions instead.
+- The fast-path bypassed these reconsiderations entirely, causing agents to
+  loop into the same failing skills repeatedly. This matches the observation
+  that junction.gained halved.
+
+**Lesson for next researcher:** Do NOT skip the LLM when `recent_events` contains
+a non-trivial signal (timeout/stale/stuck). The LLM adds real value in those
+edge cases. A safer fast-path would only skip when recent_events contains only
+"completed" events — but that's only ~10% of calls, not worth the risk.
+
+Action: revert fast-path commit. Next experiment pivots to a different angle.
+
+## 2026-04-14T19:45Z: starting new experiment loop — exp2 "scripted_miners=true"
+
+**Hypothesis**: The biggest cause of the seed-43 failure (and overall variance) is
+element imbalance. Session 7 exp12 showed that `scripted_miners=true` gives a
+more stable 4.43-5.28 range across 3 seeds (vs V20's 3.68-6.13). The LLM miner
+planner takes ~1s per call and may not properly weight the team-scarce element
+signal vs "deposit_to_hub when full" signal. Scripted miners use
+`llm_skills._scripted_skill_choice` which picks target element strictly by
+team_scarce logic (with threshold=28 and diff=5).
+
+**Plan**: Run with `kw.scripted_miners=true` on seeds 42, 43, 44 to compare.
+Expect: seed 43 improves the most; seed 42 may drop slightly.
+
