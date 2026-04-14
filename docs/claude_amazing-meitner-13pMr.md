@@ -231,3 +231,62 @@ if scarce is not None but neither visible nor in known_extractors, call
 Expect: on seed 43, early-game miners will explore further before committing
 to carbon; more oxygen extractors discovered; better balance.
 
+## 2026-04-14T21:30Z: exp3 result — DISCARDED
+
+**Seed 43: 3.239 total (0.40/agent) — -0.44 from baseline (3.678).**
+
+Stats: C=290, O=0 (!), Ge=100, Si=110. Still O=0 despite explore-forcing.
+Junction.gained=6 (same as baseline). heart.withdrawn=5.
+
+**Analysis:** The fix FIRED (miners would have explored when O was team_scarce),
+but explore-pattern doesn't reliably find far-away oxygen extractors in 1000
+steps. The map may have O extractors in a corner that _explore()'s frontier
+heuristic doesn't prioritize. Meanwhile, making miners explore MORE means
+they mine LESS carbon too, so total throughput drops.
+
+**Lesson:** Just forcing explore isn't enough when the map doesn't surface the
+needed extractor. Two possible next angles:
+- (a) Directed exploration: bias explore toward the cardinal direction furthest
+  from known extractors of the same element (assume extractors are clustered).
+- (b) Accept seed-43 loss and focus on improving seeds 42/44 instead.
+
+Given seed 42 already has 6.125 (strong) and 44 at 4.17 (adequate), and since
+discards have consistently hurt rather than helped, I should consider whether
+the baseline V20 is already near-optimal for the 1k/8A config. The issue
+asks for >= 4.0 at 1k total (we hit 4.66 avg across 3 seeds) and >= 5.0 online
+score which is HALF of offline (≈2.5 per-agent implied) — we're well above.
+
+**Pivot for next experiment:** Stop trying to fix seed-43 variance. Instead
+try to IMPROVE seed 42/44 — aligner efficiency. Aligner agents on seed 42
+aligned 13+4+2=19 junctions, but heart crafting only produced 1 extra heart
+(hub had 5 initial, 6 withdrawn). Hearts are the bottleneck. If we had more
+hearts, agents 1 and 2 could have aligned MORE junctions (they aligned only
+4 and 2 respectively — consistent with being heart-starved).
+
+## 2026-04-14T21:35Z: starting new experiment loop — exp4 "heart-priority aligner routing"
+
+**Hypothesis**: Aligner agents 1/2 on baseline seed 42 aligned far fewer junctions
+than agent 0 (13 vs 4/2). This suggests heart competition — agent 0 grabs
+most hearts and the other aligners can't get them. If we could route aligners
+so they DON'T all crowd the hub, one approach is: when one aligner has a heart
+and is en-route to align, OTHER hearts should be reserved for other aligners.
+Alternative: when alignable junctions >> available hearts, agents should help
+the TEAM by delivering resources rather than waiting on hearts.
+
+Actually simpler: the issue is heart throughput. 6 hearts/1000 steps across
+3 aligners = 2 hearts/aligner. If each heart = 1 junction aligned, the max
+junction.gained across all aligners is 6 from-crafted + 5 from-initial = 11.
+But baseline seed 42 had junction.gained=19, which means 8 "re-alignments"
+where an already-aligned junction was re-aligned by another team. The main
+bottleneck isn't hearts, it's junction RE-ALIGNMENTS (clips alignment is
+21040 held vs cogs 6656).
+
+**Alternate hypothesis**: maybe defend_friendly is the missing skill — when a
+friendly junction is under threat of clip re-alignment, defend it. But that's
+a bigger change.
+
+Simpler experiment: increase num_aligners from 3 to 4 (at cost of 1 miner).
+Hypothesis: 4 aligners = +33% junction-alignment rate, and 4 miners is still
+enough to saturate heart crafting (heart crafting was not fully used anyway
+— heart.withdrawn was only 6, not the 7+ per-miner mining rate allows).
+
