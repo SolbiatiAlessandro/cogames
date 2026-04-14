@@ -193,3 +193,41 @@ team_scarce logic (with threshold=28 and diff=5).
 **Plan**: Run with `kw.scripted_miners=true` on seeds 42, 43, 44 to compare.
 Expect: seed 43 improves the most; seed 42 may drop slightly.
 
+## 2026-04-14T20:40Z: exp2 result — DISCARDED
+
+**Seed 42: 4.725 total (0.59/agent) — -1.40 from baseline (6.125).**
+Stats: C=30, O=50, Ge=100, Si=100. Junction.gained=8 (vs 19). Carbon extremely low.
+
+**Seed 43: 3.075 total (0.38/agent) — -0.60 from baseline (3.678).**
+Stats: C=110, O=0, Ge=80, Si=90. Oxygen=0. Scripted miners DID NOT fix the oxygen
+starvation. Junction.gained=4.
+
+**Analysis:** Scripted miners perform WORSE than LLM miners on V20 merged stack.
+This contradicts session 7 data, but likely because:
+- V20 has new shared state (extractors_by_element), V15 team-balance, hub
+  mortality signals that LLM miners use from `recent_events`. Scripted miners
+  don't react to these events — they just follow simple rules.
+- On seed 43, neither approach finds oxygen extractors. The real bug is that
+  early-game miners pick a nearby extractor (e.g. carbon) and NEVER explore
+  to find oxygen. V15's team-scarce only activates after 28 deposits total,
+  by which time the entire early game is committed to nearby elements.
+
+**Lesson:** scripted_miners=true is NOT a silver bullet. The real fix for the
+element imbalance is in the EXPLORATION logic, not in the mining logic. When
+`_team_scarce_element() is not None` AND that element has zero known extractors,
+we should force miners to EXPLORE aggressively for it rather than mining
+available extractors.
+
+## 2026-04-14T20:45Z: starting new experiment loop — exp3 "force explore when team_scarce has no known extractors"
+
+**Hypothesis**: The element imbalance failure mode on seed 43 is caused by miners
+mining the nearest extractor (carbon) because oxygen extractors haven't been
+discovered. The fix: in `_mine_until_full`, if team_scarce element exists but
+there are no visible OR known extractors of that element, force exploration.
+
+**Code change**: In `llm_skills.py::_mine_until_full`, after computing `scarce`:
+if scarce is not None but neither visible nor in known_extractors, call
+`_explore()` instead of falling through to "just mine any extractor".
+Expect: on seed 43, early-game miners will explore further before committing
+to carbon; more oxygen extractors discovered; better balance.
+
