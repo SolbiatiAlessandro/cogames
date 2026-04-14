@@ -95,3 +95,61 @@ Next experiments (in order):
    decision is deterministic) to save tokens + latency, or try scripted_miners=true
    to see if that boosts further.
 
+## 2026-04-14T18:15Z: seed 43 result
+
+**seed 43: 3.678 total (0.46/agent) — BELOW primary (4.0).**
+
+Key stats: junction.held=3597, junction.gained=6, heart.withdrawn=5 (stuck at initial),
+carbon.deposited=346, oxygen.deposited=20, germanium=110, silicon=64.
+
+Analysis:
+- Heavy element imbalance: carbon got 346, oxygen only 20. The make_heart cycle
+  needs 7 of each, so with only 20 oxygen ever deposited and 14 silicon used per
+  make_heart, the hub can't craft new hearts. This is the primary failure mode.
+- heart.withdrawn stuck at 5 means the entire episode only used the initial hub
+  stock of hearts; zero crafted by make_heart.
+- V15 team-balance should have kicked in, but wasn't strong enough to fix this.
+  Threshold 5 for rebalance, minimum 28 total — at carbon 346 + oxygen 20 = total
+  way above 28 and max-min=326. So the code *should* have been routing all new
+  miners to oxygen. Something's not working as intended.
+
+**Cross-seed avg so far**: (6.125 + 3.678) / 2 = 4.90 total — still above primary
+but seed 43 is a problem.
+
+Avg across 2 seeds = 4.90 beats session 7 exp12 avg (4.97) already on 2 seeds.
+But the per-seed minimum (3.68 < 4.43 from exp12) is WORSE. The merged V20 has
+more variance.
+
+## 2026-04-14T18:40Z: seed 44 result
+
+**seed 44: 4.171 total (0.52/agent) — above primary (4.0).**
+
+Stats: junction.held=4214, junction.gained=12, heart.withdrawn=6,
+C=110, O=90, Ge=100, Si=160 — balanced. 0 deaths.
+
+**3-seed baseline summary (V20 merged, 9b4c2d9, 8A/3A5M/LLM-miners/stuck=28):**
+- Seed 42: 6.125 | Seed 43: 3.678 | Seed 44: 4.171
+- Mean: 4.658 (0.582/agent)
+- vs session 7 exp12 (3-seed avg 4.97): slightly worse, but variance matters
+- vs session 7 exp4 single seed (5.84): similar
+- V20 is strong on seed 42/44, but seed 43 was a bad draw
+
+Seed 43 failure was element imbalance (C=346, O=20). Session 7 exp12 used
+scripted_miners=true; V20 uses LLM miners by default. The LLM miners may be
+failing to pick the scarce element even with the V15 team-balance signal in
+the prompt. Two avenues to improve:
+
+A) fast-path: trim LLM planner calls (aligner has 90%+ trivial calls)
+B) fix imbalance: scripted_miners or stronger LLM bias towards scarce element
+
+## 2026-04-14T18:45Z: starting new experiment loop — exp1 "aligner LLM fast-path"
+
+**Hypothesis**: ~90% of aligner LLM planner calls happen in deterministic states
+where the next skill is fully determined by preconditions (e.g., has_aligner=False
+→ gear_up; has_aligner+has_heart+alignable_junction → align_neutral). Skipping
+the LLM call in those states should save ~1.5s per trivial call and reduce
+non-determinism without affecting skill choice. Reward should be within seed-noise
+of baseline; any improvement comes from the variance-reduction (LLM occasionally
+picks suboptimal skill in trivial states, e.g. align_neutral vs explore when both
+are available). Commit: fast-path added to `_plan_skill` in machina_llm_roles_policy.py.
+

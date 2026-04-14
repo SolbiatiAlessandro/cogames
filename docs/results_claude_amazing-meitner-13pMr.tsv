@@ -1,2 +1,4 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 9b4c2d9	6.125	junction.held=6656;junction.gained=19;heart.withdrawn=6;carbon.deposited=200;oxygen.deposited=100;germanium.deposited=140;silicon.deposited=160;deaths=2	1000	keep	baseline 8A 3A5M LLM-miners stuck=28 seed=42 1k — issue #37 primary config; 0.77/agent exceeds 4.0 target
+9b4c2d9	3.678	junction.held=3597;junction.gained=6;heart.withdrawn=5;carbon.deposited=346;oxygen.deposited=20;germanium.deposited=110;silicon.deposited=64;deaths=1	1000	keep	baseline 8A 3A5M LLM-miners stuck=28 seed=43 1k — below primary 4.0; imbalanced deposits (C=346 O=20)
+9b4c2d9	4.171	junction.held=4214;junction.gained=12;heart.withdrawn=6;carbon.deposited=110;oxygen.deposited=90;germanium.deposited=100;silicon.deposited=160;deaths=0	1000	keep	baseline 8A 3A5M LLM-miners stuck=28 seed=44 1k — above primary 4.0; balanced deposits; 0 deaths
