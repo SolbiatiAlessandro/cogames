@@ -258,9 +258,14 @@ class CrossRoleState:
     get_heart_cooldown_steps: int = 0  # Issue-16: steps remaining before get_heart is allowed again
     max_hp_seen: int = 0
     retreating: bool = False
+    retreat_stuck_steps: int = 0  # Issue-36 v7: consecutive no-move steps while retreating
+    steps_since_last_heart: int = 0  # Issue-36: steps since agent last acquired a heart
+    last_deposit_hearts_estimate: int = 0  # Issue-36: last known hearts_crafted_estimate, to detect new hearts
 
     # Miner LLM tracking
     last_carried_total: int = 0
+    # Issue-36 v15: per-element inventory tracking for accurate deposit accounting
+    last_inventory_counts: dict[str, int] = field(default_factory=lambda: {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0})
     explore_start_extractors: int = 0
 
     # Gear acquisition tracking (for retry + fallback logic)
@@ -329,6 +334,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.known_neutral_junctions = sm.known_neutral_junctions
         state.known_friendly_junctions = sm.known_friendly_junctions
         state.known_enemy_junctions = sm.known_enemy_junctions
+        # Issue-36 v20: share per-element extractor locations across all agents
+        state.extractors_by_element = sm.extractors_by_element
 
     def _copy_with_shared(self, state: CrossRoleState) -> CrossRoleState:
         """Return state with shared map fields re-bound (after delegate calls may have returned new state)."""
@@ -348,6 +355,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             known_neutral_junctions=sm.known_neutral_junctions,
             known_friendly_junctions=sm.known_friendly_junctions,
             known_enemy_junctions=sm.known_enemy_junctions,
+            extractors_by_element=sm.extractors_by_element,
         )
 
     def _event(self, state: CrossRoleState, message: str) -> None:
@@ -388,6 +396,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # Additionally update miner-specific structures (extractors, miner stations)
         # We reuse the miner's _update_map_memory but pass our CrossRoleState (duck typing)
         self._miner._update_map_memory(obs, state)
+        # Issue-36 v13: miner update clears+rebuilds blocked_cells from its own blocked_now,
+        # which doesn't include aligner stations. Visible aligner stations get unblocked and
+        # added to known_free_cells. Fix: re-apply blocking for all known aligner stations.
+        if state.known_aligner_stations:
+            state.blocked_cells.update(state.known_aligner_stations)
+            state.known_free_cells.difference_update(state.known_aligner_stations)
         # Issue-35: Track agent positions for congestion avoidance
         if self._shared_map is not None:
             self._shared_map.agent_positions[obs.agent_id] = current_abs
@@ -408,9 +422,49 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if state.current_skill == "mine_until_full" and carried_total > state.last_carried_total:
             self._event(state, f"cargo increased {state.last_carried_total}→{carried_total}")
 
+        # Issue-36: track steps since last heart acquisition for periodic hub return
+        if has_heart and not state.last_has_heart:
+            state.steps_since_last_heart = 0
+        else:
+            state.steps_since_last_heart += 1
+
+        # Issue-36 v7: decrement get_heart cooldown every step (was only in _plan_skill).
+        # Bug: cooldown only counted down during replanning, not while exploring.
+        # With max cooldown of 8 and explore taking 200+ steps, cooldown was effectively frozen.
+        if state.get_heart_cooldown_steps > 0:
+            state.get_heart_cooldown_steps -= 1
+
+        # Issue-36: track deposit events for heart pipeline awareness
+        # Issue-36 v7: track ANY deposit (not just during deposit_to_hub skill).
+        # Emergency deposits during retreat and auto-deposits near hub should also be counted.
+        # Issue-36 v15: use per-element inventory tracking for accurate deposit accounting.
+        # Previously approximated by distributing evenly, which misreported when miners
+        # carried unbalanced loads (e.g., 15 carbon + 5 oxygen → reported as 5 each).
+        gear = self._current_gear(obs)
+        current_inv = self._miner._inventory_counts(obs) if gear == "miner" else {}
+        if gear == "miner" and carried_total < state.last_carried_total:
+            if self._shared_map is not None:
+                for elem in ("carbon", "oxygen", "germanium", "silicon"):
+                    prev = state.last_inventory_counts.get(elem, 0)
+                    curr = current_inv.get(elem, 0)
+                    deposited_elem = max(0, prev - curr)
+                    if deposited_elem > 0:
+                        self._shared_map.total_deposits[elem] += deposited_elem
+                # Estimate hearts that could have been crafted from all deposits
+                min_deposits = min(self._shared_map.total_deposits.values())
+                new_estimate = min_deposits // 7  # 7 of each element per heart
+                if new_estimate > self._shared_map.hearts_crafted_estimate:
+                    self._shared_map.hearts_crafted_estimate = new_estimate
+                    logger.info(
+                        "agent=%s hearts_crafted_estimate=%d deposits=%s",
+                        obs.agent_id, new_estimate, self._shared_map.total_deposits,
+                    )
+
         state.last_has_heart = has_heart
         state.last_friendly_junctions = friendly_count
         state.last_carried_total = carried_total
+        if gear == "miner":
+            state.last_inventory_counts = {e: current_inv.get(e, 0) for e in ("carbon", "oxygen", "germanium", "silicon")}
 
         last_action_move = self._feature_value(obs, "last_action_move")
         gear = self._current_gear(obs)
@@ -427,6 +481,13 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             abs(current_abs[0] - s[0]) + abs(current_abs[1] - s[1]) <= 1
             for s in state.known_miner_stations
         )
+        # Issue-36 v12: track near_extractor for mine_until_full stale detection.
+        # Previously used near_hub, which is always False at extractors.
+        # This made the depleted-extractor removal code unreachable.
+        near_extractor = any(
+            abs(current_abs[0] - e[0]) + abs(current_abs[1] - e[1]) <= 1
+            for e in state.known_extractors
+        )
 
         made_progress = (
             (state.current_skill == "get_heart" and has_heart and not state.last_has_heart)
@@ -441,7 +502,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             or (state.current_skill == "align_neutral" and current_abs in self._known_alignable_junctions(state))
             or (state.current_skill == "gear_up_aligner" and near_aligner_station)
             or (state.current_skill == "gear_up_miner" and near_miner_station)
-            or (state.current_skill in {"mine_until_full", "deposit_to_hub"} and near_hub)
+            or (state.current_skill == "mine_until_full" and near_extractor)  # v12: was near_hub (bug)
+            or (state.current_skill == "deposit_to_hub" and near_hub)
         )
 
         if made_progress:
@@ -464,6 +526,39 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             return 0, 0
         gears = sm.agent_gears.values()
         return sum(1 for g in gears if g == "aligner"), sum(1 for g in gears if g == "miner")
+
+    def _clear_shared_map_tracking(self, agent_id: int) -> None:
+        """Issue-36 v19: clean up SharedMap coordination state for this agent.
+
+        Called when an agent's skill is cancelled externally (retreat, phase switch,
+        tether) without going through _plan_skill. Without this, the agent stays
+        registered in heart queue / aligner targets during retreat, blocking teammates.
+        """
+        if self._shared_map is not None:
+            self._shared_map.agents_getting_hearts.discard(agent_id)
+            self._shared_map.aligner_targets.pop(agent_id, None)
+
+    def _set_skill_fast(self, obs: AgentObservation, state: CrossRoleState, skill: str, reason: str) -> None:
+        """Issue-36 v18: centralized fast-path skill assignment with SharedMap cleanup.
+
+        All fast-path returns in _plan_skill use this to ensure heart queue and
+        aligner target tracking stay consistent.
+        """
+        # Clean up SharedMap tracking from previous skill and register for new skill
+        if self._shared_map is not None:
+            if skill == "get_heart":
+                self._shared_map.agents_getting_hearts.add(obs.agent_id)
+            else:
+                self._shared_map.agents_getting_hearts.discard(obs.agent_id)
+            if skill != "align_neutral":
+                self._shared_map.aligner_targets.pop(obs.agent_id, None)
+
+        state.current_skill = skill
+        state.current_reason = reason
+        state.skill_steps = 0
+        state.no_move_steps = 0
+        state.no_progress_on_target_steps = 0
+        self._event(state, f"planner selected {skill}: {reason}")
 
     def _plan_skill(self, obs: AgentObservation, state: CrossRoleState) -> None:
         gear = self._current_gear(obs)
@@ -530,32 +625,32 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 bootstrap_gear = effective_preferred
                 reason = f"phase2 persistent retry: {bootstrap_gear} (attempt {failures + 1}, failures={failures})"
             else:
-                bootstrap_gear = ""  # Phase 1 with 2+ failures: let LLM choose
+                # Issue-36 v6: after 4+ failures, explore near hub instead of infinite gear_up retries.
+                # The gear_up navigation is failing (stale after 20 steps), so wandering near hub
+                # is safer (territory healing) and may walk through the correct gear station.
+                if contaminated and failures >= 4:
+                    logger.info("agent=%s issue36_contamination_explore: failures=%d gear=%s", obs.agent_id, failures, gear)
+                    self._set_skill_fast(obs, state, "explore",
+                        f"contamination recovery: explore near hub after {failures} gear_up failures")
+                    return
+                bootstrap_gear = effective_preferred  # Phase 1 with 2-3 failures: keep trying preferred
+                reason = f"phase{state.phase} persistent retry: {bootstrap_gear} (attempt {failures + 1}, failures={failures})"
 
             if bootstrap_gear:
                 skill = f"gear_up_{bootstrap_gear}"
                 logger.info("agent=%s bootstrap_skill=%s failures=%d phase=%d", obs.agent_id, skill, failures, state.phase)
                 if skill in CROSS_ROLE_SKILLS:
-                    state.current_skill = skill
-                    state.current_reason = reason
-                    state.skill_steps = 0
-                    state.no_move_steps = 0
-                    state.no_progress_on_target_steps = 0
-                    self._event(state, f"planner selected {skill}: {reason}")
+                    self._set_skill_fast(obs, state, skill, reason)
                     return
 
         team_aligners, team_miners = self._team_gear_counts()
         team_size = max(1, len(self._shared_map.agent_gears) if self._shared_map and hasattr(self._shared_map, "agent_gears") else 8)
 
-        # Issue-34: Remove cooldown-based blocking entirely. The cooldown caused
-        # aligners to waste time exploring instead of staying near hub and retrying
-        # get_heart as soon as make_heart creates new hearts from deposits.
-        # At 10k steps, continuous retry is better than cooldown because miners
-        # deposit frequently and make_heart triggers on each deposit visit.
-        if state.get_heart_cooldown_steps > 0:
-            state.get_heart_cooldown_steps -= 1
-        # Issue-34: Reset failures when team has deposited new resources
-        # (indicates make_heart may have created new hearts)
+        # Issue-16: hub depletion awareness
+        # Only use cooldown-based blocking (no hard block). After cooldown expires,
+        # agents retry get_heart. If make_heart created new hearts from deposited
+        # resources, the retry succeeds. If not, failure sets a new cooldown.
+        # Note: cooldown is decremented in _update_progress (every step), not here.
         hub_hearts_used = self._shared_map.hub_hearts_withdrawn if self._shared_map else 0
         hub_deposits_total = self._shared_map.hub_deposits_total if self._shared_map and hasattr(self._shared_map, 'hub_deposits_total') else 0
         if hasattr(state, '_last_seen_deposits') and hub_deposits_total > state._last_seen_deposits:
@@ -564,10 +659,97 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.get_heart_cooldown_steps = 0
         state._last_seen_deposits = hub_deposits_total
         hub_hard_depleted = False  # v13: removed hard block to allow make_heart retries
-        # Issue-34 v10: Removed v9 smart cooldown. Instead of short cooldowns that
-        # cause explore→get_heart cycling, we increase hub patience (50 steps at hub)
-        # so agents camp at hub long enough to catch the next make_heart cycle.
-        hub_depleted = hub_hard_depleted
+        hub_on_cooldown = state.get_heart_cooldown_steps > 0
+
+        # Issue-36: deposit-aware cooldown reset
+        # When team deposits suggest make_heart has created new hearts,
+        # immediately reset cooldown so aligners return to collect them.
+        if self._shared_map is not None and hub_on_cooldown:
+            estimated_hearts = self._shared_map.hearts_crafted_estimate
+            hearts_consumed = self._shared_map.hub_hearts_withdrawn
+            # If estimated crafted hearts exceed what's been withdrawn (minus initial 5),
+            # there should be hearts available in the hub
+            hearts_from_crafting_consumed = max(0, hearts_consumed - 5)  # 5 initial hearts
+            if estimated_hearts > hearts_from_crafting_consumed:
+                state.get_heart_cooldown_steps = 0
+                state.consecutive_get_heart_failures = 0
+                hub_on_cooldown = False
+                logger.info(
+                    "agent=%s issue36_cooldown_reset: estimated_crafted=%d consumed_crafted=%d",
+                    obs.agent_id, estimated_hearts, hearts_from_crafting_consumed,
+                )
+                self._event(state, f"hub cooldown reset: deposits suggest {estimated_hearts - hearts_from_crafting_consumed} hearts available")
+
+        # Issue-36: periodic hub return for aligners without hearts
+        # After 200 steps without a heart, force aligner to try get_heart regardless of cooldown
+        # This prevents the explore drift where agents wander away from hub forever
+        _HUB_RETURN_INTERVAL = 200
+        if (
+            gear == "aligner"
+            and not has_heart
+            and hub_on_cooldown
+            and state.steps_since_last_heart >= _HUB_RETURN_INTERVAL
+            and state.known_hubs
+        ):
+            state.get_heart_cooldown_steps = 0
+            state.consecutive_get_heart_failures = 0
+            hub_on_cooldown = False
+            state.steps_since_last_heart = 0  # reset to prevent immediate re-trigger
+            logger.info(
+                "agent=%s issue36_periodic_hub_return after %d steps without heart",
+                obs.agent_id, _HUB_RETURN_INTERVAL,
+            )
+            self._event(state, f"periodic hub return after {_HUB_RETURN_INTERVAL} steps without heart")
+
+        hub_depleted = hub_on_cooldown
+
+        # Issue-36: fast-path for aligner heart acquisition and alignment
+        # Skip LLM call when the optimal action is obvious. This saves ~2 seconds
+        # per decision, which is critical at 10k steps where throughput matters.
+        if gear == "aligner":
+            if has_heart and known_alignable:
+                self._set_skill_fast(obs, state, "align_neutral",
+                    f"fast-path: have heart and {len(known_alignable)} alignable targets")
+                return
+            if not has_heart and not hub_depleted and state.known_hubs:
+                # Issue-36 v18: heart queue management — don't send more aligners to hub
+                # than estimated hearts available. Prevents 3 aligners rushing for 1 heart.
+                if self._shared_map is not None:
+                    estimated_available = max(0,
+                        5 + self._shared_map.hearts_crafted_estimate - self._shared_map.hub_hearts_withdrawn
+                    )
+                    others_getting = len(self._shared_map.agents_getting_hearts - {obs.agent_id})
+                    if others_getting >= max(1, estimated_available):
+                        self._set_skill_fast(obs, state, "explore",
+                            f"fast-path: heart queue full ({others_getting} in flight, ~{estimated_available} available)")
+                        return
+                logger.info("agent=%s issue36_fast_path: skipping LLM, selecting get_heart directly", obs.agent_id)
+                self._set_skill_fast(obs, state, "get_heart",
+                    "fast-path: aligner needs heart, hub not on cooldown")
+                return
+            # Issue-36 v7: fast-path for remaining aligner states (eliminates more LLM calls)
+            if has_heart and not known_alignable:
+                self._set_skill_fast(obs, state, "explore",
+                    "fast-path: aligner has heart but no alignable junctions, exploring")
+                return
+            if not has_heart and hub_depleted:
+                self._set_skill_fast(obs, state, "explore",
+                    f"fast-path: no heart, hub on cooldown (cd={state.get_heart_cooldown_steps})")
+                return
+        elif gear == "miner":
+            if carried >= self._return_load:
+                self._set_skill_fast(obs, state, "deposit_to_hub",
+                    f"fast-path: cargo full ({carried}/{self._return_load})")
+                return
+            if state.known_extractors and carried < self._return_load:
+                self._set_skill_fast(obs, state, "mine_until_full",
+                    f"fast-path: have {len(state.known_extractors)} extractors, cargo {carried}/{self._return_load}")
+                return
+            # Issue-36: fast-path explore when miner has no known extractors
+            if not state.known_extractors and carried < self._return_load:
+                self._set_skill_fast(obs, state, "explore",
+                    "fast-path: miner has no known extractors, exploring to discover some")
+                return
 
         # Skip LLM call when planner is None (scripted_miners mode)
         text = ""
@@ -683,6 +865,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if skill == "mine_until_full" and gear != "miner":
             skill = "gear_up_miner"
             reason = f"overrode to gear_up_miner: need miner gear for mining (current={gear})"
+        # Issue-36: prevent mine_until_full with no known extractors — wastes 400 steps on predicted positions
+        if skill == "mine_until_full" and gear == "miner" and not state.known_extractors:
+            skill = "explore"
+            reason = "overrode mine_until_full to explore: no known extractors (discover some first)"
         if skill == "deposit_to_hub" and gear != "miner":
             skill = "gear_up_miner"
             reason = f"overrode to gear_up_miner: need miner gear for deposit (current={gear})"
@@ -726,6 +912,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if skill in {"explore", "gear_up_aligner", "gear_up_miner"}:
             state.explore_start_junctions = len(state.known_neutral_junctions)
             state.explore_start_extractors = len(state.known_extractors)
+
+        # Issue-36 v16: clear aligner target when switching skills
+        if self._shared_map is not None and skill != "align_neutral":
+            self._shared_map.aligner_targets.pop(obs.agent_id, None)
+        # Issue-36 v18: update heart queue — add when starting get_heart, remove otherwise
+        if self._shared_map is not None:
+            if skill == "get_heart":
+                self._shared_map.agents_getting_hearts.add(obs.agent_id)
+            else:
+                self._shared_map.agents_getting_hearts.discard(obs.agent_id)
 
         state.current_skill = skill
         state.current_reason = reason
@@ -785,12 +981,49 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 logger.info("agent=%s hub_deposits_total=%d", obs.agent_id, self._shared_map.hub_deposits_total)
             state.current_skill = None
         elif state.current_skill == "explore" and (
-            len(state.known_neutral_junctions) > state.explore_start_junctions
+            # Issue-36 v17: miners should only complete explore on extractor discovery,
+            # not junction discovery. Junction discoveries come from aligner teammates
+            # via SharedMap and interrupt miner exploration prematurely — the miner
+            # replans to mine_until_full and heads to a known extractor instead of
+            # continuing to discover new extractor types.
+            (gear != "miner" and len(state.known_neutral_junctions) > state.explore_start_junctions)
             or len(state.known_extractors) > state.explore_start_extractors
         ):
             new_junctions = len(state.known_neutral_junctions) - state.explore_start_junctions
             new_extractors = len(state.known_extractors) - state.explore_start_extractors
             self._event(state, f"explore completed: +{new_junctions} junctions, +{new_extractors} extractors")
+            # Issue-36 v6: reset gear_up_failures after explore so contaminated agents
+            # retry gear acquisition after discovering new area (may find gear station)
+            contaminated = gear in ("scrambler", "scout")
+            if contaminated and state.gear_up_failures >= 4:
+                state.gear_up_failures = 0
+                self._event(state, "contamination: reset gear_up_failures after explore")
+            state.current_skill = None
+        # Issue-36 v7: interrupt explore when get_heart cooldown expires.
+        # Heartless aligners explore during cooldown. When cooldown expires, they should
+        # immediately switch to get_heart instead of waiting for explore to find something.
+        elif (
+            state.current_skill == "explore"
+            and gear == "aligner"
+            and not has_heart
+            and state.get_heart_cooldown_steps == 0
+            and state.known_hubs
+            and state.skill_steps > 0
+        ):
+            self._event(state, "explore interrupted: cooldown expired, switching to get_heart")
+            state.current_skill = None
+        # Issue-36 v9: interrupt explore when aligner has heart and alignable targets exist.
+        # Aligner may discover enemy junctions during explore that aren't tracked by
+        # explore_start_junctions (which only counts neutral). This ensures aligners
+        # immediately switch to alignment when any target becomes available.
+        elif (
+            state.current_skill == "explore"
+            and gear == "aligner"
+            and has_heart
+            and self._known_alignable_junctions(state)
+            and state.skill_steps > 0
+        ):
+            self._event(state, f"explore interrupted: found {len(self._known_alignable_junctions(state))} alignable targets")
             state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             # Issue-16: agent got a heart while defending — switch to aligning
@@ -851,12 +1084,21 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, f"get_heart exited as stale after {state.no_progress_on_target_steps} steps (short threshold)")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_progress_on_target_steps >= self._stuck_threshold:
-            # Remove depleted extractors
+            # Issue-36 v12: remove depleted extractors — check adjacent cells too.
+            # With V8 pre-blocking, miners are at approach cells (dist 1 from extractor),
+            # not ON the extractor itself. Check current position AND adjacent cells.
             if state.current_skill == "mine_until_full":
                 current_abs = self._current_abs(obs)
-                if current_abs in state.known_extractors:
-                    state.known_extractors.discard(current_abs)
-                    self._event(state, f"removed depleted extractor at {current_abs}")
+                nearby_extractors = {
+                    e for e in state.known_extractors
+                    if abs(current_abs[0] - e[0]) + abs(current_abs[1] - e[1]) <= 1
+                }
+                for e in nearby_extractors:
+                    state.known_extractors.discard(e)
+                    # Also remove from per-element tracking
+                    for elem_set in state.extractors_by_element.values():
+                        elem_set.discard(e)
+                    self._event(state, f"removed depleted extractor at {e}")
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
                 state.gear_up_failures_total += 1
@@ -892,6 +1134,19 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         direction = self._UNSTUCK_DIRECTIONS[state.wander_direction_index % len(self._UNSTUCK_DIRECTIONS)]
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._aligner._starter._action(f"move_{direction}"), state
+
+    def _track_move_target(self, action: Action, current_abs: Coord, state: CrossRoleState) -> None:
+        """Issue-36 v9: Set last_move_target for move failure tracking on early returns.
+
+        Without this, retreat/tether moves that hit obstacles aren't tracked in
+        move_blocked_cells, so BFS keeps routing through the same obstacles.
+        """
+        action_name = action.name if hasattr(action, "name") else ""
+        if action_name.startswith("move_"):
+            direction = action_name[len("move_"):]
+            delta_map = {"north": (-1, 0), "east": (0, 1), "south": (1, 0), "west": (0, -1)}
+            dr, dc = delta_map.get(direction, (0, 0))
+            state.last_move_target = (current_abs[0] + dr, current_abs[1] + dc)
 
     def _expand_hazard_zone(self, state: CrossRoleState) -> CrossRoleState:
         """Return a state with hazard zone expanded by 1-cell adjacency buffer.
@@ -1051,10 +1306,20 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.gear_up_completed = False
         state.gear_up_failures = 0
         state.current_skill = None
+        self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19
         state.phase2_hub_cleared = False  # v13: reset hub waypoint for hub-first navigation
 
     def step_with_state(self, obs: AgentObservation, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
         state.episode_step += 1
+
+        # Issue-36 v9: periodic blacklist expiry (every 500 steps).
+        # Blacklisted junctions were marked unreachable due to align_neutral timeouts.
+        # Navigation improvements (V8) may have made them reachable. Allow periodic retry.
+        _BLACKLIST_EXPIRY_INTERVAL = 500
+        if state.episode_step % _BLACKLIST_EXPIRY_INTERVAL == 0 and state.blacklisted_junctions:
+            count = len(state.blacklisted_junctions)
+            state.blacklisted_junctions.clear()
+            self._event(state, f"blacklist expired: cleared {count} junctions for retry")
 
         # Phase switch: flip preferred gear at phase_switch_step
         if self._phase_switch_step > 0 and state.episode_step == self._phase_switch_step and state.phase == 1:
@@ -1073,23 +1338,209 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         self._update_progress(obs, state)
         self._maybe_finish_skill(obs, state)
 
-        # Issue-34: HP-based emergency deposit for miners.
-        # When a miner's HP drops below 50%, immediately switch to deposit_to_hub
-        # to save resources before dying. Miner deaths at 10k steps cause massive
-        # resource loss (deposits barely increase from 1k to 10k in baseline).
+        # Issue-36: HP retreat — navigate to hub when HP is dangerously low
+        # Hub provides AOE heal in its territory. Retreating keeps agents alive at 10k steps.
+        # Cap max_hp_seen at 100 (base HP) to prevent retreat getting stuck when hub heals
+        # agents above base HP (e.g., to 200). Without cap, recovery threshold becomes
+        # 80% of 200 = 160, which is unreachable with base HP of 100 → permanent retreat.
+        _BASE_HP = 100
+        current_hp = self._inventory_count(obs, "hp")
+        if current_hp > state.max_hp_seen:
+            state.max_hp_seen = min(current_hp, _BASE_HP)
+        if state.max_hp_seen > 0:
+            hp_fraction = current_hp / state.max_hp_seen
+            if hp_fraction < _HP_RETREAT_THRESHOLD and not state.retreating:
+                state.retreating = True
+                state.retreat_stuck_steps = 0  # Issue-36 v7: reset stuck counter on retreat start
+                state.current_skill = None  # cancel current skill
+                self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19: release coordination slots
+                self._event(state, f"HP retreat: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
+                logger.info("agent=%s HP_RETREAT hp=%d/%d frac=%.2f", obs.agent_id, current_hp, state.max_hp_seen, hp_fraction)
+            elif hp_fraction >= 0.80 and state.retreating:
+                state.retreating = False
+                state.retreat_stuck_steps = 0  # Issue-36 v7: reset stuck counter on recovery
+                state.current_skill = None  # replan after recovery
+                self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19: release coordination slots
+                self._event(state, f"HP recovered: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
+                logger.info("agent=%s HP_RECOVERED hp=%d/%d", obs.agent_id, current_hp, state.max_hp_seen)
+
+        # Issue-36 v6: miner hub tethering — prevent miners from wandering too far from hub.
+        # Miners that explore beyond MAX_HUB_DISTANCE can't retreat in time when HP drops.
+        # At 70% HP threshold, agents have ~30 steps to reach hub. Keep miners within range.
+        _MAX_HUB_DISTANCE = 40
         gear = self._current_gear(obs)
-        if gear == "miner" and self._carried_total(obs) > 0:
-            hp = self._aligner._read_hp(obs)
-            if hp is not None:
-                if hp > state.max_hp_seen:
-                    state.max_hp_seen = hp
-                if state.max_hp_seen > 0 and hp < state.max_hp_seen * _HP_RETREAT_THRESHOLD:
-                    if state.current_skill != "deposit_to_hub":
-                        self._event(state, f"HP_LOW ({hp}/{state.max_hp_seen}): emergency deposit")
-                        logger.info("agent=%s HP_LOW hp=%d/%d emergency_deposit", obs.agent_id, hp, state.max_hp_seen)
+        if (
+            not state.retreating
+            and gear == "miner"
+            and state.known_hubs
+            and state.current_skill in {"explore", "mine_until_full"}
+        ):
+            hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if hub_dist > _MAX_HUB_DISTANCE:
+                    # Too far from hub — set skill to deposit (if carrying) or explore near hub.
+                    # Issue-36 v7: previously set current_skill=None, causing oscillation:
+                    # tether→navigate back→replan→mine_until_full→tether again. Now we set
+                    # a concrete skill so the miner does something useful near hub.
+                    carried = self._carried_total(obs)
+                    if carried > 0:
                         state.current_skill = "deposit_to_hub"
-                        state.skill_steps = 0
-                        state.no_move_steps = 0
+                        state.current_reason = f"miner tether: deposit {carried} cargo (dist {hub_dist} > {_MAX_HUB_DISTANCE})"
+                    else:
+                        state.current_skill = "explore"
+                        state.current_reason = f"miner tether: explore near hub (dist {hub_dist} > {_MAX_HUB_DISTANCE})"
+                    state.skill_steps = 0
+                    state.no_move_steps = 0
+                    state.no_progress_on_target_steps = 0
+                    self._event(state, f"miner hub tether: distance {hub_dist} > {_MAX_HUB_DISTANCE}, {state.current_skill}")
+                    logger.info("agent=%s MINER_TETHER dist=%d skill=%s carried=%d", obs.agent_id, hub_dist, state.current_skill, carried)
+                    direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction:
+                        action = self._aligner._starter._action(f"move_{direction}")
+                        self._track_move_target(action, current_abs, state)
+                        return action, state
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                    state = self._copy_with_shared(replace(state,
+                        wander_direction_index=base_state.wander_direction_index,
+                        wander_steps_remaining=base_state.wander_steps_remaining,
+                        last_mode=base_state.last_mode,
+                    ))
+                    self._track_move_target(action, current_abs, state)
+                    return action, state
+
+        # Issue-36 v11: aligner hub tethering — prevent aligners from wandering too far
+        # from hub during explore. _is_alignable limits junction targets to 25 cells from
+        # hub, so aligners should stay within ~35 cells. Beyond that, retreat at 70% HP
+        # may not reach hub in time (~30 steps to navigate back).
+        _MAX_ALIGNER_HUB_DISTANCE = 35
+        if (
+            not state.retreating
+            and gear == "aligner"
+            and state.known_hubs
+            and state.current_skill == "explore"
+        ):
+            hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if hub_dist > _MAX_ALIGNER_HUB_DISTANCE:
+                    has_heart = self._inventory_count(obs, "heart") > 0
+                    if has_heart and self._known_alignable_junctions(state):
+                        state.current_skill = "align_neutral"
+                        state.current_reason = f"aligner tether: align nearest target (dist {hub_dist} > {_MAX_ALIGNER_HUB_DISTANCE})"
+                    else:
+                        state.current_skill = "get_heart" if not has_heart and state.known_hubs else "explore"
+                        state.current_reason = f"aligner tether: return toward hub (dist {hub_dist} > {_MAX_ALIGNER_HUB_DISTANCE})"
+                    # Issue-36 v19: update SharedMap coordination for tether skill change
+                    self._clear_shared_map_tracking(obs.agent_id)
+                    if self._shared_map is not None and state.current_skill == "get_heart":
+                        self._shared_map.agents_getting_hearts.add(obs.agent_id)
+                    state.skill_steps = 0
+                    state.no_move_steps = 0
+                    state.no_progress_on_target_steps = 0
+                    self._event(state, f"aligner hub tether: distance {hub_dist} > {_MAX_ALIGNER_HUB_DISTANCE}, {state.current_skill}")
+                    logger.info("agent=%s ALIGNER_TETHER dist=%d skill=%s", obs.agent_id, hub_dist, state.current_skill)
+                    direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction:
+                        action = self._aligner._starter._action(f"move_{direction}")
+                        self._track_move_target(action, current_abs, state)
+                        return action, state
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                    state = self._copy_with_shared(replace(state,
+                        wander_direction_index=base_state.wander_direction_index,
+                        wander_steps_remaining=base_state.wander_steps_remaining,
+                        last_mode=base_state.last_mode,
+                    ))
+                    self._track_move_target(action, current_abs, state)
+                    return action, state
+
+        if state.retreating and state.known_hubs:
+            # Issue-36 v7: track stuck steps during retreat to prevent permanent stuck loops.
+            # In V6 seed 42, agent 0 spent 8827 steps stuck against walls while retreating.
+            last_action_move = self._feature_value(obs, "last_action_move")
+            if last_action_move == 0:
+                state.retreat_stuck_steps += 1
+            else:
+                state.retreat_stuck_steps = 0
+
+            # Issue-36 v7: if stuck for 50+ steps during retreat, cancel retreat entirely.
+            # A stuck-retreating agent contributes nothing — better to let it replan and
+            # potentially do useful work even at low HP, or die trying.
+            _RETREAT_STUCK_LIMIT = 50
+            if state.retreat_stuck_steps >= _RETREAT_STUCK_LIMIT:
+                state.retreating = False
+                state.retreat_stuck_steps = 0
+                state.current_skill = None
+                self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19
+                self._event(state, f"retreat cancelled: stuck for {_RETREAT_STUCK_LIMIT} steps, replanning")
+                logger.info("agent=%s RETREAT_CANCELLED stuck=%d, giving up retreat", obs.agent_id, _RETREAT_STUCK_LIMIT)
+                # Fall through to normal skill planning below
+
+            # Issue-36 v7: if stuck for 5+ steps during retreat, use unstuck move to break free
+            elif state.retreat_stuck_steps >= 5 and state.retreat_stuck_steps % 3 == 0:
+                action, state = self._unstuck_move(state)
+                self._track_move_target(action, current_abs, state)
+                return action, state
+
+            else:
+                # Normal retreat navigation
+                hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+                if hub_abs is not None:
+                    dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                    if dist <= 2:
+                        state.retreat_stuck_steps = 0  # not stuck, intentionally holding
+                        # Issue-36 v7: emergency deposit — miners with cargo step into hub
+                        # to trigger deposit handler before healing. Saves resources that
+                        # would be lost if the miner dies (per issue #34 findings).
+                        # Issue-36 v9: also step into hub for non-miners to trigger heart
+                        # collection. Heartless aligners can pick up hearts while healing,
+                        # so they can immediately align after recovery.
+                        carried = self._carried_total(obs)
+                        gear = self._current_gear(obs)
+                        has_heart = self._inventory_count(obs, "heart") > 0
+                        wants_hub_interaction = (
+                            (gear == "miner" and carried > 0)  # deposit cargo
+                            or (gear != "miner" and not has_heart)  # collect heart
+                        )
+                        if dist == 1 and wants_hub_interaction:
+                            dr = hub_abs[0] - current_abs[0]
+                            dc = hub_abs[1] - current_abs[1]
+                            if abs(dr) >= abs(dc):
+                                direction = "south" if dr > 0 else "north"
+                            else:
+                                direction = "east" if dc > 0 else "west"
+                            if gear == "miner":
+                                self._event(state, f"emergency deposit: miner stepping into hub with {carried} cargo")
+                            else:
+                                self._event(state, "retreat hub interaction: stepping into hub to collect heart")
+                            action = self._aligner._starter._action(f"move_{direction}")
+                            self._track_move_target(action, current_abs, state)
+                            return action, state
+                        # Issue-36 v10: at dist==2, approach hub to reach dist==1 for interaction.
+                        # Without this, agents noop at dist 2 and never trigger hub handlers
+                        # (deposit, get_heart). Moving 1 step closer enables hub interaction
+                        # on the next step while still being in AOE heal range.
+                        if dist == 2 and wants_hub_interaction:
+                            direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                            if direction:
+                                action = self._aligner._starter._action(f"move_{direction}")
+                                self._track_move_target(action, current_abs, state)
+                                return action, state
+                        # Hold position for healing
+                        return self._aligner._starter._action("noop"), state
+                    direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction:
+                        action = self._aligner._starter._action(f"move_{direction}")
+                        self._track_move_target(action, current_abs, state)
+                        return action, state
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                    state = self._copy_with_shared(replace(state,
+                        wander_direction_index=base_state.wander_direction_index,
+                        wander_steps_remaining=base_state.wander_steps_remaining,
+                        last_mode=base_state.last_mode,
+                    ))
+                    self._track_move_target(action, current_abs, state)
+                    return action, state
 
         if state.current_skill is None:
             self._plan_skill(obs, state)
@@ -1131,6 +1582,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if state.current_skill not in {None, "unstuck", "defend"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck_move(state)
             state.skill_steps += 1
+            self._track_move_target(action, current_abs, state)
             return action, state
 
         skill = state.current_skill
@@ -1199,6 +1651,24 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             # This makes aligners defend recaptured junctions immediately rather than
             # continuing to chase new neutral ones, increasing average hold time.
             merged_neutral = state.known_neutral_junctions | state.known_enemy_junctions
+            # Issue-36 v16: aligner junction coordination — prefer junctions not already
+            # targeted by another aligner to avoid wasting hearts on simultaneous attempts.
+            if self._shared_map is not None:
+                targeted_by_others = {
+                    t for aid, t in self._shared_map.aligner_targets.items()
+                    if aid != obs.agent_id and t is not None
+                }
+                available = merged_neutral - targeted_by_others - state.blacklisted_junctions
+                if available:
+                    # Filter available to only alignable junctions
+                    alignable_available = {j for j in available if self._aligner._is_alignable(j, state)}
+                    if alignable_available:
+                        merged_neutral = alignable_available
+                # Record predicted target (nearest alignable in merged set)
+                bl = state.blacklisted_junctions
+                predict_alignable = {j for j in merged_neutral if self._aligner._is_alignable(j, state) and j not in bl}
+                predicted_target = self._aligner._nearest_known(current_abs, predict_alignable)
+                self._shared_map.aligner_targets[obs.agent_id] = predicted_target
             align_state = replace(state, known_neutral_junctions=merged_neutral)
             action, base_state = self._aligner._align_neutral(obs, align_state, current_abs)
             state = self._copy_with_shared(replace(state,
@@ -1222,16 +1692,48 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             ))
 
         elif skill == "deposit_to_hub":
-            action, base_state = self._miner._deposit_to_hub(obs, state)
-            state = self._copy_with_shared(replace(state,
-                wander_direction_index=base_state.wander_direction_index,
-                wander_steps_remaining=base_state.wander_steps_remaining,
-                last_mode=base_state.last_mode,
-                remembered_hub_row_from_spawn=base_state.remembered_hub_row_from_spawn,
-                remembered_hub_col_from_spawn=base_state.remembered_hub_col_from_spawn,
-                last_pos=base_state.last_pos,
-                last_move_target=base_state.last_move_target,
-            ))
+            # Issue-36 v14: friendly junctions have deposit handlers that send resources
+            # directly to hub. If a friendly junction is closer than hub, navigate there
+            # instead. Junctions are walkable — miner walks onto junction, deposit handler
+            # fires (FirstMatch: deposit before scramble/align), cargo goes to hub.
+            junction_target = self._aligner._nearest_known(current_abs, state.known_friendly_junctions)
+            hub_target = self._aligner._nearest_known(current_abs, state.known_hubs)
+            use_junction = False
+            if junction_target is not None and hub_target is not None:
+                jdist = abs(junction_target[0] - current_abs[0]) + abs(junction_target[1] - current_abs[1])
+                hdist = abs(hub_target[0] - current_abs[0]) + abs(hub_target[1] - current_abs[1])
+                use_junction = jdist < hdist  # strict less-than: prefer hub on tie
+            if use_junction:
+                # Navigate to friendly junction (walkable — direct BFS, no approach cell needed)
+                direction = self._aligner._bfs_first_direction(state, current_abs, junction_target, avoid_hazards=False)
+                if direction is None:
+                    direction = self._aligner._bfs_optimistic_direction(state, current_abs, junction_target, avoid_hazards=False)
+                if direction is not None:
+                    action = self._aligner._starter._action(f"move_{direction}")
+                    state.last_move_target = self._aligner._move_target(current_abs, direction)
+                else:
+                    # Fallback to normal hub deposit
+                    action, base_state = self._miner._deposit_to_hub(obs, state)
+                    state = self._copy_with_shared(replace(state,
+                        wander_direction_index=base_state.wander_direction_index,
+                        wander_steps_remaining=base_state.wander_steps_remaining,
+                        last_mode=base_state.last_mode,
+                        remembered_hub_row_from_spawn=base_state.remembered_hub_row_from_spawn,
+                        remembered_hub_col_from_spawn=base_state.remembered_hub_col_from_spawn,
+                        last_pos=base_state.last_pos,
+                        last_move_target=base_state.last_move_target,
+                    ))
+            else:
+                action, base_state = self._miner._deposit_to_hub(obs, state)
+                state = self._copy_with_shared(replace(state,
+                    wander_direction_index=base_state.wander_direction_index,
+                    wander_steps_remaining=base_state.wander_steps_remaining,
+                    last_mode=base_state.last_mode,
+                    remembered_hub_row_from_spawn=base_state.remembered_hub_row_from_spawn,
+                    remembered_hub_col_from_spawn=base_state.remembered_hub_col_from_spawn,
+                    last_pos=base_state.last_pos,
+                    last_move_target=base_state.last_move_target,
+                ))
 
         elif skill == "defend":
             # Issue-16: navigate toward nearest friendly junction and hold position
@@ -1339,7 +1841,7 @@ class CrossRolePolicy(MultiAgentPolicy):
         policy_env_info: PolicyEnvInterface,
         device: str = "cpu",
         num_aligners: int | str = 3,
-        return_load: int | str = 40,
+        return_load: int | str = 20,  # Issue-36 v7: reduced from 40 to 20 per issue #34 findings
         stuck_threshold: int | str = 20,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,

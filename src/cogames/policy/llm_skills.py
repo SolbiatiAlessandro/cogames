@@ -207,12 +207,28 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
 
+        # Issue-36 v8: pre-block extractors, hubs, and stations for navigation.
+        # These occupy cells and block movement, but have their own tags (not wall tags).
+        # Without this, BFS routes through these cells → agent tries to walk through → fails.
+        # This was a major source of the 53% move failure rate (issue #35).
+        # Objects are still tracked in their respective sets for targeted navigation.
+        blocked_now.update(extractors_now)
+        blocked_now.update(hubs_now)
+        blocked_now.update(miner_stations_now)
+        blocked_now.update(hazard_stations_now)
+
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Re-apply persistent move-blocked cells from shared map
+        # Issue-36 v10: correct move_blocked_cells false positives.
+        # move_blocked_cells never clears, so temporary obstacles (other agents
+        # standing in cells) become permanent false positives. Over 10k steps this
+        # degrades BFS navigation. Fix: remove cells from move_blocked_cells when
+        # we can visually confirm they are free (visible + no blocking object).
+        visually_free = visible_cells - blocked_now
         if self._shared_map and self._shared_map.move_blocked_cells:
+            self._shared_map.move_blocked_cells.difference_update(visually_free)
             state.blocked_cells.update(self._shared_map.move_blocked_cells)
-        state.known_free_cells.update(visible_cells - blocked_now)
+        state.known_free_cells.update(visually_free)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 
@@ -411,6 +427,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         visible_target = self._closest_visible_location(obs, self._miner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
+            # Issue-36 v8: stations are blocked objects — use approach-cell navigation
+            result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+            if result is not None:
+                action, next_state = result
+                return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_miner_stations)
@@ -418,6 +439,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if state.known_hubs:
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
+        # Issue-36 v8: stations are blocked objects — use approach-cell navigation
+        result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+        if result is not None:
+            action, next_state = result
+            return action, replace(next_state, last_mode=state.last_mode)
         action, next_state = self._move_toward_target(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
@@ -428,11 +454,42 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         min_count = min(counts.get(e, 0) for e in ELEMENTS)
         max_count = max(counts.get(e, 0) for e in ELEMENTS)
-        if max_count - min_count < 5:
+        # Issue-36 v15: reduced threshold from 5 to 3 for faster individual balancing.
+        # With return_load=20, miners carry ~20 resources. A threshold of 5 means a miner
+        # mines 5 of one element before seeking diversity; 3 triggers earlier balancing.
+        if max_count - min_count < 3:
             return None
         for e in ELEMENTS:
             if counts.get(e, 0) == min_count:
                 return e
+        return None
+
+    def _team_scarce_element(self) -> str | None:
+        """Issue-36 v15: return the element the team has deposited least of.
+
+        Uses SharedMap.total_deposits to identify which element is bottlenecking
+        heart crafting. Hearts need 7 of EACH element, so the limiting element
+        determines throughput. By routing miners to the team-scarce element,
+        we maximize heart crafting rate across the team.
+        """
+        sm = self._shared_map
+        if sm is None or not hasattr(sm, "total_deposits"):
+            return None
+        deposits = sm.total_deposits
+        total = sum(deposits.values())
+        # Issue-36 v17: require minimum total deposits (28 = one heart's worth)
+        # before activating team coordination. With sparse data, the first deposit
+        # creates an artificial imbalance that herds all miners to one element.
+        if total < 28:
+            return None
+        min_val = min(deposits.values())
+        max_val = max(deposits.values())
+        # Only trigger when imbalance is significant (>= 5 resources difference)
+        if max_val - min_val < 5:
+            return None
+        for elem, val in deposits.items():
+            if val == min_val:
+                return elem
         return None
 
     def _mine_until_full(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
@@ -441,13 +498,20 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.last_mode = "mine_until_full"
         current_abs = self._current_abs(obs)
 
-        # Issue-16: prefer scarce element extractors for make_heart balance
-        scarce = self._scarce_element(obs)
+        # Issue-36 v15: prefer team-scarce element first (global optimization),
+        # then fall back to individual scarce element (local balance).
+        # Team-scarce targets the element bottlenecking heart crafting across ALL miners.
+        scarce = self._team_scarce_element() or self._scarce_element(obs)
         if scarce and scarce in self._extractor_tags_by_element:
             scarce_tags = self._extractor_tags_by_element[scarce]
             visible_scarce = self._closest_visible_location(obs, scarce_tags)
             if visible_scarce is not None:
                 target_abs = self._visible_abs_cell(current_abs, visible_scarce)
+                # Issue-36 v8: extractors are blocked objects — navigate to adjacent cell
+                result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+                if result is not None:
+                    action, next_state = result
+                    return action, replace(next_state, last_mode=state.last_mode)
                 action, next_state = self._move_toward_target(state, current_abs, target_abs)
                 return action, replace(next_state, last_mode=state.last_mode)
             # Try navigating to a known scarce-element extractor
@@ -455,12 +519,22 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if scarce_known:
                 target_abs = self._nearest_known(current_abs, scarce_known)
                 if target_abs is not None:
+                    # Issue-36 v8: extractors are blocked — use approach-cell navigation
+                    result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+                    if result is not None:
+                        action, next_state = result
+                        return action, replace(next_state, last_mode=state.last_mode)
                     action, next_state = self._move_toward_target(state, current_abs, target_abs)
                     return action, replace(next_state, last_mode=state.last_mode)
 
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
+            # Issue-36 v8: extractors are blocked objects — navigate to adjacent cell
+            result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+            if result is not None:
+                action, next_state = result
+                return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_extractors)
@@ -469,10 +543,20 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 predicted = self._predicted_extractor_positions(state)
                 predicted_target = self._nearest_known(current_abs, predicted)
                 if predicted_target is not None:
+                    # Issue-36 v8: predicted positions may also be blocked
+                    result = self._navigate_to_blocked_target(state, current_abs, predicted_target)
+                    if result is not None:
+                        action, next_state = result
+                        return action, replace(next_state, last_mode=state.last_mode)
                     action, next_state = self._move_toward_target(state, current_abs, predicted_target)
                     return action, replace(next_state, last_mode=state.last_mode)
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
+        # Issue-36 v8: extractors are blocked — use approach-cell navigation
+        result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+        if result is not None:
+            action, next_state = result
+            return action, replace(next_state, last_mode=state.last_mode)
         action, next_state = self._move_toward_target(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
@@ -530,7 +614,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         target_abs = self._nearest_known(current_abs, state.known_hubs)
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
-            state.known_free_cells.add(target_abs)
+            # Issue-36 v11: add to known_hubs + blocked_cells (not known_free_cells).
+            # Hub is a blocked object (V8). Adding to known_free_cells caused BFS to
+            # route through the hub cell, which fails on move.
+            state.known_hubs.add(target_abs)
+            state.blocked_cells.add(target_abs)
         if target_abs is None:
             return self._explore(obs, state)
         # Issue-16: hub is a blocked object — use approach-cell navigation

@@ -25,7 +25,10 @@ _HUB_ALIGN_DISTANCE = 25
 _JUNCTION_ALIGN_DISTANCE = 15
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
-_HP_RETREAT_THRESHOLD = 0.50
+# Issue-36 v4: increased from 0.50 to 0.70 — at 50%, agents only have 49 steps
+# to reach hub (1 HP/step drain). If hub is >49 cells away, they die.
+# At 70%, agents have 69 steps to reach hub, which is much more forgiving.
+_HP_RETREAT_THRESHOLD = 0.70
 # Distance from hub/friendly junction to be considered "in friendly territory"
 _FRIENDLY_TERRITORY_DISTANCE = 15
 
@@ -59,8 +62,22 @@ class SharedMap:
         self.agent_positions: dict[int, Coord] = {}
         # Hub depletion tracking (issue-16): count total hearts withdrawn across team
         self.hub_hearts_withdrawn: int = 0
-        # Issue-34: track total deposits to signal aligners when new hearts may be available
-        self.hub_deposits_total: int = 0
+        # Issue-36: deposit tracking for heart pipeline awareness
+        self.total_deposits: dict[str, int] = {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0}
+        self.hearts_crafted_estimate: int = 0  # estimated hearts created by make_heart
+        # Issue-36 v16: aligner junction coordination — track which junction each aligner
+        # is targeting so other aligners avoid picking the same one.
+        self.aligner_targets: dict[int, Coord | None] = {}
+        # Issue-36 v18: heart queue management — track which aligners are en route to get hearts.
+        # Prevents all aligners from rushing to hub when only 1-2 hearts are available.
+        self.agents_getting_hearts: set[int] = set()
+        # Issue-36 v20: shared per-element extractor locations. When one miner discovers
+        # a silicon extractor, all miners immediately know where it is. Critical for
+        # team_scarce_element (V15) — without shared data, a miner told to mine silicon
+        # can't find the extractor if it hasn't visited one yet.
+        self.extractors_by_element: dict[str, set[Coord]] = {
+            e: set() for e in ("carbon", "oxygen", "germanium", "silicon")
+        }
 
 
 @dataclass
@@ -96,6 +113,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._aligner_station_tags = self._starter._resolve_tag_ids(self._gear_station_names(policy_env_info.tags))
         self._hazard_station_tags = self._resolve_non_aligner_station_tags(policy_env_info)
         self._wall_tags = self._starter._resolve_tag_ids(["wall"])
+        # Issue-36 v8: track extractors as blocked for navigation (they block movement)
+        self._extractor_tags = self._starter._extractor_tags
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
 
@@ -426,6 +445,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 stations_now.add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+            # Issue-36 v8: objects like extractors, hubs, and stations block movement
+            # but have their own tags (not wall tags). Pre-block them so BFS doesn't
+            # route through these cells. Navigation to these objects uses
+            # _navigate_to_station / _navigate_to_blocked_target which target
+            # adjacent approach cells, so this is safe.
+            if token.value in self._extractor_tags:
+                blocked_now.add(abs_cell)
+            if token.value in self._hub_tags:
+                blocked_now.add(abs_cell)
+            if token.value in self._aligner_station_tags:
+                blocked_now.add(abs_cell)
+            if token.value in self._hazard_station_tags:
+                blocked_now.add(abs_cell)
 
         neutral_now: set[Coord] = set()
         friendly_now: set[Coord] = set()
@@ -442,8 +474,16 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        state.blocked_cells.update(state.move_blocked_cells)  # persist move-failure blocks
-        state.known_free_cells.update(visible_cells - blocked_now)
+        # Issue-36 v10: correct move_blocked_cells false positives.
+        # move_blocked_cells is never cleared, so temporary obstacles (other agents
+        # standing in a cell) create permanent false positives. Over 10k steps this
+        # progressively constrains BFS navigation. Fix: if we can currently SEE that
+        # a cell is free (visible and not actually blocked), remove it from
+        # move_blocked_cells. Trust current observations over historical failures.
+        visually_free = visible_cells - blocked_now
+        state.move_blocked_cells.difference_update(visually_free)
+        state.blocked_cells.update(state.move_blocked_cells)  # persist remaining move-failure blocks
+        state.known_free_cells.update(visually_free)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 

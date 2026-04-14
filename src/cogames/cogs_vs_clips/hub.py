@@ -6,9 +6,10 @@ from pydantic import Field
 
 from cogames.cogs_vs_clips.config import CvCConfig
 from cogames.cogs_vs_clips.stations import CvCStationConfig
-from mettagrid.config.filter import actorHas, actorHasAnyOf, isNot, sharedTagPrefix
+from mettagrid.config.filter import actorHasAnyOf, isNot, sharedTagPrefix
 from mettagrid.config.handler_config import (
     Handler,
+    actorHas,
     queryDelta,
     queryDeposit,
     queryWithdraw,
@@ -63,8 +64,8 @@ class CvCHubConfig(CvCStationConfig):
                     ],
                 ),
                 "get_heart": Handler(
-                    # Issue-34: isNot(actorHas({"miner": 1})) prevents miners from
-                    # stealing hearts when they visit hub to deposit resources.
+                    # Issue-36 v7: prevent miners from stealing hearts during deposit.
+                    # Miners don't align junctions, so hearts given to miners are wasted.
                     filters=[sharedTagPrefix("team:"), isNot(actorHas({"miner": 1})), *team.hub_has({"heart": 2})],
                     mutations=[
                         queryWithdraw(hq, {"heart": 1}),
@@ -74,7 +75,7 @@ class CvCHubConfig(CvCStationConfig):
                 "get_and_make_heart": Handler(
                     filters=[
                         sharedTagPrefix("team:"),
-                        isNot(actorHas({"miner": 1})),
+                        isNot(actorHas({"miner": 1})),  # Issue-36 v7: miners can't use hearts
                         *team.hub_has({"heart": 1}),
                         *team.hub_has(self.heart_cost),
                     ],
@@ -85,7 +86,7 @@ class CvCHubConfig(CvCStationConfig):
                     ],
                 ),
                 "get_last_heart": Handler(
-                    # Issue-34: only aligners can withdraw hearts from hub.
+                    # Issue-36 v7: prevent miners from taking the last heart
                     filters=[sharedTagPrefix("team:"), isNot(actorHas({"miner": 1})), *team.hub_has({"heart": 1})],
                     mutations=[
                         queryWithdraw(hq, {"heart": 1}),
