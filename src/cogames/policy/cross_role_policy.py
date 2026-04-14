@@ -258,6 +258,8 @@ class CrossRoleState:
     get_heart_cooldown_steps: int = 0  # Issue-16: steps remaining before get_heart is allowed again
     max_hp_seen: int = 0
     retreating: bool = False
+    retreat_stuck_steps: int = 0
+    heartless_steps: int = 0  # steps since last having a heart (for periodic hub return)
 
     # Miner LLM tracking
     last_carried_total: int = 0
@@ -429,12 +431,18 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             or (state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total)
             or (state.current_skill == "mine_until_full" and carried_total > state.last_carried_total)
         )
+        # V12: check proximity to extractors for mine_until_full (not hub)
+        near_extractor = any(
+            abs(current_abs[0] - e[0]) + abs(current_abs[1] - e[1]) <= 1
+            for e in state.known_extractors
+        )
         stationary_on_valid_target = (
             (state.current_skill == "get_heart" and near_hub)
             or (state.current_skill == "align_neutral" and current_abs in self._known_alignable_junctions(state))
             or (state.current_skill == "gear_up_aligner" and near_aligner_station)
             or (state.current_skill == "gear_up_miner" and near_miner_station)
-            or (state.current_skill in {"mine_until_full", "deposit_to_hub"} and near_hub)
+            or (state.current_skill == "deposit_to_hub" and near_hub)
+            or (state.current_skill == "mine_until_full" and near_extractor)
         )
 
         if made_progress:
@@ -797,12 +805,23 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_progress_on_target_steps >= self._stuck_threshold:
-            # Remove depleted extractors
+            # V12: Remove depleted extractors (check adjacent cells since extractors are blocked)
             if state.current_skill == "mine_until_full":
                 current_abs = self._current_abs(obs)
-                if current_abs in state.known_extractors:
-                    state.known_extractors.discard(current_abs)
-                    self._event(state, f"removed depleted extractor at {current_abs}")
+                removed = False
+                # Check current cell and adjacent cells
+                for dr, dc in ((0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)):
+                    check = (current_abs[0] + dr, current_abs[1] + dc)
+                    if check in state.known_extractors:
+                        state.known_extractors.discard(check)
+                        # Also remove from extractors_by_element
+                        for element_set in state.extractors_by_element.values():
+                            element_set.discard(check)
+                        self._event(state, f"removed depleted extractor at {check}")
+                        removed = True
+                        break
+                if not removed:
+                    self._event(state, f"no extractor found to remove near {current_abs}")
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
             if state.current_skill == "get_heart":
@@ -996,6 +1015,120 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
         self._maybe_finish_skill(obs, state)
+
+        # --- HP retreat: navigate to hub when HP drops below 70% of base HP ---
+        hp = self._aligner._read_hp(obs)
+        _BASE_HP = 100
+        if hp is not None:
+            state.max_hp_seen = max(state.max_hp_seen, min(hp, _BASE_HP))  # cap at base HP to prevent inflation
+            hp_threshold = int(_BASE_HP * 0.70)
+            if not state.retreating and hp < hp_threshold and state.known_hubs:
+                state.retreating = True
+                state.retreat_stuck_steps = 0
+                state.current_skill = None
+                self._event(state, f"HP retreat triggered: hp={hp} < {hp_threshold}")
+                logger.info("agent=%s HP_RETREAT_START hp=%d threshold=%d", obs.agent_id, hp, hp_threshold)
+            elif state.retreating and hp >= _BASE_HP:
+                state.retreating = False
+                state.retreat_stuck_steps = 0
+                state.current_skill = None
+                self._event(state, f"HP retreat recovered: hp={hp}")
+                logger.info("agent=%s HP_RETREAT_END hp=%d", obs.agent_id, hp)
+
+        if state.retreating and state.known_hubs:
+            hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if hub_dist <= 2:
+                    # Near hub, just noop to heal
+                    state.skill_steps += 1
+                    return self._aligner._starter._action("noop"), state
+                # Navigate toward hub
+                direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=False)
+                if direction is not None:
+                    state.retreat_stuck_steps = 0
+                    state.skill_steps += 1
+                    action = self._aligner._starter._action(f"move_{direction}")
+                    dr, dc = {"north": (-1, 0), "east": (0, 1), "south": (1, 0), "west": (0, -1)}.get(direction, (0, 0))
+                    state.last_move_target = (current_abs[0] + dr, current_abs[1] + dc)
+                    return action, state
+                else:
+                    state.retreat_stuck_steps += 1
+                    if state.retreat_stuck_steps > 50:
+                        state.retreating = False
+                        state.retreat_stuck_steps = 0
+                        self._event(state, "HP retreat cancelled: stuck too long")
+                    elif state.retreat_stuck_steps > 5:
+                        # Unstuck pattern
+                        action, state = self._unstuck_move(state)
+                        state.skill_steps += 1
+                        return action, state
+
+        # --- Track heartless steps for periodic hub return ---
+        gear = self._current_gear(obs)
+        has_heart = self._inventory_count(obs, "heart") > 0
+        if gear == "aligner" and not has_heart:
+            state.heartless_steps += 1
+        else:
+            state.heartless_steps = 0
+
+        # --- Fast-path skill selection: skip LLM for obvious decisions ---
+        if state.current_skill is None:
+            carried = self._carried_total(obs)
+            known_alignable = self._known_alignable_junctions(state)
+            effective_preferred = state.phase_preferred_gear or self._preferred_initial_gear
+
+            # Don't fast-path during bootstrap (gear acquisition)
+            contaminated = gear in ("scrambler", "scout")
+            needs_gear_up = effective_preferred and (
+                contaminated
+                or (not state.gear_up_completed and (gear == "none" or (state.phase == 2 and gear != effective_preferred and gear in ("aligner", "miner"))))
+            )
+
+            if not needs_gear_up:
+                fast_skill = None
+                fast_reason = ""
+
+                if gear == "aligner":
+                    hub_on_cooldown = state.get_heart_cooldown_steps > 0
+                    if has_heart and known_alignable:
+                        fast_skill = "align_neutral"
+                        fast_reason = "fast-path: aligner with heart and targets"
+                    elif not has_heart and state.known_hubs and not hub_on_cooldown:
+                        # Periodic hub return: force return after 200 heartless steps
+                        if state.heartless_steps >= 200 or state.heartless_steps == 0:
+                            fast_skill = "get_heart"
+                            fast_reason = f"fast-path: aligner needs heart (heartless_steps={state.heartless_steps})"
+                        else:
+                            fast_skill = "explore"
+                            fast_reason = "fast-path: aligner exploring while heartless"
+                    elif not has_heart and hub_on_cooldown:
+                        fast_skill = "explore"
+                        fast_reason = "fast-path: aligner, hub on cooldown, explore"
+                    elif has_heart and not known_alignable:
+                        fast_skill = "explore"
+                        fast_reason = "fast-path: aligner with heart, no targets, explore"
+                elif gear == "miner":
+                    if carried >= self._return_load:
+                        fast_skill = "deposit_to_hub"
+                        fast_reason = "fast-path: miner cargo full, deposit"
+                    elif state.known_extractors:
+                        fast_skill = "mine_until_full"
+                        fast_reason = "fast-path: miner has extractors, mine"
+                    else:
+                        fast_skill = "explore"
+                        fast_reason = "fast-path: miner no extractors, explore"
+
+                if fast_skill:
+                    if fast_skill in {"explore", "gear_up_aligner", "gear_up_miner"}:
+                        state.explore_start_junctions = len(state.known_neutral_junctions)
+                        state.explore_start_extractors = len(state.known_extractors)
+                    state.current_skill = fast_skill
+                    state.current_reason = fast_reason
+                    state.skill_steps = 0
+                    state.no_move_steps = 0
+                    state.no_progress_on_target_steps = 0
+                    self._event(state, f"planner selected {fast_skill}: {fast_reason}")
 
         if state.current_skill is None:
             self._plan_skill(obs, state)
@@ -1200,7 +1333,7 @@ class CrossRolePolicy(MultiAgentPolicy):
         policy_env_info: PolicyEnvInterface,
         device: str = "cpu",
         num_aligners: int | str = 3,
-        return_load: int | str = 40,
+        return_load: int | str = 20,
         stuck_threshold: int | str = 20,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
@@ -1270,7 +1403,7 @@ class GearTestPolicy(MultiAgentPolicy):
         policy_env_info: PolicyEnvInterface,
         device: str = "cpu",
         num_aligners: int | str = 3,
-        return_load: int | str = 40,
+        return_load: int | str = 20,
         stuck_threshold: int | str = 20,
         unstuck_horizon: int | str = 4,
         phase_switch_step: int | str = 200,

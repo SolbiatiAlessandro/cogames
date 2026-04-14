@@ -6,7 +6,7 @@ from pydantic import Field
 
 from cogames.cogs_vs_clips.config import CvCConfig
 from cogames.cogs_vs_clips.stations import CvCStationConfig
-from mettagrid.config.filter import actorHasAnyOf, sharedTagPrefix
+from mettagrid.config.filter import actorHas, actorHasAnyOf, isNot, sharedTagPrefix
 from mettagrid.config.handler_config import (
     Handler,
     queryDelta,
@@ -63,7 +63,7 @@ class CvCHubConfig(CvCStationConfig):
                     ],
                 ),
                 "get_heart": Handler(
-                    filters=[sharedTagPrefix("team:"), *team.hub_has({"heart": 2})],
+                    filters=[sharedTagPrefix("team:"), isNot(actorHas({"miner": 1})), *team.hub_has({"heart": 2})],
                     mutations=[
                         queryWithdraw(hq, {"heart": 1}),
                         logStatToGame(f"{team.name}/heart.withdrawn"),
@@ -72,6 +72,7 @@ class CvCHubConfig(CvCStationConfig):
                 "get_and_make_heart": Handler(
                     filters=[
                         sharedTagPrefix("team:"),
+                        isNot(actorHas({"miner": 1})),
                         *team.hub_has({"heart": 1}),
                         *team.hub_has(self.heart_cost),
                     ],
@@ -82,7 +83,7 @@ class CvCHubConfig(CvCStationConfig):
                     ],
                 ),
                 "get_last_heart": Handler(
-                    filters=[sharedTagPrefix("team:"), *team.hub_has({"heart": 1})],
+                    filters=[sharedTagPrefix("team:"), isNot(actorHas({"miner": 1})), *team.hub_has({"heart": 1})],
                     mutations=[
                         queryWithdraw(hq, {"heart": 1}),
                         logStatToGame(f"{team.name}/heart.withdrawn"),

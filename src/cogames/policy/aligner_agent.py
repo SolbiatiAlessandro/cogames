@@ -91,6 +91,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._junction_tags = self._starter._resolve_tag_ids(["junction"])
         self._aligner_station_tags = self._starter._resolve_tag_ids(self._gear_station_names(policy_env_info.tags))
         self._hazard_station_tags = self._resolve_non_aligner_station_tags(policy_env_info)
+        self._extractor_tags = self._starter._extractor_tags  # for pre-blocking extractors in BFS
+        # Resolve miner station tags for pre-blocking
+        self._miner_station_tags = self._resolve_miner_station_tags(policy_env_info)
         self._wall_tags = self._starter._resolve_tag_ids(["wall"])
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
@@ -119,6 +122,16 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 object_name = tag_name.removeprefix("type:")
                 if object_name.endswith(f":{gear}") or object_name == gear:
                     names.add(object_name)
+        return self._starter._resolve_tag_ids(sorted(names))
+
+    def _resolve_miner_station_tags(self, policy_env_info: PolicyEnvInterface) -> set[int]:
+        names: set[str] = {"miner_station"}
+        for tag_name in policy_env_info.tags:
+            if not tag_name.startswith("type:"):
+                continue
+            object_name = tag_name.removeprefix("type:")
+            if object_name.endswith(":miner") or object_name == "miner":
+                names.add(object_name)
         return self._starter._resolve_tag_ids(sorted(names))
 
     def _bind_shared_map(self, state: AlignerState) -> None:
@@ -374,6 +387,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         hubs_now: set[Coord] = set()
         stations_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
+        extractors_now: set[Coord] = set()
+        miner_stations_now: set[Coord] = set()
 
         for token in obs.tokens:
             if token.feature.name != "tag" or token.location is None:
@@ -384,10 +399,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 blocked_now.add(abs_cell)
             if token.value in self._hub_tags:
                 hubs_now.add(abs_cell)
+                blocked_now.add(abs_cell)  # V8: pre-block hubs
             if token.value in self._aligner_station_tags:
                 stations_now.add(abs_cell)
+                blocked_now.add(abs_cell)  # V8: pre-block aligner stations
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+                blocked_now.add(abs_cell)  # V8: pre-block hazard stations
+            if token.value in self._extractor_tags:
+                extractors_now.add(abs_cell)
+                blocked_now.add(abs_cell)  # V8: pre-block extractors
+            if token.value in self._miner_station_tags:
+                miner_stations_now.add(abs_cell)
+                blocked_now.add(abs_cell)  # V8: pre-block miner stations
 
         neutral_now: set[Coord] = set()
         friendly_now: set[Coord] = set()
@@ -404,8 +428,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
+        # V10: correct false positive move_blocked_cells — if we can see a cell is free, remove it
+        visually_free = visible_cells - blocked_now
+        state.move_blocked_cells.difference_update(visually_free)
         state.blocked_cells.update(state.move_blocked_cells)  # persist move-failure blocks
-        state.known_free_cells.update(visible_cells - blocked_now)
+        state.known_free_cells.update(visually_free)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 

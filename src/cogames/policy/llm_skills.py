@@ -196,23 +196,29 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 blocked_now.add(abs_cell)
             if token.value in self._hub_tags:
                 hubs_now.add(abs_cell)
+                blocked_now.add(abs_cell)  # V8: pre-block hubs
             if token.value in self._miner_station_tags:
                 miner_stations_now.add(abs_cell)
+                blocked_now.add(abs_cell)  # V8: pre-block miner stations
             if token.value in self._starter._extractor_tags:
                 extractors_now.add(abs_cell)
+                blocked_now.add(abs_cell)  # V8: pre-block extractors
                 # Issue-16: track which element this extractor produces
                 for element, etags in self._extractor_tags_by_element.items():
                     if token.value in etags:
                         state.extractors_by_element[element].add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+                blocked_now.add(abs_cell)  # V8: pre-block hazard stations
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Re-apply persistent move-blocked cells from shared map
+        # V10: correct false positive move_blocked_cells
+        visually_free = visible_cells - blocked_now
         if self._shared_map and self._shared_map.move_blocked_cells:
+            self._shared_map.move_blocked_cells.difference_update(visually_free)
             state.blocked_cells.update(self._shared_map.move_blocked_cells)
-        state.known_free_cells.update(visible_cells - blocked_now)
+        state.known_free_cells.update(visually_free)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 
@@ -448,6 +454,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             visible_scarce = self._closest_visible_location(obs, scarce_tags)
             if visible_scarce is not None:
                 target_abs = self._visible_abs_cell(current_abs, visible_scarce)
+                # V8: extractor is blocked — use approach-cell navigation
+                result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+                if result is not None:
+                    action, next_state = result
+                    return action, replace(next_state, last_mode=state.last_mode)
                 action, next_state = self._move_toward_target(state, current_abs, target_abs)
                 return action, replace(next_state, last_mode=state.last_mode)
             # Try navigating to a known scarce-element extractor
@@ -455,12 +466,21 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if scarce_known:
                 target_abs = self._nearest_known(current_abs, scarce_known)
                 if target_abs is not None:
+                    result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+                    if result is not None:
+                        action, next_state = result
+                        return action, replace(next_state, last_mode=state.last_mode)
                     action, next_state = self._move_toward_target(state, current_abs, target_abs)
                     return action, replace(next_state, last_mode=state.last_mode)
 
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
+            # V8: extractor is blocked — use approach-cell navigation
+            result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+            if result is not None:
+                action, next_state = result
+                return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_extractors)
@@ -473,6 +493,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     return action, replace(next_state, last_mode=state.last_mode)
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
+        # V8: extractor is blocked — use approach-cell navigation
+        result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+        if result is not None:
+            action, next_state = result
+            return action, replace(next_state, last_mode=state.last_mode)
         action, next_state = self._move_toward_target(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
@@ -530,7 +555,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         target_abs = self._nearest_known(current_abs, state.known_hubs)
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
-            state.known_free_cells.add(target_abs)
+            # V11: hub is a blocked object, add to known_hubs + blocked_cells (not free_cells)
+            state.known_hubs.add(target_abs)
+            state.blocked_cells.add(target_abs)
         if target_abs is None:
             return self._explore(obs, state)
         # Issue-16: hub is a blocked object — use approach-cell navigation
