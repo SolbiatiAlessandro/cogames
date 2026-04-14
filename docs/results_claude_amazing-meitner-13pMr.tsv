@@ -1,0 +1,2 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+9b4c2d9	6.125	junction.held=6656;junction.gained=19;heart.withdrawn=6;carbon.deposited=200;oxygen.deposited=100;germanium.deposited=140;silicon.deposited=160;deaths=2	1000	keep	baseline 8A 3A5M LLM-miners stuck=28 seed=42 1k — issue #37 primary config; 0.77/agent exceeds 4.0 target
