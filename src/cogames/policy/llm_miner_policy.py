@@ -298,6 +298,36 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
 
     def _plan_skill(self, obs: AgentObservation, state: LLMMinerState) -> None:
         has_miner = self._starter._current_gear(self._starter._inventory_items(obs)) == "miner"
+        # Issue-38 v8b: preemptive retreat when a known clips:ship is within 6
+        # Manhattan cells of the miner. Miners have no HP check and will bleed
+        # out without this; v8a gave them the shared observations, now v8b acts
+        # on them. Hubs are friendly territory, so deposit_to_hub is the safest
+        # skill choice (and doubles as useful work if miner is carrying cargo).
+        current_abs = self._current_abs(obs)
+        if state.known_enemy_ships:
+            nearest_ship = min(
+                state.known_enemy_ships,
+                key=lambda s: abs(s[0] - current_abs[0]) + abs(s[1] - current_abs[1]),
+            )
+            ship_dist = abs(nearest_ship[0] - current_abs[0]) + abs(nearest_ship[1] - current_abs[1])
+            if ship_dist <= 6:
+                if state.known_hubs:
+                    skill, reason = "deposit_to_hub", f"ship within {ship_dist}, retreating to hub"
+                else:
+                    skill, reason = "explore", f"ship within {ship_dist}, exploring away (no known hub)"
+                logger.info(
+                    "agent=%s miner_ship_prox ship_dist=%d override_skill=%s",
+                    obs.agent_id, ship_dist, skill,
+                )
+                state.current_skill = skill
+                state.current_reason = reason
+                state.skill_steps = 0
+                state.no_move_steps = 0
+                state.no_progress_on_target_steps = 0
+                if skill == "explore":
+                    state.explore_start_extractors = len(state.known_extractors)
+                self._event(state, f"planner selected {skill}: {reason}")
+                return
         if self._planner is None:
             skill, reason = self._scripted_skill_choice(obs, state)
         else:
