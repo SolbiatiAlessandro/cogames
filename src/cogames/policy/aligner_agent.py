@@ -56,6 +56,11 @@ class SharedMap:
         self.known_neutral_junctions: set[Coord] = set()
         self.known_friendly_junctions: set[Coord] = set()
         self.known_enemy_junctions: set[Coord] = set()
+        # Issue-38 v6: team-wide clips:ship awareness. Any agent that observes
+        # a ship writes here; all agents (aligners, miners, scout) read here
+        # when evaluating proximity retreat. Even if one agent dies from the
+        # ship, its last observation persists for the survivors.
+        self.known_enemy_ships: set[Coord] = set()
         # Agent gear tracking for team coordination
         self.agent_gears: dict[int, str] = {}
         # Agent position tracking for congestion avoidance (issue-35)
@@ -167,6 +172,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         state.known_friendly_junctions = sm.known_friendly_junctions
         state.known_enemy_junctions = sm.known_enemy_junctions
         state.known_hazard_stations = sm.known_hazard_stations
+        # Issue-38 v6: share enemy ships across the team.
+        if hasattr(state, "known_enemy_ships"):
+            state.known_enemy_ships = sm.known_enemy_ships
 
     def initial_agent_state(self) -> AlignerState:
         starter_state = self._starter.initial_agent_state()
