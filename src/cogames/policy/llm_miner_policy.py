@@ -310,9 +310,15 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             )
             logger.info("agent=%s llm_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
             started_at = time.perf_counter()
-            text = self._planner.complete(prompt)
-            latency_ms = (time.perf_counter() - started_at) * 1000.0
-            logger.info("agent=%s llm_response_ms=%.1f llm_response=%s", obs.agent_id, latency_ms, text.replace("\n", " "))
+            try:
+                text = self._planner.complete(prompt)
+            except Exception as e:  # Issue-37: robust LLM failure — don't crash the episode
+                latency_ms = (time.perf_counter() - started_at) * 1000.0
+                logger.warning("agent=%s llm_error_ms=%.1f error=%s", obs.agent_id, latency_ms, e)
+                text = ""
+            else:
+                latency_ms = (time.perf_counter() - started_at) * 1000.0
+                logger.info("agent=%s llm_response_ms=%.1f llm_response=%s", obs.agent_id, latency_ms, text.replace("\n", " "))
             skill, reason = _parse_skill_choice(text)
         if skill is None:
             carried_total = self._carried_total(obs)

@@ -55,3 +55,10 @@ cogames run -m cogsguard_machina_1.basic -c 8 -p 'class=machina_llm_roles,kw.num
 2. Try 3A5M seed 43, 44 to check variance.
 3. 10k validation at 3A5M seed 42 (mortality check).
 4. Investigate oxygen imbalance in replay.
+
+## 2026-04-15 05:50 UTC: starting new experiment loop — EXP1 10k mortality validation
+
+**Hypothesis:** V20 with stuck_threshold=28 and mortality fixes should reach 0 deaths at 10k/8agents. Session 7 reported 7.96/1k at 8A, so 10k projected total reward = 60-80 range if linear. But deaths will likely accumulate.
+
+**Cmd:** same as baseline but `-s 10000`. Seed 42.
+
