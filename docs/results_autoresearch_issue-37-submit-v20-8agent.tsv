@@ -1,1 +1,2 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+4a7cf6e	0.767002	held=6670 hearts_withdrawn=7 gained=8 deaths=6 deposits=c72+o5+g107+si120 per_agent	1000	keep	baseline V20 merged 8agents 3A5M seed42 1k (0.767/agent = 6.14 total, 0.75 deaths/agent)
