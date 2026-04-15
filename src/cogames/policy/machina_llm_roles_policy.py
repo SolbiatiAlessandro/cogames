@@ -519,7 +519,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         device: str = "cpu",
         num_aligners: int | str = 4,
         aligner_ids: str = "",
-        num_scouts: int | str = 1,
+        num_scouts: int | str = "auto",
         scout_ids: str = "",
         return_load: int | str = 40,
         stuck_threshold: int | str = 20,
@@ -564,12 +564,28 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         else:
             self._aligner_ids = frozenset(range(min(int(num_aligners), n_agents)))
 
-        # Resolve scout IDs (come after aligners by default)
+        # Resolve scout IDs (come after aligners by default).
+        # Issue-38 v8c: "auto" default — 0 scouts at n_agents>=6 (extra slot
+        # becomes a miner), 1 scout otherwise. Handoff rationale: prior offline
+        # 3A0M=2.26 beats 2A1M=2.18 on cogsguard_machina_1; scout contributes
+        # only map knowledge, which SharedMap already spreads team-wide via
+        # v6/v8a, so the slot has higher marginal value as a miner/aligner.
         parsed_scout_ids = tuple(int(p.strip()) for p in scout_ids.split(",") if p.strip())
         if parsed_scout_ids:
             self._scout_ids = frozenset(parsed_scout_ids)
         else:
-            n_scouts = int(num_scouts)
+            scouts_raw = str(num_scouts).lower()
+            if scouts_raw == "auto":
+                n_scouts = 0 if n_agents >= 6 else 1
+                logger.info(
+                    "num_scouts=auto n_agents=%d -> %d",
+                    n_agents, n_scouts,
+                )
+            else:
+                try:
+                    n_scouts = int(num_scouts)
+                except (TypeError, ValueError):
+                    n_scouts = 1
             aligner_count = len(self._aligner_ids)
             self._scout_ids = frozenset(
                 range(aligner_count, min(aligner_count + n_scouts, n_agents))
