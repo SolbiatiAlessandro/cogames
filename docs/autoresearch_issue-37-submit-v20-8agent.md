@@ -124,4 +124,25 @@ Committed as 618c9ce. Now re-running 10k solo.
 
 **Hypothesis:** The 10k seed 42 result of 1.743/agent needs variance check. Seed 43 had lower 1k reward (0.388), so 10k might also be lower. If seeds vary by 2-3x, we need to optimize for the worst case.
 
+## 2026-04-15 08:48 UTC: EXP6 result — 1.443/agent (NO LLM - env bug)
+
+**Bug found:** `source .env.openrouter.local` does NOT export the variable to subprocesses (no `export` keyword). So `cogames run` received no `OPENROUTER_API_KEY` and every LLM call failed with "Missing API key". The exception handler we added caught these perfectly, letting the scripted fallback take over.
+
+**EXP6 w/ scripted fallback only, 10k seed 43:**
+- per-agent: 1.443 → total 11.55
+- held=4436, hearts=5, gained=7, deaths=6, max_steps_without_motion=6287 (agents stuck for 60% of game!)
+- move_failed=7793/10000 = 78% (up from 60% with LLM)
+
+**Interpretation:**
+- The scripted fallback alone gets us 11.55 total reward, vs 13.94 with LLM → LLM contributes ~17% lift.
+- The 6287-step max_noop shows agents get **catastrophically stuck** without LLM replanning.
+- Our LLM exception handler saves us — the episode completes without crashing.
+- **This is great resilience data for tournaments** — if OpenRouter goes down mid-match, we still get ~11.5 reward.
+
+**Next:** Re-run seed 43 with LLM actually enabled (set -a; source; set +a pattern).
+
+## 2026-04-15 08:52 UTC: EXP6b 10k seed 43 WITH LLM launched
+
+Using `set -a; source .env.openrouter.local; set +a` to ensure OPENROUTER_API_KEY exports to child process.
+
 

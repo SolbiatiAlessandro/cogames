@@ -7,3 +7,4 @@ c3690cb	0.503303	held=4033 gained=6 hearts=5 deaths=1 deposits=c?+o40+g100+si260
 c3690cb	0.000000	crash_openrouter_peer_closed	10000	crash	exp1 3A5M 8ag seed42 10k crashed ~mid-run due to OpenRouter disconnect
 618c9ce	1.742942	held=7428 hearts_withd=8+craft7.77 gained=17 deaths=13 depositsCOGS c163+o76+g114+si153 per_agent	10000	keep	exp1b 3A5M 8ag seed42 10k solo (13.94 total reward; LLM err handler prevents crashes)
 618c9ce	SUBMITTED	lessandro-v20-robust-llm-v1:v1 to beta-cvc qualifying	n/a	submitted	V20 policy uploaded (primary goal of issue-37)
+618c9ce	1.443719	held=4436 hearts=5 gained=7 deaths=6 move_failed=7793 max_noop=6287	10000	discard	exp6 3A5M 8ag seed43 10k (NO LLM - OPENROUTER_API_KEY not exported; scripted fallback only gave 11.55 total)
