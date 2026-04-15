@@ -1310,6 +1310,22 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.phase2_hub_cleared = False  # v13: reset hub waypoint for hub-first navigation
 
     def step_with_state(self, obs: AgentObservation, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
+        # Issue-38 v1: defensive outer try/except so any unforeseen exception in the
+        # step pipeline (map-memory update, planner, skill execution, BFS navigation)
+        # degrades to a safe noop rather than crashing the agent. Without this, an
+        # exception bubbles out of StatefulAgentPolicy and the runner may mark the
+        # agent as terminated — matching the observed "agent X dead at step 4-15"
+        # pattern in 6+2 matches (#38).
+        try:
+            return self._step_impl(obs, state)
+        except Exception as exc:  # noqa: BLE001 — intentional last-resort catch
+            logger.error(
+                "agent=%s cross_role_step_crash error=%s — returning noop",
+                obs.agent_id, exc, exc_info=True,
+            )
+            return self._aligner._starter._action("noop"), state
+
+    def _step_impl(self, obs: AgentObservation, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
         state.episode_step += 1
 
         # Issue-36 v9: periodic blacklist expiry (every 500 steps).

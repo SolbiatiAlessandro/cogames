@@ -310,9 +310,26 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             )
             logger.info("agent=%s llm_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
             started_at = time.perf_counter()
-            text = self._planner.complete(prompt)
-            latency_ms = (time.perf_counter() - started_at) * 1000.0
-            logger.info("agent=%s llm_response_ms=%.1f llm_response=%s", obs.agent_id, latency_ms, text.replace("\n", " "))
+            # Issue-38 v1: catch LLM exceptions so a single OpenRouter failure (timeout,
+            # 429, 5xx, JSON error) does NOT propagate out of step_with_state and kill
+            # the agent. Aligners already did this; miners didn't, which explained the
+            # 6+2 startup mortality (all non-aligner agents crashing on the first LLM
+            # call). Degrade to empty text → scripted fallback just like aligners do.
+            try:
+                text = self._planner.complete(prompt)
+            except Exception as exc:  # noqa: BLE001 — intentional catch-all
+                latency_ms = (time.perf_counter() - started_at) * 1000.0
+                logger.warning(
+                    "agent=%s llm_error_ms=%.1f error=%s",
+                    obs.agent_id, latency_ms, exc,
+                )
+                text = ""
+            else:
+                latency_ms = (time.perf_counter() - started_at) * 1000.0
+                logger.info(
+                    "agent=%s llm_response_ms=%.1f llm_response=%s",
+                    obs.agent_id, latency_ms, text.replace("\n", " "),
+                )
             skill, reason = _parse_skill_choice(text)
         if skill is None:
             carried_total = self._carried_total(obs)
@@ -394,6 +411,20 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         return self._starter._action(f"move_{direction}"), state
 
     def step_with_state(self, obs: AgentObservation, state: LLMMinerState) -> tuple[Action, LLMMinerState]:
+        # Issue-38 v1: defensive outer try/except so any unforeseen exception in the
+        # step pipeline (map-memory update, planner, skill execution) degrades to a
+        # safe noop rather than crashing the agent. Without this, an exception bubbles
+        # out of StatefulAgentPolicy and the runner may mark the agent as terminated.
+        try:
+            return self._step_impl(obs, state)
+        except Exception as exc:  # noqa: BLE001 — intentional last-resort catch
+            logger.error(
+                "agent=%s miner_step_crash error=%s — returning noop",
+                obs.agent_id, exc, exc_info=True,
+            )
+            return self._starter._action("noop"), state
+
+    def _step_impl(self, obs: AgentObservation, state: LLMMinerState) -> tuple[Action, LLMMinerState]:
         self._update_map_memory(obs, state)
         self._update_progress(obs, state)
 

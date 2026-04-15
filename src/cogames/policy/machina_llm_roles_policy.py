@@ -402,6 +402,18 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         return False
 
     def step_with_state(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
+        # Issue-38 v1: defensive outer try/except so any unforeseen exception in the
+        # step pipeline degrades to a safe noop rather than crashing the agent.
+        try:
+            return self._step_impl(obs, state)
+        except Exception as exc:  # noqa: BLE001 — intentional last-resort catch
+            logger.error(
+                "agent=%s aligner_step_crash error=%s — returning noop",
+                obs.agent_id, exc, exc_info=True,
+            )
+            return self._starter._action("noop"), state
+
+    def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
 
@@ -542,6 +554,14 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
     def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]:
         if agent_id not in self._agent_policies:
             if agent_id in self._aligner_ids:
+                # Issue-38 v1: log role assignment so online replays can confirm
+                # which agents got which roles in 6+2 vs 4+4 splits.
+                logger.info(
+                    "ROLE_ASSIGNMENT agent=%d role=aligner n_agents=%d aligner_ids=%s scout_ids=%s scripted_miners=%s",
+                    agent_id, self._policy_env_info.num_agents,
+                    sorted(self._aligner_ids), sorted(self._scout_ids),
+                    self._scripted_miners,
+                )
                 impl = LLMAlignerPolicyImpl(
                     self._policy_env_info,
                     agent_id,
@@ -556,6 +576,10 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                 sorted_scouts = sorted(self._scout_ids)
                 scout_rank = sorted_scouts.index(agent_id)
                 offset_fraction = scout_rank / max(len(sorted_scouts), 1)
+                logger.info(
+                    "ROLE_ASSIGNMENT agent=%d role=scout scout_rank=%d offset=%.2f",
+                    agent_id, scout_rank, offset_fraction,
+                )
                 impl = ScoutExplorerPolicyImpl(
                     self._policy_env_info,
                     agent_id,
@@ -563,6 +587,10 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     shared_map=self._shared_map,
                 )
             else:
+                logger.info(
+                    "ROLE_ASSIGNMENT agent=%d role=miner scripted=%s",
+                    agent_id, self._scripted_miners,
+                )
                 impl = LLMMinerPolicyImpl(
                     self._policy_env_info,
                     agent_id,
