@@ -119,3 +119,40 @@ Death-vector coverage table after the v1..v5 stack:
 - Consider `num_scouts=0` when `num_agents >= 6` — scouts contribute only map knowledge, which is less valuable than a fifth aligner at 6+2. Prior offline evidence at 3A0M hit 2.26 vs 2.18 at 2A1M on cogsguard_machina_1.
 - Mirror v5's ship-proximity retreat to `CrossRolePolicyImpl`'s HP-retreat block (`cross_role_policy.py:1362-1386`) if cross_role is the submitted policy.
 - Investigate why V20 online = 3.43 < lessandro-fast-llm-v1 = 4.47 even before mortality — there may be non-mortality regressions in V20 worth diffing against the older branch.
+
+## 2026-04-15T05:00:00Z: v8a shipped
+
+Commits `aa8b337` (code) + `975f1ca` (TSV).
+
+- `MinerSkillImpl` resolves `clips:ship`/`ship` tag ids; `MinerSkillState` gains `known_enemy_ships`; `_bind_shared_map_miner` binds to `SharedMap.known_enemy_ships`; `_update_map_memory` scans ship tokens; `LLMMinerPolicyImpl._copy_with` preserves the binding across `replace()`. Miners are typically the team's forward observers — closing this observation gap means ship sightings propagate from the first agent that sees them to every aligner/scout retreat check via `SharedMap`.
+
+## 2026-04-15T05:15:00Z: v8b shipped
+
+Commits `fb72893` (code) + `3fa5585` (TSV).
+
+- `LLMMinerPolicyImpl._plan_skill`: preemptive ship-proximity retreat — if a known ship is within 6 Manhattan cells, force `skill=deposit_to_hub` (or `explore` when no hub is known). Logs `miner_ship_prox`. Before v8b, miners had zero HP-retreat behaviour.
+
+## 2026-04-15T05:30:00Z: v8c shipped
+
+Commits `542f0bc` (code) + `1ab1792` (TSV).
+
+- `MachinaLLMRolesPolicy.num_scouts` default flipped `1` to `"auto"`. Resolves to 0 at `n_agents>=6`, 1 otherwise. Scout agent index 4 in 6+2 is one of the three dying indices; at n>=6 its role is absorbed by a scripted miner (v4). Prior offline evidence: `3A0M=2.26 > 2A1M=2.18` on `cogsguard_machina_1`.
+
+## 2026-04-15T05:45:00Z: post-v8 handoff
+
+Coverage now:
+
+| Agent role | Original cause             | Fix stack                    |
+|------------|----------------------------|------------------------------|
+| miner (5)  | unwrapped LLM exception    | v1 + v4 + v8a + v8b          |
+| scout (4)  | crash + HP bleed near ship | v2 + v3 + v8c (role removed) |
+| aligner 3  | crash + HP bleed near ship | v1 + v5 + v6 + v7 + v8a      |
+
+**Candidate v9+ directions (queue for future sessions):**
+
+- **v9a — mirror v8c `num_scouts=auto` to `CrossRolePolicy`** if it exposes a scout slot (it currently splits aligner/miner only, so likely no-op, but confirm).
+- **v9b — diff V20 vs `lessandro-fast-llm-v1`** to explain the 3.43 < 4.47 gap independent of mortality. Candidates: a regression in `_check_hp` behaviour, a prompt change, a scripted-skill threshold flip. Requires git log + compare across branches.
+- **v9c — miner ship-proximity retreat fallback when heading toward ship.** Current v8b logic forces `deposit_to_hub` but the hub may be *through* the ship. Add a direction check: if the BFS-first step from miner to hub moves closer to the nearest known ship, prefer `explore` away instead.
+- **v9d — reduce `llm_timeout_s` from 10s to 3s for aligners**: online 6+2 startup cold-pool timeouts may burn 10s budget per aligner x 4 aligners = 40s of stalling. Even with v1's try/except, the wall-clock latency hurts responsiveness at startup.
+- **v9e — precache HTTP connection in `LLMMinerPlannerClient.__init__`**: warm the pool before the first step so miner 1's LLM call doesn't pay cold-connection latency. Combined with `scripted_miners=auto` this is mostly irrelevant for n>=6 but could still help n=4.
+- **v9f — aligner starvation at n>=6**: with v8c we have 4 aligners + 2 miners at n=6. Check whether `known_aligner_stations` is shared via `SharedMap`. If not, new-aligner bootstrapping may stall when the station isn't visible.
