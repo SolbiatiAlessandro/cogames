@@ -104,3 +104,24 @@ Committed as 618c9ce. Now re-running 10k solo.
 3. Try improving move failure rate (60% is awful).
 4. Try longer team-scarce priority (maybe make threshold lower than 28).
 
+## 2026-04-15 08:37 UTC: SUBMISSION lessandro-v20-robust-llm-v1 UPLOADED!
+
+**Notes on submission process:**
+- cogames lib on main was at compat 0.17, but beta-cvc requires compat 0.24. Had to upgrade cogames to 0.25.6.
+- Upgrade changes a ton — `machina_llm_roles` policy short name doesn't exist in new cogames 0.25.6 package.
+- Our V20 code still imports successfully under new mettagrid (0.25.4) because the policy/simulator interfaces are stable.
+- Our cogs_vs_clips files use old derived_stat imports — but those are GAME-LEVEL configs, not needed for policy. The hub.py heart-filter change IS included in our repo but is game-level and NOT shipped in the submission bundle.
+- Upload used class path directly: `class=cogames.policy.machina_llm_roles_policy.MachinaLLMRolesPolicy`
+- Only `src/cogames/policy` included (not cogs_vs_clips).
+- Skip-validation used (no Docker).
+- Submission uploaded as `lessandro-v20-robust-llm-v1:v1` and added to qualifying pool.
+- After ~30s, already has 2 matches running in qualifying.
+- Season target: beta-cvc. Online target: >=5.0 from current 3.12.
+
+**Bundle config:** `class=cogames.policy.machina_llm_roles_policy.MachinaLLMRolesPolicy,kw.num_aligners=3,kw.num_scouts=0,kw.stuck_threshold=28,kw.llm_timeout_s=10`
+
+## 2026-04-15 08:40 UTC: starting new experiment loop — EXP6 10k seed 43 + seed 44
+
+**Hypothesis:** The 10k seed 42 result of 1.743/agent needs variance check. Seed 43 had lower 1k reward (0.388), so 10k might also be lower. If seeds vary by 2-3x, we need to optimize for the worst case.
+
+
