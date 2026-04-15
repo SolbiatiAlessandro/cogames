@@ -1868,10 +1868,22 @@ class CrossRolePolicy(MultiAgentPolicy):
         llm_timeout_s: float | str = 10.0,
         llm_responder: Callable[[str], str] | None = None,
         llm_local_model_path: str | None = None,
-        scripted_miners: bool | str = False,
+        scripted_miners: bool | str = "auto",
     ):
         super().__init__(policy_env_info, device=device)
-        self._scripted_miners = str(scripted_miners).lower() in ("true", "1", "yes")
+        # Issue-38 v4: mirror the machina_llm_roles "auto" default — turn
+        # scripted miners on for num_agents >= 6 so the miner-LLM call can't
+        # crash the agent in the 6+2 online configuration.
+        scripted_raw = str(scripted_miners).lower()
+        n_agents = policy_env_info.num_agents
+        if scripted_raw == "auto":
+            self._scripted_miners = n_agents >= 6
+            logger.info(
+                "cross_role scripted_miners=auto n_agents=%d → %s",
+                n_agents, self._scripted_miners,
+            )
+        else:
+            self._scripted_miners = scripted_raw in ("true", "1", "yes")
         self._shared_map = SharedMap()
         self._planner = LLMMinerPlannerClient(
             api_url=llm_api_url,

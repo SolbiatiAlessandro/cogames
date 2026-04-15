@@ -511,12 +511,30 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         llm_timeout_s: float | str = 10.0,
         llm_responder: Callable[[str], str] | None = None,
         llm_local_model_path: str | None = None,
-        scripted_miners: bool | str = False,
+        scripted_miners: bool | str = "auto",
     ):
         super().__init__(policy_env_info, device=device)
-        self._scripted_miners = str(scripted_miners).lower() in ("true", "1", "yes")
         self._shared_map = SharedMap()  # ONE map, shared by ALL agents
         n_agents = policy_env_info.num_agents
+
+        # Issue-38 v4: "auto" default → scripted miners when n_agents >= 6.
+        # Rationale: online 6+2 matches show one miner (agent_id 5) dying at
+        # step 4 on the first LLM call, and prior offline evidence (see
+        # docs/results_autoresearch_21_march.tsv:12 vs :14) has scripted
+        # miners outscoring LLM miners in 3A1M configs (2.18 vs 1.20).
+        # Eliminating the miner-LLM call at large team sizes removes an
+        # entire failure vector (cold HTTP pool timeouts, 429s) on top of
+        # v1's try/except guard. Callers passing an explicit bool/str keep
+        # full control.
+        scripted_raw = str(scripted_miners).lower()
+        if scripted_raw == "auto":
+            self._scripted_miners = n_agents >= 6
+            logger.info(
+                "scripted_miners=auto n_agents=%d → %s",
+                n_agents, self._scripted_miners,
+            )
+        else:
+            self._scripted_miners = scripted_raw in ("true", "1", "yes")
 
         # Resolve aligner IDs
         parsed_aligner_ids = tuple(int(p.strip()) for p in aligner_ids.split(",") if p.strip())
