@@ -46,3 +46,76 @@ At step 0 the scout initialises its grid (`scout_agent.py:339-346`) and navigate
 3. Commit, push, and post results to issue #38.
 
 I cannot validate offline, so each commit is a *reasoned bet* backed by the code evidence above. The next director session will pick up the change and submit a new policy; the signal will be "V21 online score" relative to the 3.43 V20 baseline.
+
+## 2026-04-15T02:00:00Z: v1 shipped
+
+Commits `ae734d5` (code) + `5065498` (TSV).
+
+- `llm_miner_policy.py:_plan_skill` LLM call wrapped in try/except → degrades to `text=""` → scripted fallback. Matches aligner behaviour.
+- All three policies (`LLMAlignerPolicyImpl`, `LLMMinerPolicyImpl`, `CrossRolePolicyImpl`) now split `step_with_state` into public wrapper + `_step_impl`; outer try/except returns noop on any exception.
+- `MachinaLLMRolesPolicy.agent_policy` logs `ROLE_ASSIGNMENT agent=<id> role=<aligner|scout|miner> ...` for every agent at construction.
+
+Cannot validate offline. Status in TSV: `keep`.
+
+## 2026-04-15T02:30:00Z: v2 shipped
+
+Commits `fc050d9` (code) + `ee68d6b` (TSV).
+
+- `scout_agent.py:ScoutExplorerPolicyImpl.step_with_state` gets the same try/except-to-noop wrapper — closing the crash-death path for the scout that makes no LLM call but still has several raise sites in its pipeline.
+
+Coverage table after v2 is in the issue comment `4254111302`.
+
+## 2026-04-15T03:00:00Z: v3 shipped
+
+Commits `239ab14` (code) + `74e0d2d` (TSV).
+
+Targets scout HP-damage death, which v2 cannot save.
+
+- `_HP_RETREAT_THRESHOLD`: 0.55 → 0.65 (more margin for return trip).
+- New `_SHIP_FLEE_DISTANCE = 6`: preemptive retreat when within 6 cells of a known clips:ship regardless of HP.
+- New `_nearest_enemy_ship`, `_flee_direction` helpers.
+- Retreat fallback when `known_hubs` is empty now uses `_flee_direction` (maximise distance from ship, avoid walls/hazards) instead of `_safe_wander` (which could wander *toward* a ship because it only avoids hazard-stations and walls).
+- If every direction is blocked, returns `noop` (safer than random step).
+
+## 2026-04-15T03:30:00Z: v4 shipped
+
+Commits `aac977f` (code) + `b6b7053` (TSV).
+
+- `scripted_miners` default flipped `False` → `"auto"` in both `MachinaLLMRolesPolicy` and `CrossRolePolicy`. `"auto"` resolves to `True` when `policy_env_info.num_agents >= 6`, `False` otherwise. Explicit overrides still honoured.
+- Rationale: the miner LLM call adds wall-clock latency (up to `llm_timeout_s`=10s) even when v1's try/except catches a timeout. At 6+ agents the marginal value of LLM planning for miners is low (see `docs/results_autoresearch_21_march.tsv` rows 11 vs 14: scripted 2.18 beats LLM 1.20 at 3A1M).
+- Resolved value is logged on construction.
+
+## 2026-04-15T04:00:00Z: v5 shipped
+
+Commits `b4c5188` (code) + `ed18a4d` (TSV).
+
+Targets aligner HP-damage death (agent 3 in 6+2 replays).
+
+- `AlignerPolicyImpl.__init__`: resolve `clips:ship`/`ship` tag ids.
+- `AlignerState.known_enemy_ships`: new persistent set.
+- `_update_map_memory`: scan tokens for ship tags, persist cells.
+- `LLMAlignerPolicyImpl._check_hp`: fire retreat preemptively when any known ship is within 6 Manhattan cells and the aligner is not in friendly territory. Logs `HP_SHIP_PROX`.
+- `CrossRoleState.known_enemy_ships`: mirror field so cross_role's duck-typed call to `AlignerPolicyImpl._update_map_memory` doesn't `AttributeError`.
+
+## 2026-04-15T04:30:00Z: end-of-session summary & handoff
+
+Death-vector coverage table after the v1..v5 stack:
+
+| Agent role | Original cause             | Fix         |
+|------------|----------------------------|-------------|
+| miner (5)  | unwrapped LLM exception    | v1 + v4     |
+| scout (4)  | crash + HP bleed near ship | v2 + v3     |
+| aligner 3  | crash + HP bleed near ship | v1 + v5     |
+
+**What the next researcher should check first:**
+
+1. Did the next online submission include all of v1..v5 (commits up through `b4c5188`)? Confirm against the submitted bundle.
+2. Which policy class is *actually* submitted online — `machina_llm_roles` or `machina_cross_role`? v5's aligner ship-proximity retreat only lives in the former. If the submitted policy is `machina_cross_role`, port the check to `CrossRolePolicyImpl._step_impl`.
+3. Online 6+2 replay — are all 6 agents alive at step 1000? If yes, the stack works and the priority shifts to improving the *alive* agents' rewards (scout usefulness, miner throughput). If no, check which role is still dying and whether the ROLE_ASSIGNMENT logs confirm the expected 4A+1S+1M layout.
+
+**Candidate v6+ directions:**
+
+- Promote `known_enemy_ships` to `SharedMap` so the team learns ship positions collectively (one agent sees, everyone knows).
+- Consider `num_scouts=0` when `num_agents >= 6` — scouts contribute only map knowledge, which is less valuable than a fifth aligner at 6+2. Prior offline evidence at 3A0M hit 2.26 vs 2.18 at 2A1M on cogsguard_machina_1.
+- Mirror v5's ship-proximity retreat to `CrossRolePolicyImpl`'s HP-retreat block (`cross_role_policy.py:1362-1386`) if cross_role is the submitted policy.
+- Investigate why V20 online = 3.43 < lessandro-fast-llm-v1 = 4.47 even before mortality — there may be non-mortality regressions in V20 worth diffing against the older branch.
