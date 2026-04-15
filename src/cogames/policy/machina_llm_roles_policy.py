@@ -388,6 +388,27 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             return False
         hp_fraction = hp / state.max_hp_seen
         in_friendly = self._in_friendly_territory(current_abs, state)
+        # Issue-38 v5: preemptive retreat when a known enemy ship is within 6
+        # Manhattan cells. Clips ships bleed ~10 HP/step; by the time HP hits
+        # 0.70 the agent has seconds to live and needs to traverse hostile
+        # ground. Fire retreat while we still have hp_fraction ~0.9.
+        ship_proximate = False
+        if state.known_enemy_ships and not in_friendly:
+            nearest = min(
+                state.known_enemy_ships,
+                key=lambda s: abs(s[0] - current_abs[0]) + abs(s[1] - current_abs[1]),
+            )
+            dist = abs(nearest[0] - current_abs[0]) + abs(nearest[1] - current_abs[1])
+            if dist <= 6:
+                ship_proximate = True
+                if not state.retreating:
+                    logger.info(
+                        "agent=%s HP_SHIP_PROX hp=%d/%d (%.0f%%) ship_dist=%d retreating preemptively",
+                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, dist,
+                    )
+                    self._event(state, f"ship within {dist}, retreating")
+                    state.retreating = True
+                return True
         if hp_fraction < _HP_RETREAT_THRESHOLD and not in_friendly:
             if not state.retreating:
                 logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) retreating to friendly territory",

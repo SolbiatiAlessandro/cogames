@@ -98,6 +98,10 @@ class AlignerState(StarterCogState):
     move_blocked_cells: set[Coord] = field(default_factory=set)
     # Junctions permanently skipped after repeated navigation failures
     blacklisted_junctions: set[Coord] = field(default_factory=set)
+    # Issue-38 v5: per-agent set of observed enemy ship cells. Used by
+    # LLMAlignerPolicyImpl._check_hp to trigger proactive retreat before HP
+    # drops below the 0.70 threshold when a clips:ship is visible nearby.
+    known_enemy_ships: set[Coord] = field(default_factory=set)
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -108,6 +112,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._net_tag = self._tag_id("net:cogs")
         self._enemy_team_tag = self._tag_id("team:clips")
         self._enemy_net_tag = self._tag_id("net:clips")
+        # Issue-38 v5: track clips:ship cells so aligners can retreat preemptively
+        # when one is observed nearby (HP drain is ~10/step; the 0.70 threshold
+        # fires too late to survive walking back to friendly territory if the
+        # ship stays in range).
+        self._enemy_ship_tags = self._starter._resolve_tag_ids(["clips:ship", "ship"])
         self._hub_tags = self._starter._resolve_tag_ids(["hub"])
         self._junction_tags = self._starter._resolve_tag_ids(["junction"])
         self._aligner_station_tags = self._starter._resolve_tag_ids(self._gear_station_names(policy_env_info.tags))
@@ -431,6 +440,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         hubs_now: set[Coord] = set()
         stations_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
+        ships_now: set[Coord] = set()
 
         for token in obs.tokens:
             if token.feature.name != "tag" or token.location is None:
@@ -445,6 +455,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 stations_now.add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+            # Issue-38 v5: record enemy ships for HP retreat proximity check.
+            if int(token.value) in self._enemy_ship_tags:
+                ships_now.add(abs_cell)
             # Issue-36 v8: objects like extractors, hubs, and stations block movement
             # but have their own tags (not wall tags). Pre-block them so BFS doesn't
             # route through these cells. Navigation to these objects uses
@@ -490,6 +503,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._remember_static_objects(state.known_hubs, hubs_now)
         self._remember_static_objects(state.known_aligner_stations, stations_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
+        # Issue-38 v5: treat ships as dynamic (they move); add newly-seen ones
+        # to the persistent set so the HP retreat check can consult them even
+        # after they drift out of obs range.
+        state.known_enemy_ships.update(ships_now)
         self._refresh_dynamic_objects(visible_cells, state.known_neutral_junctions, neutral_now)
         self._refresh_dynamic_objects(visible_cells, state.known_friendly_junctions, friendly_now)
         self._refresh_dynamic_objects(visible_cells, state.known_enemy_junctions, enemy_now)

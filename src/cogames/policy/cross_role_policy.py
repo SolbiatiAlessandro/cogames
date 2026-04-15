@@ -226,6 +226,11 @@ class CrossRoleState:
     known_enemy_junctions: set[Coord] = field(default_factory=set)
     known_hazard_stations: set[Coord] = field(default_factory=set)
     blacklisted_junctions: set[Coord] = field(default_factory=set)
+    # Issue-38 v5: mirror AlignerState.known_enemy_ships so
+    # AlignerPolicyImpl._update_map_memory (called by
+    # CrossRolePolicyImpl._update_map_memory) can populate it without
+    # AttributeError. Used by ship-proximity preemptive retreat.
+    known_enemy_ships: set[Coord] = field(default_factory=set)
 
     # Miner-specific structures
     known_miner_stations: set[Coord] = field(default_factory=set)
