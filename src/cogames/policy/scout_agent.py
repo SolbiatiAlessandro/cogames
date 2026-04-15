@@ -40,7 +40,15 @@ _GRID_SPACING = 8
 _CORNER_MARGIN = 18   # avoid within 18 cells of each corner edge
 
 # HP retreat threshold: retreat to hub when HP < this fraction of observed max HP.
-_HP_RETREAT_THRESHOLD = 0.55
+# Issue-38 v3: raised from 0.55 → 0.65 so we start heading home before HP is
+# critical. 0.55 left barely any margin for the return trip when a clips:ship
+# was bleeding ~10 HP/step and known_hubs was empty.
+_HP_RETREAT_THRESHOLD = 0.65
+
+# Issue-38 v3: preemptive flee if any known enemy ship is within this many cells.
+# Smaller than _is_dangerous()'s 12 so we keep useful grid exploration when
+# only mildly close to a ship, but still flee before getting hit hard.
+_SHIP_FLEE_DISTANCE = 6
 
 # Tags used for enemy ships (HP drain source).
 _ENEMY_SHIP_TAG_NAMES = ["clips:ship", "ship"]
@@ -210,6 +218,37 @@ class ScoutExplorerPolicyImpl(AlignerPolicyImpl):
         # Structural: avoid corners even before seeing ships (spawn-relative)
         return self._is_corner_zone(cell[0], cell[1])
 
+    def _nearest_enemy_ship(self, current_abs: Coord, state: ScoutState) -> Coord | None:
+        """Return the closest known enemy ship (by Manhattan distance) or None."""
+        if not state.known_enemy_ships:
+            return None
+        return min(
+            state.known_enemy_ships,
+            key=lambda s: abs(s[0] - current_abs[0]) + abs(s[1] - current_abs[1]),
+        )
+
+    def _flee_direction(
+        self, current_abs: Coord, ship: Coord, state: ScoutState,
+    ) -> str | None:
+        """Pick the direction that maximises distance from `ship` while not
+        stepping into a wall/hazard. Returns None if every direction is
+        blocked — caller should fall back to noop."""
+        hard_avoid = state.known_hazard_stations | state.blocked_cells
+        candidates: list[tuple[int, int, int, str]] = []
+        for idx, (direction, (dr, dc)) in enumerate(_DIRECTION_DELTAS):
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor in hard_avoid:
+                continue
+            # Prefer directions that increase distance from the ship, then
+            # prefer ones that aren't move-blocked (transient collisions).
+            dist = abs(neighbor[0] - ship[0]) + abs(neighbor[1] - ship[1])
+            soft_blocked = 1 if neighbor in state.move_blocked_cells else 0
+            candidates.append((-dist, soft_blocked, idx, direction))
+        if not candidates:
+            return None
+        candidates.sort()
+        return candidates[0][3]
+
     def _should_retreat(self, obs: AgentObservation, state: ScoutState) -> bool:
         """Return True if HP is low and we should retreat to hub."""
         hp = self._read_hp(obs)
@@ -362,9 +401,22 @@ class ScoutExplorerPolicyImpl(AlignerPolicyImpl):
             )
 
         # ── HP-based retreat ───────────────────────────────────────────────
-        if self._should_retreat(obs, state):
+        # Issue-38 v3: also trigger retreat when a known enemy ship is within
+        # _SHIP_FLEE_DISTANCE. This catches the 6+2 scout-death case where HP
+        # drains too fast (clips:ship bleeds ~10 HP/step) for the old 0.55 HP
+        # threshold to fire in time.
+        nearest_ship = self._nearest_enemy_ship(current_abs, state)
+        ship_too_close = (
+            nearest_ship is not None
+            and (abs(current_abs[0] - nearest_ship[0]) + abs(current_abs[1] - nearest_ship[1]))
+            <= _SHIP_FLEE_DISTANCE
+        )
+        if self._should_retreat(obs, state) or ship_too_close:
             if not state.retreating:
-                logger.info("agent=%s scout_retreat hp_low", obs.agent_id)
+                logger.info(
+                    "agent=%s scout_retreat hp_low=%s ship_close=%s ship=%s",
+                    obs.agent_id, self._should_retreat(obs, state), ship_too_close, nearest_ship,
+                )
                 state.retreating = True
             if state.known_hubs:
                 hub = self._nearest_known(current_abs, state.known_hubs)
@@ -373,6 +425,18 @@ class ScoutExplorerPolicyImpl(AlignerPolicyImpl):
                     action = self._starter._action(f"move_{direction}")
                     state.last_move_target = self._move_target(current_abs, direction)
                     return action, state
+            # Issue-38 v3: no known hub yet — flee directly away from the
+            # nearest enemy ship if we know one. _safe_wander alone can walk
+            # INTO the clips:ship because it only avoids hazard stations and
+            # walls, not enemy ships. Falling back to noop is safer than a
+            # random step into danger.
+            if nearest_ship is not None:
+                flee_direction = self._flee_direction(current_abs, nearest_ship, state)
+                if flee_direction is not None:
+                    action = self._starter._action(f"move_{flee_direction}")
+                    state.last_move_target = self._move_target(current_abs, flee_direction)
+                    return action, state
+                return self._starter._action("noop"), state
             return self._safe_wander(state, current_abs)
         state.retreating = False
 
