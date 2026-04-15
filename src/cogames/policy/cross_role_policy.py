@@ -341,6 +341,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.known_enemy_junctions = sm.known_enemy_junctions
         # Issue-36 v20: share per-element extractor locations across all agents
         state.extractors_by_element = sm.extractors_by_element
+        # Issue-38 v7: share enemy ship observations across the team so
+        # cross_role's HP-proximity retreat (above) can read teammates' sightings.
+        state.known_enemy_ships = sm.known_enemy_ships
 
     def _copy_with_shared(self, state: CrossRoleState) -> CrossRoleState:
         """Return state with shared map fields re-bound (after delegate calls may have returned new state)."""
@@ -361,6 +364,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             known_friendly_junctions=sm.known_friendly_junctions,
             known_enemy_junctions=sm.known_enemy_junctions,
             extractors_by_element=sm.extractors_by_element,
+            known_enemy_ships=sm.known_enemy_ships,
         )
 
     def _event(self, state: CrossRoleState, message: str) -> None:
@@ -1370,7 +1374,28 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.max_hp_seen = min(current_hp, _BASE_HP)
         if state.max_hp_seen > 0:
             hp_fraction = current_hp / state.max_hp_seen
-            if hp_fraction < _HP_RETREAT_THRESHOLD and not state.retreating:
+            # Issue-38 v7: preemptive retreat when a known enemy ship is close.
+            # Mirrors the v5 change in LLMAlignerPolicyImpl._check_hp so that
+            # cross_role agents also flee before HP crosses the 0.70 threshold.
+            ship_close = False
+            if state.known_enemy_ships and not state.retreating:
+                nearest = min(
+                    state.known_enemy_ships,
+                    key=lambda s: abs(s[0] - current_abs[0]) + abs(s[1] - current_abs[1]),
+                )
+                dist = abs(nearest[0] - current_abs[0]) + abs(nearest[1] - current_abs[1])
+                if dist <= 6:
+                    ship_close = True
+                    state.retreating = True
+                    state.retreat_stuck_steps = 0
+                    state.current_skill = None
+                    self._clear_shared_map_tracking(obs.agent_id)
+                    self._event(state, f"ship within {dist}: preemptive retreat")
+                    logger.info(
+                        "agent=%s HP_SHIP_PROX hp=%d/%d ship_dist=%d retreating",
+                        obs.agent_id, current_hp, state.max_hp_seen, dist,
+                    )
+            if not ship_close and hp_fraction < _HP_RETREAT_THRESHOLD and not state.retreating:
                 state.retreating = True
                 state.retreat_stuck_steps = 0  # Issue-36 v7: reset stuck counter on retreat start
                 state.current_skill = None  # cancel current skill
