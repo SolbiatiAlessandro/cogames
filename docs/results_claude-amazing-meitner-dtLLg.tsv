@@ -2,3 +2,4 @@ commit	mission_reward	secondary_rewards	steps	status	description
 9b4c2d9	0.000000	online=3.43;rank=322/398	n/a	baseline	V20 merged code as submitted online — 6+2 startup mortality (3 of 6 agents dead by step 15)
 ae734d5	n/a	n/a	n/a	keep	V21 issue38-v1 — wrap miner LLM call in try/except + defensive step_with_state + ROLE_ASSIGNMENT logging; cannot validate offline (env missing Bazel/Py3.12), kept as reasoned bet — online validation at next director session
 fc050d9	n/a	n/a	n/a	keep	V22 issue38-v2 — defensive step_with_state wrapper on scout_agent completing belt-and-suspenders coverage across every role; again no offline validation possible
+239ab14	n/a	n/a	n/a	keep	V23 issue38-v3 — scout HP retreat threshold 0.55→0.65; proactive flee when within 6 cells of known clips:ship; _flee_direction helper replaces _safe_wander in retreat fallback so scout no longer wanders into the ship it is fleeing; targets the HP-damage death path v1/v2 cannot reach
