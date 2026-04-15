@@ -36,6 +36,10 @@ class MinerSkillState(StarterCogState):
     # Issue-16: per-element extractor locations for diverse mining
     extractors_by_element: dict[str, set[Coord]] = field(default_factory=lambda: {e: set() for e in ("carbon", "oxygen", "germanium", "silicon")})
     known_hazard_stations: set[Coord] = field(default_factory=set)
+    # Issue-38 v8a: share team-wide clips:ship awareness. Miners observing a
+    # ship write here (via _update_map_memory); aligners/scout/cross-role read
+    # here for proximity retreat. Bound to SharedMap in _bind_shared_map_miner.
+    known_enemy_ships: set[Coord] = field(default_factory=set)
     # Move-failure tracking (same mechanism as AlignerState)
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
@@ -53,6 +57,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._miner_station_tags = self._starter._resolve_tag_ids(miner_station_names)
         self._hazard_station_tags = self._resolve_non_miner_station_tags(policy_env_info, miner_station_names)
         self._wall_tags = self._starter._resolve_tag_ids(["wall"])
+        # Issue-38 v8a: resolve clips:ship tags so miners can contribute
+        # observations to the shared known_enemy_ships set — aligners and
+        # scout/cross-role rely on this set for proximity retreat and, prior
+        # to v8a, only aligners/scouts were writing to it.
+        self._enemy_ship_tags = self._starter._resolve_tag_ids(["clips:ship", "ship"])
         # Issue-16: per-element extractor tags for diverse mining
         self._extractor_tags_by_element: dict[str, set[int]] = {
             element: self._starter._resolve_tag_ids([f"{element}_extractor"])
@@ -96,6 +105,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         state.known_miner_stations = sm.known_miner_stations
         state.known_extractors = sm.known_extractors
         state.known_hazard_stations = sm.known_hazard_stations
+        # Issue-38 v8a: bind miner to the shared ship set so miner observations
+        # propagate and miners can read ship positions observed by teammates.
+        if hasattr(sm, "known_enemy_ships") and hasattr(state, "known_enemy_ships"):
+            state.known_enemy_ships = sm.known_enemy_ships
 
     def initial_agent_state(self) -> MinerSkillState:
         starter_state = self._starter.initial_agent_state()
@@ -187,6 +200,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         miner_stations_now: set[Coord] = set()
         extractors_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
+        ships_now: set[Coord] = set()
 
         for token in obs.tokens:
             if token.feature.name != "tag" or token.location is None:
@@ -206,6 +220,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                         state.extractors_by_element[element].add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+            # Issue-38 v8a: record clips:ship observations into the shared set.
+            # Miners typically roam outside friendly territory in the 6+2 regime,
+            # so they are well-placed to spot ships first. With SharedMap binding
+            # above, this observation immediately benefits aligner/scout retreat.
+            if self._enemy_ship_tags and int(token.value) in self._enemy_ship_tags:
+                ships_now.add(abs_cell)
 
         # Issue-36 v8: pre-block extractors, hubs, and stations for navigation.
         # These occupy cells and block movement, but have their own tags (not wall tags).
@@ -236,6 +256,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._remember_static_objects(state.known_miner_stations, miner_stations_now)
         self._remember_static_objects(state.known_extractors, extractors_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
+        # Issue-38 v8a: persist ship observations into the (shared) state set.
+        # Ships are mobile, but any observation is better than none for the
+        # ship-proximity retreat logic in aligners/scout/cross-role.
+        if ships_now and hasattr(state, "known_enemy_ships"):
+            state.known_enemy_ships.update(ships_now)
         self._remember_visible_hub(obs, state)
 
     def _neighbors(self, cell: Coord) -> list[tuple[str, Coord]]:

@@ -210,6 +210,12 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             known_miner_stations=sm.known_miner_stations if sm else set(base.known_miner_stations),
             known_extractors=sm.known_extractors if sm else set(base.known_extractors),
             known_hazard_stations=sm.known_hazard_stations if sm else set(base.known_hazard_stations),
+            # Issue-38 v8a: keep the shared ship set bound across copies so
+            # miner observations propagate to the team.
+            known_enemy_ships=(
+                sm.known_enemy_ships if sm and hasattr(sm, "known_enemy_ships")
+                else set(getattr(base, "known_enemy_ships", set()))
+            ),
             last_pos=base.last_pos,
             last_move_target=base.last_move_target,
             current_skill=state.current_skill,
