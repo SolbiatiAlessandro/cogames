@@ -332,6 +332,22 @@ class ScoutExplorerPolicyImpl(AlignerPolicyImpl):
     # ─────────────────────────────────────────────────────────────────────────
 
     def step_with_state(self, obs: AgentObservation, state: ScoutState) -> tuple[Action, ScoutState]:
+        # Issue-38 v2: defensive outer try/except. Scout has no LLM but its step
+        # pipeline (map update, enemy detection, grid build, BFS navigation,
+        # retreat logic) has several raise sites (list.index, set membership,
+        # numpy indexing). Without this wrapper a single exception propagates
+        # out of StatefulAgentPolicy.step and the runner terminates the scout
+        # — matching the 6+2 scout-4 death signature.
+        try:
+            return self._step_impl(obs, state)
+        except Exception as exc:  # noqa: BLE001 — intentional last-resort catch
+            logger.error(
+                "agent=%s scout_step_crash error=%s — returning noop",
+                obs.agent_id, exc, exc_info=True,
+            )
+            return self._starter._action("noop"), state
+
+    def _step_impl(self, obs: AgentObservation, state: ScoutState) -> tuple[Action, ScoutState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_enemy_ships(obs, state, current_abs)
 
