@@ -24,70 +24,74 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-04-14 (Session 8)_
+_Updated by Director (offline→online): 2026-04-15 (Session 9)_
 
-### Online Tournament (beta-cvc, 10k steps, 8 agents)
+### Online Tournament (beta-cvc, 10k steps, 8 agents, 398 total policies)
 
-| Rank | Score | Policy | Notes |
-|------|-------|--------|-------|
-| **#291/363** | **3.12** | `lessandro-fast-llm-v1:v1` | Best online; stale — predates ALL session 7-8 improvements |
-| #305/363 | 2.71 | `cross_role_full_10s_v8:v1` | All agents die before 10k; heart.withdrawn=5 |
-| _(ref)_ | 27.21 | `dinky:v27` (top-1) | 220 junctions, 56 hearts/agent, 98.5% move success |
+| Rank | Score | Matches | Policy | Submitted | Notes |
+|------|-------|---------|--------|-----------|-------|
+| **#283/398** | **4.47** | 28 | `lessandro-fast-llm-v1:v1` | 2026-04-09 | Still our best online; pre-V20 code |
+| #322/398 | 3.43 | 20 | `lessandro-v20-robust-llm-v1:v1` | **2026-04-15** | Fresh V20 submit — underperforms (see #38) |
+| #339/398 | 3.03 | 32 | `lessandro-machina-paid-v1:v1` | 2026-04-09 | |
+| #342/398 | 2.95 | 25 | `cross_role_full_v8:v1` | 2026-04-12 | |
+| #344/398 | 2.86 | 25 | `cross_role_full_10s_v8:v1` | 2026-04-12 | |
+| #355/398 | 2.75 | 33 | `lessandro-2aligner-llm-v1:v1` | 2026-04-09 | |
+| _(ref)_ | 27.31 | 127 | `dinky:v27` (top-1) | — | 8× our best |
+| _(ref)_ | 25.60 | 20 | `Softy:v24` (top-2) | — | |
 
-**CRITICAL: No new submission since April 12.** Offline improvements (+65% at 10k) have not been uploaded.
+**V20 regression vs fast-llm-v1**: −23% (3.43 vs 4.47). Root cause: **startup mortality in 6+2 splits** — 3 of 6 V20 agents die at step 4–15 when we hold 6 of 8 team slots. V20 fixes (heart filter, element balancing, pre-block routing) *do* work online when the team survives (4+4 splits score 6–12), but the 6+2 collapse dominates the average. See #38.
 
 ### Offline Best Results (3-agent, post-V20 merge)
 
 | Rank | Reward | Config | Steps | Deaths | Notes |
 |------|--------|--------|-------|--------|-------|
-| 1 | **3.15 total** | 2A1M V20 stack | 10000 | **0** | seed 44 — **NEW BEST**; all 3 survive 10k |
-| 2 | 2.70 total | 2A1M V20 stack | 10000 | 0 | seed 43; 14 junctions gained |
-| 3 | 1.85 total | 2A1M V20 stack | 10000 | 0 | seed 42; stable linear growth |
-| 4 | 1.19/agent | 2A1M V20 stack | 1000 | 0 | seed 44; +59% over V6 |
+| 1 | **3.15 total** | 2A1M V20 stack | 10000 | **0** | seed 44 — best; all 3 survive 10k |
+| 2 | 2.70 total | 2A1M V20 stack | 10000 | 0 | seed 43 |
+| 3 | 1.85 total | 2A1M V20 stack | 10000 | 0 | seed 42 |
 
 ### Offline Best Results (8-agent, pre-V20)
 
 | Rank | Reward | Config | Steps | Notes |
 |------|--------|--------|-------|-------|
-| 1 | 7.96 total (0.996/agent) | 3A5M stuck=28 hazard-free | 1000 | Session 7 priority branch; best single seed |
-| 2 | 0.825/agent | 4A4M issue-25 | 1000 | 118 experiments, stuck at plateau — V20 may break it |
+| 1 | 7.96 total (0.996/agent) | 3A5M stuck=28 hazard-free | 1000 | Session 7 branch |
+| 2 | 0.825/agent | 4A4M issue-25 | 1000 | Plateau; V20 baseline untested |
 
-### Gap Analysis (us vs top-1 `dinky:v27`)
+### Offline→Online Gap
 
 ```
-Metric                    Us (best offline)  dinky (best)    Gap       Status
-─────────────────────────────────────────────────────────────────────────────────
-Agent survival (10k)      ALL survive (V20)  survive 10k     CLOSED    ✅ FIXED by V20
-Hearts (10k)              25+/agent (V20)    56.6/agent      2.3x     improved (was ∞)
-Move success              88.3% (offline)    98.5%           1.1x     nearly closed
-Online score              3.12 (STALE)       27.21           8.7x     STALE — need submission
-Element balance           fixed (V15)        balanced        CLOSED    ✅ FIXED by V15
-Heart stealing            fixed (V7 hub)     N/A             CLOSED    ✅ FIXED by V7
+Fix                       Session 8 online    V20 online (4+4 split)    Transfer?
+──────────────────────────────────────────────────────────────────────────────────
+Hub heart filter (V7)     heart.withdrawn=5   heart.gained=14.4/agent   ✅ yes
+Element balance (V15)     C=6 Ge=4 O=207      C=795 Ge=777 O=776        ✅ yes
+Pre-block route (V8)      17.4% failure       1 fail / 9848 moves       ✅ yes
+Mortality (V1–V11)        3.5 deaths/agent    0 deaths when 4+4         ✅ yes for 3a
+──────────────────────────────────────────────────────────────────────────────────
+NEW ONLINE-ONLY FAILURE: 6+2 splits — 3 of 6 V20 agents die at step 4–15 (see #38)
 ```
 
-**Current bottleneck**: **Stale online submission (#37)**. The merged V20 code fixes agent mortality (0 deaths at 10k), heart stealing, element imbalance, and move failures — but none of this is online yet. Submitting the merged policy is the single highest-leverage action.
+**Current bottleneck**: the 6+2 startup-mortality bug (#38). This is invisible offline because all V20 experiments were at 3 agents. It is the single biggest explanation for why V20 online score (3.43) is below fast-llm-v1 (4.47).
 
-**Next up**: #37 (submit + 8-agent validation) → #36 (online confirmation) → #25 (8-agent with V20)
+**Gap to top-1 (`dinky`)**: 8× online score gap; closing will require both #38 fix AND multi-agent scaling beyond what V20 addressed.
 
-**Research tree:**
+### Research tree
+
 ```
 SPAWN NEXT:
-  #37 Submit V20 + 8-Agent Validation (priority:1) ← HIGHEST LEVERAGE
+  #38 6+2 startup-mortality (priority:1) ← HIGHEST LEVERAGE NOW
 
-AWAITING ONLINE CONFIRMATION:
-  #36 Agent Mortality (priority:2) — V20 merged, 0 deaths offline, needs online test
-
-CLOSED THIS SESSION:
-  #34 Heart Pipeline — CLOSED: subsumed by #36 V7-V20
-  #35 Move Failure Rate — CLOSED: 53%→17.4% online, 88.3% offline
-  #29 10k Eval Alignment — CLOSED: 10k is standard practice now
+AWAITING DATA:
+  V20 live matches — let accumulate to ≥ 50 before firm conclusion
+  #31 zero change_vibe (priority:2) — needs Experiment C/E run
+  #30 8-agent self-play (priority:2) — likely same bug as #38
 
 ACTIVE:
-  #24 Mining Strategy (priority:2) | #27 Andre Von Huck (priority:2)
+  #24 Mining (priority:2) | #27 Andre Von Huck (priority:2)
+  #26 Shweta policy (priority:2) | #36 Mortality (priority:2, V20 partial)
 
-DEPRIORITIZED:
-  #25 8-Agent Scaling (priority:3) — 118 exp plateau; retry with V20 via #37
-  #30 Self-Play (priority:3) | #31 change_vibe (priority:3) | #32 Partner (priority:3)
+DEPRIORITIZED (gated on #38):
+  #25 8-Agent Scaling (priority:3)
+  #32 Partner robustness (priority:3)
+  #37 Submit V20 — CLOSED 2026-04-15 (done; regressed; see #38)
 ```
 <!-- LEADERBOARD_END -->
 

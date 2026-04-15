@@ -1,62 +1,109 @@
 # Director Notes
-_Written: 2026-04-14 (Session 8)_
+_Written: 2026-04-15 (Session 9, offline-to-online)_
 
-## What I observed
+## Session context
 
-### Online replay analysis (vs Softy:v3, score 1.01)
-- heart.withdrawn: 5 — ONLY initial hub hearts consumed. make_heart pipeline completely broken online.
-- carbon deposited: 6, germanium: 4 vs oxygen: 207, silicon: 185 — catastrophic element imbalance.
-- death: 3.5/agent average — 28 total deaths across 8 agents in 10k steps.
-- move failure: 17.4% (1737 failures per agent out of 10k actions)
-- All 8 agents alive at end but had 3.5 deaths each (respawns)
+Session 8 closed with: "V20 merged offline, NOT submitted online — submit is highest-leverage action (#37)." That action was executed: `lessandro-v20-robust-llm-v1:v1` was uploaded 2026-04-15T08:37:47 UTC and has completed 20 competition matches.
 
-### Online leaderboard (unchanged since session 6)
-- #291/363, score 3.12 (lessandro-fast-llm-v1)
-- Top-1: dinky:v27 at 27.21 (gap: 8.7x)
-- 363 total entries (was 359 in session 7)
-- NO new submissions — all offline improvements are unrealized online
+## Offline observations
 
-### Branch review
-1. **claude/amazing-meitner-JWpsV** (issue #36, 46 commits): MERGED. V1-V6 experimentally validated, V7-V20 tested as full stack. Results: zero deaths at 10k, 3.15 total reward best seed, +53-65% over V6. This is the most impactful branch ever.
-2. **autoresearch/issue-25-8agent-scaling-4a4m** (118 commits): NOT merged. Stuck at 0.825/agent after 34+ sessions. All incremental experiments DISCARD. Hard local max — needs V20 as new baseline.
-3. Other old branches: no new activity since session 7.
+- Offline best unchanged: **3.15 total reward, 3-agent V20 stack at 10k steps (seed 44, commit 30e1798)**.
+- No new TSV rows since session 8. No new autoresearchers pushed branches since merge of `claude/amazing-meitner-JWpsV`.
+- All V20 experiments were at 3 agents. 8-agent behavior of V20 is **untested offline**.
+
+## Online observations
+
+### Leaderboard (beta-cvc, 398 entries, 2026-04-15)
+
+| Rank | Score | Matches | Policy | Submitted |
+|------|-------|---------|--------|-----------|
+| 283 | 4.47 | 28 | lessandro-fast-llm-v1:v1 | 2026-04-09 |
+| 322 | **3.43** | 20 | **lessandro-v20-robust-llm-v1:v1** | 2026-04-15 |
+| 339 | 3.03 | 32 | lessandro-machina-paid-v1:v1 | 2026-04-09 |
+| 342 | 2.95 | 25 | cross_role_full_v8:v1 | 2026-04-12 |
+| 344 | 2.86 | 25 | cross_role_full_10s_v8:v1 | 2026-04-12 |
+| 355 | 2.75 | 33 | lessandro-2aligner-llm-v1:v1 | 2026-04-09 |
+
+Top-1: `dinky:v27` = 27.31 (127 matches). Gap 8×.
+
+### V20 online replay analysis (3 matches, full episode 10k steps)
+
+All 8-agent matches. Our policy holds 4 or 6 of 8 slots depending on split.
+
+**Per-agent steps alive (out of 10k):**
+
+| Match | Split | Partner | Our agents survival |
+|-------|-------|---------|---------------------|
+| `16f76ba2` score 0.79 | 6+2 | shweta-v58 | **6794, 6807, 6960, 7, 8, 4** ← 3 die at step 4–8 |
+| `d5416b72` score 1.06 | 6+2 | gamma_v3 | **8495, 8522, 8448, 13, 15, 6** ← 3 die at step 6–15 |
+| `ea54ab9c` score 12.11 | 4+4 | scissors_v1_v80 | 3236, 6371, 8071, 9848 ← all 4 alive |
+
+**V20 fixes that DO transfer online (confirmed in the 4+4 match):**
+- Element balance: `cogs/{carbon,germanium,oxygen,silicon}.deposited = 795/777/776/770` (vs 6/4/207/185 session 8 baseline)
+- Pre-block routing: agent 3 had only **1 failure across 9,847 moves**
+- Hub heart filter: `heart.gained = 14.4/agent` (session 8 was stuck at 5 initial-hub hearts)
+
+**V20 fix that does NOT transfer online:**
+- Mortality at scale: offline 3-agent V20 had 0 deaths; online 6+2 V20 still loses 3 of 6 agents in first 15 steps.
+
+**Zero `change_vibe_*` actions** on our side (issue #31). Partners scissors/gamma have 60–280/agent. Could be a real bug or a replay-log filter — unresolved.
+
+## Offline→Online gap — quantified
+
+1. Offline best: **3.15 reward total, 3-agent, V20 stack, 10k steps, 0 deaths**.
+2. Online best: **rank 283, score 4.47**, `lessandro-fast-llm-v1` (pre-V20 code, 28 matches).
+3. V20 online: **rank 322, score 3.43** (20 matches, fresh submit). −23% vs fast-llm.
+4. Cause of the gap:
+   - **Primary**: 6+2 startup-mortality — 3 of 6 V20 agents die at step 4–15. Invisible offline (only tested at 3 agents). Now filed as **#38**.
+   - **Secondary**: partner-dependence (stddev 3.40 on 3.43 mean). With strong partners V20 scores 6–12; with weak partners 0.6–3. Partially unavoidable.
+   - **Tertiary**: lack of `change_vibe_*` actions — possibly a red herring (see #31), possibly real.
 
 ## Current bottleneck
-**STALE ONLINE SUBMISSION.** The merged V20 code fixes the top 4 online problems (agent mortality, heart stealing, element imbalance, move failures) but has never been uploaded. The current online policy (#291/363) predates ALL improvements from sessions 7 and 8. Submitting is the single highest-leverage action — no code changes needed, just upload.
+
+**#38 — the 6+2 startup-mortality bug.** Until 6 of 6 agents actually reach step 100, every other V20 fix is wasted in 6+2 matches (which are the ones that hurt our average most). This bug is an online-specific symptom that cannot be seen offline with 3-agent eval configs.
 
 ## What I expected to happen vs. what I found
-Session 7 notes asked: "Should we submit the merged code?" — answer is emphatically YES.
 
-I expected a researcher to run #36 experiments and submit. Instead, the researcher (claude/amazing-meitner-JWpsV) did extraordinary work: 20 versions, comprehensive fixes from hub-level game changes to team coordination. But couldn't submit because the environment lacked Python 3.12 / cogames binary.
+Expected: V20 online score rises from 3.12 → ≥ 5.0 (session 8 prediction in #37's success criteria).
+Found: V20 online score = 3.43 (regression vs 4.47 fast-llm-v1).
 
-The 8-agent branch (#25) was exactly as predicted: stuck at a hard ceiling. The doom loop (get_heart → stale → explore → get_heart) is caused by the same heart pipeline failures that V7-V20 fix.
+This contradicts the offline signal (V20 fixed mortality, element balance, heart stealing, move failures at 3 agents). The contradiction pinpoints the exact offline→online gap: we never tested at 8 agents, and the 8-agent (specifically 6+2) path has a distinct startup failure mode.
 
-## Issues updated this session
-- **#36**: Commented with merge details + online diagnosis. Branch merged. Label changed from priority:1/in-progress to priority:2.
-- **#34**: CLOSED as completed — fully subsumed by #36 V7-V20.
-- **#35**: CLOSED as completed — session 7 + V8/V10/V13 fixes.
-- **#29**: CLOSED as completed — 10k eval is now standard practice.
-- **#25**: Moved to priority:3. 118 experiments plateaued; retry with V20 baseline via #37.
-- **#37**: CREATED (priority:1) — submit merged V20 policy + validate at 8 agents.
+## Issues changed this session
 
-## Priority stack for OpenClaw
+- **#37** (Submit V20) — **CLOSED completed** and moved to priority:3. Submission done; outcome documented.
+- **#38** — **CREATED** priority:1. "6+2 startup-mortality: 3 of 6 V20 agents die at step 4-15 in online matches."
+- **#36** (Agent mortality) — commented with online transfer table; stays priority:2.
+- **#31** (change_vibe zero) — priority:3 → priority:2 (V20 also shows the pattern).
+- **#30** (8-agent self-play collapse) — priority:3 → priority:2, linked as same-symptom as #38.
+- **#25** (8-agent scaling) — commented: gated on #38; stays priority:3, do NOT launch new autoresearchers here yet.
+
+## Priority stack for next spawn
+
 ```
-priority:1  #37  Submit V20 + 8-Agent Validation  <- SPAWN NEXT (highest leverage)
-priority:2  #36  Agent Mortality (merged, needs online confirmation)
-priority:2  #24  Balanced Mining Strategy
-priority:2  #27  Andre Von Huck suggestions
-priority:3  #25  8-Agent Scaling (plateau; retry with V20)
-priority:3  #30  8-Agent Self-Play | #31 change_vibe | #32 Partner robustness
+priority:1  #38  6+2 startup-mortality (NEW, highest leverage online)
+priority:2  #30  8-agent self-play collapse (likely same bug as #38)
+priority:2  #31  change_vibe instrumentation (confirm real vs log artifact)
+priority:2  #36  Agent mortality (V20 confirmed partial fix online)
+priority:2  #24  Balanced mining | #26 Shweta | #27 Andre
+priority:3  #25  8-Agent Scaling (gated on #38)
+priority:3  #32  Partner robustness
 ```
+
+## Submission decision this session
+
+**No new submission.** Reasons:
+- V20 just submitted this session; needs ≥ 50 matches for stable estimate (currently 20).
+- No offline code improvements since V20 merge — nothing new to submit.
+- The #38 bug fix does not exist yet.
+
+Leave V20 live, accumulate matches, and wait for #38 work.
 
 ## Open questions for next director
 
-1. **Did #37 submit successfully?** Check `cogames submissions --season beta-cvc` for a `lessandro-v20-mortality-v1` entry. If yes, check online score after 24h. Target: >=5.0 (from current 3.12).
-
-2. **8-agent validation with V20**: The V20 experiments were all on 3 agents (2A1M). The 8-agent config (3A5M or 4A4M) needs testing. The fast-path should eliminate LLM contention that caused the 8-agent catastrophe, but this hasn't been verified.
-
-3. **Hub heart filter is a GAME-LEVEL change** (hub.py). It affects ALL teams in the match, not just ours. Does this change how partner/opponent behavior works? Does it affect compatibility with the tournament's hub.py?
-
-4. **Mining throughput is still 100x below dinky**: V12 (depleted extractor fix) + V14 (junction deposit) + V15 (element balancing) + V20 (shared extractors) should help, but dinky deposits 3244 carbon vs our 6. The gap may still be massive even with V20.
-
-5. **Clean up old branches**: 30+ remote branches exist. After confirming #37 succeeds, delete merged branches: amazing-meitner-JWpsV, amazing-meitner-ahBE5, amazing-meitner-cUcXZ, autoresearch-priority-issue-dAc9K.
+1. **Has V20 accumulated ≥ 50 matches?** If yes, is the score still ≤ 4.47 (fast-llm)? If yes, V20 is genuinely worse; if score climbs past 4.47, it was partner-sampling variance.
+2. **Was #38 diagnosed offline?** Specifically: can we reproduce the "3 of 6 agents die step 4–15" behavior in an offline 8-agent self-play run? If yes, fix it; if no, the bug is online-env specific (different map, clips, initial spawn, something).
+3. **Did #31 get resolved?** Experiment C (grep policy code for action ids 5–11) would close it in 5 minutes. If vibes genuinely never emit, every role-switching experiment we've run online has been measuring noise.
+4. **Is `dinky:v27` code available?** Top-1 at 27.31 is 8× us. If their approach is documented in any leaked replay metadata or public repo, we should study it.
+5. **Should we revert to `fast-llm-v1` behavior for 6+2 splits specifically?** A split-aware policy (use V20 in 4+4, use fast-llm in 6+2) would be a cheap blended submission if #38 proves hard to fix.
+6. **Clean up branches**: 30+ remote branches still open. The session-8 merged branches (`amazing-meitner-JWpsV`, `amazing-meitner-ahBE5`, `amazing-meitner-cUcXZ`, `autoresearch-priority-issue-dAc9K`) can be deleted once nothing references them.
