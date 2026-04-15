@@ -5,3 +5,4 @@ c3690cb	0.550801	held=4508 gained=8 hearts=7 deposits=c20+o100+g100+si80 per_age
 c3690cb	0.387895	held=2879 gained=6 hearts=5 deaths=1 deposits=c320+g216+si124+o_low per_agent	1000	keep	exp4 3A5M 8ag seed43 1k (3.10 total; PARALLEL RUN)
 c3690cb	0.503303	held=4033 gained=6 hearts=5 deaths=1 deposits=c?+o40+g100+si260 per_agent	1000	keep	exp5 3A5M 8ag seed44 1k (4.03 total; PARALLEL RUN)
 c3690cb	0.000000	crash_openrouter_peer_closed	10000	crash	exp1 3A5M 8ag seed42 10k crashed ~mid-run due to OpenRouter disconnect
+618c9ce	1.742942	held=7428 hearts_withd=8+craft7.77 gained=17 deaths=13 depositsCOGS c163+o76+g114+si153 per_agent	10000	keep	exp1b 3A5M 8ag seed42 10k solo (13.94 total reward; LLM err handler prevents crashes)

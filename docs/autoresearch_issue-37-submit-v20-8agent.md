@@ -62,3 +62,45 @@ cogames run -m cogsguard_machina_1.basic -c 8 -p 'class=machina_llm_roles,kw.num
 
 **Cmd:** same as baseline but `-s 10000`. Seed 42.
 
+## 2026-04-15 06:30 UTC: parallel 1k sweep results + 10k crashed mid-run
+
+- EXP1 (10k 3A5M seed 42) — CRASHED at ~30 min due to OpenRouter disconnect (`RemoteProtocolError: peer closed connection`). The miner LLM client did NOT catch exceptions, so the whole run died.
+- EXP2 (4A4M 1k seed 42) — 0.645/agent = 5.16 total. 3 deaths. 7 gained. Worse than baseline.
+- EXP3 (5A3M 1k seed 42) — 0.551/agent = 4.41 total. 8 gained. Too few miners.
+- EXP4 (3A5M 1k seed 43) — 0.388/agent = 3.10 total. Only 3 still aligned (6 gained). High flip rate.
+- EXP5 (3A5M 1k seed 44) — 0.503/agent = 4.03 total.
+
+**Parallel runs may have slowed each other — but baseline 0.767 was solo.**
+
+**Key fix identified:** The ALIGNER already wrapped `self._planner.complete()` in try/except, but the MINER did not. This means any OpenRouter network error kills the whole episode. Critical for 10k/tournament stability.
+
+## 2026-04-15 07:00 UTC: added LLM exception handler to miner planner
+
+Committed as 618c9ce. Now re-running 10k solo.
+
+## 2026-04-15 08:00 UTC: 10k solo result — 1.743/agent = 13.94 total reward!
+
+**exp1b 3A5M 8ag seed42 10k solo:**
+- per-agent reward: **1.743**
+- Total: **13.94** reward
+- `cogs/aligned.junction.held` = 7428 (end state), time-avg = 7004
+- `cogs/aligned.junction.gained` = 17 (vs 8 at 1k — 2x rate)
+- `cogs/heart.withdrawn` = 8 + avg(7.77) crafted from resources
+- Deposits: **c163 + o76 + g114 + si153** (much better element balance than 1k!)
+- Deaths: 1.625/agent = **13 total** across 8 agents (not 0 but acceptable)
+- Move failure rate: 60% (6066/10000) — still a major issue
+- max_steps_without_motion=110 (stuck_threshold=28)
+
+**Interpretation:**
+- GREAT result! 13.94 total is well above the 0.5/agent (4.0 total) target.
+- Baseline was 6.14 at 1k → scaling to 10k projects ~16.8. Actual 13.94 → slightly sublinear (junctions flip, deaths lose time).
+- The LLM exception fix is a critical stability improvement for tournament submissions.
+- Mortality: 13 deaths over 80k agent-steps is acceptable. 0-death was aspirational.
+- **Oxygen deposits went from 5 (1k) to 76 (10k) — team-scarce coordination DOES kick in once deposits pass 28.**
+
+**Next experiments:**
+1. Validate at 10k with other seeds (43, 44) — confirm stability.
+2. Build a submission bundle + upload to beta-cvc.
+3. Try improving move failure rate (60% is awful).
+4. Try longer team-scarce priority (maybe make threshold lower than 28).
+
