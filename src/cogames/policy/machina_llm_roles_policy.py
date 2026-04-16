@@ -306,6 +306,16 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             skill = "explore"
             reason = f"overrode unstuck to explore after {state.consecutive_unstuck} consecutive unstuck calls"
             state.consecutive_unstuck = 0
+        # Heart queue management: avoid all aligners rushing to hub when few hearts available
+        if skill == "get_heart" and self._shared_map is not None:
+            sm = self._shared_map
+            available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
+            already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
+            if already_getting >= max(1, available_hearts):
+                skill = "explore"
+                reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
+        if skill == "get_heart" and self._shared_map is not None:
+            self._shared_map.agents_getting_hearts.add(obs.agent_id)
         if skill == "explore":
             state.explore_start_junctions = len(state.known_neutral_junctions)
         state.current_skill = skill
@@ -324,6 +334,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill == "get_heart" and has_heart and state.skill_steps > 0:
             self._event(state, "get_heart completed after acquiring heart")
             state.get_heart_timeouts = 0
+            # Track heart withdrawal for team heart queue management
+            sm = self._shared_map
+            if sm is not None:
+                sm.hub_hearts_withdrawn += 1
+                sm.agents_getting_hearts.discard(obs.agent_id)
             state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             self._event(state, "defend ended: acquired heart while defending")
@@ -427,6 +442,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if sm is not None:
             if state.current_skill != "align_neutral":
                 sm.aligner_targets.pop(obs.agent_id, None)
+            if state.current_skill != "get_heart":
+                sm.agents_getting_hearts.discard(obs.agent_id)
 
         # ── HP safety: retreat to hub/friendly territory if HP is low ──
         if self._check_hp(obs, state, current_abs):
