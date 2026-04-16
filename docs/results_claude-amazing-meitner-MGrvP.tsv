@@ -11,4 +11,5 @@ d7981d1	0.000000	timeout after ~20 LLM calls	500	crash	Same code 500-step run ti
 1be20b8	3.720000	junction.aligned=25 hearts=26 hp=706/800	3000	keep	Same code 3000 steps — junction plateau at 25 HP starting to decay
 3b9249b	6.958000	avg 10-seed junctions=10.4 hearts=10.8	500	keep	Junction coordination + deposit tracking: team-scarce element now works (+7.7% vs 6.458 baseline)
 3b9249b	7.435000	avg 3-seed junctions=16 hearts=17	1000	keep	Same code 1000 steps — seed42 gets 26 junctions (was 19)
-PENDING	7.140000	avg 10-seed junctions=12.0 hearts=13.0	500	keep	Shared extractors_by_element + forced explore for scarce elements: +10.6% vs baseline
+b949bed	7.140000	avg 10-seed junctions=12.0 hearts=13.0	500	keep	Shared extractors_by_element + forced explore for scarce elements: +10.6% vs baseline
+PENDING	7.657000	avg 10-seed junctions=12.4 hearts=13.7	500	keep	4al+4min (was 2al+6min): improved mining makes 4 miners sufficient — +18.6% vs baseline

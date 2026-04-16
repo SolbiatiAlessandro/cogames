@@ -196,3 +196,23 @@ Baseline 1000-step seed 42 was 7.25 with 19 junctions → **+20% reward, +37% mo
 Seed 50 specifically: 4.854 → **7.284** (+50% reward, 5→14 junctions). All 4 elements now being mined: germanium went from 0 → 100.
 
 **Cumulative improvement: +10.6% over baseline** across all 10 seeds.
+
+## 2026-04-16 10:00: Experiment 7 — Re-optimize num_aligners with improved mining
+
+**Hypothesis:** With shared extractor knowledge and deposit tracking, 4 miners might now be sufficient for element diversity. This would free 2 extra aligners (4 total) for faster junction capture.
+
+**10-seed sweep (500 steps, all with current mining improvements):**
+
+| Config | Avg Reward | Change vs 2al |
+|--------|-----------|---------------|
+| 2al + 6min | 7.140 | — |
+| 3al + 5min | 7.316 | +2.5% |
+| **4al + 4min** | **7.657** | **+7.2%** |
+
+**4 aligners is now optimal!** Changed `num_aligners="auto"` from `2 if n_agents >= 8` to `min(4, n_agents)`.
+
+**Why 4 is better now:** The mining infrastructure improvements (shared extractors, deposit tracking, team-scarce element coordination, forced exploration) make 4 miners as effective as 6 were before. So the extra 2 aligners are "free" — they capture junctions faster without sacrificing element diversity.
+
+**Per-seed rewards:** [9.76, 7.85, 8.64, 6.68, 6.69, 7.94, 7.37, 7.74, 6.00, 7.90]
+
+**Cumulative improvement: +18.6% over baseline** (6.458 → 7.657).

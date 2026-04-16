@@ -569,15 +569,16 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
 
         self._shared_map = SharedMap()  # ONE map, shared by ALL agents
 
-        # Resolve aligner IDs: "auto" uses 2 aligners at 8+ agents (more miners = diverse
-        # elements for heart crafting), 4 at smaller teams
+        # Resolve aligner IDs: "auto" uses 4 aligners at 8+ agents. With shared
+        # extractor knowledge and deposit tracking, 4 miners suffice for element
+        # diversity; more aligners capture junctions faster.
         parsed_aligner_ids = tuple(int(p.strip()) for p in aligner_ids.split(",") if p.strip())
         if parsed_aligner_ids:
             self._aligner_ids = frozenset(parsed_aligner_ids)
         else:
             na_str = str(num_aligners).lower()
             if na_str == "auto":
-                n_aligners = 2 if n_agents >= 8 else min(4, n_agents)
+                n_aligners = min(4, n_agents)
             else:
                 n_aligners = int(num_aligners)
             self._aligner_ids = frozenset(range(min(n_aligners, n_agents)))
