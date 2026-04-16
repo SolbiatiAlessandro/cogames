@@ -78,9 +78,6 @@ class SharedMap:
         self.extractors_by_element: dict[str, set[Coord]] = {
             e: set() for e in ("carbon", "oxygen", "germanium", "silicon")
         }
-        # Issue-38: miner target diversification — track which extractor each miner
-        # is navigating toward so other miners prefer different targets.
-        self.miner_targets: dict[int, Coord | None] = {}
 
 
 @dataclass

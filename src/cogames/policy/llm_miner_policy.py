@@ -432,11 +432,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         self._update_map_memory(obs, state)
         self._update_progress(obs, state)
 
-        # Clear miner target when not actively mining
-        sm = self._shared_map
-        if sm is not None and state.current_skill != "mine_until_full":
-            sm.miner_targets.pop(obs.agent_id, None)
-
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:
             self._plan_skill(obs, state)
