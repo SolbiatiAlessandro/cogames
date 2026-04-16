@@ -1,3 +1,5 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 d7981d1	0.030400	junction.gained=2.04 silicon.deposited=40	100	keep	Issue38 mortality fix: miner try/except + defensive wrappers + auto-scripted-miners + auto-scouts (8 agents all survived)
 d7981d1	0.000000	timeout after ~20 LLM calls	500	crash	Same code 500-step run timed out — LLM contention 40-184s/call with 4 aligner LLM calls
+3a08a3a	5.971987	junction.aligned=6 silicon.gained=100 heart.gained=6	500	keep	Scripted aligners: 196x improvement! No LLM calls at 8 agents — deterministic rule-based planner
+3a08a3a	4.579992	junction.aligned=6 silicon.gained=100 heart.gained=6	1000	keep	Same code 1000 steps — reward/step decreases because team plateaus at 6 junctions after ~500 steps

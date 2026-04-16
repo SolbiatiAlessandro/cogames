@@ -63,3 +63,30 @@ Analysis of the aligner LLM decisions shows they are 100% predictable from preco
 2. Make aligner decisions instant
 3. Dramatically increase effective steps per unit time
 4. Keep the same decision quality (since LLM was always following the rules anyway)
+
+**Results — scripted aligners (commit 3a08a3a):**
+
+| Steps | Reward | junction.aligned | silicon.gained | heart.gained | Runtime |
+|-------|--------|-----------------|----------------|--------------|---------|
+| 500   | **5.971987** | 6 | 100 | 6 | ~25s |
+| 1000  | **4.579992** | 6 | 100 | 6 | ~50s |
+
+**Comparison with LLM aligners (commit d7981d1):**
+- 100 steps with LLM: 0.0304 reward (~22 min)
+- 500 steps with LLM: TIMED OUT after ~20 LLM calls
+- 500 steps scripted: **5.97 reward** in ~25s — **~196x improvement in reward, ~50x faster**
+
+**Key findings:**
+1. Scripted aligners produce the SAME decisions as LLM aligners (the LLM always followed the preconditions)
+2. Zero LLM calls means zero contention — 500 steps completes in 25s instead of timing out
+3. All 8 agents alive and healthy (hp.amount=800, hp.gained=8400)
+4. Team plateaus at 6 junctions — bottleneck is heart supply, not decision quality
+5. 3-agent matches still use LLM aligners (scripted_aligners="auto" -> False at <6 agents)
+
+**Analysis of bottleneck:** The team captures 6 junctions then stalls. Heart.gained=6 total means 6 successful get_heart operations. After that, the hub appears to be depleted or inaccessible. The team has 4 aligners but only 6 hearts total — further improvement needs either more efficient heart acquisition or different resource strategies.
+
+**Next experiment ideas:**
+1. Increase heart availability — investigate hub mechanics (regeneration, depletion)
+2. More aligners vs fewer but more efficient ones
+3. Try different seeds to check variance
+4. Long run (5000+ steps) to see if hearts regenerate
