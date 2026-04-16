@@ -396,6 +396,30 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    def _explore_far_from_hub(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
+        """Explore far from hub to discover distant extractors of missing element types."""
+        if state.last_mode != "explore":
+            logger.info("agent=%s mode=explore", obs.agent_id)
+            state.last_mode = "explore"
+        current_abs = self._current_abs(obs)
+        frontier_cells = self._frontier_cells(state)
+        if not frontier_cells:
+            return self._explore(obs, state)
+        # Prefer frontier cells FAR from hub to push into uncharted territory
+        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1])) if state.known_hubs else (0, 0)
+        target_abs = max(
+            frontier_cells,
+            key=lambda cell: abs(cell[0] - hub[0]) + abs(cell[1] - hub[1]),
+        )
+        if current_abs in frontier_cells:
+            for direction, neighbor in self._neighbors(current_abs):
+                if neighbor in state.blocked_cells:
+                    continue
+                if neighbor not in state.known_free_cells:
+                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        action, next_state = self._move_to(state, current_abs, target_abs)
+        return action, replace(next_state, last_mode=state.last_mode)
+
     def _explore_near_hub(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "explore":
             logger.info("agent=%s mode=explore", obs.agent_id)
