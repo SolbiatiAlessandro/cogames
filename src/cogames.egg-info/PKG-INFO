@@ -62,61 +62,70 @@ Dynamic: license-file
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-04-12 (Session 6)_
+_Updated by Director: 2026-04-14 (Session 8)_
 
 ### Online Tournament (beta-cvc, 10k steps, 8 agents)
 
-| Rank | Score | Policy | Matches | Notes |
-|------|-------|--------|---------|-------|
-| **#283/344** | **3.24** | `lessandro-fast-llm-v1:v1` | 20 | Best online; machina_llm 4A4M |
-| #291/344 | 2.82 | `cross_role_full_10s_v8:v1` | 22 | **NEW** — issue #28 fix; avg 2.94, range 0.36–6.97 |
-| #298/344 | 2.61 | `cross_role_full_v8:v1` | 22 | 5s timeout variant |
-| _(ref)_ | 27.63 | `dinky:v27` (top-1) | 100+ | 220 junctions gained, 453 hearts, 9822 moves/agent |
+| Rank | Score | Policy | Notes |
+|------|-------|--------|-------|
+| **#291/363** | **3.12** | `lessandro-fast-llm-v1:v1` | Best online; stale — predates ALL session 7-8 improvements |
+| #305/363 | 2.71 | `cross_role_full_10s_v8:v1` | All agents die before 10k; heart.withdrawn=5 |
+| _(ref)_ | 27.21 | `dinky:v27` (top-1) | 220 junctions, 56 hearts/agent, 98.5% move success |
 
-### Offline Best Results
+**CRITICAL: No new submission since April 12.** Offline improvements (+65% at 10k) have not been uploaded.
 
-| Rank | Reward | Commit | Config | Agents | Steps | Notes |
-|------|--------|--------|--------|--------|-------|-------|
-| 1 | 1.61/agent | `53ac781` | 3A5M all-LLM, cross_role | 8 | 10000 | **NEW** — issue #28; qualifying passed |
-| 2 | 0.77 | `97886dd` | 2A1M, cross_role v15 | 3 | 1000 | 12 hearts (7 from make_heart) |
-| 3 | 0.753 | `7493f42` | 3A, machina_llm | 3 | 1000 | 7 junctions |
-| 4 | 0.70 | `11008eb` | 2A1M, cross_role+gemma-12b | 3 | 1000 | Faster model |
-| 5 | 1.24 | `6857db1` | 4A, cross_role | 4 | 2000 | Reclaim enemy junctions |
+### Offline Best Results (3-agent, post-V20 merge)
+
+| Rank | Reward | Config | Steps | Deaths | Notes |
+|------|--------|--------|-------|--------|-------|
+| 1 | **3.15 total** | 2A1M V20 stack | 10000 | **0** | seed 44 — **NEW BEST**; all 3 survive 10k |
+| 2 | 2.70 total | 2A1M V20 stack | 10000 | 0 | seed 43; 14 junctions gained |
+| 3 | 1.85 total | 2A1M V20 stack | 10000 | 0 | seed 42; stable linear growth |
+| 4 | 1.19/agent | 2A1M V20 stack | 1000 | 0 | seed 44; +59% over V6 |
+
+### Offline Best Results (8-agent, pre-V20)
+
+| Rank | Reward | Config | Steps | Notes |
+|------|--------|--------|-------|-------|
+| 1 | 7.96 total (0.996/agent) | 3A5M stuck=28 hazard-free | 1000 | Session 7 priority branch; best single seed |
+| 2 | 0.825/agent | 4A4M issue-25 | 1000 | 118 experiments, stuck at plateau — V20 may break it |
 
 ### Gap Analysis (us vs top-1 `dinky:v27`)
 
 ```
-Metric                    Us (best match)    dinky (best)    Gap
-─────────────────────────────────────────────────────────────────
-Online score              7.68               43.75           5.7x
-Junctions gained          56                 220             3.9x
-Junctions held/tick       7.68               43.75           5.7x
-Hearts gained/agent       10.4               56.6            5.4x
-Move success rate         47%                98.5%           2.1x
-Deposits (carbon)         582                3244            5.6x
-Cell coverage/agent       810                2468            3.0x
+Metric                    Us (best offline)  dinky (best)    Gap       Status
+─────────────────────────────────────────────────────────────────────────────────
+Agent survival (10k)      ALL survive (V20)  survive 10k     CLOSED    ✅ FIXED by V20
+Hearts (10k)              25+/agent (V20)    56.6/agent      2.3x     improved (was ∞)
+Move success              88.3% (offline)    98.5%           1.1x     nearly closed
+Online score              3.12 (STALE)       27.21           8.7x     STALE — need submission
+Element balance           fixed (V15)        balanced        CLOSED    ✅ FIXED by V15
+Heart stealing            fixed (V7 hub)     N/A             CLOSED    ✅ FIXED by V7
 ```
 
-**Current bottleneck**: **Heart pipeline throughput**. dinky gains 56 hearts/agent (via mining→make_heart) vs our 10. This 5.4x gap directly causes the 5.7x score gap. Our agents deposit enough resources for ~11 make_hearts but fail to withdraw/use the crafted hearts at 10k steps (hub_depleted flag blocks get_heart prematurely). Secondary: 53% move failure rate in self-play (vs 1.5% for dinky) wastes half our actions.
+**Current bottleneck**: **Stale online submission (#37)**. The merged V20 code fixes agent mortality (0 deaths at 10k), heart stealing, element imbalance, and move failures — but none of this is online yet. Submitting the merged policy is the single highest-leverage action.
 
-**Next up**: #34 (heart pipeline) → #35 (move failure rate) → #29 (10k eval alignment)
+**Next up**: #37 (submit + 8-agent validation) → #36 (online confirmation) → #25 (8-agent with V20)
 
 **Research tree:**
 ```
-CRITICAL (online competitiveness):
-  #34 Heart Pipeline Throughput (priority:1) — 5.4x gap to dinky
-  #35 Move Failure Rate (priority:1) — 53% failure, need <10%
-  #29 10k Step Eval Alignment (priority:1) — offline metric doesn't predict online
+SPAWN NEXT:
+  #37 Submit V20 + 8-Agent Validation (priority:1) ← HIGHEST LEVERAGE
+
+AWAITING ONLINE CONFIRMATION:
+  #36 Agent Mortality (priority:2) — V20 merged, 0 deaths offline, needs online test
+
+CLOSED THIS SESSION:
+  #34 Heart Pipeline — CLOSED: subsumed by #36 V7-V20
+  #35 Move Failure Rate — CLOSED: 53%→17.4% online, 88.3% offline
+  #29 10k Eval Alignment — CLOSED: 10k is standard practice now
 
 ACTIVE:
-  #28 Qualifying Crash Fix (priority:1, in-progress) — DONE: cross_role in competition pool
-  #30 8-Agent Self-Play (priority:2) — partially fixed by #28
-  #25 8-Agent Scaling (priority:2) | #24 Mining Strategy (priority:2)
+  #24 Mining Strategy (priority:2) | #27 Andre Von Huck (priority:2)
 
 DEPRIORITIZED:
-  #31 change_vibe actions (priority:3) — confirmed non-issue: no policy uses them
-  #32 Partner robustness (priority:3) — dinky also varies 1–43x; absolute perf matters more
-  #12 Gear Acquisition (priority:3) | #10 Role Tuning (priority:3)
+  #25 8-Agent Scaling (priority:3) — 118 exp plateau; retry with V20 via #37
+  #30 Self-Play (priority:3) | #31 change_vibe (priority:3) | #32 Partner (priority:3)
 ```
 <!-- LEADERBOARD_END -->
 
