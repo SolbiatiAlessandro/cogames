@@ -174,3 +174,25 @@ Baseline 1000-step seed 42 was 7.25 with 19 junctions → **+20% reward, +37% mo
 **Key insight:** Junction coordination alone had minimal impact (~+1%). The deposit tracking fix was the real lever — it enabled `_team_scarce_element()` to actually activate, directing miners to underrepresented elements. This ensures all 4 elements are deposited at the hub, enabling heart crafting and sustaining the alignment pipeline beyond the initial 5 hub hearts.
 
 **Remaining bottleneck:** Seed 50 still gets only 4.854 reward. Need to investigate what goes wrong on bad seeds.
+
+## 2026-04-16 09:30: Experiment 6 — Shared extractor knowledge + forced scarce-element exploration
+
+**Root cause of seed 50 failure:** Investigated seed 50 (worst at 4.854). Zero germanium was mined by any miner. Two bugs:
+
+1. **`extractors_by_element` not shared** (`llm_skills.py`): `_bind_shared_map_miner()` bound `known_extractors`, `known_free_cells`, etc. to SharedMap, but NOT `extractors_by_element`. Each miner had a private copy. So when miner 3 discovered a germanium extractor, miner 7 didn't know about it. Fixed by adding `state.extractors_by_element = sm.extractors_by_element` to `_bind_shared_map_miner()` and explicit binding in `_copy_with`.
+
+2. **No forced exploration for missing scarce elements** (`llm_miner_policy.py`): When `_team_scarce_element()` returned "germanium" (correctly, thanks to experiment 5's deposit tracking), and no germanium extractors were known, the miner just fell through to generic mining. Added forced exploration: when the team-scarce element has no known extractors, miners choose `explore` instead of `mine_until_full` to discover new extractor types.
+
+**Results — 10-seed comparison at 500 steps:**
+
+| Config | Avg Reward | Avg Junctions | Avg Hearts |
+|--------|-----------|---------------|------------|
+| Baseline (1be20b8) | 6.458 | 9.0 | 9.4 |
+| + deposit tracking (exp 5) | 6.958 | 10.4 | 10.8 |
+| **+ shared extractors (exp 6)** | **7.140** | **12.0** | **13.0** |
+
+**Per-seed rewards:** [7.25, 6.83, 8.01, 6.014, 8.628, 5.994, 6.984, 6.804, 7.284, 7.604]
+
+Seed 50 specifically: 4.854 → **7.284** (+50% reward, 5→14 junctions). All 4 elements now being mined: germanium went from 0 → 100.
+
+**Cumulative improvement: +10.6% over baseline** across all 10 seeds.
