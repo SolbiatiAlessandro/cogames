@@ -6,3 +6,6 @@ d7981d1	0.000000	timeout after ~20 LLM calls	500	crash	Same code 500-step run ti
 3a08a3a	6.328000	junction.aligned=10 hearts=11 carbon=150 silicon=200	500	keep	2 aligners + 6 miners: more miners find all 4 elements enabling heart crafting (seed=42)
 3a08a3a	6.418000	junction.aligned=8 hearts=9	500	keep	2 aligners + 6 miners (seed=43)
 3a08a3a	6.576000	junction.aligned=10 hearts=10	500	keep	2 aligners + 6 miners (seed=44)
+1be20b8	6.458000	avg 10-seed junction.aligned=9.0 hearts=9.4	500	keep	num_aligners=auto (2 at 8+) — 10-seed avg at 500 steps
+1be20b8	7.248000	junction.aligned=19 hearts=20	1000	keep	Same code 1000 steps — peak reward per step
+1be20b8	3.720000	junction.aligned=25 hearts=26 hp=706/800	3000	keep	Same code 3000 steps — junction plateau at 25 HP starting to decay

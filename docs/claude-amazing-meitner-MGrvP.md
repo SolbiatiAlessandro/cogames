@@ -107,3 +107,37 @@ Analysis of the aligner LLM decisions shows they are 100% predictable from preco
 
 **Implementation:** `num_aligners="auto"` → 2 at 8+ agents, min(4, n_agents) otherwise.
 3-agent matches unaffected (3 aligners, LLM-powered).
+
+## 2026-04-16 08:00: Experiment 4 — Long-duration performance and parameter sweep
+
+**Duration scaling (seed 42, 2 aligners + 6 miners, all scripted):**
+
+| Steps | Reward | Junctions | Hearts | HP remaining | Runtime |
+|-------|--------|-----------|--------|-------------|---------|
+| 500   | 6.33   | 10        | 11     | 800/800     | ~5s     |
+| 1000  | **7.25** | 19      | 20     | 800/800     | ~15s    |
+| 3000  | 3.72   | 25        | 26     | 706/800     | ~40s    |
+| 5000  | 2.63   | 25        | 26     | 500/800     | ~107s   |
+
+**Findings:**
+1. Peak reward at ~1000 steps (7.25) — fastest junction capture rate
+2. Team plateaus at 25 junctions around step 3000 (map limit?)
+3. Heart pipeline works well: 26 total hearts = 5 initial + 21 crafted from mined resources
+4. HP attrition begins after step 1000 as agents venture into enemy territory
+5. At 5000 steps, HP down to 500/800 — agents slowly dying from territory damage
+
+**Parameter sweeps (500 steps, 3 seeds each):**
+- return_load: 40 is optimal (avg 6.44). 20→5.47, 30→6.00, 60→5.16
+- stuck_threshold: 20 is optimal (avg 6.46). 10→6.02 (high variance), 15→6.23, 30→6.21
+
+**Per-agent analysis (seed 42):**
+- Agent 6 (miner) was stuck for 222/500 steps — wasted half the episode
+- Agents 3,5,7 only mined 1-2 element types
+- Agent 2 was the best miner — mined all 4 elements
+- `_team_scarce_element` coordination doesn't trigger because miners already discover diverse extractors via general exploration
+
+**Tested but not kept:**
+- Lower `_team_scarce_element` threshold (28→14): no measurable impact
+- Forced exploration for unknown scarce elements: never triggered
+
+**Next:** Focus on HP management for longer runs, or submit current improvements.
