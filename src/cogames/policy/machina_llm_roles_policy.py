@@ -304,18 +304,19 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             skill = "explore"
             reason = f"overrode unstuck to explore after {state.consecutive_unstuck} consecutive unstuck calls"
             state.consecutive_unstuck = 0
-        # Heart queue management: avoid all aligners rushing to hub when few hearts available
+        # Heart queue management: avoid too many aligners rushing to hub when few hearts available
+        # Allow at least 2 aligners simultaneously to reduce idle time
         if skill == "get_heart" and self._shared_map is not None:
             sm = self._shared_map
             available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
-            if already_getting >= max(1, available_hearts):
+            if already_getting >= max(2, available_hearts):
                 skill = "explore"
                 reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
         if skill == "explore":
-            state.explore_start_junctions = len(state.known_neutral_junctions)
+            state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
         state.current_skill = skill
         state.current_reason = reason
         state.skill_steps = 0
@@ -350,9 +351,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, "align_neutral completed after spending heart")
             state.current_skill = None
             state.align_neutral_timeouts = 0
-        elif state.current_skill == "explore" and len(state.known_neutral_junctions) > state.explore_start_junctions:
-            new_junctions = len(state.known_neutral_junctions) - state.explore_start_junctions
-            self._event(state, f"explore completed after discovering {new_junctions} new neutral junction(s)")
+        elif state.current_skill == "explore" and (
+            len(state.known_neutral_junctions) + len(state.known_enemy_junctions) > state.explore_start_junctions
+        ):
+            new_total = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) - state.explore_start_junctions
+            self._event(state, f"explore completed after discovering {new_total} new alignable junction(s)")
+            state.current_skill = None
+        elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
+            # Cap explore duration to prevent long idle periods when no junctions nearby
+            self._event(state, f"explore capped after {state.skill_steps} steps without finding junctions")
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
@@ -519,6 +526,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
             if self._inventory_count(obs, "heart") > 0:
+                action, base_state = self._explore_for_alignment(obs, state)
+            elif state.known_friendly_junctions:
+                # Heartless aligner with friendly junctions: explore alignment frontier
+                # to discover new junctions for when hearts become available
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_hubs:
                 action, base_state = self._explore_near_hub(obs, state)
