@@ -1,0 +1,4 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+d14521e	2.502000	junction.aligned_by_agent=8 hearts.gained=10 hp=800/800	500	keep	Offline validation (machina_1 88x88) — mettagrid 0.15.0 PyPI version differs from git-pinned
+d14521e	54.754000	arena: seed42=52.5 seed43=58.0 seed44=53.7	1000	keep	Offline validation (arena 50x50) — 3-seed avg 6.84/agent all agents survived
+d14521e	0.000000	uploaded lessandro-scripted-v21:v1 to beta-cvc qualifying	0	keep	Submission to tournament — policy version dca8e610-70aa-4fb0-ad9a-dc84b962e23d
