@@ -306,11 +306,19 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             return "explore", "scripted: stale target, exploring for new extractor"
         if was_stuck:
             return "explore", "scripted: stuck, exploring for new route"
-        # Explore far from hub to find missing team-scarce element extractors
+        # Explore far from hub to find missing team-scarce element extractors.
+        # Only ONE miner (lowest agent_id among miners) explores far; others continue mining.
         team_scarce = self._team_scarce_element()
         if team_scarce and not state.extractors_by_element.get(team_scarce, set()):
-            state.explore_for_scarce = True
-            return "explore", f"scripted: team needs {team_scarce} but no extractors known — exploring far"
+            sm = self._shared_map
+            if sm is not None:
+                miner_ids = sorted(aid for aid, gear in sm.agent_gears.items() if gear == "miner")
+                is_scout_miner = miner_ids and obs.agent_id == miner_ids[0]
+            else:
+                is_scout_miner = True
+            if is_scout_miner:
+                state.explore_for_scarce = True
+                return "explore", f"scripted: team needs {team_scarce} — scouting far as designated explorer"
         if state.known_extractors:
             return "mine_until_full", "scripted: known extractors available"
         return "explore", "scripted: no extractors known"
