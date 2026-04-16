@@ -636,9 +636,6 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         if agent_id not in self._agent_policies:
             role = "aligner" if agent_id in self._aligner_ids else ("scout" if agent_id in self._scout_ids else "miner")
             logger.info("ROLE_ASSIGNMENT agent=%d role=%s scripted_miners=%s", agent_id, role, self._scripted_miners)
-            # Populate agent_gears so miners can identify each other for coordination
-            if self._shared_map is not None:
-                self._shared_map.agent_gears[agent_id] = role
             if agent_id in self._aligner_ids:
                 impl = LLMAlignerPolicyImpl(
                     self._policy_env_info,
