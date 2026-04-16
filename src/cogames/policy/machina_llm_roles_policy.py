@@ -501,7 +501,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         self,
         policy_env_info: PolicyEnvInterface,
         device: str = "cpu",
-        num_aligners: int | str = 4,
+        num_aligners: int | str = "auto",
         aligner_ids: str = "",
         num_scouts: int | str = "auto",
         scout_ids: str = "",
@@ -540,12 +540,19 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
 
         self._shared_map = SharedMap()  # ONE map, shared by ALL agents
 
-        # Resolve aligner IDs
+        # Resolve aligner IDs: "auto" uses 2 aligners at 8+ agents (more miners = diverse
+        # elements for heart crafting), 4 at smaller teams
         parsed_aligner_ids = tuple(int(p.strip()) for p in aligner_ids.split(",") if p.strip())
         if parsed_aligner_ids:
             self._aligner_ids = frozenset(parsed_aligner_ids)
         else:
-            self._aligner_ids = frozenset(range(min(int(num_aligners), n_agents)))
+            na_str = str(num_aligners).lower()
+            if na_str == "auto":
+                n_aligners = 2 if n_agents >= 8 else min(4, n_agents)
+            else:
+                n_aligners = int(num_aligners)
+            self._aligner_ids = frozenset(range(min(n_aligners, n_agents)))
+        logger.info("num_aligners=%d (n_agents=%d, raw=%s)", len(self._aligner_ids), n_agents, num_aligners)
 
         # Resolve scout IDs: "auto" means 0 scouts at 6+ agents (scouts are fragile)
         parsed_scout_ids = tuple(int(p.strip()) for p in scout_ids.split(",") if p.strip())

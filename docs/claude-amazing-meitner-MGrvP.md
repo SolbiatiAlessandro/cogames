@@ -85,8 +85,25 @@ Analysis of the aligner LLM decisions shows they are 100% predictable from preco
 
 **Analysis of bottleneck:** The team captures 6 junctions then stalls. Heart.gained=6 total means 6 successful get_heart operations. After that, the hub appears to be depleted or inaccessible. The team has 4 aligners but only 6 hearts total — further improvement needs either more efficient heart acquisition or different resource strategies.
 
-**Next experiment ideas:**
-1. Increase heart availability — investigate hub mechanics (regeneration, depletion)
-2. More aligners vs fewer but more efficient ones
-3. Try different seeds to check variance
-4. Long run (5000+ steps) to see if hearts regenerate
+## 2026-04-16 07:30: Experiment 3 — Optimize team composition (num_aligners)
+
+**Problem:** Team plateaus at 6 junctions because miners only find silicon/germanium. Heart crafting needs all 4 elements (7 each). Carbon and oxygen extractors exist on the map but are in distant corners that 4 miners never reach.
+
+**Hypothesis:** Fewer aligners (2) + more miners (6) = broader map coverage = all 4 elements found = hearts can be crafted = more junctions.
+
+**Multi-seed comparison (500 steps, 8 agents):**
+
+| Config | Seed 42 | Seed 43 | Seed 44 | **Average** |
+|--------|---------|---------|---------|-------------|
+| 2 al + 6 min | 6.33 (10j) | 6.42 (8j) | 6.58 (10j) | **6.44** |
+| 3 al + 5 min | 6.61 (7j) | 6.71 (7j) | 5.03 (5j) | 6.12 |
+| 4 al + 4 min | 5.97 (6j) | 6.25 (9j) | 5.32 (6j) | 5.85 |
+
+**Key findings:**
+1. 2 aligners + 6 miners is the best config across all 3 seeds (avg 6.44 vs 5.85)
+2. 6 miners find ALL 4 element types: carbon=150, oxygen=50, germanium=90, silicon=200 (seed 42)
+3. This enables heart crafting pipeline: 11 hearts total (vs 6 with 4 miners)
+4. 10 junctions aligned (vs 6) — 67% more territory captured
+
+**Implementation:** `num_aligners="auto"` → 2 at 8+ agents, min(4, n_agents) otherwise.
+3-agent matches unaffected (3 aligners, LLM-powered).
