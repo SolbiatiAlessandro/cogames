@@ -1,0 +1,10 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+4a7cf6e	0.767002	held=6670 hearts_withdrawn=7 gained=8 deaths=6 deposits=c72+o5+g107+si120 per_agent	1000	keep	baseline V20 merged 8agents 3A5M seed42 1k (0.767/agent = 6.14 total, 0.75 deaths/agent)
+c3690cb	0.644797	held=5448 gained=7 hearts=6 deaths=3 deposits=c90+o(not recorded)+g100+si170 per_agent	1000	keep	exp2 4A4M 8ag seed42 1k (parallel run; 5.16 total)
+c3690cb	0.550801	held=4508 gained=8 hearts=7 deposits=c20+o100+g100+si80 per_agent	1000	keep	exp3 5A3M 8ag seed42 1k (4.41 total; PARALLEL RUN)
+c3690cb	0.387895	held=2879 gained=6 hearts=5 deaths=1 deposits=c320+g216+si124+o_low per_agent	1000	keep	exp4 3A5M 8ag seed43 1k (3.10 total; PARALLEL RUN)
+c3690cb	0.503303	held=4033 gained=6 hearts=5 deaths=1 deposits=c?+o40+g100+si260 per_agent	1000	keep	exp5 3A5M 8ag seed44 1k (4.03 total; PARALLEL RUN)
+c3690cb	0.000000	crash_openrouter_peer_closed	10000	crash	exp1 3A5M 8ag seed42 10k crashed ~mid-run due to OpenRouter disconnect
+618c9ce	1.742942	held=7428 hearts_withd=8+craft7.77 gained=17 deaths=13 depositsCOGS c163+o76+g114+si153 per_agent	10000	keep	exp1b 3A5M 8ag seed42 10k solo (13.94 total reward; LLM err handler prevents crashes)
+618c9ce	SUBMITTED	lessandro-v20-robust-llm-v1:v1 to beta-cvc qualifying	n/a	submitted	V20 policy uploaded (primary goal of issue-37)
+618c9ce	1.443719	held=4436 hearts=5 gained=7 deaths=6 move_failed=7793 max_noop=6287	10000	discard	exp6 3A5M 8ag seed43 10k (NO LLM - OPENROUTER_API_KEY not exported; scripted fallback only gave 11.55 total)

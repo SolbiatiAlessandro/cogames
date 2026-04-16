@@ -340,7 +340,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 text = ""
             else:
                 latency_ms = (time.perf_counter() - started_at) * 1000.0
-            logger.info("agent=%s llm_response_ms=%.1f llm_response=%s", obs.agent_id, latency_ms, text.replace("\n", " "))
+                logger.info("agent=%s llm_response_ms=%.1f llm_response=%s", obs.agent_id, latency_ms, text.replace("\n", " "))
             skill, reason = _parse_skill_choice(text)
         if skill is None:
             carried_total = self._carried_total(obs)
