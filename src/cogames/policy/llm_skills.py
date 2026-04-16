@@ -53,6 +53,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._miner_station_tags = self._starter._resolve_tag_ids(miner_station_names)
         self._hazard_station_tags = self._resolve_non_miner_station_tags(policy_env_info, miner_station_names)
         self._wall_tags = self._starter._resolve_tag_ids(["wall"])
+        # Junction tags — miners report junction locations to SharedMap for aligners
+        self._junction_tags = self._starter._resolve_tag_ids(["junction"])
+        tag_map = self._starter._tag_name_to_id
+        self._team_tag = tag_map.get("team:cogs")
+        self._net_tag = tag_map.get("net:cogs")
+        self._enemy_team_tag = tag_map.get("team:clips")
+        self._enemy_net_tag = tag_map.get("net:clips")
         # Issue-16: per-element extractor tags for diverse mining
         self._extractor_tags_by_element: dict[str, set[int]] = {
             element: self._starter._resolve_tag_ids([f"{element}_extractor"])
@@ -190,11 +197,14 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         miner_stations_now: set[Coord] = set()
         extractors_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
+        # Track per-cell tag sets for junction classification
+        visible_tag_ids_by_cell: dict[Coord, set[int]] = {}
 
         for token in obs.tokens:
             if token.feature.name != "tag" or token.location is None:
                 continue
             abs_cell = self._visible_abs_cell(current_abs, token.location)
+            visible_tag_ids_by_cell.setdefault(abs_cell, set()).add(int(token.value))
             if token.value in self._wall_tags:
                 blocked_now.add(abs_cell)
             if token.value in self._hub_tags:
@@ -240,6 +250,32 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._remember_static_objects(state.known_extractors, extractors_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         self._remember_visible_hub(obs, state)
+
+        # Report junction locations to SharedMap so aligners can find targets faster.
+        # Miners roam broadly and discover junctions that aligners haven't seen yet.
+        sm = self._shared_map
+        if sm is not None and self._junction_tags:
+            neutral_now: set[Coord] = set()
+            friendly_now: set[Coord] = set()
+            enemy_now: set[Coord] = set()
+            for abs_cell, tag_ids in visible_tag_ids_by_cell.items():
+                if not (tag_ids & self._junction_tags):
+                    continue
+                if (self._team_tag in tag_ids) or (self._net_tag in tag_ids):
+                    friendly_now.add(abs_cell)
+                elif (self._enemy_team_tag in tag_ids) or (self._enemy_net_tag in tag_ids):
+                    enemy_now.add(abs_cell)
+                else:
+                    neutral_now.add(abs_cell)
+            # Refresh dynamic junction sets (same logic as aligner)
+            sm.known_neutral_junctions.difference_update(visible_cells)
+            sm.known_neutral_junctions.update(neutral_now)
+            sm.known_friendly_junctions.difference_update(visible_cells)
+            sm.known_friendly_junctions.update(friendly_now)
+            sm.known_enemy_junctions.difference_update(visible_cells)
+            sm.known_enemy_junctions.update(enemy_now)
+            sm.known_neutral_junctions.difference_update(sm.known_friendly_junctions)
+            sm.known_neutral_junctions.difference_update(sm.known_enemy_junctions)
 
     def _neighbors(self, cell: Coord) -> list[tuple[str, Coord]]:
         return [(name, (cell[0] + delta[0], cell[1] + delta[1])) for name, delta in _DIRECTION_DELTAS]
