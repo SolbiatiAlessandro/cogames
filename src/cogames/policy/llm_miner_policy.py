@@ -28,6 +28,7 @@ class LLMMinerState(MinerSkillState):
     no_move_steps: int = 0
     no_progress_on_target_steps: int = 0
     last_carried_total: int = 0
+    last_carried_elements: dict[str, int] = field(default_factory=dict)
     explore_start_extractors: int = 0
     recent_events: list[str] = field(default_factory=list)
 
@@ -218,6 +219,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             no_move_steps=state.no_move_steps,
             no_progress_on_target_steps=state.no_progress_on_target_steps,
             last_carried_total=state.last_carried_total,
+            last_carried_elements=dict(state.last_carried_elements),
             explore_start_extractors=state.explore_start_extractors,
             recent_events=list(state.recent_events),
         )
@@ -239,15 +241,30 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         return len(self._frontier_cells(state))
 
     def _update_progress(self, obs: AgentObservation, state: LLMMinerState) -> None:
-        carried_total = self._carried_total(obs)
+        carried_elements = self._inventory_counts(obs)
+        carried_total = sum(carried_elements.values())
         made_progress = False
         if state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total:
             self._event(state, f"deposited cargo from {state.last_carried_total} to {carried_total}")
             made_progress = True
+            # Track per-element deposits for team-scarce coordination
+            sm = self._shared_map
+            if sm is not None and hasattr(sm, "total_deposits"):
+                for elem, prev_amount in state.last_carried_elements.items():
+                    deposited = prev_amount - carried_elements.get(elem, 0)
+                    if deposited > 0:
+                        sm.total_deposits[elem] = sm.total_deposits.get(elem, 0) + deposited
+                min_deposits = min(sm.total_deposits.values()) if sm.total_deposits else 0
+                new_estimate = min_deposits // 7
+                if new_estimate > sm.hearts_crafted_estimate:
+                    sm.hearts_crafted_estimate = new_estimate
+                    logger.info("agent=%s hearts_crafted_estimate=%d deposits=%s",
+                                obs.agent_id, new_estimate, sm.total_deposits)
         elif state.current_skill == "mine_until_full" and carried_total > state.last_carried_total:
             self._event(state, f"cargo increased from {state.last_carried_total} to {carried_total}")
             made_progress = True
         state.last_carried_total = carried_total
+        state.last_carried_elements = carried_elements
 
         last_action_move = self._feature_value(obs, "last_action_move")
         current_abs = self._current_abs(obs)

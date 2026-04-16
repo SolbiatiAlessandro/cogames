@@ -422,6 +422,12 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
 
+        # ── Team coordination: sync shared state ──
+        sm = self._shared_map
+        if sm is not None:
+            if state.current_skill != "align_neutral":
+                sm.aligner_targets.pop(obs.agent_id, None)
+
         # ── HP safety: retreat to hub/friendly territory if HP is low ──
         if self._check_hp(obs, state, current_abs):
             # Retreat to nearest hub or friendly junction
@@ -456,7 +462,30 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             action, base_state = self._get_heart(obs, state, current_abs)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "align_neutral":
-            action, base_state = self._align_neutral(obs, state, current_abs)
+            # Junction coordination: avoid targeting same junction as other aligner
+            sm = self._shared_map
+            if sm is not None:
+                targeted_by_others = {
+                    t for aid, t in sm.aligner_targets.items()
+                    if aid != obs.agent_id and t is not None
+                }
+                if targeted_by_others:
+                    saved_bl = set(state.blacklisted_junctions)
+                    state.blacklisted_junctions |= targeted_by_others
+                    action, base_state = self._align_neutral(obs, state, current_abs)
+                    state.blacklisted_junctions = saved_bl
+                else:
+                    action, base_state = self._align_neutral(obs, state, current_abs)
+                # Record our predicted target (excluding others' targets)
+                bl = state.blacklisted_junctions
+                alignable = {j for j in state.known_neutral_junctions
+                            if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
+                if not alignable:
+                    alignable = {j for j in state.known_enemy_junctions
+                                if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
+                sm.aligner_targets[obs.agent_id] = self._nearest_known(current_abs, alignable)
+            else:
+                action, base_state = self._align_neutral(obs, state, current_abs)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "defend":
             # Navigate to nearest friendly junction and hold position

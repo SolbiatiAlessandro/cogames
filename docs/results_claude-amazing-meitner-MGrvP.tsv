@@ -9,3 +9,5 @@ d7981d1	0.000000	timeout after ~20 LLM calls	500	crash	Same code 500-step run ti
 1be20b8	6.458000	avg 10-seed junction.aligned=9.0 hearts=9.4	500	keep	num_aligners=auto (2 at 8+) — 10-seed avg at 500 steps
 1be20b8	7.248000	junction.aligned=19 hearts=20	1000	keep	Same code 1000 steps — peak reward per step
 1be20b8	3.720000	junction.aligned=25 hearts=26 hp=706/800	3000	keep	Same code 3000 steps — junction plateau at 25 HP starting to decay
+PENDING	6.958000	avg 10-seed junctions=10.4 hearts=10.8	500	keep	Junction coordination + deposit tracking: team-scarce element now works (+7.7% vs 6.458 baseline)
+PENDING	7.435000	avg 3-seed junctions=16 hearts=17	1000	keep	Same code 1000 steps — seed42 gets 26 junctions (was 19)

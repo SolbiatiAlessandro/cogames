@@ -141,3 +141,36 @@ Analysis of the aligner LLM decisions shows they are 100% predictable from preco
 - Forced exploration for unknown scarce elements: never triggered
 
 **Next:** Focus on HP management for longer runs, or submit current improvements.
+
+## 2026-04-16 09:00: Experiment 5 — Aligner junction coordination + deposit tracking fix
+
+**Two changes:**
+
+1. **Aligner junction coordination** (`machina_llm_roles_policy.py`): Each aligner records its target junction in `SharedMap.aligner_targets`. The other aligner temporarily blacklists those targets, preventing both aligners from navigating to the same junction simultaneously. Target is cleared when skill changes away from `align_neutral`.
+
+2. **Miner deposit tracking fix** (`llm_miner_policy.py`): **Critical bug fix.** `SharedMap.total_deposits` was never updated by `machina_llm_roles` miners — only `cross_role_policy` had this code. This meant `_team_scarce_element()` always returned None (total deposits = 0 < 28 threshold), so miners never prioritized underrepresented elements. Fixed by tracking per-element inventory in `LLMMinerState.last_carried_elements` and updating `SharedMap.total_deposits` when deposits are detected in `_update_progress()`.
+
+**Results — 10-seed comparison at 500 steps:**
+
+| Config | Avg Reward | Avg Junctions | Avg Hearts |
+|--------|-----------|---------------|------------|
+| Baseline (1be20b8) | 6.458 | 9.0 | 9.4 |
+| + junction coord only | 6.522 | ~9 | ~9 |
+| + junction coord + deposit fix | **6.958** | **10.4** | **10.8** |
+
+**Per-seed rewards (500 steps):** [6.832, 6.508, 7.064, 9.090, 8.406, 6.104, 6.842, 7.300, 4.854, 6.576]
+
+**1000-step results (3 seeds):**
+
+| Seed | Reward | Junctions | Hearts | HP |
+|------|--------|-----------|--------|-----|
+| 42 | **8.731** | 26 | 27 | 800/800 |
+| 43 | 6.701 | 8 | 9 | 755/800 |
+| 44 | 6.872 | 14 | 15 | 800/800 |
+| **Avg** | **7.435** | 16 | 17 | — |
+
+Baseline 1000-step seed 42 was 7.25 with 19 junctions → **+20% reward, +37% more junctions** at 1000 steps.
+
+**Key insight:** Junction coordination alone had minimal impact (~+1%). The deposit tracking fix was the real lever — it enabled `_team_scarce_element()` to actually activate, directing miners to underrepresented elements. This ensures all 4 elements are deposited at the hub, enabling heart crafting and sustaining the alignment pipeline beyond the initial 5 hub hearts.
+
+**Remaining bottleneck:** Seed 50 still gets only 4.854 reward. Need to investigate what goes wrong on bad seeds.
