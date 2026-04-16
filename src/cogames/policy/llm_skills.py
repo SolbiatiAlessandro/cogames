@@ -495,6 +495,22 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 return elem
         return None
 
+    def _nearest_untargeted(self, current_abs: Coord, candidates: set[Coord], agent_id: int) -> Coord | None:
+        """Select nearest extractor not targeted by another miner. Falls back to nearest if all targeted."""
+        sm = self._shared_map
+        if sm is None or not hasattr(sm, "miner_targets"):
+            return self._nearest_known(current_abs, candidates)
+        targeted = {t for aid, t in sm.miner_targets.items()
+                    if aid != agent_id and t is not None}
+        untargeted = candidates - targeted
+        result = self._nearest_known(current_abs, untargeted) if untargeted else None
+        return result if result is not None else self._nearest_known(current_abs, candidates)
+
+    def _register_miner_target(self, agent_id: int, target: Coord | None) -> None:
+        sm = self._shared_map
+        if sm is not None and hasattr(sm, "miner_targets"):
+            sm.miner_targets[agent_id] = target
+
     def _mine_until_full(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "mine_until_full":
             logger.info("agent=%s mode=mine_until_full", obs.agent_id)
@@ -510,6 +526,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             visible_scarce = self._closest_visible_location(obs, scarce_tags)
             if visible_scarce is not None:
                 target_abs = self._visible_abs_cell(current_abs, visible_scarce)
+                self._register_miner_target(obs.agent_id, target_abs)
                 # Issue-36 v8: extractors are blocked objects — navigate to adjacent cell
                 result = self._navigate_to_blocked_target(state, current_abs, target_abs)
                 if result is not None:
@@ -517,11 +534,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     return action, replace(next_state, last_mode=state.last_mode)
                 action, next_state = self._move_toward_target(state, current_abs, target_abs)
                 return action, replace(next_state, last_mode=state.last_mode)
-            # Try navigating to a known scarce-element extractor
+            # Try navigating to a known scarce-element extractor (prefer untargeted)
             scarce_known = state.extractors_by_element.get(scarce, set())
             if scarce_known:
-                target_abs = self._nearest_known(current_abs, scarce_known)
+                target_abs = self._nearest_untargeted(current_abs, scarce_known, obs.agent_id)
                 if target_abs is not None:
+                    self._register_miner_target(obs.agent_id, target_abs)
                     # Issue-36 v8: extractors are blocked — use approach-cell navigation
                     result = self._navigate_to_blocked_target(state, current_abs, target_abs)
                     if result is not None:
@@ -533,6 +551,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
+            self._register_miner_target(obs.agent_id, target_abs)
             # Issue-36 v8: extractors are blocked objects — navigate to adjacent cell
             result = self._navigate_to_blocked_target(state, current_abs, target_abs)
             if result is not None:
@@ -540,8 +559,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.known_extractors)
+        # Prefer extractors not targeted by other miners to reduce congestion
+        target_abs = self._nearest_untargeted(current_abs, state.known_extractors, obs.agent_id)
         if target_abs is None:
+            self._register_miner_target(obs.agent_id, None)
             if state.known_hubs:
                 predicted = self._predicted_extractor_positions(state)
                 predicted_target = self._nearest_known(current_abs, predicted)
@@ -555,6 +576,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     return action, replace(next_state, last_mode=state.last_mode)
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
+        self._register_miner_target(obs.agent_id, target_abs)
         # Issue-36 v8: extractors are blocked — use approach-cell navigation
         result = self._navigate_to_blocked_target(state, current_abs, target_abs)
         if result is not None:
