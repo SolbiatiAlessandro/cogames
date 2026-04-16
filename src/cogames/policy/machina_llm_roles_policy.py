@@ -138,11 +138,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         return self._starter._closest_tag_location(obs, self._hub_tags) is not None
 
     def _known_alignable_junctions(self, state: LLMAlignerState) -> set[tuple[int, int]]:
-        neutral = {j for j in state.known_neutral_junctions if self._is_alignable(j, state) and j not in state.blacklisted_junctions}
-        if neutral:
-            return neutral
-        # Fall back to enemy junctions when no neutral ones available
-        return {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in state.blacklisted_junctions}
+        # Combine neutral and enemy junctions — recapturing enemy is a +2 swing
+        return {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+                if self._is_alignable(j, state) and j not in state.blacklisted_junctions}
 
     def _update_progress(self, obs: AgentObservation, state: LLMAlignerState) -> None:
         has_heart = self._inventory_count(obs, "heart") > 0
@@ -495,11 +493,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     action, base_state = self._align_neutral(obs, state, current_abs)
                 # Record our predicted target (excluding others' targets)
                 bl = state.blacklisted_junctions
-                alignable = {j for j in state.known_neutral_junctions
+                alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
                             if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
-                if not alignable:
-                    alignable = {j for j in state.known_enemy_junctions
-                                if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
                 sm.aligner_targets[obs.agent_id] = self._nearest_known(current_abs, alignable)
             else:
                 action, base_state = self._align_neutral(obs, state, current_abs)

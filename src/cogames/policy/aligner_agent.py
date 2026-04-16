@@ -691,12 +691,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
-        alignable = {junction for junction in state.known_neutral_junctions if self._is_alignable(junction, state) and junction not in bl}
+        # Combine neutral and enemy junctions — recapturing enemy is a +2 swing
+        # (we gain one, clips lose one), so prefer nearest overall rather than
+        # always prioritizing neutral over enemy regardless of distance.
+        alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+                     if self._is_alignable(j, state) and j not in bl}
         target_abs = self._nearest_known(current_abs, alignable)
-        if target_abs is None and state.known_enemy_junctions:
-            # No neutral targets: try reclaiming enemy junctions (clips-held)
-            enemy_alignable = {j for j in state.known_enemy_junctions if self._is_alignable(j, state) and j not in bl}
-            target_abs = self._nearest_known(current_abs, enemy_alignable)
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
