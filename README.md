@@ -24,70 +24,74 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-04-14 (Session 8)_
+_Updated by Director: 2026-04-16 (Session 9)_
 
 ### Online Tournament (beta-cvc, 10k steps, 8 agents)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| **#291/363** | **3.12** | `lessandro-fast-llm-v1:v1` | Best online; stale — predates ALL session 7-8 improvements |
-| #305/363 | 2.71 | `cross_role_full_10s_v8:v1` | All agents die before 10k; heart.withdrawn=5 |
-| _(ref)_ | 27.21 | `dinky:v27` (top-1) | 220 junctions, 56 hearts/agent, 98.5% move success |
+| **#291/405** | **4.41** | `lessandro-fast-llm-v1:v1` | Best online; stale policy from April 9 |
+| #333/405 | 3.43 | `cross_role_full_10s_v8:v1` | Cross-role variant |
+| #340/405 | 3.28 | `lessandro-v20-robust-llm-v1:v1` | V20 submitted April 15; 6+2 mortality bug tanks score |
+| _(ref)_ | 27.31 | `dinky:v27` (top-1) | 28x ahead of us |
 
-**CRITICAL: No new submission since April 12.** Offline improvements (+65% at 10k) have not been uploaded.
+**V20 online score (3.28) is WORSE than old fast-llm-v1 (4.41)** due to 6+2 startup mortality: agents 3-5 die at step 4-15 in 6-agent matches. **MGrvP branch merged today fixes this** — needs new submission (#39).
 
-### Offline Best Results (3-agent, post-V20 merge)
+### Offline Best Results (8-agent, post-MGrvP merge)
 
-| Rank | Reward | Config | Steps | Deaths | Notes |
-|------|--------|--------|-------|--------|-------|
-| 1 | **3.15 total** | 2A1M V20 stack | 10000 | **0** | seed 44 — **NEW BEST**; all 3 survive 10k |
-| 2 | 2.70 total | 2A1M V20 stack | 10000 | 0 | seed 43; 14 junctions gained |
-| 3 | 1.85 total | 2A1M V20 stack | 10000 | 0 | seed 42; stable linear growth |
-| 4 | 1.19/agent | 2A1M V20 stack | 1000 | 0 | seed 44; +59% over V6 |
+| Rank | Reward | Config | Steps | Seeds | Notes |
+|------|--------|--------|-------|-------|-------|
+| 1 | **8.133 total** (1.02/agent) | 4A4M scripted auto | 500 | 10-seed avg | **NEW BEST**: scripted aligners + frontier explore + heart queue |
+| 2 | 7.657 total (0.96/agent) | 4A4M scripted auto | 500 | 10-seed avg | Shared extractors + element balancing |
+| 3 | 7.435 total (0.93/agent) | 4A4M scripted auto | 1000 | 3-seed avg | 1k validation |
+| 4 | 7.248 total (0.91/agent) | 2A6M scripted auto | 1000 | 1 seed | Best 1k single-seed |
 
-### Offline Best Results (8-agent, pre-V20)
+### Offline Best Results (3-agent, V20 stack)
 
 | Rank | Reward | Config | Steps | Notes |
 |------|--------|--------|-------|-------|
-| 1 | 7.96 total (0.996/agent) | 3A5M stuck=28 hazard-free | 1000 | Session 7 priority branch; best single seed |
-| 2 | 0.825/agent | 4A4M issue-25 | 1000 | 118 experiments, stuck at plateau — V20 may break it |
+| 1 | 3.15 total (1.05/agent) | 2A1M V20 | 10000 | 0 deaths, seed 44 |
+| 2 | 2.26 total (0.75/agent) | 3A0M | 1000 | 7 junctions, all gear kept |
+| 3 | 1.74 total | 3A5M 8-agent V20 | 10000 | 13 deaths, 17 junctions gained |
 
 ### Gap Analysis (us vs top-1 `dinky:v27`)
 
 ```
-Metric                    Us (best offline)  dinky (best)    Gap       Status
-─────────────────────────────────────────────────────────────────────────────────
-Agent survival (10k)      ALL survive (V20)  survive 10k     CLOSED    ✅ FIXED by V20
-Hearts (10k)              25+/agent (V20)    56.6/agent      2.3x     improved (was ∞)
-Move success              88.3% (offline)    98.5%           1.1x     nearly closed
-Online score              3.12 (STALE)       27.21           8.7x     STALE — need submission
-Element balance           fixed (V15)        balanced        CLOSED    ✅ FIXED by V15
-Heart stealing            fixed (V7 hub)     N/A             CLOSED    ✅ FIXED by V7
+Metric                    Us (best offline)    dinky (best)    Gap       Status
+──────────────────────────────────────────────────────────────────────────────────
+Online score              3.28 (V20, bugged)   27.31           8.3x     MGrvP fix merged, needs submit
+6+2 survival              3/6 survive          8/8             FIX      ✅ FIXED by MGrvP (scripted auto)
+Agent survival (10k)      0 deaths (3-agent)   survive 10k     ~CLOSED  untested at 8-agent 10k
+Mining throughput         ~500 elem/10k        ~14,000         28x      #40 — largest remaining gap
+Hearts (10k)              ~15/episode          ~500            33x      blocked by mining throughput
+Move success              88.3% (offline)      98.5%           1.1x     nearly closed
 ```
 
-**Current bottleneck**: **Stale online submission (#37)**. The merged V20 code fixes agent mortality (0 deaths at 10k), heart stealing, element imbalance, and move failures — but none of this is online yet. Submitting the merged policy is the single highest-leverage action.
+**Current bottleneck**: **Submit merged MGrvP code (#39)**. The fix eliminates 6+2 mortality (scripted aligners/miners at 6+ agents, 196x reward improvement). After submission, the largest remaining gap is mining throughput (#40, 28x below dinky).
 
-**Next up**: #37 (submit + 8-agent validation) → #36 (online confirmation) → #25 (8-agent with V20)
+**Next up**: #39 (submit MGrvP) → #40 (mining throughput) → #32 (partner robustness)
 
 **Research tree:**
 ```
 SPAWN NEXT:
-  #37 Submit V20 + 8-Agent Validation (priority:1) ← HIGHEST LEVERAGE
+  #39 Submit merged MGrvP policy (priority:1) ← HIGHEST LEVERAGE
 
-AWAITING ONLINE CONFIRMATION:
-  #36 Agent Mortality (priority:2) — V20 merged, 0 deaths offline, needs online test
+NEXT AFTER SUBMISSION:
+  #40 Mining throughput gap (priority:2, blocked by #39)
+  #24 Balanced Mining Strategy (priority:2) — overlaps #40
+  #27 Andre Von Huck suggestions (priority:2) — "just use A* and hash tables"
+  #32 Partner robustness (priority:3) — 2-agent carry mode
+  #38 6+2 startup mortality (priority:2) — MGrvP merged, needs online confirmation
 
-CLOSED THIS SESSION:
-  #34 Heart Pipeline — CLOSED: subsumed by #36 V7-V20
-  #35 Move Failure Rate — CLOSED: 53%→17.4% online, 88.3% offline
-  #29 10k Eval Alignment — CLOSED: 10k is standard practice now
+CLOSED:
+  #25 8-Agent Scaling — CLOSED: superseded by MGrvP (8.133 vs 0.825)
+  #37 Submit V20 — CLOSED: submitted, discovered 6+2 mortality
+  #34 Heart Pipeline, #35 Move Failure, #29 10k Eval — CLOSED (sessions 7-8)
 
-ACTIVE:
-  #24 Mining Strategy (priority:2) | #27 Andre Von Huck (priority:2)
-
-DEPRIORITIZED:
-  #25 8-Agent Scaling (priority:3) — 118 exp plateau; retry with V20 via #37
-  #30 Self-Play (priority:3) | #31 change_vibe (priority:3) | #32 Partner (priority:3)
+DEPRIORITIZED (priority:3):
+  #36 Mortality (merged) | #30 Self-Play (addressed) | #31 change_vibe
+  #12 Gear Acquisition | #10 Fixed Roles Tuning | #11 Active Inference
+  #17 Skill Validation | #19 LLM Code Gen | #20 Spatial Partitioning
 ```
 <!-- LEADERBOARD_END -->
 
