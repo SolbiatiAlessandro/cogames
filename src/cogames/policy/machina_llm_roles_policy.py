@@ -73,11 +73,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         stuck_threshold: int,
         unstuck_horizon: int,
         shared_map: SharedMap | None = None,
+        scripted: bool = False,
     ) -> None:
         super().__init__(policy_env_info, agent_id, shared_map=shared_map)
         self._planner = planner
         self._stuck_threshold = stuck_threshold
         self._unstuck_horizon = unstuck_horizon
+        self._scripted = scripted
 
     def initial_agent_state(self) -> LLMAlignerState:
         base = super().initial_agent_state()
@@ -192,35 +194,43 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         has_aligner = self._current_gear(obs) == "aligner"
         has_heart = self._inventory_count(obs, "heart") > 0
         known_alignable_junctions = self._known_alignable_junctions(state)
-        prompt = build_llm_aligner_prompt(
-            has_aligner=has_aligner,
-            has_heart=has_heart,
-            hub_visible=self._hub_visible(obs),
-            known_hubs=len(state.known_hubs),
-            known_neutral_junctions=len(state.known_neutral_junctions),
-            known_alignable_junctions=len(known_alignable_junctions),
-            known_friendly_junctions=len(state.known_friendly_junctions),
-            current_skill=state.current_skill,
-            no_move_steps=state.no_move_steps,
-            recent_events=state.recent_events,
-        )
-        logger.info("agent=%s role=aligner llm_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
-        started_at = time.perf_counter()
-        try:
-            text = self._planner.complete(prompt)
-        except Exception as e:
-            latency_ms = (time.perf_counter() - started_at) * 1000.0
-            logger.warning("agent=%s role=aligner llm_error_ms=%.1f error=%s", obs.agent_id, latency_ms, e)
-            text = ""
+
+        if self._scripted:
+            # Skip LLM call entirely — use deterministic rule-based planner
+            skill = None
+            reason = "scripted mode"
+            logger.info("agent=%s role=aligner scripted_plan has_aligner=%s has_heart=%s alignable=%d",
+                        obs.agent_id, has_aligner, has_heart, len(known_alignable_junctions))
         else:
-            latency_ms = (time.perf_counter() - started_at) * 1000.0
-            logger.info(
-                "agent=%s role=aligner llm_response_ms=%.1f llm_response=%s",
-                obs.agent_id,
-                latency_ms,
-                text.replace("\n", " "),
+            prompt = build_llm_aligner_prompt(
+                has_aligner=has_aligner,
+                has_heart=has_heart,
+                hub_visible=self._hub_visible(obs),
+                known_hubs=len(state.known_hubs),
+                known_neutral_junctions=len(state.known_neutral_junctions),
+                known_alignable_junctions=len(known_alignable_junctions),
+                known_friendly_junctions=len(state.known_friendly_junctions),
+                current_skill=state.current_skill,
+                no_move_steps=state.no_move_steps,
+                recent_events=state.recent_events,
             )
-        skill, reason = _parse_role_skill_choice(text, set(ALIGNER_SKILL_DESCRIPTIONS))
+            logger.info("agent=%s role=aligner llm_prompt=%s", obs.agent_id, prompt.replace("\n", " | "))
+            started_at = time.perf_counter()
+            try:
+                text = self._planner.complete(prompt)
+            except Exception as e:
+                latency_ms = (time.perf_counter() - started_at) * 1000.0
+                logger.warning("agent=%s role=aligner llm_error_ms=%.1f error=%s", obs.agent_id, latency_ms, e)
+                text = ""
+            else:
+                latency_ms = (time.perf_counter() - started_at) * 1000.0
+                logger.info(
+                    "agent=%s role=aligner llm_response_ms=%.1f llm_response=%s",
+                    obs.agent_id,
+                    latency_ms,
+                    text.replace("\n", " "),
+                )
+            skill, reason = _parse_role_skill_choice(text, set(ALIGNER_SKILL_DESCRIPTIONS))
         was_stuck = bool(state.recent_events and ("exited as stuck" in state.recent_events[-1] or "exited as stale" in state.recent_events[-1] or "timed out after" in state.recent_events[-1]))
         if skill is None:
             if not has_aligner:
@@ -507,6 +517,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         llm_responder: Callable[[str], str] | None = None,
         llm_local_model_path: str | None = None,
         scripted_miners: bool | str = "auto",
+        scripted_aligners: bool | str = "auto",
     ):
         super().__init__(policy_env_info, device=device)
         n_agents = policy_env_info.num_agents
@@ -518,6 +529,14 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         else:
             self._scripted_miners = sm_str in ("true", "1", "yes")
         logger.info("scripted_miners=%s (n_agents=%d, raw=%s)", self._scripted_miners, n_agents, scripted_miners)
+
+        # Resolve scripted_aligners: "auto" means True at 6+ agents (eliminate LLM contention)
+        sa_str = str(scripted_aligners).lower()
+        if sa_str == "auto":
+            self._scripted_aligners = n_agents >= 6
+        else:
+            self._scripted_aligners = sa_str in ("true", "1", "yes")
+        logger.info("scripted_aligners=%s (n_agents=%d, raw=%s)", self._scripted_aligners, n_agents, scripted_aligners)
 
         self._shared_map = SharedMap()  # ONE map, shared by ALL agents
 
@@ -571,6 +590,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     stuck_threshold=self._stuck_threshold,
                     unstuck_horizon=self._unstuck_horizon,
                     shared_map=self._shared_map,
+                    scripted=self._scripted_aligners,
                 )
             elif agent_id in self._scout_ids:
                 # Scouts are offset across the grid so multiple scouts cover
