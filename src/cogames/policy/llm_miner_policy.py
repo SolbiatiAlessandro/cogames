@@ -30,7 +30,6 @@ class LLMMinerState(MinerSkillState):
     last_carried_total: int = 0
     last_carried_elements: dict[str, int] = field(default_factory=dict)
     explore_start_extractors: int = 0
-    explore_for_scarce: bool = False  # True when exploring to find scarce element extractors
     recent_events: list[str] = field(default_factory=list)
 
 
@@ -223,7 +222,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             last_carried_total=state.last_carried_total,
             last_carried_elements=dict(state.last_carried_elements),
             explore_start_extractors=state.explore_start_extractors,
-            explore_for_scarce=state.explore_for_scarce,
             recent_events=list(state.recent_events),
         )
 
@@ -306,11 +304,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             return "explore", "scripted: stale target, exploring for new extractor"
         if was_stuck:
             return "explore", "scripted: stuck, exploring for new route"
-        # Explore far from hub to find missing team-scarce element extractors
+        # Explore to find missing team-scarce element extractors
         team_scarce = self._team_scarce_element()
         if team_scarce and not state.extractors_by_element.get(team_scarce, set()):
-            state.explore_for_scarce = True
-            return "explore", f"scripted: team needs {team_scarce} but no extractors known — exploring far"
+            return "explore", f"scripted: team needs {team_scarce} but no extractors known"
         if state.known_extractors:
             return "mine_until_full", "scripted: known extractors available"
         return "explore", "scripted: no extractors known"
@@ -384,11 +381,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         state.no_progress_on_target_steps = 0
         if skill == "explore":
             state.explore_start_extractors = len(state.known_extractors)
-            # explore_for_scarce is set by _scripted_skill_choice; reset for other explores
-            if not state.explore_for_scarce:
-                state.explore_for_scarce = False
-        else:
-            state.explore_for_scarce = False
         self._event(state, f"planner selected {skill}: {reason}")
 
     def _maybe_finish_skill(self, obs: AgentObservation, state: LLMMinerState) -> None:
@@ -454,10 +446,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             action, base_state = self._deposit_to_hub(obs, state)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
-            if state.explore_for_scarce and state.known_hubs:
-                action, base_state = self._explore_far_from_hub(obs, state)
-            else:
-                action, base_state = self._explore(obs, state)
+            action, base_state = self._explore(obs, state)
             state = self._copy_with(state, base_state)
         else:
             action, state = self._unstuck(state)
