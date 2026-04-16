@@ -1310,6 +1310,13 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.phase2_hub_cleared = False  # v13: reset hub waypoint for hub-first navigation
 
     def step_with_state(self, obs: AgentObservation, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
+        try:
+            return self._step_impl(obs, state)
+        except Exception as e:
+            logger.warning("agent=%s role=cross_role step_error=%s — returning noop", obs.agent_id, e)
+            return self._starter._action("noop"), state
+
+    def _step_impl(self, obs: AgentObservation, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
         state.episode_step += 1
 
         # Issue-36 v9: periodic blacklist expiry (every 500 steps).
@@ -1852,10 +1859,16 @@ class CrossRolePolicy(MultiAgentPolicy):
         llm_timeout_s: float | str = 10.0,
         llm_responder: Callable[[str], str] | None = None,
         llm_local_model_path: str | None = None,
-        scripted_miners: bool | str = False,
+        scripted_miners: bool | str = "auto",
     ):
         super().__init__(policy_env_info, device=device)
-        self._scripted_miners = str(scripted_miners).lower() in ("true", "1", "yes")
+        n_agents = policy_env_info.num_agents
+        sm_str = str(scripted_miners).lower()
+        if sm_str == "auto":
+            self._scripted_miners = n_agents >= 6
+        else:
+            self._scripted_miners = sm_str in ("true", "1", "yes")
+        logger.info("CrossRolePolicy scripted_miners=%s (n_agents=%d, raw=%s)", self._scripted_miners, n_agents, scripted_miners)
         self._shared_map = SharedMap()
         self._planner = LLMMinerPlannerClient(
             api_url=llm_api_url,

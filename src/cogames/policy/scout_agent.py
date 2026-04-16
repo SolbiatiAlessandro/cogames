@@ -332,6 +332,13 @@ class ScoutExplorerPolicyImpl(AlignerPolicyImpl):
     # ─────────────────────────────────────────────────────────────────────────
 
     def step_with_state(self, obs: AgentObservation, state: ScoutState) -> tuple[Action, ScoutState]:
+        try:
+            return self._step_impl(obs, state)
+        except Exception as e:
+            logger.warning("agent=%s role=scout step_error=%s — returning noop", obs.agent_id, e)
+            return self._starter._action("noop"), state
+
+    def _step_impl(self, obs: AgentObservation, state: ScoutState) -> tuple[Action, ScoutState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_enemy_ships(obs, state, current_abs)
 

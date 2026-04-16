@@ -402,6 +402,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         return False
 
     def step_with_state(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
+        try:
+            return self._step_impl(obs, state)
+        except Exception as e:
+            logger.warning("agent=%s role=aligner step_error=%s — returning noop", obs.agent_id, e)
+            return self._starter._action("noop"), state
+
+    def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
 
@@ -486,7 +493,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         device: str = "cpu",
         num_aligners: int | str = 4,
         aligner_ids: str = "",
-        num_scouts: int | str = 1,
+        num_scouts: int | str = "auto",
         scout_ids: str = "",
         return_load: int | str = 40,
         stuck_threshold: int | str = 20,
@@ -499,12 +506,20 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         llm_timeout_s: float | str = 10.0,
         llm_responder: Callable[[str], str] | None = None,
         llm_local_model_path: str | None = None,
-        scripted_miners: bool | str = False,
+        scripted_miners: bool | str = "auto",
     ):
         super().__init__(policy_env_info, device=device)
-        self._scripted_miners = str(scripted_miners).lower() in ("true", "1", "yes")
-        self._shared_map = SharedMap()  # ONE map, shared by ALL agents
         n_agents = policy_env_info.num_agents
+
+        # Resolve scripted_miners: "auto" means True at 6+ agents (eliminate LLM contention)
+        sm_str = str(scripted_miners).lower()
+        if sm_str == "auto":
+            self._scripted_miners = n_agents >= 6
+        else:
+            self._scripted_miners = sm_str in ("true", "1", "yes")
+        logger.info("scripted_miners=%s (n_agents=%d, raw=%s)", self._scripted_miners, n_agents, scripted_miners)
+
+        self._shared_map = SharedMap()  # ONE map, shared by ALL agents
 
         # Resolve aligner IDs
         parsed_aligner_ids = tuple(int(p.strip()) for p in aligner_ids.split(",") if p.strip())
@@ -513,16 +528,21 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         else:
             self._aligner_ids = frozenset(range(min(int(num_aligners), n_agents)))
 
-        # Resolve scout IDs (come after aligners by default)
+        # Resolve scout IDs: "auto" means 0 scouts at 6+ agents (scouts are fragile)
         parsed_scout_ids = tuple(int(p.strip()) for p in scout_ids.split(",") if p.strip())
         if parsed_scout_ids:
             self._scout_ids = frozenset(parsed_scout_ids)
         else:
-            n_scouts = int(num_scouts)
+            ns_str = str(num_scouts).lower()
+            if ns_str == "auto":
+                n_scouts = 0 if n_agents >= 6 else 1
+            else:
+                n_scouts = int(num_scouts)
             aligner_count = len(self._aligner_ids)
             self._scout_ids = frozenset(
                 range(aligner_count, min(aligner_count + n_scouts, n_agents))
             )
+        logger.info("num_scouts=%d (n_agents=%d, raw=%s)", len(self._scout_ids), n_agents, num_scouts)
 
         self._planner = LLMMinerPlannerClient(
             api_url=llm_api_url,
@@ -541,6 +561,8 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
 
     def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]:
         if agent_id not in self._agent_policies:
+            role = "aligner" if agent_id in self._aligner_ids else ("scout" if agent_id in self._scout_ids else "miner")
+            logger.info("ROLE_ASSIGNMENT agent=%d role=%s scripted_miners=%s", agent_id, role, self._scripted_miners)
             if agent_id in self._aligner_ids:
                 impl = LLMAlignerPolicyImpl(
                     self._policy_env_info,
