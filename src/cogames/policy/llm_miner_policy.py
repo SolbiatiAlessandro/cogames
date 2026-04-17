@@ -214,6 +214,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             extractors_by_element=sm.extractors_by_element if sm and hasattr(sm, "extractors_by_element") else base.extractors_by_element,
             last_pos=base.last_pos,
             last_move_target=base.last_move_target,
+            max_hp_seen=base.max_hp_seen,
+            retreating_to_hub=base.retreating_to_hub,
             current_skill=state.current_skill,
             current_reason=state.current_reason,
             skill_steps=state.skill_steps,
@@ -431,6 +433,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
     def _step_impl(self, obs: AgentObservation, state: LLMMinerState) -> tuple[Action, LLMMinerState]:
         self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+
+        if self._check_miner_hp(obs, state):
+            action, base_state = self._deposit_to_hub(obs, state)
+            return action, self._copy_with(state, base_state)
 
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:

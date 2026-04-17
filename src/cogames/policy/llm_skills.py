@@ -39,6 +39,9 @@ class MinerSkillState(StarterCogState):
     # Move-failure tracking (same mechanism as AlignerState)
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
+    # HP tracking for miner survival (issue #40)
+    max_hp_seen: int = 0
+    retreating_to_hub: bool = False
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -632,8 +635,43 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         action, next_state = self._move_toward_target(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    _MINER_HP_RETREAT_THRESHOLD = 0.50
+
+    def _read_hp(self, obs: AgentObservation) -> int | None:
+        center = self._starter._center
+        for token in obs.tokens:
+            if token.location != center:
+                continue
+            name = token.feature.name
+            if name in ("hp", "energy", "hp:cogs", "hp:agent", "current_hp"):
+                return int(token.value)
+        return None
+
+    def _check_miner_hp(self, obs: AgentObservation, state: MinerSkillState) -> bool:
+        hp = self._read_hp(obs)
+        if hp is None:
+            return state.retreating_to_hub
+        if hp > state.max_hp_seen:
+            state.max_hp_seen = hp
+        if state.max_hp_seen <= 0:
+            return False
+        hp_fraction = hp / state.max_hp_seen
+        if hp_fraction < self._MINER_HP_RETREAT_THRESHOLD and not state.retreating_to_hub:
+            logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) retreating to hub",
+                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
+            state.retreating_to_hub = True
+        elif state.retreating_to_hub and hp_fraction >= 0.75:
+            logger.info("agent=%s MINER_HP_OK hp=%d/%d resuming mining",
+                        obs.agent_id, hp, state.max_hp_seen)
+            state.retreating_to_hub = False
+        return state.retreating_to_hub
+
     def step_with_state(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         self._update_map_memory(obs, state)
+
+        if self._check_miner_hp(obs, state):
+            return self._deposit_to_hub(obs, state)
+
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
         if gear != "miner":
             return self._gear_up(obs, state)
