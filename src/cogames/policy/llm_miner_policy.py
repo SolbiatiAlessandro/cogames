@@ -228,6 +228,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         )
 
     def _event(self, state: LLMMinerState, message: str) -> None:
+        logger.info("agent=%s event: %s", getattr(state, '_debug_aid', '?'), message)
         state.recent_events.append(message)
         del state.recent_events[:-10]
 
@@ -292,8 +293,9 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
     def _scripted_skill_choice(self, obs: AgentObservation, state: LLMMinerState) -> tuple[str, str]:
         has_miner = self._starter._current_gear(self._starter._inventory_items(obs)) == "miner"
         carried_total = self._carried_total(obs)
-        was_stuck = state.recent_events and "exited as stuck" in state.recent_events[-1]
-        was_stale = state.recent_events and "exited as stale" in state.recent_events[-1]
+        last_ev = state.recent_events[-1] if state.recent_events else ""
+        was_stuck = "exited as stuck" in last_ev or "timed out after" in last_ev
+        was_stale = "exited as stale" in last_ev
         if not has_miner:
             if was_stuck:
                 return "explore", "scripted: gear_up stuck, exploring for station"
@@ -403,7 +405,17 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
             state.current_skill = None
-        elif state.current_skill in {"gear_up", "mine_until_full", "deposit_to_hub"} and state.skill_steps >= self._stuck_threshold * 5:
+        elif state.current_skill == "deposit_to_hub" and state.skill_steps >= self._stuck_threshold * 2:
+            # Clear stale move_blocked_cells to give BFS fresh paths on retry
+            if self._shared_map is not None and hasattr(self._shared_map, 'move_blocked_cells'):
+                stale_count = len(self._shared_map.move_blocked_cells)
+                state.blocked_cells.difference_update(self._shared_map.move_blocked_cells)
+                self._shared_map.move_blocked_cells.clear()
+                self._event(state, f"deposit_to_hub timed out after {state.skill_steps} steps, cleared {stale_count} blocked cells")
+            else:
+                self._event(state, f"deposit_to_hub timed out after {state.skill_steps} steps without completion")
+            state.current_skill = None
+        elif state.current_skill in {"gear_up", "mine_until_full"} and state.skill_steps >= self._stuck_threshold * 5:
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
@@ -430,9 +442,20 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             logger.warning("agent=%s role=miner step_error=%s — returning noop", obs.agent_id, e)
             return self._starter._action("noop"), state
 
+    _miner_step_counts: dict[int, int] = {}
+
     def _step_impl(self, obs: AgentObservation, state: LLMMinerState) -> tuple[Action, LLMMinerState]:
         self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+
+        aid = obs.agent_id
+        state._debug_aid = aid
+        self._miner_step_counts[aid] = self._miner_step_counts.get(aid, 0) + 1
+        step_num = self._miner_step_counts[aid]
+        hp = self._read_hp(obs)
+        inv = self._read_all_inv(obs) if step_num % 200 == 0 else None
+        if inv is not None:
+            logger.info("agent=%s step=%d inv=%s skill=%s", aid, step_num, inv, state.current_skill)
 
         if self._check_miner_hp(obs, state):
             action, base_state = self._deposit_to_hub(obs, state)

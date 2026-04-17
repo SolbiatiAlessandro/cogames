@@ -42,6 +42,12 @@ class MinerSkillState(StarterCogState):
     # HP tracking for miner survival (issue #40)
     max_hp_seen: int = 0
     retreating_to_hub: bool = False
+    # Mining route optimization (issue #40)
+    preferred_extractor: Coord | None = None
+    # Stuck detection (issue #40): break out of unproductive loops
+    steps_in_current_mode: int = 0
+    stuck_explore_remaining: int = 0
+    last_carried_total: int = 0
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -602,6 +608,15 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return self._starter._action(f"move_{direction}"), state
         return None
 
+    def _greedy_walk_toward(self, current_abs: Coord, target_abs: Coord) -> Action:
+        dr = target_abs[0] - current_abs[0]
+        dc = target_abs[1] - current_abs[1]
+        if dr == 0 and dc == 0:
+            return self._starter._action("noop")
+        if abs(dr) >= abs(dc):
+            return self._starter._action("move_south" if dr > 0 else "move_north")
+        return self._starter._action("move_east" if dc > 0 else "move_west")
+
     def _deposit_to_hub(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "deposit_to_hub":
             logger.info("agent=%s mode=deposit_to_hub load=%s", obs.agent_id, self._carried_total(obs))
@@ -610,30 +625,23 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         visible_target = self._closest_visible_location(obs, self._hub_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
-            # Issue-16: hub is a blocked object — use approach-cell navigation
             result = self._navigate_to_blocked_target(state, current_abs, target_abs)
             if result is not None:
                 action, next_state = result
                 return action, replace(next_state, last_mode=state.last_mode)
-            action, next_state = self._move_toward_target(state, current_abs, target_abs)
-            return action, replace(next_state, last_mode=state.last_mode)
+            return self._greedy_walk_toward(current_abs, target_abs), state
         target_abs = self._nearest_known(current_abs, state.known_hubs)
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
-            # Issue-36 v11: add to known_hubs + blocked_cells (not known_free_cells).
-            # Hub is a blocked object (V8). Adding to known_free_cells caused BFS to
-            # route through the hub cell, which fails on move.
             state.known_hubs.add(target_abs)
             state.blocked_cells.add(target_abs)
         if target_abs is None:
             return self._explore(obs, state)
-        # Issue-16: hub is a blocked object — use approach-cell navigation
         result = self._navigate_to_blocked_target(state, current_abs, target_abs)
         if result is not None:
             action, next_state = result
             return action, replace(next_state, last_mode=state.last_mode)
-        action, next_state = self._move_toward_target(state, current_abs, target_abs)
-        return action, replace(next_state, last_mode=state.last_mode)
+        return self._greedy_walk_toward(current_abs, target_abs), state
 
     _MINER_HP_RETREAT_THRESHOLD = 0.50
 
@@ -642,10 +650,20 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         for token in obs.tokens:
             if token.location != center:
                 continue
-            name = token.feature.name
-            if name in ("hp", "energy", "hp:cogs", "hp:agent", "current_hp"):
+            if token.feature.name == "inv:hp":
                 return int(token.value)
         return None
+
+    def _read_all_inv(self, obs: AgentObservation) -> dict[str, int]:
+        center = self._starter._center
+        inv: dict[str, int] = {}
+        for token in obs.tokens:
+            if token.location != center:
+                continue
+            name = token.feature.name
+            if name.startswith("inv:"):
+                inv[name] = int(token.value)
+        return inv
 
     def _check_miner_hp(self, obs: AgentObservation, state: MinerSkillState) -> bool:
         hp = self._read_hp(obs)
@@ -657,8 +675,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return False
         hp_fraction = hp / state.max_hp_seen
         if hp_fraction < self._MINER_HP_RETREAT_THRESHOLD and not state.retreating_to_hub:
-            logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) retreating to hub",
-                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
+            inv = self._read_all_inv(obs)
+            logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) inv=%s retreating to hub",
+                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, inv)
             state.retreating_to_hub = True
         elif state.retreating_to_hub and hp_fraction >= 0.75:
             logger.info("agent=%s MINER_HP_OK hp=%d/%d resuming mining",
@@ -666,17 +685,94 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.retreating_to_hub = False
         return state.retreating_to_hub
 
+    def _nearest_extractor_to_hub(self, state: MinerSkillState) -> Coord | None:
+        if not state.known_hubs or not state.known_extractors:
+            return None
+        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1]))
+        return min(
+            state.known_extractors,
+            key=lambda e: abs(e[0] - hub[0]) + abs(e[1] - hub[1]),
+        )
+
+    def _nearest_scarce_extractor_to_hub(self, state: MinerSkillState, obs: AgentObservation) -> Coord | None:
+        if not state.known_hubs:
+            return None
+        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1]))
+        scarce = self._team_scarce_element() or self._scarce_element(obs)
+        if scarce:
+            candidates = state.extractors_by_element.get(scarce, set())
+            if candidates:
+                return min(candidates, key=lambda e: abs(e[0] - hub[0]) + abs(e[1] - hub[1]))
+        if state.known_extractors:
+            return min(
+                state.known_extractors,
+                key=lambda e: abs(e[0] - hub[0]) + abs(e[1] - hub[1]),
+            )
+        return None
+
+    _step_counter: dict[int, int] = {}
+
+    _STUCK_THRESHOLD = 150
+    _STUCK_EXPLORE_STEPS = 60
+
     def step_with_state(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         self._update_map_memory(obs, state)
 
-        if self._check_miner_hp(obs, state):
-            return self._deposit_to_hub(obs, state)
+        agent_id = obs.agent_id
+        self._step_counter[agent_id] = self._step_counter.get(agent_id, 0) + 1
+        step_num = self._step_counter[agent_id]
+
+        hp = self._read_hp(obs)
+        if hp is not None:
+            if hp > state.max_hp_seen:
+                state.max_hp_seen = hp
+            if state.max_hp_seen > 0 and hp < state.max_hp_seen * self._MINER_HP_RETREAT_THRESHOLD:
+                if not state.retreating_to_hub:
+                    logger.info("agent=%s MINER_HP_LOW hp=%d/%d retreating",
+                                obs.agent_id, hp, state.max_hp_seen)
+                    state.retreating_to_hub = True
+                return self._deposit_to_hub(obs, state)
+            elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.9:
+                state.retreating_to_hub = False
 
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
         if gear != "miner":
+            state.steps_in_current_mode = 0
             return self._gear_up(obs, state)
 
-        if self._carried_total(obs) >= self._return_load:
+        carried = self._carried_total(obs)
+
+        # Stuck detection: if carried total changed, we made progress
+        if carried != state.last_carried_total:
+            state.steps_in_current_mode = 0
+            state.last_carried_total = carried
+
+        # Force explore to break out of navigation loops
+        if state.stuck_explore_remaining > 0:
+            state.stuck_explore_remaining -= 1
+            if state.stuck_explore_remaining == 0:
+                logger.info("agent=%s stuck_explore done, resuming normal mode", agent_id)
+            return self._explore(obs, state)
+
+        state.steps_in_current_mode += 1
+
+        if state.steps_in_current_mode > self._STUCK_THRESHOLD:
+            current_abs = self._current_abs(obs)
+            hub_dist = "?"
+            if state.known_hubs:
+                nearest_hub = min(state.known_hubs, key=lambda h: abs(h[0] - current_abs[0]) + abs(h[1] - current_abs[1]))
+                hub_dist = abs(nearest_hub[0] - current_abs[0]) + abs(nearest_hub[1] - current_abs[1])
+            logger.info(
+                "agent=%s STUCK step=%d mode=%s steps_in_mode=%d pos=%s hub_dist=%s carried=%d known_hubs=%d blocked=%d free=%d",
+                agent_id, step_num, state.last_mode, state.steps_in_current_mode,
+                current_abs, hub_dist, carried, len(state.known_hubs),
+                len(state.blocked_cells), len(state.known_free_cells),
+            )
+            state.steps_in_current_mode = 0
+            state.stuck_explore_remaining = self._STUCK_EXPLORE_STEPS
+            return self._explore(obs, state)
+
+        if carried >= self._return_load:
             return self._deposit_to_hub(obs, state)
 
         return self._mine_until_full(obs, state)
