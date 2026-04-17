@@ -668,7 +668,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     def _check_miner_hp(self, obs: AgentObservation, state: MinerSkillState) -> bool:
         hp = self._read_hp(obs)
         if hp is None:
-            return state.retreating_to_hub
+            state.retreating_to_hub = False
+            return False
         if hp > state.max_hp_seen:
             state.max_hp_seen = hp
         if state.max_hp_seen <= 0:
@@ -679,7 +680,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) inv=%s retreating to hub",
                         obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, inv)
             state.retreating_to_hub = True
-        elif state.retreating_to_hub and hp_fraction >= 0.75:
+        elif state.retreating_to_hub and hp_fraction >= 0.98:
             logger.info("agent=%s MINER_HP_OK hp=%d/%d resuming mining",
                         obs.agent_id, hp, state.max_hp_seen)
             state.retreating_to_hub = False
