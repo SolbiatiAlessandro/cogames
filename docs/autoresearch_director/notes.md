@@ -1,69 +1,114 @@
 # Director Notes
-_Written: 2026-04-16 (Session 9)_
+_Written: 2026-04-17 (Session 10, offline-to-online)_
 
 ## What I observed
 
-### Online performance (V20 submission, 20+ matches)
-- **V20 online score: 3.28 (#340/405)** — WORSE than old fast-llm-v1 (4.41, #291/405)
-- Root cause confirmed: **6+2 startup mortality** — agents 3-5 die at step 4-15 in 6-agent matches
-- 6+2 matches (we get 6 agents): avg score ~1.8 — catastrophic
-- 2+6 matches (we get 2 agents): avg score ~7.0 — fine
-- 4+4 matches: avg score ~5.7 — mixed
-- Top-1 dinky:v27 at 27.31 (gap: 8.3x). 405 total entries (up from 363 in session 7)
+### Online tournament state — DRAMATICALLY CHANGED
+- **Season beta-cvc v8**: restructured. Only **51 entries** (was 405 in session 9).
+- **Top-1**: `Gryffindor:v11` at **40.82/agent** (was `dinky:v27` at 27.31).
+- **NONE of our 25 policies appear on the leaderboard.** All old entries gone.
+- **Both partners now get the SAME score** — pure cooperative team scoring.
+- `lessandro-scripted-v21:v1` uploaded April 16 at 17:29 UTC, has **0 qualifying matches in 24h**.
+- Tournament IS active: Gryffindor, Slytherin, Ravenclaw, Softy, shweta policies all getting matches today.
 
-### Branch review
-1. **`claude/amazing-meitner-MGrvP`** (issue #38): **MERGED**. 12 experiments, 10-seed validation. Key breakthrough: scripted aligners at 6+ agents = 196x reward improvement (0.03 → 8.133). Also: heart queue management, junction coordination, frontier explore.
-2. **`claude/amazing-meitner-dtLLg`** (issue #38): NOT merged. Code-analysis only (no offline validation) — 8 versions of crash/HP fixes. Largely superseded by MGrvP. Ship-proximity retreat code (v3/v5/v6) is the only novel addition not in MGrvP.
-3. **`autoresearch/issue-37-submit-v20-8agent`** (issue #37): **MERGED**. Miner LLM exception handler + 10k validation (1.743/agent). Conflict in llm_miner_policy.py resolved (both branches added same try/except).
-4. Other branches (30+ remote): no new activity.
+### CRITICAL STRATEGIC DISCOVERY: Top policies are pure RL
 
-### Could NOT run replays
-Environment lacks Bazel for building mettagrid. Replay-based validation was not possible this session.
+Analyzed replay of Slytherin:v18 + Gryffindor:v18 match (score 52.2/agent):
+
+**Action distribution (all 8 agents combined):**
+- move_south: 11,579 | move_north: 11,305 | move_west: 8,000 | move_east: 7,727
+- noop: 130
+- change_vibe_*: **ZERO**
+
+**Game stats:**
+- 224 junctions gained (us: 7-8) = **30x gap**
+- 19,084 total element deposits (us: ~640 at 3k) = **~10x gap** (adjusted for steps)
+- 522,354 junction held steps
+- Only 5 hearts withdrawn (same as us — hearts are NOT the bottleneck!)
+- Agent survival: 3,500-9,900 steps (agents DO die, but still score 52.2/agent)
+
+**What this means:** Top policies use ONLY movement actions. No gear specialization, no LLM calls, no skill system. They are trained RL neural networks that have learned efficient navigation, junction capture, and implicit coordination through millions of training steps.
+
+### Branch reviews and merges
+1. **`claude/amazing-meitner-JWXo2`** (issue #39): MERGED. Submission scripts + docs. `lessandro-scripted-v21:v1` was uploaded successfully but has 0 matches.
+2. **`claude/amazing-meitner-pQoW5`** (issue #40): MERGED. Mining stuck fix (+55% reward at 3000 steps). Fixes: deposit timeout recognition, faster stuck threshold, stale blocked cells clearing, miner HP retreat, disabled aligner HP retreat.
+
+### Previous session questions answered
+
+1. **Did #39 submit successfully?** YES — `lessandro-scripted-v21:v1` uploaded April 16. But 0 qualifying matches in 24h.
+2. **6+2 survival after MGrvP?** UNKNOWN — can't test online because no matches.
+3. **3000-step HP decay?** Issue #40 found all agents die by ~3000 steps. Mining stuck fix improved reward from 1.02 to 1.59 at 3k steps, but agents still die.
+4. **"Just use A* and hash tables" (#27)?** VALIDATED. Top policies use pure movement. Andre Von Huck was right.
+5. **Clean up old branches?** Merged 2 branches (JWXo2, pQoW5). 30+ old remote branches remain.
+
+## Offline-to-Online Gap Analysis
+
+1. **Offline best**: 8.133 total (1.02/agent) at 500 steps, 8-agent. 1.59 total at 3000 steps with mining fix.
+2. **Online rank**: UNKNOWN — 0 matches played. Previous entries removed from leaderboard.
+3. **Gap is FUNDAMENTALLY architectural**, not just tuning:
+   - Our scripted policy: complex skill system (gear_up, align_neutral, get_heart, mine, explore, unstuck)
+   - Top RL policies: just move north/south/east/west
+   - Junction capture rate: 7-8 vs 224 = 30x gap
+   - This gap cannot be closed by improving the scripted policy incrementally
+
+4. **Hearts are NOT the bottleneck** — correcting session 9's analysis. Top policies only withdraw 5 hearts (same as us). The score comes from junction held time, not hearts.
+
+5. **Previous gap estimates were wrong:**
+   - Mining: 28x gap → actually ~10x (adjusted for steps, new data shows top deposits ~19k not 14k)
+   - Hearts: 33x gap → actually 1x (both us and top use exactly 5 from hub)
+   - Junction captures: was not tracked → revealed as 30x = THE key gap
 
 ## Current bottleneck
-**NEED NEW ONLINE SUBMISSION.** The merged MGrvP code fixes all identified 6+2 mortality issues (scripted aligners/miners, 0 scouts, defensive wrappers). Offline: 8.133 total reward at 500 steps (10-seed). But the online submission is still the old V20 code (3.28). Issue #39 created for this.
 
-After submission, the **mining throughput gap** is the next frontier: we deposit ~500 elements/10k vs dinky's ~14,000 (28x gap). This limits hearts to ~15/episode vs ~500. Issue #40 created.
+**TWO parallel bottlenecks:**
 
-## What I expected to happen vs. what I found
-Session 8 asked: "Did #37 submit successfully?" — YES, it did. V20 was uploaded as `lessandro-v20-robust-llm-v1:v1`.
+1. **Submission pipeline broken** (#39): Policy uploaded but 0 qualifying matches. Possible causes:
+   - `httpx` import at module level in `llm_miner_policy.py` — may crash on server
+   - Queue congestion
+   - Season v8 enrollment issue
 
-Session 8 predicted V20 online score ≥5.0. **WRONG** — actual: 3.28, worse than old policy. The 6+2 startup mortality was the unexpected failure mode. This was never caught offline because all V20 experiments used 3 agents.
-
-Session 8 expected the researcher to validate 8-agent config with V20. This happened on two branches: issue-37 (baseline + 10k) and MGrvP (mortality fix + scripted aligners). MGrvP found the breakthrough: LLM calls are the problem, not the policy logic.
+2. **Fundamental approach gap** (#41): Our scripted/LLM policy ceiling is ~5-10 score/agent. Top RL policies achieve 40+/agent. Training an RL policy is the highest-leverage path.
 
 ## Issues updated this session
-- **#38**: Comment with merge details. Label priority:1→priority:2 (code merged, awaiting submission).
-- **#25**: CLOSED as completed — superseded by MGrvP (8.133 vs 0.825/agent plateau).
-- **#30**: Comment noting MGrvP addresses core concerns. Label priority:2→priority:3.
-- **#39**: CREATED (priority:1) — submit merged MGrvP policy to beta-cvc.
-- **#40**: CREATED (priority:2, blocked by #39) — mining throughput gap (28x below dinky).
-- **#31, #36, #17, #10, #19, #20, #11**: Moved to priority:3 (lower leverage).
+- **#39**: Comment with 0-match analysis. Labels unchanged (priority:1).
+- **#40**: Comment with merge + strategic context. Branch merged. Mining is ~10x gap, not 28x.
+- **#41**: CREATED (priority:1) — RL policy training. Highest leverage for online score.
+- **#27**: Comment — Andre Von Huck's A*/hash-table advice validated by replay analysis.
+- **#21**: Label updated to priority:3.
 
-## Priority stack for OpenClaw
+## Priority stack
 ```
-priority:1  #39  Submit MGrvP policy  <- SPAWN NEXT (highest leverage)
-priority:2  #38  6+2 startup mortality (code merged, needs online confirmation)
-priority:2  #40  Mining throughput gap (blocked by #39)
-priority:2  #24  Balanced Mining Strategy (overlaps #40)
-priority:2  #27  Andre Von Huck suggestions
-priority:2  #26  shweta policy
-priority:3  #32  Partner robustness | #36 Mortality | #30 Self-play
-priority:3  #31 change_vibe | #12 Gear | #10 Tuning | #11 Active Inference
-priority:3  #17 Skill Validation | #19 LLM Code Gen | #20 Spatial Partitioning
-priority:3  #22 Social Influence | #23 Meta-Learning | #21 Intrinsic Motivation
+priority:1  #41  RL policy training  <- HIGHEST LEVERAGE (30x junction gap)
+priority:1  #39  Fix submission      <- BLOCKING (0 matches in 24h)
+priority:2  #40  Mining throughput   <- merged +55%, scripted track
+priority:2  #27  Andre Von Huck / A* <- validated, overlaps #41
+priority:2  #24  Balanced Mining     <- scripted track
+priority:2  #26  shweta policy       <- reference
+priority:3  #38  6+2 mortality (merged) | #32 Partner robustness
+priority:3  #36 Mortality | #30 Self-play | #31 change_vibe
+priority:3  #12 Gear | #10 Tuning | #11 Active Inference
+priority:3  #17 Skill Validation | #19 LLM Code Gen | #20 Spatial Part.
+priority:3  #21-23 Meta/Social/Intrinsic
 ```
 
 ## Open questions for next director
 
-1. **Did #39 submit successfully?** Check `cogames submissions --season beta-cvc` for a `lessandro-scripted-v21` entry. If yes, check online score after 24h. Target: ≥6.0 (from current 3.28).
+1. **Did #39 get matches yet?** Check the API for `lessandro-scripted-v21:v1` match count. If still 0 after 48h, the policy is likely crashing server-side. Fix: wrap `httpx` import in try/except, or remove LLM dependency entirely for scripted mode.
 
-2. **6+2 survival after MGrvP**: The scripted aligners/miners at 6+ agents should eliminate all 3 death vectors (LLM crash, LLM contention, scout fragility). But ship-proximity retreat (dtLLg v3/v5/v6) is NOT included — if HP-death persists online, merge those fixes from dtLLg.
+2. **Can we train an RL policy (#41)?** Check if `cogames train` works in this environment. The existing tutorials and `pufferlib_policy.py` template should provide a starting point. Even a baseline RL policy trained for 1M steps might score higher than our scripted approach.
 
-3. **3000-step HP decay**: MGrvP's reward DROPS from 7.248 at 1k to 3.72 at 3k. This means agents are dying from HP drain at longer episodes. Online matches are 10k. The mining throughput gap (#40) likely limits heart production → limits survival.
+3. **Re-submit with fixed imports?** If #39 is stuck due to import crash, create a minimal policy bundle that:
+   - Does NOT import `httpx` at module level
+   - Uses only the scripted fallback (no LLM planner needed for 8-agent matches)
+   - Has zero external dependencies beyond what cogames provides
 
-4. **"Just use A* and hash tables" (Andre Von Huck, #27)**: dinky's 27.31 score uses NO LLM calls, NO ML. Our scripted aligners are a step in this direction — can we make a fully scripted policy that matches/beats the LLM version? MGrvP showed scripted is 196x better than LLM at 6+ agents. Can we extend this to 3-agent as well?
+4. **Hearts are NOT the bottleneck** — this invalidates several session 7-9 conclusions. The 5 hearts come from the hub's initial supply. No policy (including top-1) crafts additional hearts. The entire make_heart / mining-for-hearts strategy is irrelevant to scoring. What matters is: junction capture speed and junction hold time.
 
-5. **Clean up old branches**: 30+ remote branches. After confirming #39 succeeds, delete merged branches: amazing-meitner-MGrvP, amazing-meitner-JWpsV, amazing-meitner-ahBE5, amazing-meitner-cUcXZ, autoresearch-priority-issue-dAc9K, autoresearch/issue-37-submit-v20-8agent.
+5. **What makes top RL policies capture 224 junctions?** Possible factors:
+   - Efficient A* pathfinding (no BFS stuck loops)
+   - Aggressive junction claiming (immediate alignment on contact)
+   - Recapture speed (quickly taking back lost junctions)
+   - Implicit multi-agent coordination (agents spread out to cover more junctions)
+   - Zero time spent on gear management, LLM waits, or role assignment
 
-6. **Partner robustness (#32)**: Our score still depends heavily on the partner. In 2+6 matches (2 agents of ours), we score ~7.0 but the partner contributes most of that. Can we build a self-sufficient 2-agent carry policy?
+6. **Clean up stale branches** — 30+ remote branches. After confirming session 10 deliverables pushed, delete merged branches: amazing-meitner-JWXo2, amazing-meitner-pQoW5.

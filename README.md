@@ -24,74 +24,75 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-04-16 (Session 9)_
+_Updated by Director (offline-to-online): 2026-04-17 (Session 10)_
 
-### Online Tournament (beta-cvc, 10k steps, 8 agents)
+### Online Tournament (beta-cvc v8, 10k steps, 8 agents, cooperative scoring)
 
-| Rank | Score | Policy | Notes |
-|------|-------|--------|-------|
-| **#291/405** | **4.41** | `lessandro-fast-llm-v1:v1` | Best online; stale policy from April 9 |
-| #333/405 | 3.43 | `cross_role_full_10s_v8:v1` | Cross-role variant |
-| #340/405 | 3.28 | `lessandro-v20-robust-llm-v1:v1` | V20 submitted April 15; 6+2 mortality bug tanks score |
-| _(ref)_ | 27.31 | `dinky:v27` (top-1) | 28x ahead of us |
+| Rank | Score/agent | Policy | Matches | Notes |
+|------|-------------|--------|---------|-------|
+| #1/51 | **40.82** | `Gryffindor:v11` | 27 | Pure RL, move-only actions |
+| #2/51 | 40.73 | `Slytherin:v14` | 32 | Pure RL, move-only actions |
+| #3/51 | 40.11 | `Hufflepuff:v11` | 25 | Pure RL |
+| #51/51 | 6.81 | `shwetakatyal.play-md-starter-policy:v2` | 163 | Starter policy |
+| **???** | **???** | `lessandro-scripted-v21:v1` | **0** | Uploaded Apr 16, **0 matches in 24h** |
 
-**V20 online score (3.28) is WORSE than old fast-llm-v1 (4.41)** due to 6+2 startup mortality: agents 3-5 die at step 4-15 in 6-agent matches. **MGrvP branch merged today fixes this** — needs new submission (#39).
+**Season restructured to v8**: only 51 entries (was 405). Our old policies are all gone from the leaderboard. New submission `lessandro-scripted-v21:v1` is in qualifying but has received zero matches. Tournament IS active for other policies.
 
-### Offline Best Results (8-agent, post-MGrvP merge)
+### Key Online Discovery: Top Policies are Pure RL
+
+Replay analysis of Slytherin:v18 + Gryffindor:v18 (score 52.2/agent):
+- **Action space**: ONLY `move_north/south/east/west` + `noop`. Zero `change_vibe_*`.
+- **224 junctions gained** (vs our 7-8). **19,084 elements deposited**. **Only 5 hearts withdrawn**.
+- All 8 agents move efficiently. No gear specialization, no LLM, no skill system.
+- Agent survival: 3,500-9,900 steps (not all survive to 10k).
+
+### Offline Best Results (8-agent, post-MGrvP + mining fix merge)
 
 | Rank | Reward | Config | Steps | Seeds | Notes |
 |------|--------|--------|-------|-------|-------|
-| 1 | **8.133 total** (1.02/agent) | 4A4M scripted auto | 500 | 10-seed avg | **NEW BEST**: scripted aligners + frontier explore + heart queue |
-| 2 | 7.657 total (0.96/agent) | 4A4M scripted auto | 500 | 10-seed avg | Shared extractors + element balancing |
-| 3 | 7.435 total (0.93/agent) | 4A4M scripted auto | 1000 | 3-seed avg | 1k validation |
-| 4 | 7.248 total (0.91/agent) | 2A6M scripted auto | 1000 | 1 seed | Best 1k single-seed |
+| 1 | **8.133 total** (1.02/agent) | 4A4M scripted auto | 500 | 10-seed avg | Scripted aligners + frontier explore + heart queue |
+| 2 | **1.59 total** (0.20/agent) | 4A4M scripted auto | 3000 | 3-seed avg | **NEW**: +55% from mining stuck fix (#40) |
+| 3 | 7.657 total (0.96/agent) | 4A4M scripted auto | 500 | 10-seed avg | Shared extractors + element balancing |
 
-### Offline Best Results (3-agent, V20 stack)
-
-| Rank | Reward | Config | Steps | Notes |
-|------|--------|--------|-------|-------|
-| 1 | 3.15 total (1.05/agent) | 2A1M V20 | 10000 | 0 deaths, seed 44 |
-| 2 | 2.26 total (0.75/agent) | 3A0M | 1000 | 7 junctions, all gear kept |
-| 3 | 1.74 total | 3A5M 8-agent V20 | 10000 | 13 deaths, 17 junctions gained |
-
-### Gap Analysis (us vs top-1 `dinky:v27`)
+### Gap Analysis (us vs top-1 RL policies)
 
 ```
-Metric                    Us (best offline)    dinky (best)    Gap       Status
-──────────────────────────────────────────────────────────────────────────────────
-Online score              3.28 (V20, bugged)   27.31           8.3x     MGrvP fix merged, needs submit
-6+2 survival              3/6 survive          8/8             FIX      ✅ FIXED by MGrvP (scripted auto)
-Agent survival (10k)      0 deaths (3-agent)   survive 10k     ~CLOSED  untested at 8-agent 10k
-Mining throughput         ~500 elem/10k        ~14,000         28x      #40 — largest remaining gap
-Hearts (10k)              ~15/episode          ~500            33x      blocked by mining throughput
-Move success              88.3% (offline)      98.5%           1.1x     nearly closed
+Metric                    Us (scripted best)     Top RL (Gryffindor)    Gap       Status
+─────────────────────────────────────────────────────────────────────────────────────────
+Online score/agent        ??? (0 matches)        40.82                  ???       #39 submission stuck
+Junction captures         7-8 per episode        180-224                30x       FUNDAMENTAL — RL advantage
+Element deposits (10k)    ~2,000 (projected)     19,084                 10x       #40 merged (+55%)
+Hearts withdrawn          5                      5                      1x       NOT a bottleneck!
+Action latency            LLM: 5-20s/call        NN: <1ms               5000x    scripted fallback: ~0
+Gear specialization       4A+4M roles            none (all identical)   N/A      RL doesn't specialize
 ```
 
-**Current bottleneck**: **Submit merged MGrvP code (#39)**. The fix eliminates 6+2 mortality (scripted aligners/miners at 6+ agents, 196x reward improvement). After submission, the largest remaining gap is mining throughput (#40, 28x below dinky).
+**Current bottleneck**: TWO parallel tracks:
+1. **#39 submission stuck** (priority:1) — 0 matches in 24h, needs investigation
+2. **#41 RL policy training** (priority:1) — fundamental approach change to close 30x junction gap
 
-**Next up**: #39 (submit MGrvP) → #40 (mining throughput) → #32 (partner robustness)
+**Next up**: #39 (fix submission) + #41 (start RL training) in parallel
 
 **Research tree:**
 ```
-SPAWN NEXT:
-  #39 Submit merged MGrvP policy (priority:1) ← HIGHEST LEVERAGE
+SPAWN NEXT (parallel tracks):
+  #39 Fix submission (priority:1) — 0 matches, investigate server-side issue
+  #41 RL policy training (priority:1) — highest leverage for online score
 
-NEXT AFTER SUBMISSION:
-  #40 Mining throughput gap (priority:2, blocked by #39)
+ACTIVE SCRIPTED IMPROVEMENTS:
+  #40 Mining throughput (priority:2) — merged +55%, further improvements possible
+  #27 Andre Von Huck / A* approach (priority:2) — VALIDATED by replay analysis
   #24 Balanced Mining Strategy (priority:2) — overlaps #40
-  #27 Andre Von Huck suggestions (priority:2) — "just use A* and hash tables"
-  #32 Partner robustness (priority:3) — 2-agent carry mode
-  #38 6+2 startup mortality (priority:2) — MGrvP merged, needs online confirmation
 
 CLOSED:
-  #25 8-Agent Scaling — CLOSED: superseded by MGrvP (8.133 vs 0.825)
-  #37 Submit V20 — CLOSED: submitted, discovered 6+2 mortality
-  #34 Heart Pipeline, #35 Move Failure, #29 10k Eval — CLOSED (sessions 7-8)
+  #25 8-Agent Scaling | #37 Submit V20 | #34 Heart Pipeline
+  #35 Move Failure | #29 10k Eval
 
 DEPRIORITIZED (priority:3):
-  #36 Mortality (merged) | #30 Self-Play (addressed) | #31 change_vibe
-  #12 Gear Acquisition | #10 Fixed Roles Tuning | #11 Active Inference
-  #17 Skill Validation | #19 LLM Code Gen | #20 Spatial Partitioning
+  #38 6+2 mortality (merged) | #32 Partner robustness | #36 Mortality
+  #30 Self-Play | #31 change_vibe | #26 shweta policy
+  #12 Gear | #10 Tuning | #11 Active Inference | #17 Skill Validation
+  #19 LLM Code Gen | #20 Spatial Part. | #21-23 Meta/Social/Intrinsic
 ```
 <!-- LEADERBOARD_END -->
 
