@@ -1,0 +1,6 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+660cee9	1.020000	C=100 Ge=100 O=80 Si=? jh=7242	3000	keep	baseline: 4 aligners 4 miners scripted return_load=40
+d0c93b6	1.580000	C=180 Ge=180 O=161 Si=120 jh=7242	3000	keep	fix deposit timeout loop: recognize timed-out-as-stuck + faster deposit timeout (40 vs 100) + clear blocked cells
+ddb9c4d	1.610000	C=180 Ge=180 O=161 Si=160 jh=13147	3000	keep	fix HP reading bugs: clear retreat flag on respawn + disable aligner HP retreat (causes oscillation)
+ddb9c4d	1.520000	C=240 Ge=210 O=210 Si=220 jh=12241	3000	keep	same commit seed=123
+ddb9c4d	1.650000	C=150 Ge=200 O=140 Si=150 jh=13525	3000	keep	same commit seed=456
