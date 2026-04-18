@@ -154,3 +154,26 @@ Optimal: stuck_threshold=12. Faster stuck detection means less wasted time, but 
 | v25     | 9.78  | 75   | 20      | + stuck_threshold=12 |
 
 **Uploaded**: lessandro-scripted-v26:v1 with dynamic return_load + all prior fixes
+
+## 2026-04-18T19:45: Junction sharing + miner unstuck recovery
+
+**Experiment 1: Junction sharing** (v28)
+Miners now share junction discoveries with aligners via SharedMap. Previously miners traversed the map but discarded junction locations — aligners had to discover them independently.
+- 4A 3-seed avg: 0.426 vs 0.405 baseline (+5.2%)
+- 8A seed 42: 0.352 vs 0.339 (+3.8%)
+
+**Experiment 2: Miner unstuck recovery** (v29)
+Found critical bug: miner's `_scripted_skill_choice` never returned "unstuck" — miners in explore→stuck loops cycled forever. Two fixes:
+1. Navigation shake (15+ no-move steps, every 5th step) — micro-correction within skill
+2. Unstuck skill escalation (3+ consecutive stuck exits) — macro-correction via random walks
+- 2A avg: 0.275 vs 0.211 baseline (+30% — seed 42 went from 0.087 to 0.262!)
+- 4A avg: 0.420 vs 0.426 (-1.4%, within noise)
+- 8A avg: 0.344 vs 0.320 (+7.5%)
+
+**Experiments tried (discarded)**:
+- Strategic junction selection (expand network): avg 0.399 vs 0.426 — extra travel distance outweighs strategic value
+- Obstacle-aware greedy walk: no measurable impact (fallback rarely triggered)
+- 3A+1M at 4 agents: avg 0.369 vs 0.426 — too few miners
+- Aggressive nav shake (5+ steps, every 3rd): +30% at 2A but -19% at 8A — too disruptive for large teams
+
+**Uploaded**: lessandro-scripted-v28:v1 (junction sharing), lessandro-scripted-v29:v1 (+ miner unstuck)

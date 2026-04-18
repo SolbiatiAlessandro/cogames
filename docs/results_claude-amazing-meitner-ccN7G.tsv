@@ -4,3 +4,5 @@ b1ecd4f	2.711	jh=1146 c=49 o=44 ge=37 si=40	500	keep	8A: role fix (4A4M no scout
 b1ecd4f	1.619	jh=1157 c=52 o=52 ge=47 si=52	500	keep	4A: role fix (2A2M) - was 0 miners before! +22% vs old 4A config
 b1ecd4f	0.447	jh=n/a c=n/a o=n/a ge=n/a si=n/a	500	keep	2A: role fix (1A1M) - was 0 miners before! now functional
 8bf253f	2.912	jh=n/a 5seeds avg=0.364	500	keep	stuck_threshold=12 (+9% vs threshold=20 avg=0.334)
+9cc519d	1.704	4A 3seeds avg=0.426	500	keep	junction sharing: miners share junction locations with aligners (+5.2% vs baseline)
+3e90d61	1.678	4A avg=0.420 2A avg=0.275 8A avg=0.344	500	keep	miner unstuck: nav shake + unstuck escalation. 2A +30%, 8A +7.5%
