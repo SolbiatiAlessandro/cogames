@@ -99,3 +99,19 @@ New role allocation:
 - 8 agents: 4A 4M
 
 Hypothesis: This fix alone should dramatically improve tournament scores since we now actually have miners at all team sizes.
+
+## 2026-04-18T18:35: Role allocation fix results
+
+**Also fixed**: Disabled scouts (n_scouts=0 always). With 4 agents, old config gave 2A+1S+1M (only 1 miner!). New config: 2A+2M.
+
+**return_load experiment**: Tried return_load=20 (faster cycling). Result: 8-agent reward dropped 0.339→0.331 (more round trips waste time). Reverted to 40.
+
+**Results with all fixes (return_load=40, no scouts, fixed role allocation)**:
+| Config | Per-agent reward | Deposits (C/O/Ge/Si) | Hearts |
+|--------|-----------------|----------------------|--------|
+| 8A (4A4M) | 0.339 (unchanged) | 49/44/37/40 | 4.95 |
+| 4A (2A2M) | 0.405 (+22%) | 52/52/47/52 | 3.60 |
+| 2A (1A1M) | 0.224 (was broken) | — | 3.67 |
+
+**Uploaded**: lessandro-scripted-v24:v1 (qualifying)
+**Previous**: lessandro-scripted-v23:v1 (qualifying, has role fix but still had scouts+return_load issues)
