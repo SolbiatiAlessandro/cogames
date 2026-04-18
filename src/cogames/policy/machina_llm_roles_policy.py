@@ -574,18 +574,18 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         super().__init__(policy_env_info, device=device)
         n_agents = policy_env_info.num_agents
 
-        # Resolve scripted_miners: "auto" means True at 6+ agents (eliminate LLM contention)
+        # Resolve scripted_miners: "auto" means always True (LLM API unavailable on tournament server)
         sm_str = str(scripted_miners).lower()
         if sm_str == "auto":
-            self._scripted_miners = n_agents >= 6
+            self._scripted_miners = True
         else:
             self._scripted_miners = sm_str in ("true", "1", "yes")
         logger.info("scripted_miners=%s (n_agents=%d, raw=%s)", self._scripted_miners, n_agents, scripted_miners)
 
-        # Resolve scripted_aligners: "auto" means True at 6+ agents (eliminate LLM contention)
+        # Resolve scripted_aligners: "auto" means always True (LLM API unavailable on tournament server)
         sa_str = str(scripted_aligners).lower()
         if sa_str == "auto":
-            self._scripted_aligners = n_agents >= 6
+            self._scripted_aligners = True
         else:
             self._scripted_aligners = sa_str in ("true", "1", "yes")
         logger.info("scripted_aligners=%s (n_agents=%d, raw=%s)", self._scripted_aligners, n_agents, scripted_aligners)
@@ -601,7 +601,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         else:
             na_str = str(num_aligners).lower()
             if na_str == "auto":
-                n_aligners = min(4, n_agents)
+                n_aligners = min(4, n_agents // 2)
             else:
                 n_aligners = int(num_aligners)
             self._aligner_ids = frozenset(range(min(n_aligners, n_agents)))
