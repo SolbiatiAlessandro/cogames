@@ -1,1 +1,2 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+064d1e1	2.711	jh=2889 c=40 o=35 ge=33 si=43	500	keep	baseline with httpx try/except fix - no regression from pre-fix
