@@ -252,10 +252,11 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         carried_elements = self._inventory_counts(obs)
         carried_total = sum(carried_elements.values())
         made_progress = False
-        if state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total:
+        cargo_decreased = carried_total < state.last_carried_total
+        if state.current_skill == "deposit_to_hub" and cargo_decreased:
             self._event(state, f"deposited cargo from {state.last_carried_total} to {carried_total}")
             made_progress = True
-            # Track per-element deposits for team-scarce coordination
+        if cargo_decreased:
             sm = self._shared_map
             if sm is not None and hasattr(sm, "total_deposits"):
                 for elem, prev_amount in state.last_carried_elements.items():
