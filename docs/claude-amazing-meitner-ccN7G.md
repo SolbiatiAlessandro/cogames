@@ -130,3 +130,27 @@ Hypothesis: This fix alone should dramatically improve tournament scores since w
 Optimal: stuck_threshold=12. Faster stuck detection means less wasted time, but too aggressive (8) causes thrashing.
 
 **Uploaded**: lessandro-scripted-v25:v1 with stuck_threshold=12 + all prior fixes
+
+## 2026-04-18T19:35: Experiments and v26 upload
+
+**Experiments tried (discarded)**:
+- Expanded align distances (HUB=40, JUNCTION=25): -2.7% avg — extra travel time outweighs benefit
+- Aligner HP retreat 0.50 vs 0.70: identical — HP retreat doesn't trigger in normal operation
+- 3A5M ratio: avg 0.331 vs 4A4M 0.364 — more miners doesn't help
+- 5A3M ratio: avg 0.336 — worse than 4A4M
+- Predicted miner station position: no effect — station already visible from spawn
+- return_load=20 for all: 8A worse (0.331 vs 0.339), 4A worse
+
+**Experiment kept**: Dynamic return_load
+- 2 agents (1 miner): return_load=20 → +25% vs return_load=40
+- 4+ agents: return_load=40 unchanged
+
+**Tournament standings**:
+| Version | Score | Rank | Matches | Key changes |
+|---------|-------|------|---------|-------------|
+| v22     | 8.08  | 81   | 22      | httpx fix only |
+| v23     | 8.90  | 78   | 20      | + role fix |
+| v24     | 11.64 | 69   | 23      | + no scouts |
+| v25     | 9.78  | 75   | 20      | + stuck_threshold=12 |
+
+**Uploaded**: lessandro-scripted-v26:v1 with dynamic return_load + all prior fixes
