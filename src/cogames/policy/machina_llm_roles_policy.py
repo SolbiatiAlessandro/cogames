@@ -633,8 +633,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             responder=llm_responder,
             local_model_path=llm_local_model_path,
         )
-        n_miners = n_agents - len(self._aligner_ids) - len(self._scout_ids)
-        self._return_load = 20 if n_miners <= 1 else int(return_load)
+        self._return_load = int(return_load)
         self._stuck_threshold = int(stuck_threshold)
         self._unstuck_horizon = int(unstuck_horizon)
         self._agent_policies: dict[int, StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]] = {}
