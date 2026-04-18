@@ -3,3 +3,4 @@ commit	mission_reward	secondary_rewards	steps	status	description
 b1ecd4f	2.711	jh=1146 c=49 o=44 ge=37 si=40	500	keep	8A: role fix (4A4M no scouts) - no regression from baseline
 b1ecd4f	1.619	jh=1157 c=52 o=52 ge=47 si=52	500	keep	4A: role fix (2A2M) - was 0 miners before! +22% vs old 4A config
 b1ecd4f	0.447	jh=n/a c=n/a o=n/a ge=n/a si=n/a	500	keep	2A: role fix (1A1M) - was 0 miners before! now functional
+8bf253f	2.912	jh=n/a 5seeds avg=0.364	500	keep	stuck_threshold=12 (+9% vs threshold=20 avg=0.334)

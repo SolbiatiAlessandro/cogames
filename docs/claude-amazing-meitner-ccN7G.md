@@ -115,3 +115,18 @@ Hypothesis: This fix alone should dramatically improve tournament scores since w
 
 **Uploaded**: lessandro-scripted-v24:v1 (qualifying)
 **Previous**: lessandro-scripted-v23:v1 (qualifying, has role fix but still had scouts+return_load issues)
+
+## 2026-04-18T18:50: stuck_threshold sweep and tournament results
+
+**Tournament update**: v23 already moved from rank 89 → 76, score 6.62 → 8.72 (+32%)!
+
+**stuck_threshold sweep** (5 seeds, 8 agents, 500 steps):
+| Threshold | Avg reward/agent | vs baseline |
+|-----------|-----------------|-------------|
+| 20 (old)  | 0.334           | baseline    |
+| 12        | 0.364           | +9.0%       |
+| 8         | 0.359           | +7.5%       |
+
+Optimal: stuck_threshold=12. Faster stuck detection means less wasted time, but too aggressive (8) causes thrashing.
+
+**Uploaded**: lessandro-scripted-v25:v1 with stuck_threshold=12 + all prior fixes
