@@ -70,6 +70,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._return_load = return_load
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
+        self._junction_tags = self._starter._resolve_tag_ids(["junction"])
+        self._team_tag = self._starter._tag_name_to_id.get("team:cogs")
+        self._net_tag = self._starter._tag_name_to_id.get("net:cogs")
+        self._enemy_team_tag = self._starter._tag_name_to_id.get("team:clips")
+        self._enemy_net_tag = self._starter._tag_name_to_id.get("net:clips")
 
     def _miner_station_names(self, policy_env_info: PolicyEnvInterface) -> list[str]:
         names = {"miner_station"}
@@ -199,6 +204,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         miner_stations_now: set[Coord] = set()
         extractors_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
+        visible_tag_ids_by_cell: dict[Coord, set[int]] = {} if self._shared_map else None
 
         for token in obs.tokens:
             if token.feature.name != "tag" or token.location is None:
@@ -212,12 +218,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 miner_stations_now.add(abs_cell)
             if token.value in self._starter._extractor_tags:
                 extractors_now.add(abs_cell)
-                # Issue-16: track which element this extractor produces
                 for element, etags in self._extractor_tags_by_element.items():
                     if token.value in etags:
                         state.extractors_by_element[element].add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+            if visible_tag_ids_by_cell is not None:
+                visible_tag_ids_by_cell.setdefault(abs_cell, set()).add(int(token.value))
 
         # Issue-36 v8: pre-block extractors, hubs, and stations for navigation.
         # These occupy cells and block movement, but have their own tags (not wall tags).
@@ -249,6 +256,29 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._remember_static_objects(state.known_extractors, extractors_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         self._remember_visible_hub(obs, state)
+
+        if visible_tag_ids_by_cell is not None:
+            sm = self._shared_map
+            neutral_now: set[Coord] = set()
+            friendly_now: set[Coord] = set()
+            enemy_now: set[Coord] = set()
+            for abs_cell, tag_ids in visible_tag_ids_by_cell.items():
+                if not (tag_ids & self._junction_tags):
+                    continue
+                if (self._team_tag in tag_ids) or (self._net_tag in tag_ids):
+                    friendly_now.add(abs_cell)
+                elif (self._enemy_team_tag in tag_ids) or (self._enemy_net_tag in tag_ids):
+                    enemy_now.add(abs_cell)
+                else:
+                    neutral_now.add(abs_cell)
+            sm.known_neutral_junctions.difference_update(visible_cells)
+            sm.known_neutral_junctions.update(neutral_now)
+            sm.known_friendly_junctions.difference_update(visible_cells)
+            sm.known_friendly_junctions.update(friendly_now)
+            sm.known_enemy_junctions.difference_update(visible_cells)
+            sm.known_enemy_junctions.update(enemy_now)
+            sm.known_neutral_junctions.difference_update(sm.known_friendly_junctions)
+            sm.known_neutral_junctions.difference_update(sm.known_enemy_junctions)
 
     def _neighbors(self, cell: Coord) -> list[tuple[str, Coord]]:
         return [(name, (cell[0] + delta[0], cell[1] + delta[1])) for name, delta in _DIRECTION_DELTAS]
