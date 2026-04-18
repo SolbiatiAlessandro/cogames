@@ -24,75 +24,87 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline-to-online): 2026-04-17 (Session 10)_
+_Updated by Director: 2026-04-18 (Session 11)_
 
 ### Online Tournament (beta-cvc v8, 10k steps, 8 agents, cooperative scoring)
 
 | Rank | Score/agent | Policy | Matches | Notes |
 |------|-------------|--------|---------|-------|
-| #1/51 | **40.82** | `Gryffindor:v11` | 27 | Pure RL, move-only actions |
-| #2/51 | 40.73 | `Slytherin:v14` | 32 | Pure RL, move-only actions |
-| #3/51 | 40.11 | `Hufflepuff:v11` | 25 | Pure RL |
-| #51/51 | 6.81 | `shwetakatyal.play-md-starter-policy:v2` | 163 | Starter policy |
-| **???** | **???** | `lessandro-scripted-v21:v1` | **0** | Uploaded Apr 16, **0 matches in 24h** |
+| #1/51 | **40.82** | `Gryffindor:v11` | active | Pure RL, move-only actions |
+| #2/51 | 40.73 | `Slytherin:v14` | active | Pure RL, move-only actions |
+| #3/51 | 40.11 | `Hufflepuff:v11` | active | Pure RL |
+| #4/51 | 38.28 | `Softy:v82` | active | |
+| #5/51 | 38.10 | `dinky_edsel:v8` | active | |
+| **???** | **???** | `lessandro-scripted-v21:v1` | **0** | **CRASH: `import httpx` at module level (#42)** |
 
-**Season restructured to v8**: only 51 entries (was 405). Our old policies are all gone from the leaderboard. New submission `lessandro-scripted-v21:v1` is in qualifying but has received zero matches. Tournament IS active for other policies.
+**Root cause found**: `llm_miner_policy.py` line 11 has `import httpx` at module level. Tournament server doesn't have httpx, so policy crashes at import. Fix: #42.
 
-### Key Online Discovery: Top Policies are Pure RL
+New season discovered: **beta-teams-tiny-fixed** (10 entries, top score 10.00).
 
-Replay analysis of Slytherin:v18 + Gryffindor:v18 (score 52.2/agent):
-- **Action space**: ONLY `move_north/south/east/west` + `noop`. Zero `change_vibe_*`.
-- **224 junctions gained** (vs our 7-8). **19,084 elements deposited**. **Only 5 hearts withdrawn**.
-- All 8 agents move efficiently. No gear specialization, no LLM, no skill system.
-- Agent survival: 3,500-9,900 steps (not all survive to 10k).
-
-### Offline Best Results (8-agent, post-MGrvP + mining fix merge)
+### Offline Best Results (8-agent, machina_1 88x88)
 
 | Rank | Reward | Config | Steps | Seeds | Notes |
 |------|--------|--------|-------|-------|-------|
-| 1 | **8.133 total** (1.02/agent) | 4A4M scripted auto | 500 | 10-seed avg | Scripted aligners + frontier explore + heart queue |
-| 2 | **1.59 total** (0.20/agent) | 4A4M scripted auto | 3000 | 3-seed avg | **NEW**: +55% from mining stuck fix (#40) |
+| 1 | **8.133 total** (1.02/agent) | 4A4M scripted auto | 500 | 10-seed avg | Best overall: frontier explore + heart queue |
+| 2 | 7.964 total (1.00/agent) | 3A5M stuck=28 | 1000 | seed 47 | Best single-seed at 1000 steps |
 | 3 | 7.657 total (0.96/agent) | 4A4M scripted auto | 500 | 10-seed avg | Shared extractors + element balancing |
+| 4 | 1.59 total (0.20/agent) | 4A4M scripted auto | 3000 | 3-seed avg | +55% from mining stuck fix (#40) |
+
+### Arena Results (50x50 map, no opponent)
+
+| Rank | Reward | Config | Steps | Notes |
+|------|--------|--------|-------|-------|
+| 1 | **54.75 total** (6.84/agent) | 8 agents | 1000 | 3-seed avg, all survived |
+| 2 | 20.48 total (2.56/agent) | 8 aligners | 1000 | Linear scaling with agents |
 
 ### Gap Analysis (us vs top-1 RL policies)
 
 ```
 Metric                    Us (scripted best)     Top RL (Gryffindor)    Gap       Status
 ─────────────────────────────────────────────────────────────────────────────────────────
-Online score/agent        ??? (0 matches)        40.82                  ???       #39 submission stuck
-Junction captures         7-8 per episode        180-224                30x       FUNDAMENTAL — RL advantage
-Element deposits (10k)    ~2,000 (projected)     19,084                 10x       #40 merged (+55%)
-Hearts withdrawn          5                      5                      1x       NOT a bottleneck!
-Action latency            LLM: 5-20s/call        NN: <1ms               5000x    scripted fallback: ~0
-Gear specialization       4A+4M roles            none (all identical)   N/A      RL doesn't specialize
+Online score/agent        ??? (import crash)     40.82                  ???       #42 fix httpx
+Junction captures         7-8 per episode        180-224                30x       FUNDAMENTAL
+Element deposits (10k)    ~2,000 (projected)     19,084                 10x       #40 merged
+Hearts withdrawn          5                      5                      1x       NOT a bottleneck
+Agent stuck rate          2/4 agents (60%)       ~0%                    huge      Replay confirmed
 ```
 
-**Current bottleneck**: TWO parallel tracks:
-1. **#39 submission stuck** (priority:1) — 0 matches in 24h, needs investigation
-2. **#41 RL policy training** (priority:1) — fundamental approach change to close 30x junction gap
+### Replay Diagnostic (Session 11)
 
-**Next up**: #39 (fix submission) + #41 (start RL training) in parallel
+Watched 500-step episode with default config (4 agents, 3 LLM aligners):
+- **A2, A3 STUCK from step 200 onward** (60% of episode frozen)
+- Stuck in `get_heart → stale → explore/unstuck → get_heart → stale` loop
+- Hearts depleted: "~0 hearts avail" with 2 aligners en route
+- LLM hallucination: agent outputs "unstick" (invalid) instead of "unstuck"
+- Reward growth linear at 0.0032/step (just from holding existing junctions)
+
+**Current bottleneck**: THREE priorities:
+1. **#42 Fix httpx import crash** (priority:1) — BLOCKING all online play
+2. **#41 RL policy training** (priority:1, blocked) — needs GPU, highest leverage
+3. **#40 Mining throughput** (priority:2) — scripted track improvements
+
+**Next up**: #42 (fix import, re-submit) is the ONLY actionable priority:1 issue
 
 **Research tree:**
 ```
-SPAWN NEXT (parallel tracks):
-  #39 Fix submission (priority:1) — 0 matches, investigate server-side issue
-  #41 RL policy training (priority:1) — highest leverage for online score
+SPAWN NEXT:
+  #42 Fix httpx import crash (priority:1) — fix import, re-submit, get matches
+  #41 RL policy training (priority:1, BLOCKED — needs GPU)
 
-ACTIVE SCRIPTED IMPROVEMENTS:
-  #40 Mining throughput (priority:2) — merged +55%, further improvements possible
-  #27 Andre Von Huck / A* approach (priority:2) — VALIDATED by replay analysis
-  #24 Balanced Mining Strategy (priority:2) — overlaps #40
+SCRIPTED TRACK:
+  #39 Submission process (priority:2) — superseded by #42
+  #40 Mining throughput (priority:2) — merged +55%
+  #27 Andre Von Huck / A* (priority:2) — validated by replay
+  #24 Balanced Mining (priority:2)
 
 CLOSED:
   #25 8-Agent Scaling | #37 Submit V20 | #34 Heart Pipeline
   #35 Move Failure | #29 10k Eval
 
 DEPRIORITIZED (priority:3):
-  #38 6+2 mortality (merged) | #32 Partner robustness | #36 Mortality
+  #38 6+2 mortality | #32 Partner robustness | #36 Mortality
   #30 Self-Play | #31 change_vibe | #26 shweta policy
-  #12 Gear | #10 Tuning | #11 Active Inference | #17 Skill Validation
-  #19 LLM Code Gen | #20 Spatial Part. | #21-23 Meta/Social/Intrinsic
+  #12 Gear | #10 Tuning | #11 Active Inference | #17-#23 various
 ```
 <!-- LEADERBOARD_END -->
 
