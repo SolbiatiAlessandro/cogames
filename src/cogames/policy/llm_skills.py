@@ -489,10 +489,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         deposits = sm.total_deposits
         total = sum(deposits.values())
-        # Issue-36 v17: require minimum total deposits (28 = one heart's worth)
-        # before activating team coordination. With sparse data, the first deposit
-        # creates an artificial imbalance that herds all miners to one element.
-        if total < 28:
+        if total < 14:
             return None
         min_val = min(deposits.values())
         max_val = max(deposits.values())

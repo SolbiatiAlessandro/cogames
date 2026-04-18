@@ -614,7 +614,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         else:
             ns_str = str(num_scouts).lower()
             if ns_str == "auto":
-                n_scouts = 0 if n_agents >= 6 else 1
+                n_scouts = 0
             else:
                 n_scouts = int(num_scouts)
             aligner_count = len(self._aligner_ids)
