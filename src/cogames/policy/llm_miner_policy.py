@@ -315,9 +315,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             return "deposit_to_hub", "scripted: cargo full"
         if was_stale:
             return "explore", "scripted: stale target, exploring for new extractor"
-        if was_stuck and state.consecutive_stuck_exits >= 3:
-            state.consecutive_stuck_exits = 0
-            return "unstuck", "scripted: breaking stuck loop with random moves"
         if was_stuck:
             return "explore", "scripted: stuck, exploring for new route"
         # Explore to find missing team-scarce element extractors
@@ -476,11 +473,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:
             self._plan_skill(obs, state)
-
-        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 15 and state.no_move_steps % 5 == 0:
-            action, state = self._unstuck(state)
-            state.skill_steps += 1
-            return action, state
 
         if state.current_skill == "gear_up":
             action, base_state = self._gear_up(obs, state)
