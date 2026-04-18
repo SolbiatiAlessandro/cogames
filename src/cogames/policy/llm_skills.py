@@ -635,11 +635,22 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return self._starter._action(f"move_{direction}"), state
         return None
 
-    def _greedy_walk_toward(self, current_abs: Coord, target_abs: Coord) -> Action:
+    def _greedy_walk_toward(self, current_abs: Coord, target_abs: Coord, state: MinerSkillState | None = None) -> Action:
         dr = target_abs[0] - current_abs[0]
         dc = target_abs[1] - current_abs[1]
         if dr == 0 and dc == 0:
             return self._starter._action("noop")
+        if state is not None:
+            _DELTAS = (("north", (-1, 0)), ("east", (0, 1)), ("south", (1, 0)), ("west", (0, -1)))
+            candidates = []
+            for dir_name, (ddr, ddc) in _DELTAS:
+                neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
+                dist = abs(neighbor[0] - target_abs[0]) + abs(neighbor[1] - target_abs[1])
+                hard_blocked = neighbor in state.blocked_cells
+                hazard = neighbor in state.known_hazard_stations
+                candidates.append((hazard, hard_blocked, dist, dir_name))
+            candidates.sort()
+            return self._starter._action(f"move_{candidates[0][3]}")
         if abs(dr) >= abs(dc):
             return self._starter._action("move_south" if dr > 0 else "move_north")
         return self._starter._action("move_east" if dc > 0 else "move_west")
@@ -656,7 +667,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if result is not None:
                 action, next_state = result
                 return action, replace(next_state, last_mode=state.last_mode)
-            return self._greedy_walk_toward(current_abs, target_abs), state
+            return self._greedy_walk_toward(current_abs, target_abs, state), state
         target_abs = self._nearest_known(current_abs, state.known_hubs)
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
@@ -668,7 +679,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if result is not None:
             action, next_state = result
             return action, replace(next_state, last_mode=state.last_mode)
-        return self._greedy_walk_toward(current_abs, target_abs), state
+        return self._greedy_walk_toward(current_abs, target_abs, state), state
 
     _MINER_HP_RETREAT_THRESHOLD = 0.50
 
