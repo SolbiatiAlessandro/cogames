@@ -24,86 +24,91 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-04-18 (Session 11)_
+_Updated by Director (offline-to-online): 2026-04-19 (Session 12)_
 
-### Online Tournament (beta-cvc v8, 10k steps, 8 agents, cooperative scoring)
+### Online Tournament (beta-cvc, 10k steps, 8 agents, cooperative scoring)
 
-| Rank | Score/agent | Policy | Matches | Notes |
-|------|-------------|--------|---------|-------|
-| #1/51 | **40.82** | `Gryffindor:v11` | active | Pure RL, move-only actions |
-| #2/51 | 40.73 | `Slytherin:v14` | active | Pure RL, move-only actions |
-| #3/51 | 40.11 | `Hufflepuff:v11` | active | Pure RL |
-| #4/51 | 38.28 | `Softy:v82` | active | |
-| #5/51 | 38.10 | `dinky_edsel:v8` | active | |
-| **???** | **???** | `lessandro-scripted-v21:v1` | **0** | **CRASH: `import httpx` at module level (#42)** |
+| Rank | Score | Policy | Matches | Notes |
+|------|-------|--------|---------|-------|
+| #1/123 | **40.82** | `Gryffindor:v11` | 27 | Pure RL |
+| #2/123 | 40.73 | `Slytherin:v14` | 32 | Pure RL |
+| #3/123 | 40.11 | `Hufflepuff:v11` | 25 | Pure RL |
+| #4/123 | 38.28 | `Softy:v82` | 20 | |
+| #5/123 | 38.18 | `dinky_hank:v7` | 33 | |
+| ... | ... | ... | ... | |
+| **#68/123** | **12.66** | **`lessandro-scripted-v32:v1`** | **20** | **Our best** |
+| #69/123 | 12.30 | `lessandro-scripted-v24:v1` | 25 | |
+| #72/123 | 11.84 | `lessandro-scripted-v33:v1` | 22 | Latest working |
+| FAIL | crash | `lessandro-scripted-v34:v1` | 0/4 | WebSocket 1011 (#43) |
 
-**Root cause found**: `llm_miner_policy.py` line 11 has `import httpx` at module level. Tournament server doesn't have httpx, so policy crashes at import. Fix: #42.
-
-New season discovered: **beta-teams-tiny-fixed** (10 entries, top score 10.00).
+**Milestone**: Went from 0 matches (session 11) to **#68/123** with 13 entries on the leaderboard!
 
 ### Offline Best Results (8-agent, machina_1 88x88)
 
 | Rank | Reward | Config | Steps | Seeds | Notes |
 |------|--------|--------|-------|-------|-------|
-| 1 | **8.133 total** (1.02/agent) | 4A4M scripted auto | 500 | 10-seed avg | Best overall: frontier explore + heart queue |
-| 2 | 7.964 total (1.00/agent) | 3A5M stuck=28 | 1000 | seed 47 | Best single-seed at 1000 steps |
-| 3 | 7.657 total (0.96/agent) | 4A4M scripted auto | 500 | 10-seed avg | Shared extractors + element balancing |
-| 4 | 1.59 total (0.20/agent) | 4A4M scripted auto | 3000 | 3-seed avg | +55% from mining stuck fix (#40) |
-
-### Arena Results (50x50 map, no opponent)
-
-| Rank | Reward | Config | Steps | Notes |
-|------|--------|--------|-------|-------|
-| 1 | **54.75 total** (6.84/agent) | 8 agents | 1000 | 3-seed avg, all survived |
-| 2 | 20.48 total (2.56/agent) | 8 aligners | 1000 | Linear scaling with agents |
+| 1 | **8.133 total** (1.02/agent) | 4A4M scripted auto | 500 | 10-seed avg | Best overall |
+| 2 | 7.964 total (1.00/agent) | 3A5M stuck=28 | 1000 | seed 47 | |
+| 3 | 7.657 total (0.96/agent) | 4A4M scripted auto | 500 | 10-seed avg | |
+| 4 | 1.59 total (0.20/agent) | 4A4M scripted auto | 3000 | 3-seed avg | +55% mining fix (#40) |
 
 ### Gap Analysis (us vs top-1 RL policies)
 
 ```
-Metric                    Us (scripted best)     Top RL (Gryffindor)    Gap       Status
+Metric                    Us (online best)       Top RL (Gryffindor)    Gap       Status
 ─────────────────────────────────────────────────────────────────────────────────────────
-Online score/agent        ??? (import crash)     40.82                  ???       #42 fix httpx
-Junction captures         7-8 per episode        180-224                30x       FUNDAMENTAL
-Element deposits (10k)    ~2,000 (projected)     19,084                 10x       #40 merged
-Hearts withdrawn          5                      5                      1x       NOT a bottleneck
-Agent stuck rate          2/4 agents (60%)       ~0%                    huge      Replay confirmed
+Online score              12.66 (#68/123)        40.82 (#1/123)         3.2x      ACTIVE
+Agent survival            1500-3100/10k (15-31%) 3500-9900/10k          2-3x      #36 priority:1
+Element deposits (10k)    2,389                  ~14,000                6x        #40 improved
+Junction held             66,416                 484,482                7x        FUNDAMENTAL
+Hearts withdrawn          5                      5                      1x        Both use hub only
+Score variance (stddev)   ±9-12                  ±15                    similar   Partner-dependent
 ```
 
-### Replay Diagnostic (Session 11)
+### Online Replay Diagnostic (Session 12)
 
-Watched 500-step episode with default config (4 agents, 3 LLM aligners):
-- **A2, A3 STUCK from step 200 onward** (60% of episode frozen)
-- Stuck in `get_heart → stale → explore/unstuck → get_heart → stale` loop
-- Hearts depleted: "~0 hearts avail" with 2 aligners en route
-- LLM hallucination: agent outputs "unstick" (invalid) instead of "unstuck"
-- Reward growth linear at 0.0032/step (just from holding existing junctions)
+**Match: v33 vs Softy:v88, score=41.80** (cooperative, 2 ours + 6 Softy):
+- Our 2 agents survive 3043-3076 steps (30%) — Softy's 6 agents survive 4118-5362 steps (41-54%)
+- Zero vibe transitions (universal across ALL policies — not a bug, #31 deprioritized)
+- The 41.80 score is almost entirely from Softy carrying
 
-**Current bottleneck**: THREE priorities:
-1. **#42 Fix httpx import crash** (priority:1) — BLOCKING all online play
-2. **#41 RL policy training** (priority:1, blocked) — needs GPU, highest leverage
-3. **#40 Mining throughput** (priority:2) — scripted track improvements
+**Match: v33 vs shweta.v18, score=0.47** (cooperative, 2 ours + 6 shweta):
+- Our agents survive only 1540-1649 steps (15%) with weak partner
+- Score collapse when neither policy can contribute
 
-**Next up**: #42 (fix import, re-submit) is the ONLY actionable priority:1 issue
+**v33 match distribution** (22 matches):
+- With strong RL partners: 25-49 score (carried)
+- With medium partners: 6-17 score
+- With weak partners: 0.3-1.3 score (our TRUE contribution level)
+- Self-play: 17-22 score
+
+**Current bottleneck**: Agent mortality (#36) — our agents die at 15-31% of episode
+
+**Current online ceiling**: ~12.66 (scripted). Top RL: 40.82. 3.2x gap.
+
+**Next up**: #43 (fix v34 regression), #36 (agent mortality), #41 (RL training)
 
 **Research tree:**
 ```
 SPAWN NEXT:
-  #42 Fix httpx import crash (priority:1) — fix import, re-submit, get matches
+  #43 Fix v34 regression (priority:1) — diagnose WebSocket crash, revert to v33 if needed
+  #36 Agent mortality (priority:1) — agents survive 15-31%, biggest online lever
   #41 RL policy training (priority:1, BLOCKED — needs GPU)
 
 SCRIPTED TRACK:
-  #39 Submission process (priority:2) — superseded by #42
-  #40 Mining throughput (priority:2) — merged +55%
+  #42 httpx import (priority:2) — partially resolved, repo code fixed
+  #40 Mining throughput (priority:2) — improved to 2389 deposits, 6x gap remains
+  #39 Submission process (priority:2) — v22-v33 submitted successfully
   #27 Andre Von Huck / A* (priority:2) — validated by replay
-  #24 Balanced Mining (priority:2)
+  #24 Balanced Mining (priority:2) — element balance now excellent (1.07:1)
 
 CLOSED:
   #25 8-Agent Scaling | #37 Submit V20 | #34 Heart Pipeline
   #35 Move Failure | #29 10k Eval
 
 DEPRIORITIZED (priority:3):
-  #38 6+2 mortality | #32 Partner robustness | #36 Mortality
-  #30 Self-Play | #31 change_vibe | #26 shweta policy
+  #38 6+2 mortality | #32 Partner robustness | #31 change_vibe (universal, not a bug)
+  #30 Self-Play | #26 shweta policy
   #12 Gear | #10 Tuning | #11 Active Inference | #17-#23 various
 ```
 <!-- LEADERBOARD_END -->
