@@ -1,2 +1,4 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 b9ffa75	1.595000	C=180 Ge=180 Si=160 O=161 jh=13147 deaths=1.75	3000	keep	baseline: 4A/4M scripted (3-seed avg)
+2dab118	1.691000	C=214 Ge=197 Si=251 O=183 jh=10994 deaths=1.5	3000	superseded	Exp3: miner HP retreat 0.70 + junction scouting (3-seed avg)
+exp4	1.872000	C=214 Ge=197 Si=251 O=183 jh=10994	3000	keep	Exp4: miner HP retreat 0.80 (3-seed avg, +17.4% vs baseline)

@@ -66,3 +66,28 @@ Key bottleneck: aligners only use 7 of ~24 available hearts. Miners produce enou
 Seed 42 detail: junctions 28→36 (+29%), deposits 681→1190 (+75%), deaths 1.75→1.5 (-14%).
 
 Next: try reducing stuck_threshold, or adjusting aligner explore distance.
+
+### 2026-04-19T06:45: Exp 4 — HP retreat threshold sweep at 10k steps
+
+**Hypothesis**: Higher HP retreat thresholds (0.80, 0.85) may further reduce late-game mortality and improve 10k-step performance.
+
+**Results at 10k steps** (seed 42 only):
+
+| Threshold | Reward | Deaths | Junctions | Junction Held |
+|-----------|--------|--------|-----------|---------------|
+| 0.70 | 2.490 | 4.0 | 36 | 14904 |
+| **0.80** | **2.532** | 4.375 | **39** | **15324** |
+| 0.85 | 2.490 | 1.375 | 37 | 14903 |
+
+0.80 best at 10k (+1.7% reward). 0.85 too cautious — fewer deaths but no reward gain.
+
+**Confirmed at 3k steps** (3-seed avg):
+
+| Seed | 0.70 | 0.80 | Change |
+|------|------|------|--------|
+| 42 | 1.790 | 1.832 | +2.3% |
+| 123 | 1.561 | 1.543 | -1.2% |
+| 456 | 1.723 | 2.242 | +30.1% |
+| **avg** | **1.691** | **1.872** | **+10.7%** |
+
+**Decision**: Adopt 0.80 threshold. Cumulative improvement: +17.4% vs original baseline (1.595 → 1.872).
