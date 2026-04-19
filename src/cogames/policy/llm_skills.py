@@ -67,6 +67,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             element: self._starter._resolve_tag_ids([f"{element}_extractor"])
             for element in ELEMENTS
         }
+        self._junction_tags = self._starter._resolve_tag_ids(["junction"])
+        self._team_tag = self._starter._tag_name_to_id.get("team:cogs")
+        self._net_tag = self._starter._tag_name_to_id.get("net:cogs")
+        self._enemy_team_tag = self._starter._tag_name_to_id.get("team:clips")
+        self._enemy_net_tag = self._starter._tag_name_to_id.get("net:clips")
         self._return_load = return_load
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
@@ -199,11 +204,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         miner_stations_now: set[Coord] = set()
         extractors_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
+        visible_tag_ids_by_cell: dict[Coord, set[int]] = {}
 
         for token in obs.tokens:
             if token.feature.name != "tag" or token.location is None:
                 continue
             abs_cell = self._visible_abs_cell(current_abs, token.location)
+            visible_tag_ids_by_cell.setdefault(abs_cell, set()).add(int(token.value))
             if token.value in self._wall_tags:
                 blocked_now.add(abs_cell)
             if token.value in self._hub_tags:
@@ -212,18 +219,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 miner_stations_now.add(abs_cell)
             if token.value in self._starter._extractor_tags:
                 extractors_now.add(abs_cell)
-                # Issue-16: track which element this extractor produces
                 for element, etags in self._extractor_tags_by_element.items():
                     if token.value in etags:
                         state.extractors_by_element[element].add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
 
-        # Issue-36 v8: pre-block extractors, hubs, and stations for navigation.
-        # These occupy cells and block movement, but have their own tags (not wall tags).
-        # Without this, BFS routes through these cells → agent tries to walk through → fails.
-        # This was a major source of the 53% move failure rate (issue #35).
-        # Objects are still tracked in their respective sets for targeted navigation.
         blocked_now.update(extractors_now)
         blocked_now.update(hubs_now)
         blocked_now.update(miner_stations_now)
@@ -231,11 +232,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Issue-36 v10: correct move_blocked_cells false positives.
-        # move_blocked_cells never clears, so temporary obstacles (other agents
-        # standing in cells) become permanent false positives. Over 10k steps this
-        # degrades BFS navigation. Fix: remove cells from move_blocked_cells when
-        # we can visually confirm they are free (visible + no blocking object).
         visually_free = visible_cells - blocked_now
         if self._shared_map and self._shared_map.move_blocked_cells:
             self._shared_map.move_blocked_cells.difference_update(visually_free)
@@ -248,6 +244,27 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._remember_static_objects(state.known_miner_stations, miner_stations_now)
         self._remember_static_objects(state.known_extractors, extractors_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
+
+        # Junction scouting: miners report junctions to SharedMap for aligners
+        sm = self._shared_map
+        if sm is not None and self._junction_tags:
+            neutral_now: set[Coord] = set()
+            friendly_now: set[Coord] = set()
+            enemy_now: set[Coord] = set()
+            for abs_cell, tag_ids in visible_tag_ids_by_cell.items():
+                if not (tag_ids & self._junction_tags):
+                    continue
+                if (self._team_tag in tag_ids) or (self._net_tag in tag_ids):
+                    friendly_now.add(abs_cell)
+                elif (self._enemy_team_tag in tag_ids) or (self._enemy_net_tag in tag_ids):
+                    enemy_now.add(abs_cell)
+                else:
+                    neutral_now.add(abs_cell)
+            # Only ADD new junctions, don't refresh (avoid removing aligners' observations)
+            sm.known_neutral_junctions.update(neutral_now)
+            sm.known_friendly_junctions.update(friendly_now)
+            sm.known_enemy_junctions.update(enemy_now)
+            sm.known_neutral_junctions.difference_update(sm.known_friendly_junctions)
         self._remember_visible_hub(obs, state)
 
     def _neighbors(self, cell: Coord) -> list[tuple[str, Coord]]:
@@ -643,7 +660,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return action, replace(next_state, last_mode=state.last_mode)
         return self._greedy_walk_toward(current_abs, target_abs), state
 
-    _MINER_HP_RETREAT_THRESHOLD = 0.50
+    _MINER_HP_RETREAT_THRESHOLD = 0.70
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
         center = self._starter._center
