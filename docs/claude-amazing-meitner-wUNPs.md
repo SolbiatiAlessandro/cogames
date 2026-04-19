@@ -115,3 +115,26 @@ Fixed `import httpx` crash by making it lazy (only imported when LLM client is u
 Uploaded as `lessandro-scripted-v34:v1` to beta-cvc season.
 
 10k evaluation (seed 42): reward=2.532, junctions_gained=36, deposits=1087, hearts=13.
+
+### 2026-04-19T08:00: Exp 13-18 — Structural changes (ALL FAILED)
+
+| Exp | Change | Avg 3k Reward | vs Best (1.872) |
+|-----|--------|--------------|-----------------|
+| 13 | BFS agent collision avoidance | 1.399 | -25.3% |
+| 14 | Remove heart queue throttle | 1.639 | -12.5% |
+| 15 | Heart queue max 3 (from 2) | 1.392 | -25.6% |
+| 16 | friendly_territory_distance 15→5 | 1.872 | 0% (no change) |
+| 17 | aligner HP 0.80 + friendly=5 at 10k | identical to baseline | 0% |
+
+**Key insight**: Aligner HP retreat NEVER triggers because:
+1. At 3k steps, aligner HP doesn't drop below 70%
+2. At 10k steps, identical results even with reduced friendly territory distance
+3. HP drain may not affect aligners in friendly territory (game mechanic)
+
+**Conclusion**: The scripted policy architecture has hit its performance ceiling for parameter tuning. The 77x gap in junction-held time vs clips suggests the enemy team (scripted AI) uses fundamentally superior movement. Closing this gap requires RL-trained movement, not BFS optimization.
+
+### Final state
+- **Branch**: `claude/amazing-meitner-wUNPs` (commit 9f36c2b)
+- **Best offline**: 1.872 avg at 3k steps (+17.4% vs baseline), 2.532 at 10k steps
+- **Improvements**: miner HP retreat 0.80, additive junction scouting, lazy httpx import
+- **Tournament**: `lessandro-scripted-v34:v1` on beta-cvc
