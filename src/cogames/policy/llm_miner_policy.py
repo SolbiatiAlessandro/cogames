@@ -8,8 +8,6 @@ import time
 from dataclasses import dataclass, field, replace
 from typing import Callable
 
-import httpx
-
 from cogames.policy.llm_miner_prompt import SKILL_DESCRIPTIONS, build_llm_miner_prompt
 from cogames.policy.llm_skills import MinerSkillImpl, MinerSkillState
 from mettagrid.policy.policy import MultiAgentPolicy, StatefulAgentPolicy, StatefulPolicyImpl
@@ -54,7 +52,7 @@ class LLMMinerPlannerClient:
         self._responder = responder
         # Persistent HTTP client for connection pooling (avoids creating a new
         # TCP+TLS connection per LLM call — critical for 8-agent qualifying).
-        self._http_client: httpx.Client | None = None
+        self._http_client = None
         # Resolve local model path: explicit arg > env var
         _local_path = local_model_path or os.environ.get("LOCAL_LLM_MODEL_PATH", "")
         if _local_path:
@@ -65,7 +63,8 @@ class LLMMinerPlannerClient:
         else:
             self._local_inference = None
 
-    def _get_http_client(self) -> httpx.Client:
+    def _get_http_client(self):
+        import httpx
         if self._http_client is None or self._http_client.is_closed:
             self._http_client = httpx.Client(timeout=self._timeout_s)
         return self._http_client
