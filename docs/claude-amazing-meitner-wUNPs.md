@@ -91,3 +91,27 @@ Next: try reducing stuck_threshold, or adjusting aligner explore distance.
 | **avg** | **1.691** | **1.872** | **+10.7%** |
 
 **Decision**: Adopt 0.80 threshold. Cumulative improvement: +17.4% vs original baseline (1.595 → 1.872).
+
+### 2026-04-19T07:10: Exp 5-9 — Parameter sweep (ALL FAILED)
+
+Tested many parameter changes, all regressed from best:
+
+| Exp | Change | Avg 3k Reward | vs Best (1.872) |
+|-----|--------|--------------|-----------------|
+| 5 | JUNCTION_ALIGN_DISTANCE 15→25, HUB_SEARCH 20→30 | 1.380 | -26.3% |
+| 6 | 5A/3M (more aligners) | 1.379 | -26.3% |
+| 7 | 3A/5M (more miners) | 1.410 | -24.7% |
+| 8 | stuck_threshold 20→12 | 1.452 | -22.4% |
+| 9 | stuck_threshold 20→30 | 1.524 | -18.6% |
+| 10 | return_load 40→20 | 1.343 | -28.3% |
+| 11 | aligner HP retreat 0.70→0.80 | 1.872 | 0% (no change) |
+| 12 | unstuck_horizon 4→8 | 1.872 | 0% (no change) |
+
+**Conclusion**: Default parameters (4A/4M, stuck=20, return_load=40, distances 20/25/15) are well-optimized. Only the miner HP retreat threshold (0.80) improves reward.
+
+### 2026-04-19T07:45: Fix httpx crash (#42) + tournament upload
+
+Fixed `import httpx` crash by making it lazy (only imported when LLM client is used).
+Uploaded as `lessandro-scripted-v34:v1` to beta-cvc season.
+
+10k evaluation (seed 42): reward=2.532, junctions_gained=36, deposits=1087, hearts=13.
