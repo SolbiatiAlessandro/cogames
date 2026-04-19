@@ -1,0 +1,7 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+c2d1f2b	1.262	held=2413 hearts_withdrawn=4.75 deaths=0 aligned_gained=6.59 deposits=o18.9+c9.5+ge9.5+si?	10000	superseded	v21-buggy: hub_deposits_total missing from SharedMap (miners stuck after 1st deposit)
+HUB_FIX	1.766	held=6591 hearts_withdrawn=3.83 deaths=0 aligned_gained=42.5 deposits=o358+c369+ge363+si367	10000	keep	v21 seed42: hub_deposits_total fix + round-robin + scarce distribution
+HUB_FIX	1.369	held=3440 hearts_withdrawn=3.94 deaths=0 aligned_gained=7.6 deposits=o52+c35+ge44+si61	10000	keep	v21 seed43: hub_deposits_total fix + round-robin + scarce distribution
+HUB_FIX	1.246	held=2221 hearts_withdrawn=3.77 deaths=0 aligned_gained=9.1 deposits=o56+c56+ge65+si46	10000	keep	v21 seed44: hub_deposits_total fix + round-robin + scarce distribution
+HUB_ONLY	1.418	held=?? hearts_withdrawn=5.68 deaths=0 aligned_gained=6.59 deposits=o221+c227+ge220+si226	10000	keep	v21-hubfix-only seed42: hub_deposits_total fix only, no round-robin
+HUB_ONLY	1.399	held=3711 hearts_withdrawn=3.94 deaths=0 aligned_gained=5.88 deposits=o27+c37+ge45+si19	10000	keep	v21-hubfix-only seed43: hub_deposits_total fix only, no round-robin

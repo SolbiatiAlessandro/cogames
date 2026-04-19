@@ -466,14 +466,26 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         min_count = min(counts.get(e, 0) for e in ELEMENTS)
         max_count = max(counts.get(e, 0) for e in ELEMENTS)
-        # Issue-36 v15: reduced threshold from 5 to 3 for faster individual balancing.
-        # With return_load=20, miners carry ~20 resources. A threshold of 5 means a miner
-        # mines 5 of one element before seeking diversity; 3 triggers earlier balancing.
         if max_count - min_count < 3:
             return None
-        for e in ELEMENTS:
-            if counts.get(e, 0) == min_count:
-                return e
+        min_elements = [e for e in ELEMENTS if counts.get(e, 0) == min_count]
+        if len(min_elements) > 1:
+            sm = self._shared_map
+            if sm is not None and hasattr(sm, "agent_gears"):
+                miner_ids = sorted(aid for aid, g in sm.agent_gears.items() if g == "miner")
+                if obs.agent_id in miner_ids:
+                    idx = miner_ids.index(obs.agent_id)
+                    return min_elements[idx % len(min_elements)]
+        return min_elements[0] if min_elements else None
+
+    def _undiscovered_element(self) -> str | None:
+        """Return an element whose extractors haven't been discovered yet, or None."""
+        sm = self._shared_map
+        if sm is None or not hasattr(sm, "extractors_by_element"):
+            return None
+        for elem in ELEMENTS:
+            if not sm.extractors_by_element.get(elem):
+                return elem
         return None
 
     def _team_scarce_element(self) -> str | None:
@@ -510,10 +522,35 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.last_mode = "mine_until_full"
         current_abs = self._current_abs(obs)
 
-        # Issue-36 v15: prefer team-scarce element first (global optimization),
-        # then fall back to individual scarce element (local balance).
-        # Team-scarce targets the element bottlenecking heart crafting across ALL miners.
+        # Issue-36: when some element types have zero known extractors, one miner
+        # should explore to discover them. Without all 4 types, heart crafting is
+        # impossible. Use agent_id to avoid ALL miners exploring simultaneously.
+        undiscovered = self._undiscovered_element()
+        if undiscovered is not None:
+            carried = self._carried_total(obs)
+            sm = self._shared_map
+            if sm is not None and hasattr(sm, "agent_gears"):
+                miner_ids = sorted(aid for aid, g in sm.agent_gears.items() if g == "miner")
+                explorer_id = miner_ids[0] if miner_ids else None
+            else:
+                explorer_id = None
+            if explorer_id is not None and obs.agent_id == explorer_id and carried == 0:
+                logger.info(
+                    "agent=%s element_discovery: %s extractors unknown, exploring",
+                    obs.agent_id, undiscovered,
+                )
+                return self._explore(obs, state)
+
         scarce = self._team_scarce_element() or self._scarce_element(obs)
+        if scarce is None:
+            sm = self._shared_map
+            if sm is not None and hasattr(sm, "agent_gears"):
+                miner_ids = sorted(aid for aid, g in sm.agent_gears.items() if g == "miner")
+                if obs.agent_id in miner_ids:
+                    idx = miner_ids.index(obs.agent_id)
+                    assigned = ELEMENTS[idx % len(ELEMENTS)]
+                    if state.extractors_by_element.get(assigned):
+                        scarce = assigned
         if scarce and scarce in self._extractor_tags_by_element:
             scarce_tags = self._extractor_tags_by_element[scarce]
             visible_scarce = self._closest_visible_location(obs, scarce_tags)
@@ -538,6 +575,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                         return action, replace(next_state, last_mode=state.last_mode)
                     action, next_state = self._move_toward_target(state, current_abs, target_abs)
                     return action, replace(next_state, last_mode=state.last_mode)
+            else:
+                logger.info(
+                    "agent=%s scarce=%s no_known_extractors, exploring to discover %s extractors",
+                    obs.agent_id, scarce, scarce,
+                )
+                return self._explore(obs, state)
 
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
