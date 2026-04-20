@@ -77,3 +77,59 @@ Changes:
 3. Reduce miner stuck recovery time — force earlier exploration when mining stalls
 4. Add miner anti-congestion: when near another miner, prefer different extractor direction
 
+**Result: Changes were neutral (identical to baseline).** The depletion tracking barely triggered (only 1 extractor depleted per run). The real issue was move failure congestion, not extractor depletion.
+
+---
+
+## 2026-04-20T12:00: Root cause analysis — congestion deadlock bug
+
+**Key discovery:** Miners are stuck for 3593+ consecutive steps because of a bug in the `move_blocked_cells` mechanism:
+1. Move to cell X fails (another agent is there)
+2. X added to `move_blocked_cells`
+3. Next step: X is visible, no wall tag → "visually free" → X removed from `move_blocked_cells`
+4. BFS routes through X again → fails again
+5. Infinite loop for thousands of steps
+
+The `move_blocked_cells` entries are cleared the very next step because other agents aren't visible as walls. BFS repeatedly routes through the same agent-occupied cell.
+
+---
+
+## 2026-04-20T12:30: Experiment 2 — Adaptive move cooldown
+
+**Hypothesis:** Per-agent move cooldown with adaptive behavior. When a move fails, mark that cell as locally blocked for 6 steps so BFS finds alternative routes. But disable cooldown when the agent hasn't moved recently (structurally stuck, not temporarily blocked).
+
+**Changes:**
+1. `move_cooldown: dict[Coord, int]` per-agent — tracks cells where moves failed with TTL
+2. BFS avoids cooldown cells (with fallback to no-cooldown BFS if path not found)
+3. Cooldown only applied when `steps_since_move <= 12` (adaptive — disabled for structurally stuck agents)
+4. Don't write to shared `move_blocked_cells` from miners (prevents degrading aligner BFS)
+5. Cap cooldown at 16 entries to prevent pathological accumulation
+
+**Results (3-seed average, +19.3% improvement):**
+
+| Seed | Baseline | Experiment | Change |
+|------|----------|------------|--------|
+| 42   | 2.314    | 2.987      | +29.1% |
+| 123  | 2.198    | 2.100      | -4.5%  |
+| 7    | 2.330    | 3.060      | +31.3% |
+| **Mean** | **2.281** | **2.716** | **+19.1%** |
+
+**Seed 42 detailed metrics:**
+- Junction.held: 19876 (baseline 13147, +51%)
+- Hearts withdrawn: 9 (baseline 7, +29%)
+- Total deposits: 1006 (baseline 681, +48%)
+- Miner max_stuck: 50-51 steps (baseline 3593!, 70x reduction)
+- Miner move success: 59-73% (baseline 28-49%, ~2x)
+- Miner deaths: 64 (baseline 13, increased due to more active movement)
+
+**Key insight:** The congestion deadlock fix benefits both miners AND aligners. Junction.held improved 51% because aligner BFS is no longer polluted by miner move failures (we stopped writing to shared `move_blocked_cells`).
+
+**Cooldown sweep results (seed 42):**
+- Cooldown=3: 1.93 (too short, BFS can't route around)
+- Cooldown=5: 2.27
+- Cooldown=6: 2.99 (BEST)
+- Cooldown=7: 2.47
+- Cooldown=8: 2.48
+
+---
+

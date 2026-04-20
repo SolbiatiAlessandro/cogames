@@ -445,6 +445,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         # ── Team coordination: sync shared state ──
         sm = self._shared_map
         if sm is not None:
+            sm.agent_positions[obs.agent_id] = current_abs
+            gear = self._current_gear(obs)
+            if gear:
+                sm.agent_gears[obs.agent_id] = gear
             if state.current_skill != "align_neutral":
                 sm.aligner_targets.pop(obs.agent_id, None)
             if state.current_skill != "get_heart":

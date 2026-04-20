@@ -23,6 +23,9 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 )
 
 
+_MOVE_COOLDOWN_STEPS = 6
+
+
 @dataclass
 class MinerSkillState(StarterCogState):
     last_mode: str = "bootstrap"
@@ -39,6 +42,11 @@ class MinerSkillState(StarterCogState):
     # Move-failure tracking (same mechanism as AlignerState)
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
+    # Issue-44: per-agent cooldown to break congestion deadlocks.
+    # When a move fails, the target cell stays "blocked" for N steps so BFS
+    # finds an alternative route instead of retrying the same blocked path.
+    move_cooldown: dict[Coord, int] = field(default_factory=dict)
+    steps_since_move: int = 0
     # HP tracking for miner survival (issue #40)
     max_hp_seen: int = 0
     retreating_to_hub: bool = False
@@ -188,10 +196,31 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         # Move-failure tracking: if we tried to move but didn't, mark target as blocked
         if state.last_pos is not None and state.last_move_target is not None:
             if current_abs == state.last_pos:
-                if self._shared_map is not None:
-                    self._shared_map.move_blocked_cells.add(state.last_move_target)
+                state.steps_since_move += 1
+                # Issue-44: per-agent cooldown — keep this cell blocked for N steps
+                # so BFS finds an alternative route instead of retrying same path.
+                # Only activate when agent has been mobile recently; when structurally
+                # stuck (haven't moved in > 2*cooldown steps), cooldowns are
+                # counterproductive — they block the only viable exit path.
+                if state.steps_since_move <= _MOVE_COOLDOWN_STEPS * 2:
+                    state.move_cooldown[state.last_move_target] = _MOVE_COOLDOWN_STEPS
+            else:
+                state.steps_since_move = 0
         state.last_pos = current_abs
         state.last_move_target = None
+
+        # Issue-44: decrement cooldown timers, remove expired
+        expired = [c for c, ttl in state.move_cooldown.items() if ttl <= 1]
+        for c in expired:
+            del state.move_cooldown[c]
+        for c in list(state.move_cooldown):
+            if c not in expired:
+                state.move_cooldown[c] -= 1
+        # Cap cooldown size to prevent pathological BFS blockade
+        if len(state.move_cooldown) > 16:
+            oldest = sorted(state.move_cooldown, key=state.move_cooldown.get)
+            for c in oldest[:len(state.move_cooldown) - 16]:
+                del state.move_cooldown[c]
 
         visible_cells = self._visible_abs_cells(current_abs)
         blocked_now: set[Coord] = set()
@@ -296,9 +325,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     def _bfs_first_direction(self, state: MinerSkillState, start: Coord, goal: Coord) -> str | None:
         if start == goal:
             return self._starter._fallback_action_name
-        if goal not in state.known_free_cells:
+        if goal not in state.known_free_cells and goal not in state.move_cooldown:
             return None
         avoid = state.known_hazard_stations - {goal}
+        # Issue-44: also avoid cells with active move cooldown (agent-blocked)
+        cooldown = state.move_cooldown
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier:
@@ -307,6 +338,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 break
             for direction, neighbor in self._neighbors(cell):
                 if neighbor in parents or neighbor not in state.known_free_cells or neighbor in avoid:
+                    continue
+                if neighbor != goal and neighbor in cooldown:
                     continue
                 parents[neighbor] = (cell, direction)
                 frontier.append(neighbor)
@@ -323,6 +356,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         """Optimistic BFS: treat unknown cells as traversable, only avoid known walls."""
         if start == goal:
             return self._starter._fallback_action_name
+        # Issue-44: also avoid cells with active move cooldown
+        cooldown = state.move_cooldown
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier and len(parents) < max_cells:
@@ -331,6 +366,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 break
             for direction, neighbor in self._neighbors(cell):
                 if neighbor in parents or neighbor in state.blocked_cells:
+                    continue
+                if neighbor != goal and neighbor in cooldown:
                     continue
                 parents[neighbor] = (cell, direction)
                 frontier.append(neighbor)
@@ -343,10 +380,26 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         return parents[step][1]
 
+    def _bfs_fallback_no_cooldown(self, state: MinerSkillState, current_abs: Coord, target_abs: Coord) -> str | None:
+        """Retry BFS ignoring cooldowns when cooldown-aware BFS finds no path."""
+        if not state.move_cooldown:
+            return None
+        saved = state.move_cooldown
+        state.move_cooldown = {}
+        direction = self._bfs_first_direction(state, current_abs, target_abs)
+        state.move_cooldown = saved
+        if direction is None:
+            state.move_cooldown = {}
+            direction = self._bfs_optimistic_direction(state, current_abs, target_abs)
+            state.move_cooldown = saved
+        return direction
+
     def _move_to(self, state: MinerSkillState, current_abs: Coord, target_abs: Coord | None) -> tuple[Action, MinerSkillState]:
         if target_abs is None:
             return self._starter._wander(state)
         direction = self._bfs_first_direction(state, current_abs, target_abs)
+        if direction is None:
+            direction = self._bfs_fallback_no_cooldown(state, current_abs, target_abs)
         if direction is None:
             return self._starter._wander(state)
         return self._starter._action(f"move_{direction}"), state
@@ -360,6 +413,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if target_abs is None:
             return self._starter._wander(state)
         direction = self._bfs_first_direction(state, current_abs, target_abs)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), state
+
+        # BFS failed — try without cooldowns before going optimistic
+        direction = self._bfs_fallback_no_cooldown(state, current_abs, target_abs)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), state
 
@@ -498,36 +556,39 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         active = len(state.known_extractors)
         if depleted == 0:
             return False
-        # Explore far when most known extractors are depleted
-        return active <= 2 and depleted >= 3
+        # Explore far when more extractors are depleted than active
+        return depleted > active
 
     def _best_extractor(self, obs: AgentObservation, state: MinerSkillState, current_abs: Coord) -> Coord | None:
-        """Issue-44: select extractor considering distance AND other miner positions.
+        """Issue-44: select extractor considering distance AND other agent positions.
 
-        Miners that cluster at the same extractor cause congestion (70%+ move
+        Agents that cluster at the same extractor cause congestion (70%+ move
         failure).  Prefer extractors that are close to us but far from teammates.
+        Also skip extractors that are in depleted_extractors.
         """
-        candidates = state.known_extractors
+        sm = self._shared_map
+        depleted = sm.depleted_extractors if sm and hasattr(sm, "depleted_extractors") else set()
+        candidates = state.known_extractors - depleted
+        if not candidates:
+            candidates = state.known_extractors
         if not candidates:
             return None
         if len(candidates) == 1:
             return next(iter(candidates))
-        sm = self._shared_map
-        other_miner_positions: list[Coord] = []
+        other_positions: list[Coord] = []
         if sm is not None:
             for aid, pos in sm.agent_positions.items():
-                if aid != obs.agent_id and sm.agent_gears.get(aid) == "miner":
-                    other_miner_positions.append(pos)
+                if aid != obs.agent_id:
+                    other_positions.append(pos)
 
-        def _score(ext: Coord) -> tuple[float, ...]:
+        def _score(ext: Coord) -> float:
             my_dist = abs(ext[0] - current_abs[0]) + abs(ext[1] - current_abs[1])
-            if not other_miner_positions:
-                return (my_dist, ext)
+            if not other_positions:
+                return my_dist
             min_other_dist = min(
-                abs(ext[0] - p[0]) + abs(ext[1] - p[1]) for p in other_miner_positions
+                abs(ext[0] - p[0]) + abs(ext[1] - p[1]) for p in other_positions
             )
-            # Prefer close to me, far from others
-            return (my_dist - min_other_dist * 0.3, ext)
+            return my_dist - min_other_dist * 0.5
 
         return min(candidates, key=_score)
 

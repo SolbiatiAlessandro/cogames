@@ -1,1 +1,7 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+baseline_seed42	2.314	junction.held=13147 hearts=7 deposits=681	10000	baseline	seed=42 original code
+baseline_seed123	2.198	junction.held=? hearts=? deposits=?	10000	baseline	seed=123 original code
+baseline_seed7	2.330	junction.held=? hearts=? deposits=?	10000	baseline	seed=7 original code
+exp1_cooldown6_noshared_adaptive_seed42	2.987	junction.held=19876 hearts=9 deposits=1006	10000	improvement	adaptive move cooldown + no shared move_blocked
+exp1_cooldown6_noshared_adaptive_seed123	2.100	junction.held=? hearts=? deposits=?	10000	regression	seed=123 tight map (-4.5%)
+exp1_cooldown6_noshared_adaptive_seed7	3.060	junction.held=? hearts=? deposits=?	10000	improvement	seed=7 (+31.3%)
