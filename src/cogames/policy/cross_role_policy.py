@@ -582,6 +582,11 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # Bug: agent 3 (seed 44) completed gear_up_miner successfully, then contaminated during
         # mine_until_full (walked through scout station). gear_up_completed=True blocked re-bootstrap.
         contaminated = gear in ("scrambler", "scout")
+        if gear == "none" and state.gear_up_completed:
+            state.gear_up_completed = False
+            state.gear_up_failures = 0
+            logger.info("agent=%s death_detected: gear=none but gear_up_completed=True, resetting for re-gear", obs.agent_id)
+            self._event(state, "death detected: resetting gear_up state for re-acquisition")
         needs_gear_up = effective_preferred and (
             contaminated  # always re-gear on contamination, even if gear_up previously completed
             or (
@@ -1216,6 +1221,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         BFS-without-hazards. Crossing other stations en route is acceptable since the
         aligner station will override any intermediate gear changes.
         v13 fix: in phase 2, navigate to hub first to reposition before targeting aligner station.
+        Issue-36 v37: when hazard-safe nav fails, fall back to avoid_hazards=False.
         """
         hub_step = self._gear_up_via_hub_step(obs, state, current_abs)
         if hub_step is not None:
@@ -1224,6 +1230,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if visible_target is not None:
             target_abs = self._aligner._visible_abs_cell(current_abs, visible_target)
             direction = self._navigate_to_station_safe(state, current_abs, target_abs)
+            if direction is None:
+                direction = self._aligner._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
             if direction is not None:
                 return self._aligner._starter._action(f"move_{direction}"), state
             action, next_state = self._aligner._greedy_move_toward_abs(state, current_abs, target_abs)
@@ -1244,6 +1252,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 last_mode=base_state.last_mode,
             ))
         direction = self._navigate_to_station_safe(state, current_abs, target_abs)
+        if direction is None:
+            direction = self._aligner._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._aligner._starter._action(f"move_{direction}"), state
         action, next_state = self._aligner._greedy_move_toward_abs(state, current_abs, target_abs)
@@ -1259,6 +1269,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         and an expanded 1-cell buffer zone around hazard stations.
         v6 fix: adds BFS-without-hazards as fallback before greedy navigation.
         v13 fix: in phase 2, navigate to hub first to reposition before targeting miner station.
+        Issue-36 v37: when hazard-safe nav fails, fall back to avoid_hazards=False. Walking
+        through a wrong station is better than being permanently stuck without gear.
         """
         hub_step = self._gear_up_via_hub_step(obs, state, current_abs)
         if hub_step is not None:
@@ -1267,6 +1279,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if visible_target is not None:
             target_abs = self._miner._visible_abs_cell(current_abs, visible_target)
             direction = self._navigate_to_station_safe(state, current_abs, target_abs)
+            if direction is None:
+                direction = self._aligner._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
             if direction is not None:
                 return self._aligner._starter._action(f"move_{direction}"), state
             action, next_state = self._aligner._greedy_move_toward_abs(state, current_abs, target_abs)
@@ -1287,6 +1301,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 last_mode=base_state.last_mode,
             ))
         direction = self._navigate_to_station_safe(state, current_abs, target_abs)
+        if direction is None:
+            direction = self._aligner._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._aligner._starter._action(f"move_{direction}"), state
         action, next_state = self._aligner._greedy_move_toward_abs(state, current_abs, target_abs)

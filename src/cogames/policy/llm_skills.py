@@ -70,11 +70,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._return_load = return_load
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
-        self._junction_tags = self._starter._resolve_tag_ids(["junction"])
-        self._team_tag = self._starter._tag_name_to_id.get("team:cogs")
-        self._net_tag = self._starter._tag_name_to_id.get("net:cogs")
-        self._enemy_team_tag = self._starter._tag_name_to_id.get("team:clips")
-        self._enemy_net_tag = self._starter._tag_name_to_id.get("net:clips")
 
     def _miner_station_names(self, policy_env_info: PolicyEnvInterface) -> list[str]:
         names = {"miner_station"}
@@ -204,7 +199,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         miner_stations_now: set[Coord] = set()
         extractors_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
-        visible_tag_ids_by_cell: dict[Coord, set[int]] = {} if self._shared_map else None
 
         for token in obs.tokens:
             if token.feature.name != "tag" or token.location is None:
@@ -218,13 +212,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 miner_stations_now.add(abs_cell)
             if token.value in self._starter._extractor_tags:
                 extractors_now.add(abs_cell)
+                # Issue-16: track which element this extractor produces
                 for element, etags in self._extractor_tags_by_element.items():
                     if token.value in etags:
                         state.extractors_by_element[element].add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
-            if visible_tag_ids_by_cell is not None:
-                visible_tag_ids_by_cell.setdefault(abs_cell, set()).add(int(token.value))
 
         # Issue-36 v8: pre-block extractors, hubs, and stations for navigation.
         # These occupy cells and block movement, but have their own tags (not wall tags).
@@ -257,29 +250,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         self._remember_visible_hub(obs, state)
 
-        if visible_tag_ids_by_cell is not None:
-            sm = self._shared_map
-            neutral_now: set[Coord] = set()
-            friendly_now: set[Coord] = set()
-            enemy_now: set[Coord] = set()
-            for abs_cell, tag_ids in visible_tag_ids_by_cell.items():
-                if not (tag_ids & self._junction_tags):
-                    continue
-                if (self._team_tag in tag_ids) or (self._net_tag in tag_ids):
-                    friendly_now.add(abs_cell)
-                elif (self._enemy_team_tag in tag_ids) or (self._enemy_net_tag in tag_ids):
-                    enemy_now.add(abs_cell)
-                else:
-                    neutral_now.add(abs_cell)
-            sm.known_neutral_junctions.difference_update(visible_cells)
-            sm.known_neutral_junctions.update(neutral_now)
-            sm.known_friendly_junctions.difference_update(visible_cells)
-            sm.known_friendly_junctions.update(friendly_now)
-            sm.known_enemy_junctions.difference_update(visible_cells)
-            sm.known_enemy_junctions.update(enemy_now)
-            sm.known_neutral_junctions.difference_update(sm.known_friendly_junctions)
-            sm.known_neutral_junctions.difference_update(sm.known_enemy_junctions)
-
     def _neighbors(self, cell: Coord) -> list[tuple[str, Coord]]:
         return [(name, (cell[0] + delta[0], cell[1] + delta[1])) for name, delta in _DIRECTION_DELTAS]
 
@@ -287,6 +257,18 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if not candidates:
             return None
         return min(candidates, key=lambda coord: (abs(coord[0] - current_abs[0]) + abs(coord[1] - current_abs[1]), coord))
+
+    def _nearest_extractor_hub_weighted(self, current_abs: Coord, candidates: set[Coord], state: MinerSkillState) -> Coord | None:
+        if not candidates:
+            return None
+        if not state.known_hubs:
+            return self._nearest_known(current_abs, candidates)
+        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1]))
+        return min(candidates, key=lambda c: (
+            abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])
+            + (abs(c[0] - hub[0]) + abs(c[1] - hub[1])) // 2,
+            c,
+        ))
 
     def _closest_visible_location(self, obs: AgentObservation, tag_ids: set[int]) -> Coord | None:
         return self._starter._closest_tag_location(obs, tag_ids)
@@ -496,26 +478,14 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         min_count = min(counts.get(e, 0) for e in ELEMENTS)
         max_count = max(counts.get(e, 0) for e in ELEMENTS)
+        # Issue-36 v15: reduced threshold from 5 to 3 for faster individual balancing.
+        # With return_load=20, miners carry ~20 resources. A threshold of 5 means a miner
+        # mines 5 of one element before seeking diversity; 3 triggers earlier balancing.
         if max_count - min_count < 3:
             return None
-        min_elements = [e for e in ELEMENTS if counts.get(e, 0) == min_count]
-        if len(min_elements) > 1:
-            sm = self._shared_map
-            if sm is not None and hasattr(sm, "agent_gears"):
-                miner_ids = sorted(aid for aid, g in sm.agent_gears.items() if g == "miner")
-                if obs.agent_id in miner_ids:
-                    idx = miner_ids.index(obs.agent_id)
-                    return min_elements[idx % len(min_elements)]
-        return min_elements[0] if min_elements else None
-
-    def _undiscovered_element(self) -> str | None:
-        """Return an element whose extractors haven't been discovered yet, or None."""
-        sm = self._shared_map
-        if sm is None or not hasattr(sm, "extractors_by_element"):
-            return None
-        for elem in ELEMENTS:
-            if not sm.extractors_by_element.get(elem):
-                return elem
+        for e in ELEMENTS:
+            if counts.get(e, 0) == min_count:
+                return e
         return None
 
     def _team_scarce_element(self) -> str | None:
@@ -531,7 +501,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         deposits = sm.total_deposits
         total = sum(deposits.values())
-        if total < 14:
+        # Issue-36 v17: require minimum total deposits (28 = one heart's worth)
+        # before activating team coordination. With sparse data, the first deposit
+        # creates an artificial imbalance that herds all miners to one element.
+        if total < 28:
             return None
         min_val = min(deposits.values())
         max_val = max(deposits.values())
@@ -549,35 +522,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.last_mode = "mine_until_full"
         current_abs = self._current_abs(obs)
 
-        # Issue-36: when some element types have zero known extractors, one miner
-        # should explore to discover them. Without all 4 types, heart crafting is
-        # impossible. Use agent_id to avoid ALL miners exploring simultaneously.
-        undiscovered = self._undiscovered_element()
-        if undiscovered is not None:
-            carried = self._carried_total(obs)
-            sm = self._shared_map
-            if sm is not None and hasattr(sm, "agent_gears"):
-                miner_ids = sorted(aid for aid, g in sm.agent_gears.items() if g == "miner")
-                explorer_id = miner_ids[0] if miner_ids else None
-            else:
-                explorer_id = None
-            if explorer_id is not None and obs.agent_id == explorer_id and carried == 0:
-                logger.info(
-                    "agent=%s element_discovery: %s extractors unknown, exploring",
-                    obs.agent_id, undiscovered,
-                )
-                return self._explore(obs, state)
-
+        # Issue-36 v15: prefer team-scarce element first (global optimization),
+        # then fall back to individual scarce element (local balance).
+        # Team-scarce targets the element bottlenecking heart crafting across ALL miners.
         scarce = self._team_scarce_element() or self._scarce_element(obs)
-        if scarce is None:
-            sm = self._shared_map
-            if sm is not None and hasattr(sm, "agent_gears"):
-                miner_ids = sorted(aid for aid, g in sm.agent_gears.items() if g == "miner")
-                if obs.agent_id in miner_ids:
-                    idx = miner_ids.index(obs.agent_id)
-                    assigned = ELEMENTS[idx % len(ELEMENTS)]
-                    if state.extractors_by_element.get(assigned):
-                        scarce = assigned
         if scarce and scarce in self._extractor_tags_by_element:
             scarce_tags = self._extractor_tags_by_element[scarce]
             visible_scarce = self._closest_visible_location(obs, scarce_tags)
@@ -593,7 +541,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             # Try navigating to a known scarce-element extractor
             scarce_known = state.extractors_by_element.get(scarce, set())
             if scarce_known:
-                target_abs = self._nearest_known(current_abs, scarce_known)
+                target_abs = self._nearest_extractor_hub_weighted(current_abs, scarce_known, state)
                 if target_abs is not None:
                     # Issue-36 v8: extractors are blocked — use approach-cell navigation
                     result = self._navigate_to_blocked_target(state, current_abs, target_abs)
@@ -602,12 +550,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                         return action, replace(next_state, last_mode=state.last_mode)
                     action, next_state = self._move_toward_target(state, current_abs, target_abs)
                     return action, replace(next_state, last_mode=state.last_mode)
-            else:
-                logger.info(
-                    "agent=%s scarce=%s no_known_extractors, exploring to discover %s extractors",
-                    obs.agent_id, scarce, scarce,
-                )
-                return self._explore(obs, state)
 
         visible_target = self._closest_visible_location(obs, self._starter._extractor_tags)
         if visible_target is not None:
@@ -619,11 +561,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.known_extractors)
+        target_abs = self._nearest_extractor_hub_weighted(current_abs, state.known_extractors, state)
         if target_abs is None:
             if state.known_hubs:
                 predicted = self._predicted_extractor_positions(state)
-                predicted_target = self._nearest_known(current_abs, predicted)
+                predicted_target = self._nearest_extractor_hub_weighted(current_abs, predicted, state)
                 if predicted_target is not None:
                     # Issue-36 v8: predicted positions may also be blocked
                     result = self._navigate_to_blocked_target(state, current_abs, predicted_target)
@@ -678,25 +620,25 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return self._starter._action(f"move_{direction}"), state
         return None
 
-    def _greedy_walk_toward(self, current_abs: Coord, target_abs: Coord, state: MinerSkillState | None = None) -> Action:
+    def _greedy_walk_toward(self, current_abs: Coord, target_abs: Coord) -> Action:
         dr = target_abs[0] - current_abs[0]
         dc = target_abs[1] - current_abs[1]
         if dr == 0 and dc == 0:
             return self._starter._action("noop")
-        if state is not None:
-            _DELTAS = (("north", (-1, 0)), ("east", (0, 1)), ("south", (1, 0)), ("west", (0, -1)))
-            candidates = []
-            for dir_name, (ddr, ddc) in _DELTAS:
-                neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
-                dist = abs(neighbor[0] - target_abs[0]) + abs(neighbor[1] - target_abs[1])
-                hard_blocked = neighbor in state.blocked_cells
-                hazard = neighbor in state.known_hazard_stations
-                candidates.append((hazard, hard_blocked, dist, dir_name))
-            candidates.sort()
-            return self._starter._action(f"move_{candidates[0][3]}")
         if abs(dr) >= abs(dc):
             return self._starter._action("move_south" if dr > 0 else "move_north")
         return self._starter._action("move_east" if dc > 0 else "move_west")
+
+    def _greedy_walk_toward_safe(self, state: MinerSkillState, current_abs: Coord, target_abs: Coord) -> Action:
+        avoid = state.known_hazard_stations | state.blocked_cells
+        candidates = []
+        for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
+            neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
+            dist = abs(neighbor[0] - target_abs[0]) + abs(neighbor[1] - target_abs[1])
+            hazard = neighbor in avoid
+            candidates.append((hazard, dist, dir_name))
+        candidates.sort()
+        return self._starter._action(f"move_{candidates[0][2]}")
 
     def _deposit_to_hub(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "deposit_to_hub":
@@ -710,7 +652,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if result is not None:
                 action, next_state = result
                 return action, replace(next_state, last_mode=state.last_mode)
-            return self._greedy_walk_toward(current_abs, target_abs, state), state
+            return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
         target_abs = self._nearest_known(current_abs, state.known_hubs)
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
@@ -722,9 +664,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if result is not None:
             action, next_state = result
             return action, replace(next_state, last_mode=state.last_mode)
-        return self._greedy_walk_toward(current_abs, target_abs, state), state
+        return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
 
-    _MINER_HP_RETREAT_THRESHOLD = 0.50
+    _MINER_HP_RETREAT_THRESHOLD = 0.70
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
         center = self._starter._center
@@ -761,7 +703,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) inv=%s retreating to hub",
                         obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, inv)
             state.retreating_to_hub = True
-        elif state.retreating_to_hub and hp_fraction >= 0.98:
+        elif state.retreating_to_hub and hp_fraction >= 0.85:
             logger.info("agent=%s MINER_HP_OK hp=%d/%d resuming mining",
                         obs.agent_id, hp, state.max_hp_seen)
             state.retreating_to_hub = False
@@ -814,7 +756,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                                 obs.agent_id, hp, state.max_hp_seen)
                     state.retreating_to_hub = True
                 return self._deposit_to_hub(obs, state)
-            elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.9:
+            elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.85:
                 state.retreating_to_hub = False
 
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
