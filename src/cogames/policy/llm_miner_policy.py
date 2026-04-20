@@ -430,6 +430,12 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             current_abs = self._current_abs(obs)
             if state.current_skill == "mine_until_full" and current_abs in state.known_extractors:
                 state.known_extractors.discard(current_abs)
+                # Issue-44: track depleted extractors in SharedMap for progressive exploration
+                sm = self._shared_map
+                if sm is not None and hasattr(sm, "depleted_extractors"):
+                    sm.depleted_extractors.add(current_abs)
+                    for elem, locs in state.extractors_by_element.items():
+                        locs.discard(current_abs)
                 self._event(state, f"removed depleted extractor at {current_abs} from memory")
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
@@ -462,6 +468,15 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         if inv is not None:
             logger.info("agent=%s step=%d inv=%s skill=%s", aid, step_num, inv, state.current_skill)
 
+        # Issue-44: track miner position and gear for team coordination
+        sm = self._shared_map
+        if sm is not None:
+            current_abs = self._current_abs(obs)
+            sm.agent_positions[aid] = current_abs
+            gear = self._starter._current_gear(self._starter._inventory_items(obs))
+            if gear:
+                sm.agent_gears[aid] = gear
+
         if self._check_miner_hp(obs, state):
             action, base_state = self._deposit_to_hub(obs, state)
             return action, self._copy_with(state, base_state)
@@ -480,7 +495,11 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             action, base_state = self._deposit_to_hub(obs, state)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
-            action, base_state = self._explore(obs, state)
+            # Issue-44: use far exploration when local extractors are depleted
+            if self._should_explore_far(state):
+                action, base_state = self._explore_far_from_depleted(obs, state)
+            else:
+                action, base_state = self._explore(obs, state)
             state = self._copy_with(state, base_state)
         else:
             action, state = self._unstuck(state)

@@ -78,6 +78,12 @@ class SharedMap:
         self.extractors_by_element: dict[str, set[Coord]] = {
             e: set() for e in ("carbon", "oxygen", "germanium", "silicon")
         }
+        # Issue-44: track depleted extractors for progressive exploration.
+        # When an extractor is removed from known_extractors (stale/depleted),
+        # it moves here so miners know which areas are "mined out" and should
+        # explore further away.
+        self.depleted_extractors: set[Coord] = set()
+        self.total_extractors_discovered: int = 0
 
 
 @dataclass

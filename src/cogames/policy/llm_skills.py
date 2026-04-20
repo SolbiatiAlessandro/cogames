@@ -246,7 +246,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         self._remember_static_objects(state.known_hubs, hubs_now)
         self._remember_static_objects(state.known_miner_stations, miner_stations_now)
+        old_extractor_count = len(state.known_extractors)
         self._remember_static_objects(state.known_extractors, extractors_now)
+        new_extractors = len(state.known_extractors) - old_extractor_count
+        if new_extractors > 0:
+            sm = self._shared_map
+            if sm is not None and hasattr(sm, "total_extractors_discovered"):
+                sm.total_extractors_discovered += new_extractors
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         self._remember_visible_hub(obs, state)
 
@@ -431,6 +437,100 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    def _explore_far_from_depleted(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
+        """Issue-44: explore AWAY from depleted extractors to find fresh ones.
+
+        When nearby extractors have been mined out, frontiers near them are
+        unlikely to contain new extractors.  Prefer frontiers that are far from
+        the cluster of depleted extractors and far from hub.
+        """
+        if state.last_mode != "explore_far":
+            logger.info("agent=%s mode=explore_far (depleted=%d)", obs.agent_id,
+                        len(self._shared_map.depleted_extractors) if self._shared_map and hasattr(self._shared_map, "depleted_extractors") else 0)
+            state.last_mode = "explore_far"
+        current_abs = self._current_abs(obs)
+        frontier_cells = self._frontier_cells(state)
+        if not frontier_cells:
+            return self._starter._wander(state)
+
+        sm = self._shared_map
+        depleted = sm.depleted_extractors if sm and hasattr(sm, "depleted_extractors") else set()
+        hubs = state.known_hubs
+
+        def _far_score(cell: Coord) -> float:
+            min_dep_dist = min(
+                (abs(cell[0] - d[0]) + abs(cell[1] - d[1]) for d in depleted),
+                default=0,
+            )
+            min_hub_dist = min(
+                (abs(cell[0] - h[0]) + abs(cell[1] - h[1]) for h in hubs),
+                default=0,
+            )
+            return -(min_dep_dist + min_hub_dist * 0.5)
+
+        if current_abs in frontier_cells:
+            ordered = sorted(
+                self._neighbors(current_abs),
+                key=lambda item: (
+                    item[1] in state.blocked_cells,
+                    item[1] in state.known_free_cells,
+                    _far_score(item[1]),
+                ),
+            )
+            for direction, neighbor in ordered:
+                if neighbor in state.blocked_cells or neighbor in state.known_free_cells:
+                    continue
+                return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+
+        best_frontier = min(frontier_cells, key=lambda c: (
+            _far_score(c),
+            abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]),
+        ))
+        action, next_state = self._move_to(state, current_abs, best_frontier)
+        return action, replace(next_state, last_mode=state.last_mode)
+
+    def _should_explore_far(self, state: MinerSkillState) -> bool:
+        """Issue-44: decide whether to explore far from depleted areas."""
+        sm = self._shared_map
+        if sm is None or not hasattr(sm, "depleted_extractors"):
+            return False
+        depleted = len(sm.depleted_extractors)
+        active = len(state.known_extractors)
+        if depleted == 0:
+            return False
+        # Explore far when most known extractors are depleted
+        return active <= 2 and depleted >= 3
+
+    def _best_extractor(self, obs: AgentObservation, state: MinerSkillState, current_abs: Coord) -> Coord | None:
+        """Issue-44: select extractor considering distance AND other miner positions.
+
+        Miners that cluster at the same extractor cause congestion (70%+ move
+        failure).  Prefer extractors that are close to us but far from teammates.
+        """
+        candidates = state.known_extractors
+        if not candidates:
+            return None
+        if len(candidates) == 1:
+            return next(iter(candidates))
+        sm = self._shared_map
+        other_miner_positions: list[Coord] = []
+        if sm is not None:
+            for aid, pos in sm.agent_positions.items():
+                if aid != obs.agent_id and sm.agent_gears.get(aid) == "miner":
+                    other_miner_positions.append(pos)
+
+        def _score(ext: Coord) -> tuple[float, ...]:
+            my_dist = abs(ext[0] - current_abs[0]) + abs(ext[1] - current_abs[1])
+            if not other_miner_positions:
+                return (my_dist, ext)
+            min_other_dist = min(
+                abs(ext[0] - p[0]) + abs(ext[1] - p[1]) for p in other_miner_positions
+            )
+            # Prefer close to me, far from others
+            return (my_dist - min_other_dist * 0.3, ext)
+
+        return min(candidates, key=_score)
+
     def _gear_up(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "gear_up":
             logger.info("agent=%s mode=gear_up", obs.agent_id)
@@ -549,8 +649,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.known_extractors)
+        # Issue-44: prefer extractors far from other miners to reduce congestion
+        target_abs = self._best_extractor(obs, state, current_abs)
         if target_abs is None:
+            # Issue-44: when extractors are depleted, explore far from depleted areas
+            if self._should_explore_far(state):
+                return self._explore_far_from_depleted(obs, state)
             if state.known_hubs:
                 predicted = self._predicted_extractor_positions(state)
                 predicted_target = self._nearest_known(current_abs, predicted)
