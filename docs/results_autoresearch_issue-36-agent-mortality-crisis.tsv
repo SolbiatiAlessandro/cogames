@@ -14,3 +14,5 @@ commit	mission_reward	secondary_rewards	steps	status	description
 363b216	1.596331	held=5962 hearts_withdrawn=9 deaths=0 survived_10k=3/3 aligned_gained=14 hp_retreats=6 tethers=14	10000	keep	v6: contamination-recovery+miner-tethering seed43 10k (0 deaths! 14 gained! miner 40 of each element!)
 30e1798	1.903657	held=9035 hearts_withdrawn=6 deaths=1 survived_10k=2/3 aligned_gained=9 hp_retreats=4	10000	keep	v5: hp-cap-100+threshold-0.70 seed44 10k (agent0 contaminated with scout for 8k steps)
 f38e5ae	1.903657	held=9035 hearts_withdrawn=6 deaths=1 survived_10k=2/3 aligned_gained=9 hp_retreats=4 contam_explore=112 llm_calls=53	10000	keep	v6: contamination-recovery+miner-tethering seed44 10k (contam fix saves 75% LLM calls! agent0 +22% moves)
+6e05db3	6.441854	held=27212 jxn_gained=73 deaths=15 deposits=2360 8agents	5000	keep	v37: depleted-extractor-adjacency-fix 4A4M seed42 5k (broken productivity freeze! +55% junctions vs baseline 47)
+6e05db3	3.720414	held=27212 jxn_gained=73 deaths=15 deposits=2360 8agents	10000	keep	v37: depleted-extractor-adjacency-fix 4A4M seed42 10k (freeze at 5k now instead of 2k)

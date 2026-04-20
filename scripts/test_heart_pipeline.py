@@ -65,12 +65,14 @@ for key in sorted(results.stats.keys()):
 
 # Print per-agent stats
 mr = getattr(results, 'mission_reward', None)
+game = results.stats.get("game", {}) if isinstance(results.stats.get("game"), dict) else {}
+jxn_gained = game.get("cogs/aligned.junction.gained", 0)
+jxn_held = game.get("cogs/aligned.junction.held", 0)
 if mr is not None:
     log.info("Mission reward: %.6f", mr)
-else:
-    game = results.stats.get("game", {}) if isinstance(results.stats.get("game"), dict) else {}
-    jxn = game.get("cogs/aligned.junction.gained", 0)
-    log.info("Junctions gained: %s (mission_reward attr not available)", jxn)
+log.info("Junctions gained: %s  held: %s", jxn_gained, jxn_held)
+log.info("Per-agent rewards: %s", results.rewards)
+log.info("Sum rewards: %.6f  Mean: %.6f", sum(results.rewards), sum(results.rewards)/len(results.rewards))
 
 # Extract key metrics
 game = results.stats.get("game", {}) if isinstance(results.stats.get("game"), dict) else {}
