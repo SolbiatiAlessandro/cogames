@@ -277,10 +277,12 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
 
         last_action_move = self._feature_value(obs, "last_action_move")
         current_abs = self._current_abs(obs)
+        def _adjacent_to(targets: set) -> bool:
+            return any(abs(current_abs[0] - t[0]) + abs(current_abs[1] - t[1]) <= 1 for t in targets)
         stationary_on_valid_target = (
-            (state.current_skill == "mine_until_full" and current_abs in state.known_extractors)
-            or (state.current_skill == "deposit_to_hub" and current_abs in state.known_hubs)
-            or (state.current_skill == "gear_up" and current_abs in state.known_miner_stations)
+            (state.current_skill == "mine_until_full" and _adjacent_to(state.known_extractors))
+            or (state.current_skill == "deposit_to_hub" and _adjacent_to(state.known_hubs))
+            or (state.current_skill == "gear_up" and _adjacent_to(state.known_miner_stations))
         )
         if made_progress:
             state.no_move_steps = 0
@@ -302,8 +304,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         was_stuck = "exited as stuck" in last_ev or "timed out after" in last_ev
         was_stale = "exited as stale" in last_ev
         if not has_miner:
-            if was_stuck:
-                return "explore", "scripted: gear_up stuck, exploring for station"
+            if was_stuck or was_stale:
+                return "explore", "scripted: gear_up stuck/stale, exploring for station"
             return "gear_up", "scripted: no miner gear"
         if carried_total >= self._return_load:
             if was_stuck:
@@ -421,6 +423,9 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 self._event(state, f"deposit_to_hub timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill in {"gear_up", "mine_until_full"} and state.skill_steps >= self._stuck_threshold * 5:
+            if state.current_skill == "gear_up" and self._shared_map is not None and hasattr(self._shared_map, 'move_blocked_cells'):
+                state.blocked_cells.difference_update(self._shared_map.move_blocked_cells)
+                self._shared_map.move_blocked_cells.clear()
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
@@ -428,9 +433,14 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.current_skill = None
         elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
             current_abs = self._current_abs(obs)
-            if state.current_skill == "mine_until_full" and current_abs in state.known_extractors:
-                state.known_extractors.discard(current_abs)
-                self._event(state, f"removed depleted extractor at {current_abs} from memory")
+            if state.current_skill == "mine_until_full":
+                nearby = [e for e in state.known_extractors
+                          if abs(e[0] - current_abs[0]) + abs(e[1] - current_abs[1]) <= 2]
+                for ext in nearby:
+                    state.known_extractors.discard(ext)
+                    for elem_set in state.extractors_by_element.values():
+                        elem_set.discard(ext)
+                    self._event(state, f"removed depleted extractor at {ext} from memory")
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 

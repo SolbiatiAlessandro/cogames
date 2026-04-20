@@ -258,6 +258,18 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         return min(candidates, key=lambda coord: (abs(coord[0] - current_abs[0]) + abs(coord[1] - current_abs[1]), coord))
 
+    def _nearest_extractor_hub_weighted(self, current_abs: Coord, candidates: set[Coord], state: MinerSkillState) -> Coord | None:
+        if not candidates:
+            return None
+        if not state.known_hubs:
+            return self._nearest_known(current_abs, candidates)
+        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1]))
+        return min(candidates, key=lambda c: (
+            abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])
+            + (abs(c[0] - hub[0]) + abs(c[1] - hub[1])) // 2,
+            c,
+        ))
+
     def _closest_visible_location(self, obs: AgentObservation, tag_ids: set[int]) -> Coord | None:
         return self._starter._closest_tag_location(obs, tag_ids)
 
@@ -529,7 +541,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             # Try navigating to a known scarce-element extractor
             scarce_known = state.extractors_by_element.get(scarce, set())
             if scarce_known:
-                target_abs = self._nearest_known(current_abs, scarce_known)
+                target_abs = self._nearest_extractor_hub_weighted(current_abs, scarce_known, state)
                 if target_abs is not None:
                     # Issue-36 v8: extractors are blocked — use approach-cell navigation
                     result = self._navigate_to_blocked_target(state, current_abs, target_abs)
@@ -549,11 +561,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.known_extractors)
+        target_abs = self._nearest_extractor_hub_weighted(current_abs, state.known_extractors, state)
         if target_abs is None:
             if state.known_hubs:
                 predicted = self._predicted_extractor_positions(state)
-                predicted_target = self._nearest_known(current_abs, predicted)
+                predicted_target = self._nearest_extractor_hub_weighted(current_abs, predicted, state)
                 if predicted_target is not None:
                     # Issue-36 v8: predicted positions may also be blocked
                     result = self._navigate_to_blocked_target(state, current_abs, predicted_target)
@@ -617,6 +629,17 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return self._starter._action("move_south" if dr > 0 else "move_north")
         return self._starter._action("move_east" if dc > 0 else "move_west")
 
+    def _greedy_walk_toward_safe(self, state: MinerSkillState, current_abs: Coord, target_abs: Coord) -> Action:
+        avoid = state.known_hazard_stations | state.blocked_cells
+        candidates = []
+        for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
+            neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
+            dist = abs(neighbor[0] - target_abs[0]) + abs(neighbor[1] - target_abs[1])
+            hazard = neighbor in avoid
+            candidates.append((hazard, dist, dir_name))
+        candidates.sort()
+        return self._starter._action(f"move_{candidates[0][2]}")
+
     def _deposit_to_hub(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "deposit_to_hub":
             logger.info("agent=%s mode=deposit_to_hub load=%s", obs.agent_id, self._carried_total(obs))
@@ -629,7 +652,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if result is not None:
                 action, next_state = result
                 return action, replace(next_state, last_mode=state.last_mode)
-            return self._greedy_walk_toward(current_abs, target_abs), state
+            return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
         target_abs = self._nearest_known(current_abs, state.known_hubs)
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
@@ -641,9 +664,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if result is not None:
             action, next_state = result
             return action, replace(next_state, last_mode=state.last_mode)
-        return self._greedy_walk_toward(current_abs, target_abs), state
+        return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
 
-    _MINER_HP_RETREAT_THRESHOLD = 0.50
+    _MINER_HP_RETREAT_THRESHOLD = 0.70
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
         center = self._starter._center
@@ -680,7 +703,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) inv=%s retreating to hub",
                         obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, inv)
             state.retreating_to_hub = True
-        elif state.retreating_to_hub and hp_fraction >= 0.98:
+        elif state.retreating_to_hub and hp_fraction >= 0.85:
             logger.info("agent=%s MINER_HP_OK hp=%d/%d resuming mining",
                         obs.agent_id, hp, state.max_hp_seen)
             state.retreating_to_hub = False
@@ -733,7 +756,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                                 obs.agent_id, hp, state.max_hp_seen)
                     state.retreating_to_hub = True
                 return self._deposit_to_hub(obs, state)
-            elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.9:
+            elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.85:
                 state.retreating_to_hub = False
 
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
