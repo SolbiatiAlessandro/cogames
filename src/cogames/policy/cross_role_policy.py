@@ -1314,7 +1314,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             return self._step_impl(obs, state)
         except Exception as e:
             logger.warning("agent=%s role=cross_role step_error=%s — returning noop", obs.agent_id, e)
-            return self._starter._action("noop"), state
+            return self._aligner._starter._action("noop"), state
 
     def _step_impl(self, obs: AgentObservation, state: CrossRoleState) -> tuple[Action, CrossRoleState]:
         state.episode_step += 1
