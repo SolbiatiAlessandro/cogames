@@ -24,92 +24,73 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline-to-online): 2026-04-19 (Session 12)_
+_Updated by Director: 2026-04-20 (Session 13)_
 
-### Online Tournament (beta-cvc, 10k steps, 8 agents, cooperative scoring)
+### Online Tournament (beta-cvc, 10k steps, cooperative scoring)
 
 | Rank | Score | Policy | Matches | Notes |
 |------|-------|--------|---------|-------|
 | #1/123 | **40.82** | `Gryffindor:v11` | 27 | Pure RL |
 | #2/123 | 40.73 | `Slytherin:v14` | 32 | Pure RL |
-| #3/123 | 40.11 | `Hufflepuff:v11` | 25 | Pure RL |
-| #4/123 | 38.28 | `Softy:v82` | 20 | |
-| #5/123 | 38.18 | `dinky_hank:v7` | 33 | |
-| ... | ... | ... | ... | |
-| **#68/123** | **12.66** | **`lessandro-scripted-v32:v1`** | **20** | **Our best** |
-| #69/123 | 12.30 | `lessandro-scripted-v24:v1` | 25 | |
+| #68/123 | **12.66** | **`lessandro-scripted-v32:v1`** | 20 | **Our best (session 12)** |
+| #69/123 | 12.30 | `lessandro-scripted-v24:v1` | 25 | Role allocation fix |
 | #72/123 | 11.84 | `lessandro-scripted-v33:v1` | 22 | Latest working |
-| FAIL | crash | `lessandro-scripted-v34:v1` | 0/4 | WebSocket 1011 (#43) |
 
-**Milestone**: Went from 0 matches (session 11) to **#68/123** with 13 entries on the leaderboard!
+_API was 503 this session — ranks may have shifted. v35 submitted with httpx fix (#43 resolved)._
 
 ### Offline Best Results (8-agent, machina_1 88x88)
 
 | Rank | Reward | Config | Steps | Seeds | Notes |
 |------|--------|--------|-------|-------|-------|
-| 1 | **8.133 total** (1.02/agent) | 4A4M scripted auto | 500 | 10-seed avg | Best overall |
-| 2 | 7.964 total (1.00/agent) | 3A5M stuck=28 | 1000 | seed 47 | |
-| 3 | 7.657 total (0.96/agent) | 4A4M scripted auto | 500 | 10-seed avg | |
-| 4 | 1.59 total (0.20/agent) | 4A4M scripted auto | 3000 | 3-seed avg | +55% mining fix (#40) |
+| 1 | **8.133 total** (1.02/agent) | 4A4M scripted auto | 500 | 10-seed avg | Best at 500 steps |
+| 2 | **1.766/agent** | 3A5M hub_fix + diversify | 10000 | seed 42 | **NEW best at 10k** (v21 aRnlF) |
+| 3 | 1.60/agent | 3A5M hp-retreat + tethering | 10000 | seed 43 | v6 (March) |
+| 4 | 0.97/agent | 3A5M perp_dodge + smart_greedy | 1000 | seed 42 | Navigation fix |
 
-### Gap Analysis (us vs top-1 RL policies)
+### Key Improvements Merged This Session
+
+| Branch | Fix | Impact | Evidence |
+|--------|-----|--------|----------|
+| `aRnlF` | hub_deposits_total + miner diversification | +40% at 10k (1.26→1.77) | 3-seed TSV |
+| `ccN7G` | Role allocation fix (critical online) | +22% at 4A; rank 89→69 online | Tournament data |
+| `ccN7G` | Junction sharing + explore cap | +5.2% at 4A | 3-seed TSV |
+| `Fb3vU` | Depleted extractor adjacency fix | +55% junctions at 10k (47→73) | Productivity freeze broken |
+
+### Gap Analysis
 
 ```
-Metric                    Us (online best)       Top RL (Gryffindor)    Gap       Status
-─────────────────────────────────────────────────────────────────────────────────────────
-Online score              12.66 (#68/123)        40.82 (#1/123)         3.2x      ACTIVE
-Agent survival            1500-3100/10k (15-31%) 3500-9900/10k          2-3x      #36 priority:1
-Element deposits (10k)    2,389                  ~14,000                6x        #40 improved
-Junction held             66,416                 484,482                7x        FUNDAMENTAL
-Hearts withdrawn          5                      5                      1x        Both use hub only
-Score variance (stddev)   ±9-12                  ±15                    similar   Partner-dependent
+Metric                    Us (offline best)        Top RL (online)       Gap       Status
+───────────────────────────────────────────────────────────────────────────────────────────
+Online score              12.66 (#68/123)          40.82 (#1/123)        3.2x      ACTIVE
+Agent survival (10k)      All survive (v21+)       ?                     FIXED     #36 hub_fix
+Miner productivity        1456 deposits/10k        ~14,000               10x       #40 + Fb3vU fix
+Junctions at 10k          73 (v37)                 ~500                  7x        FUNDAMENTAL
+Hearts/craft              Hub only (5)             Hub only (5)          1x        Both limited
 ```
 
-### Online Replay Diagnostic (Session 12)
+**Current bottleneck**: Miner productivity freeze at ~5k steps (Fb3vU partially fixes). RL training (#41) remains the fundamental ceiling.
 
-**Match: v33 vs Softy:v88, score=41.80** (cooperative, 2 ours + 6 Softy):
-- Our 2 agents survive 3043-3076 steps (30%) — Softy's 6 agents survive 4118-5362 steps (41-54%)
-- Zero vibe transitions (universal across ALL policies — not a bug, #31 deprioritized)
-- The 41.80 score is almost entirely from Softy carrying
-
-**Match: v33 vs shweta.v18, score=0.47** (cooperative, 2 ours + 6 shweta):
-- Our agents survive only 1540-1649 steps (15%) with weak partner
-- Score collapse when neither policy can contribute
-
-**v33 match distribution** (22 matches):
-- With strong RL partners: 25-49 score (carried)
-- With medium partners: 6-17 score
-- With weak partners: 0.3-1.3 score (our TRUE contribution level)
-- Self-play: 17-22 score
-
-**Current bottleneck**: Agent mortality (#36) — our agents die at 15-31% of episode
-
-**Current online ceiling**: ~12.66 (scripted). Top RL: 40.82. 3.2x gap.
-
-**Next up**: #43 (fix v34 regression), #36 (agent mortality), #41 (RL training)
+**Next up**: #36 (submit v37 online + validate mortality fix), #44 (new: miner productivity at scale), #41 (RL training, blocked)
 
 **Research tree:**
 ```
 SPAWN NEXT:
-  #43 Fix v34 regression (priority:1) — diagnose WebSocket crash, revert to v33 if needed
-  #36 Agent mortality (priority:1) — agents survive 15-31%, biggest online lever
+  #36 Agent mortality + productivity (priority:1) — submit v37, validate online
   #41 RL policy training (priority:1, BLOCKED — needs GPU)
 
 SCRIPTED TRACK:
-  #42 httpx import (priority:2) — partially resolved, repo code fixed
-  #40 Mining throughput (priority:2) — improved to 2389 deposits, 6x gap remains
-  #39 Submission process (priority:2) — v22-v33 submitted successfully
-  #27 Andre Von Huck / A* (priority:2) — validated by replay
-  #24 Balanced Mining (priority:2) — element balance now excellent (1.07:1)
+  #43 v34 regression (priority:2) — RESOLVED: v35 uploaded with httpx fix
+  #42 httpx import (priority:2) — resolved in codebase
+  #40 Mining throughput (priority:2) — Fb3vU fix merged, 10x gap remains
+  #24 Balanced Mining (priority:2) — element balance excellent
 
-CLOSED:
-  #25 8-Agent Scaling | #37 Submit V20 | #34 Heart Pipeline
+CLOSED/RESOLVED:
+  #25 8-Agent Scaling | #37 Submit V20 | #34 Heart Pipeline | #39 Submission
   #35 Move Failure | #29 10k Eval
 
 DEPRIORITIZED (priority:3):
-  #38 6+2 mortality | #32 Partner robustness | #31 change_vibe (universal, not a bug)
-  #30 Self-Play | #26 shweta policy
-  #12 Gear | #10 Tuning | #11 Active Inference | #17-#23 various
+  #38 6+2 mortality | #32 Partner robustness | #31 change_vibe
+  #30 Self-Play | #26 shweta | #12 Gear | #10-#23 various
 ```
 <!-- LEADERBOARD_END -->
 
