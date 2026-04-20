@@ -34,6 +34,7 @@ class LLMMinerState(MinerSkillState):
     last_carried_elements: dict[str, int] = field(default_factory=dict)
     explore_start_extractors: int = 0
     recent_events: list[str] = field(default_factory=list)
+    consecutive_stuck_exits: int = 0
 
 
 class LLMMinerPlannerClient:
@@ -55,8 +56,6 @@ class LLMMinerPlannerClient:
         self._app_name = app_name
         self._timeout_s = timeout_s
         self._responder = responder
-        # Persistent HTTP client for connection pooling (avoids creating a new
-        # TCP+TLS connection per LLM call — critical for 8-agent qualifying).
         self._http_client = None
         # Resolve local model path: explicit arg > env var
         _local_path = local_model_path or os.environ.get("LOCAL_LLM_MODEL_PATH", "")
@@ -70,7 +69,7 @@ class LLMMinerPlannerClient:
 
     def _get_http_client(self):
         if httpx is None:
-            raise RuntimeError("httpx is not installed — LLM planner requires httpx")
+            raise RuntimeError("httpx is not installed — LLM planner unavailable")
         if self._http_client is None or self._http_client.is_closed:
             self._http_client = httpx.Client(timeout=self._timeout_s)
         return self._http_client
@@ -253,10 +252,11 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         carried_elements = self._inventory_counts(obs)
         carried_total = sum(carried_elements.values())
         made_progress = False
-        if state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total:
+        cargo_decreased = carried_total < state.last_carried_total
+        if state.current_skill == "deposit_to_hub" and cargo_decreased:
             self._event(state, f"deposited cargo from {state.last_carried_total} to {carried_total}")
             made_progress = True
-            # Track per-element deposits for team-scarce coordination
+        if cargo_decreased:
             sm = self._shared_map
             if sm is not None and hasattr(sm, "total_deposits"):
                 for elem, prev_amount in state.last_carried_elements.items():
@@ -301,6 +301,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         last_ev = state.recent_events[-1] if state.recent_events else ""
         was_stuck = "exited as stuck" in last_ev or "timed out after" in last_ev
         was_stale = "exited as stale" in last_ev
+        if was_stuck:
+            state.consecutive_stuck_exits += 1
+        else:
+            state.consecutive_stuck_exits = 0
         if not has_miner:
             if was_stuck:
                 return "explore", "scripted: gear_up stuck, exploring for station"

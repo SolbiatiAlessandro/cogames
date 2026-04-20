@@ -1,0 +1,179 @@
+# Experiment Log: Issue #42 - Fix httpx import crash
+
+## Issue
+Policy `lessandro-scripted-v21:v1` gets 0 matches on tournament server because `import httpx` at module level in `llm_miner_policy.py` crashes if httpx is not installed on the episode runner.
+
+## 2026-04-18T10:30: autoresearch starting
+My plan is to:
+1. Run baseline to verify current code works locally
+2. Apply try/except fix for httpx import (Option A from issue)
+3. Guard all httpx usage so scripted fallback works without httpx
+4. Test locally with httpx unavailable to verify crash is fixed
+5. Re-upload policy as v22 and submit to beta-cvc tournament
+6. Monitor for qualifying matches
+
+## 2026-04-18T17:17: Baseline result
+- Per-agent reward: 0.339 at 500 steps, 8 agents, seed 42
+- Deposits: C=40, O=35, Ge=33, Si=43 (total ~151)
+- aligned.junction.held: 2889
+- Hearts withdrawn: 5
+- Deaths: 0.12
+
+## 2026-04-18T17:20: Fix applied and tested
+**Change**: Wrapped `import httpx` in try/except in `llm_miner_policy.py`:
+```python
+try:
+    import httpx
+except ImportError:
+    httpx = None
+```
+Also guarded `_get_http_client()` to raise clear error if httpx is needed but missing.
+
+**Verification**:
+1. Import test with httpx blocked: PASS — both `llm_miner_policy` and `machina_llm_roles_policy` import without httpx
+2. Post-fix episode: Per-agent reward 0.339 (same as baseline — no regression)
+3. Bundle created (254 KB) with fix verified in bundle
+
+## 2026-04-18T17:25: Upload blocked — tournament server 503
+Tournament server `api.observatory.softmax-research.net` returning 503 on all endpoints.
+Upload retry script running in background. Bundle `submission_v22.zip` is ready.
+
+## 2026-04-18T17:30: Continuing with experiment loop
+While server is down, continuing with offline improvements. The httpx fix is committed and pushed to `claude/amazing-meitner-ccN7G`.
+Next steps when server comes back:
+1. Upload `lessandro-scripted-v22` with fix
+2. Monitor for qualifying matches
+3. If matches happen, verify score > 0
+
+## 2026-04-18T17:35: Starting new experiment loop - investigating reward gap
+
+Best recorded offline: 8.133 total at 500 steps (4A4M scripted). Our baseline: 2.711.
+Possible causes of 3x gap:
+- Different mettagrid version (PyPI 0.15.0 vs git 0fe9b54)
+- Stuck_threshold tuning (28 was found optimal vs default 20)
+- Configuration details (return_load, agent mix)
+
+Hypothesis: stuck_threshold=28 + return_load tuning will significantly improve reward.
+Plan: Run sweeps of key parameters.
+
+## 2026-04-18T17:50: UPLOAD SUCCESSFUL!
+- **Policy**: `lessandro-scripted-v22:v1`
+- **Season**: beta-cvc, qualifying pool
+- **Bundle**: 254 KB with httpx fix verified
+- **TWO qualifying matches immediately started running!** (7220a14e, a59e1693)
+- This confirms the httpx fix works — policy loads on tournament server without crash
+
+## 2026-04-18T17:52: Config sweep results (offline)
+At 1000 steps, 3 seeds:
+- 4A4M (default): avg 0.795/agent
+- 5A3M: avg 0.835/agent (+5%)
+- 6A2M: avg 0.860/agent (+8.2%)
+
+At 3000 steps, 3 seeds:
+- 4A4M: avg 1.224/agent (high variance: seed 42=1.615 vs seeds 43-44=~1.03)
+- 6A2M: avg 1.198/agent (more consistent)
+
+## Replay analysis (500 steps)
+- Reward accelerates: 0.0014/step → 0.0083/step (6x improvement over episode)
+- Agent A4 stuck 36% of time — worst performer
+- Other agents: 9-27% stuck rate
+- All agents spread across map (good dispersion)
+
+## 2026-04-18T18:25: Tournament analysis and critical role allocation bug fix
+
+**Tournament results for lessandro-scripted-v22:v1**: Rank 89/111, avg score 6.62.
+Top policies score 35-40. Our scores ranged from 0.00 to 48.43 depending on opponent quality.
+
+**Critical bug found**: `n_aligners = min(4, n_agents)` means with 4 or fewer agents (common in tournament), ALL agents become aligners and NONE mine. Matches show 2-agent and 4-agent team sizes where we had 0 miners. This explains the 0.00 and very low scores.
+
+**Fix applied**:
+1. Changed `n_aligners = min(4, n_agents)` → `n_aligners = min(4, n_agents // 2)` to ensure at least half agents are miners
+2. Changed scripted_miners and scripted_aligners auto mode to always True (LLM API unavailable on tournament server — was wasting time on failed HTTP calls before fallback)
+
+New role allocation:
+- 1 agent: 0A 1M
+- 2 agents: 1A 1M
+- 3 agents: 1A 2M
+- 4 agents: 2A 2M
+- 6 agents: 3A 3M
+- 8 agents: 4A 4M
+
+Hypothesis: This fix alone should dramatically improve tournament scores since we now actually have miners at all team sizes.
+
+## 2026-04-18T18:35: Role allocation fix results
+
+**Also fixed**: Disabled scouts (n_scouts=0 always). With 4 agents, old config gave 2A+1S+1M (only 1 miner!). New config: 2A+2M.
+
+**return_load experiment**: Tried return_load=20 (faster cycling). Result: 8-agent reward dropped 0.339→0.331 (more round trips waste time). Reverted to 40.
+
+**Results with all fixes (return_load=40, no scouts, fixed role allocation)**:
+| Config | Per-agent reward | Deposits (C/O/Ge/Si) | Hearts |
+|--------|-----------------|----------------------|--------|
+| 8A (4A4M) | 0.339 (unchanged) | 49/44/37/40 | 4.95 |
+| 4A (2A2M) | 0.405 (+22%) | 52/52/47/52 | 3.60 |
+| 2A (1A1M) | 0.224 (was broken) | — | 3.67 |
+
+**Uploaded**: lessandro-scripted-v24:v1 (qualifying)
+**Previous**: lessandro-scripted-v23:v1 (qualifying, has role fix but still had scouts+return_load issues)
+
+## 2026-04-18T18:50: stuck_threshold sweep and tournament results
+
+**Tournament update**: v23 already moved from rank 89 → 76, score 6.62 → 8.72 (+32%)!
+
+**stuck_threshold sweep** (5 seeds, 8 agents, 500 steps):
+| Threshold | Avg reward/agent | vs baseline |
+|-----------|-----------------|-------------|
+| 20 (old)  | 0.334           | baseline    |
+| 12        | 0.364           | +9.0%       |
+| 8         | 0.359           | +7.5%       |
+
+Optimal: stuck_threshold=12. Faster stuck detection means less wasted time, but too aggressive (8) causes thrashing.
+
+**Uploaded**: lessandro-scripted-v25:v1 with stuck_threshold=12 + all prior fixes
+
+## 2026-04-18T19:35: Experiments and v26 upload
+
+**Experiments tried (discarded)**:
+- Expanded align distances (HUB=40, JUNCTION=25): -2.7% avg — extra travel time outweighs benefit
+- Aligner HP retreat 0.50 vs 0.70: identical — HP retreat doesn't trigger in normal operation
+- 3A5M ratio: avg 0.331 vs 4A4M 0.364 — more miners doesn't help
+- 5A3M ratio: avg 0.336 — worse than 4A4M
+- Predicted miner station position: no effect — station already visible from spawn
+- return_load=20 for all: 8A worse (0.331 vs 0.339), 4A worse
+
+**Experiment kept**: Dynamic return_load
+- 2 agents (1 miner): return_load=20 → +25% vs return_load=40
+- 4+ agents: return_load=40 unchanged
+
+**Tournament standings**:
+| Version | Score | Rank | Matches | Key changes |
+|---------|-------|------|---------|-------------|
+| v22     | 8.08  | 81   | 22      | httpx fix only |
+| v23     | 8.90  | 78   | 20      | + role fix |
+| v24     | 11.64 | 69   | 23      | + no scouts |
+| v25     | 9.78  | 75   | 20      | + stuck_threshold=12 |
+
+**Uploaded**: lessandro-scripted-v26:v1 with dynamic return_load + all prior fixes
+
+## 2026-04-18T19:45: Junction sharing + miner unstuck recovery
+
+**Experiment 1: Junction sharing** (v28)
+Miners now share junction discoveries with aligners via SharedMap. Previously miners traversed the map but discarded junction locations — aligners had to discover them independently.
+- 4A 3-seed avg: 0.426 vs 0.405 baseline (+5.2%)
+- 8A seed 42: 0.352 vs 0.339 (+3.8%)
+
+**Experiment 2: Miner unstuck recovery** (v29)
+Found critical bug: miner's `_scripted_skill_choice` never returned "unstuck" — miners in explore→stuck loops cycled forever. Two fixes:
+1. Navigation shake (15+ no-move steps, every 5th step) — micro-correction within skill
+2. Unstuck skill escalation (3+ consecutive stuck exits) — macro-correction via random walks
+- 2A avg: 0.275 vs 0.211 baseline (+30% — seed 42 went from 0.087 to 0.262!)
+- 4A avg: 0.420 vs 0.426 (-1.4%, within noise)
+- 8A avg: 0.344 vs 0.320 (+7.5%)
+
+**Experiments tried (discarded)**:
+- Strategic junction selection (expand network): avg 0.399 vs 0.426 — extra travel distance outweighs strategic value
+- Obstacle-aware greedy walk: no measurable impact (fallback rarely triggered)
+- 3A+1M at 4 agents: avg 0.369 vs 0.426 — too few miners
+- Aggressive nav shake (5+ steps, every 3rd): +30% at 2A but -19% at 8A — too disruptive for large teams
+
+**Uploaded**: lessandro-scripted-v28:v1 (junction sharing), lessandro-scripted-v29:v1 (+ miner unstuck)
