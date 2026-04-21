@@ -121,6 +121,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             get_heart_timeouts=state.get_heart_timeouts,
             recent_events=list(state.recent_events),
             blacklisted_junctions=set(state.blacklisted_junctions),
+            move_cooldowns=dict(state.move_cooldowns),
+            steps_since_last_move=state.steps_since_last_move,
         )
         return result
 

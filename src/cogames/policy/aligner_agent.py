@@ -96,6 +96,9 @@ class AlignerState(StarterCogState):
     last_move_target: Coord | None = None
     # Cells blocked by move failure (not cleared by observation updates)
     move_blocked_cells: set[Coord] = field(default_factory=set)
+    # Issue-44: per-agent move cooldown to break congestion deadlocks
+    move_cooldowns: dict[Coord, int] = field(default_factory=dict)
+    steps_since_last_move: int = 0
     # Junctions permanently skipped after repeated navigation failures
     blacklisted_junctions: set[Coord] = field(default_factory=set)
 
@@ -414,16 +417,33 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         target_set.difference_update(visible_cells)
         target_set.update(current_values)
 
+    _MOVE_COOLDOWN = 6
+
     def _update_map_memory(self, obs: AgentObservation, state: AlignerState) -> Coord:
         current_abs = self._spawn_offset(obs)
 
-        # If we tried to move last step but didn't move, the target cell blocks movement.
-        # Add to move_blocked_cells (persists across observation updates) so BFS avoids it.
+        # Issue-44: track whether the agent actually moved
+        moved = state.last_pos is not None and current_abs != state.last_pos
+        if moved:
+            state.steps_since_last_move = 0
+        else:
+            state.steps_since_last_move += 1
+
+        # Issue-44: per-agent move cooldown to break congestion deadlocks.
         if state.last_pos is not None and state.last_move_target is not None:
             if current_abs == state.last_pos:
+                if state.steps_since_last_move <= 12:
+                    state.move_cooldowns[state.last_move_target] = self._MOVE_COOLDOWN
                 state.move_blocked_cells.add(state.last_move_target)
         state.last_pos = current_abs
-        state.last_move_target = None  # reset; set by callers before returning a move action
+        state.last_move_target = None
+
+        # Tick down cooldowns
+        expired = [cell for cell, ttl in state.move_cooldowns.items() if ttl <= 1]
+        for cell in expired:
+            del state.move_cooldowns[cell]
+        for cell in list(state.move_cooldowns):
+            state.move_cooldowns[cell] -= 1
 
         visible_cells = self._visible_abs_cells(current_abs)
         visible_tag_ids_by_cell: dict[Coord, set[int]] = {}
@@ -445,11 +465,6 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 stations_now.add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
-            # Issue-36 v8: objects like extractors, hubs, and stations block movement
-            # but have their own tags (not wall tags). Pre-block them so BFS doesn't
-            # route through these cells. Navigation to these objects uses
-            # _navigate_to_station / _navigate_to_blocked_target which target
-            # adjacent approach cells, so this is safe.
             if token.value in self._extractor_tags:
                 blocked_now.add(abs_cell)
             if token.value in self._hub_tags:
@@ -474,16 +489,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Issue-36 v10: correct move_blocked_cells false positives.
-        # move_blocked_cells is never cleared, so temporary obstacles (other agents
-        # standing in a cell) create permanent false positives. Over 10k steps this
-        # progressively constrains BFS navigation. Fix: if we can currently SEE that
-        # a cell is free (visible and not actually blocked), remove it from
-        # move_blocked_cells. Trust current observations over historical failures.
+        # Issue-44: use per-agent cooldowns + legacy move_blocked_cells
         visually_free = visible_cells - blocked_now
         state.move_blocked_cells.difference_update(visually_free)
-        state.blocked_cells.update(state.move_blocked_cells)  # persist remaining move-failure blocks
-        state.known_free_cells.update(visually_free)
+        cooldown_cells = set(state.move_cooldowns.keys())
+        state.blocked_cells.update(state.move_blocked_cells)
+        state.blocked_cells.update(cooldown_cells)
+        state.known_free_cells.update(visually_free - cooldown_cells)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 

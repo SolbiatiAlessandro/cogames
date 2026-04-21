@@ -39,6 +39,11 @@ class MinerSkillState(StarterCogState):
     # Move-failure tracking (same mechanism as AlignerState)
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
+    # Issue-44: per-agent move cooldown to break congestion deadlocks.
+    # When a move fails, the target cell stays blocked for MOVE_COOLDOWN steps
+    # instead of being immediately cleared by the "visually free" check.
+    move_cooldowns: dict[Coord, int] = field(default_factory=dict)
+    steps_since_last_move: int = 0
     # HP tracking for miner survival (issue #40)
     max_hp_seen: int = 0
     retreating_to_hub: bool = False
@@ -182,16 +187,38 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         dr, dc = delta_map.get(direction, (0, 0))
         return (current_abs[0] + dr, current_abs[1] + dc)
 
+    _MOVE_COOLDOWN = 6
+
     def _update_map_memory(self, obs: AgentObservation, state: MinerSkillState) -> None:
         current_abs = self._current_abs(obs)
 
-        # Move-failure tracking: if we tried to move but didn't, mark target as blocked
+        # Issue-44: track whether the agent actually moved this step
+        moved = state.last_pos is not None and current_abs != state.last_pos
+        if moved:
+            state.steps_since_last_move = 0
+        else:
+            state.steps_since_last_move += 1
+
+        # Issue-44: per-agent move cooldown instead of shared move_blocked_cells.
+        # When a move fails because another agent occupies the cell, add a LOCAL
+        # cooldown instead of writing to the shared map. This prevents the
+        # add-then-immediately-clear cycle that caused infinite BFS loops.
         if state.last_pos is not None and state.last_move_target is not None:
             if current_abs == state.last_pos:
-                if self._shared_map is not None:
-                    self._shared_map.move_blocked_cells.add(state.last_move_target)
+                # Only apply cooldown if agent is NOT structurally stuck.
+                # When stuck for >12 steps, cooldowns become counterproductive
+                # (blocking the only viable paths in tight corridors).
+                if state.steps_since_last_move <= 12:
+                    state.move_cooldowns[state.last_move_target] = self._MOVE_COOLDOWN
         state.last_pos = current_abs
         state.last_move_target = None
+
+        # Tick down all cooldowns and remove expired ones
+        expired = [cell for cell, ttl in state.move_cooldowns.items() if ttl <= 1]
+        for cell in expired:
+            del state.move_cooldowns[cell]
+        for cell in list(state.move_cooldowns):
+            state.move_cooldowns[cell] -= 1
 
         visible_cells = self._visible_abs_cells(current_abs)
         blocked_now: set[Coord] = set()
@@ -212,18 +239,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 miner_stations_now.add(abs_cell)
             if token.value in self._starter._extractor_tags:
                 extractors_now.add(abs_cell)
-                # Issue-16: track which element this extractor produces
                 for element, etags in self._extractor_tags_by_element.items():
                     if token.value in etags:
                         state.extractors_by_element[element].add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
 
-        # Issue-36 v8: pre-block extractors, hubs, and stations for navigation.
-        # These occupy cells and block movement, but have their own tags (not wall tags).
-        # Without this, BFS routes through these cells → agent tries to walk through → fails.
-        # This was a major source of the 53% move failure rate (issue #35).
-        # Objects are still tracked in their respective sets for targeted navigation.
         blocked_now.update(extractors_now)
         blocked_now.update(hubs_now)
         blocked_now.update(miner_stations_now)
@@ -231,16 +252,15 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Issue-36 v10: correct move_blocked_cells false positives.
-        # move_blocked_cells never clears, so temporary obstacles (other agents
-        # standing in cells) become permanent false positives. Over 10k steps this
-        # degrades BFS navigation. Fix: remove cells from move_blocked_cells when
-        # we can visually confirm they are free (visible + no blocking object).
+        # Issue-44: use per-agent cooldowns instead of shared move_blocked_cells.
+        # Cooldown-blocked cells are added to blocked_cells for BFS avoidance.
+        cooldown_cells = set(state.move_cooldowns.keys())
+        state.blocked_cells.update(cooldown_cells)
+        # Still clean up shared move_blocked_cells for aligners' benefit
         visually_free = visible_cells - blocked_now
         if self._shared_map and self._shared_map.move_blocked_cells:
             self._shared_map.move_blocked_cells.difference_update(visually_free)
-            state.blocked_cells.update(self._shared_map.move_blocked_cells)
-        state.known_free_cells.update(visually_free)
+        state.known_free_cells.update(visually_free - cooldown_cells)
         state.known_free_cells.difference_update(state.blocked_cells)
         state.known_free_cells.add(current_abs)
 
@@ -337,10 +357,29 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         return parents[step][1]
 
+    def _bfs_without_cooldowns(self, state: MinerSkillState, start: Coord, goal: Coord) -> str | None:
+        """Fallback BFS ignoring cooldown-blocked cells. Used when cooldowns block all paths."""
+        if start == goal:
+            return self._starter._fallback_action_name
+        cooldown_cells = set(state.move_cooldowns.keys())
+        if not cooldown_cells:
+            return None
+        # Temporarily restore cooldown cells as free
+        original_blocked = set(state.blocked_cells)
+        original_free = set(state.known_free_cells)
+        state.blocked_cells -= cooldown_cells
+        state.known_free_cells |= cooldown_cells
+        direction = self._bfs_first_direction(state, start, goal)
+        state.blocked_cells = original_blocked
+        state.known_free_cells = original_free
+        return direction
+
     def _move_to(self, state: MinerSkillState, current_abs: Coord, target_abs: Coord | None) -> tuple[Action, MinerSkillState]:
         if target_abs is None:
             return self._starter._wander(state)
         direction = self._bfs_first_direction(state, current_abs, target_abs)
+        if direction is None:
+            direction = self._bfs_without_cooldowns(state, current_abs, target_abs)
         if direction is None:
             return self._starter._wander(state)
         return self._starter._action(f"move_{direction}"), state
@@ -354,6 +393,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if target_abs is None:
             return self._starter._wander(state)
         direction = self._bfs_first_direction(state, current_abs, target_abs)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), state
+
+        # Issue-44: try BFS ignoring cooldowns before falling through to optimistic BFS
+        direction = self._bfs_without_cooldowns(state, current_abs, target_abs)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), state
 
@@ -732,28 +776,32 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     logger.info("agent=%s MINER_HP_LOW hp=%d/%d retreating",
                                 obs.agent_id, hp, state.max_hp_seen)
                     state.retreating_to_hub = True
-                return self._deposit_to_hub(obs, state)
+                action, state = self._deposit_to_hub(obs, state)
+                self._record_move_target(action, obs, state)
+                return action, state
             elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.9:
                 state.retreating_to_hub = False
 
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
         if gear != "miner":
             state.steps_in_current_mode = 0
-            return self._gear_up(obs, state)
+            action, state = self._gear_up(obs, state)
+            self._record_move_target(action, obs, state)
+            return action, state
 
         carried = self._carried_total(obs)
 
-        # Stuck detection: if carried total changed, we made progress
         if carried != state.last_carried_total:
             state.steps_in_current_mode = 0
             state.last_carried_total = carried
 
-        # Force explore to break out of navigation loops
         if state.stuck_explore_remaining > 0:
             state.stuck_explore_remaining -= 1
             if state.stuck_explore_remaining == 0:
                 logger.info("agent=%s stuck_explore done, resuming normal mode", agent_id)
-            return self._explore(obs, state)
+            action, state = self._explore(obs, state)
+            self._record_move_target(action, obs, state)
+            return action, state
 
         state.steps_in_current_mode += 1
 
@@ -771,9 +819,23 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             )
             state.steps_in_current_mode = 0
             state.stuck_explore_remaining = self._STUCK_EXPLORE_STEPS
-            return self._explore(obs, state)
+            action, state = self._explore(obs, state)
+            self._record_move_target(action, obs, state)
+            return action, state
 
         if carried >= self._return_load:
-            return self._deposit_to_hub(obs, state)
+            action, state = self._deposit_to_hub(obs, state)
+            self._record_move_target(action, obs, state)
+            return action, state
 
-        return self._mine_until_full(obs, state)
+        action, state = self._mine_until_full(obs, state)
+        self._record_move_target(action, obs, state)
+        return action, state
+
+    def _record_move_target(self, action: Action, obs: AgentObservation, state: MinerSkillState) -> None:
+        """Record the move target so the cooldown system can detect failures next step."""
+        action_name = action.name if hasattr(action, "name") else ""
+        if action_name.startswith("move_"):
+            current_abs = self._current_abs(obs)
+            direction = action_name[len("move_"):]
+            state.last_move_target = self._move_target(current_abs, direction)
