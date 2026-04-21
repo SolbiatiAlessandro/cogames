@@ -38,6 +38,8 @@ def main():
     parser.add_argument("--steps", type=int, default=3000)
     parser.add_argument("--cogs", type=int, default=8)
     parser.add_argument("--mission", type=str, default="basic")
+    parser.add_argument("--num-aligners", type=int, default=None)
+    parser.add_argument("--return-load", type=int, default=None)
     args = parser.parse_args()
 
     from cogames.cogs_vs_clips.missions import get_core_missions
@@ -58,12 +60,18 @@ def main():
             update={"game": env_cfg.game.model_copy(update={"max_steps": args.steps})}
         )
 
-    policy_spec = PolicySpec(
-        class_path="cogames.policy.machina_llm_roles_policy.MachinaLLMRolesPolicy",
-        init_kwargs={
+    policy_kwargs = {
             "scripted_miners": True,
             "scripted_aligners": True,
-        },
+    }
+    if args.num_aligners is not None:
+        policy_kwargs["num_aligners"] = args.num_aligners
+    if args.return_load is not None:
+        policy_kwargs["return_load"] = args.return_load
+
+    policy_spec = PolicySpec(
+        class_path="cogames.policy.machina_llm_roles_policy.MachinaLLMRolesPolicy",
+        init_kwargs=policy_kwargs,
     )
 
     log.info("Mission=%s cogs=%d steps=%d seed=%d", args.mission, args.cogs, args.steps, args.seed)

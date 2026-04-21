@@ -690,6 +690,18 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    def _cascade_priority_target(self, current_abs: Coord, candidates: set[Coord], state: AlignerState) -> Coord | None:
+        if not candidates:
+            return None
+        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1])) if state.known_hubs else None
+        if hub is None:
+            return self._nearest_known(current_abs, candidates)
+        def score(j: Coord) -> float:
+            travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
+            hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
+            return travel + hub_dist * 0.7
+        return min(candidates, key=score)
+
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
         for hub in state.known_hubs:
             if abs(junction[0] - hub[0]) + abs(junction[1] - hub[1]) <= _HUB_ALIGN_DISTANCE:
@@ -701,12 +713,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
-        # Combine neutral and enemy junctions — recapturing enemy is a +2 swing
-        # (we gain one, clips lose one), so prefer nearest overall rather than
-        # always prioritizing neutral over enemy regardless of distance.
         alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
                      if self._is_alignable(j, state) and j not in bl}
-        target_abs = self._nearest_known(current_abs, alignable)
+        target_abs = self._cascade_priority_target(current_abs, alignable, state)
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
