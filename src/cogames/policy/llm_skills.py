@@ -716,7 +716,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return action, replace(next_state, last_mode=state.last_mode)
         return self._greedy_walk_toward(current_abs, target_abs), state
 
-    _MINER_HP_RETREAT_THRESHOLD = 0.50
+    _MINER_HP_RETREAT_THRESHOLD = 0.25
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
         center = self._starter._center
@@ -808,7 +808,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 action, state = self._deposit_to_hub(obs, state)
                 self._record_move_target(action, obs, state)
                 return action, state
-            elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.9:
+            elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.5:
                 state.retreating_to_hub = False
 
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
