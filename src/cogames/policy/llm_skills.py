@@ -844,15 +844,25 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if state.known_hubs:
                 nearest_hub = min(state.known_hubs, key=lambda h: abs(h[0] - current_abs[0]) + abs(h[1] - current_abs[1]))
                 hub_dist = abs(nearest_hub[0] - current_abs[0]) + abs(nearest_hub[1] - current_abs[1])
+
+            # Issue-44: if stuck while trying to mine (carried unchanged), the
+            # nearest extractor is likely depleted. Mark it so the miner avoids it.
+            if state.last_mode in ("mine_until_full", "explore") and active:
+                nearest_ext = self._nearest_known(current_abs, active)
+                if nearest_ext is not None:
+                    state.depleted_extractors.add(nearest_ext)
+                    active = self._active_extractors(state)
+                    logger.info(
+                        "agent=%s EXTRACTOR_DEPLETED_BY_STUCK extractor=%s active_remaining=%d depleted_total=%d",
+                        agent_id, nearest_ext, len(active), len(state.depleted_extractors),
+                    )
+
             logger.info(
-                "agent=%s STUCK step=%d mode=%s steps_in_mode=%d pos=%s hub_dist=%s carried=%d known_hubs=%d active_extractors=%d depleted=%d",
+                "agent=%s STUCK step=%d mode=%s steps_in_mode=%d pos=%s hub_dist=%s carried=%d active_extractors=%d depleted=%d",
                 agent_id, step_num, state.last_mode, state.steps_in_current_mode,
-                current_abs, hub_dist, carried, len(state.known_hubs),
-                len(active), len(state.depleted_extractors),
+                current_abs, hub_dist, carried, len(active), len(state.depleted_extractors),
             )
             state.steps_in_current_mode = 0
-            # If all nearby extractors are depleted, use longer explore phase
-            # and use wide exploration (not hub-constrained) to find fresh extractors
             if not active:
                 state.stuck_explore_remaining = self._STUCK_EXPLORE_STEPS * 3
             else:
