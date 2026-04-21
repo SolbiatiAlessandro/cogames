@@ -23,3 +23,63 @@ My plan:
 4. Focus on reducing miner deaths (previous researcher noted deaths increased 64 vs 13 because miners now move into dangerous areas more)
 
 ## 2026-04-21T05:16: starting to run baseline
+
+Command: `python scripts/run_experiment.py --seed {42,123,7} --steps 3000 --cogs 8`
+Policy: machina_llm_roles (scripted_miners=True, scripted_aligners=True)
+
+### Baseline Results (3 seeds)
+
+| Seed | Avg/Agent | Junctions | Hearts | Deaths | Move Fail | Max Stuck |
+|------|-----------|-----------|--------|--------|-----------|-----------|
+| 42   | 77.60     | 38        | 38     | 3      | -         | -         |
+| 123  | 69.42     | 31        | 32     | 0      | 8186      | 2322      |
+| 7    | 26.88     | 14        | 15     | 9      | 11043     | 2549      |
+| **Mean** | **57.97** | **27.7** | **28.3** | **4.0** | | |
+
+Key finding: `max_steps_without_motion` of 2322-2549 confirms the congestion deadlock bug.
+Seed 7 has 46% move failure rate and 9 deaths — the worst case.
+
+## 2026-04-21T05:27: starting new experiment loop - adaptive move cooldown
+
+**Hypothesis:** Per-agent move cooldown of 6 steps will break congestion deadlocks by preventing
+the "add then immediately clear" cycle in move_blocked_cells.
+
+**Changes:**
+- `llm_skills.py`: Added `move_cooldowns` dict to MinerSkillState. Failed move targets stay
+  blocked for 6 steps per-agent (not shared). Disabled when structurally stuck (>12 steps).
+  Added `_bfs_without_cooldowns` fallback when cooldowns block all paths.
+  Added `_record_move_target` to track move targets for cooldown detection.
+- `aligner_agent.py`: Same cooldown mechanism added to AlignerState and `_update_map_memory`.
+- `machina_llm_roles_policy.py`: Updated `_copy_with` to preserve new fields.
+
+### Experiment 1 Results: Adaptive Move Cooldown (cooldown=6)
+
+| Seed | Baseline | Experiment | Change | Move Fail | Max Stuck | Deaths |
+|------|----------|------------|--------|-----------|-----------|--------|
+| 42   | 77.60    | 91.13      | **+17.4%** | 1164  | 61        | 1 (vs 3) |
+| 123  | 69.42    | 84.05      | **+21.1%** | 1670  | 146       | 0 (vs 0) |
+| 7    | 26.88    | 90.73      | **+237.4%** | 3529 | 65        | 0 (vs 9) |
+| **Mean** | **57.97** | **88.64** | **+52.9%** | | | |
+
+**Massive improvement!** Especially on seed 7 which went from 26.88 to 90.73 (+237%).
+
+Key metrics:
+- Move failures: 80% reduction on seed 123, 68% on seed 7
+- Max stuck steps: 97% reduction (2549 → 65 on seed 7)
+- Deaths: 12 → 1 total across all seeds (92% reduction)
+- Junction alignment: 27.7 → 38.7 avg (+40%)
+- Variance collapsed: all seeds now score 84-91 vs previous 27-78 range
+
+## 2026-04-21T05:33: I ran my experiment, findings
+
+The adaptive move cooldown fix is highly effective. The root cause was confirmed:
+agents were getting stuck in infinite BFS loops because move_blocked_cells entries
+were immediately cleared by the "visually free" check each step. The 6-step cooldown
+breaks this cycle, forcing BFS to find alternative routes.
+
+The variance reduction is particularly notable — seed 7 went from being 3x worse
+than seed 42 to being nearly identical. This suggests the congestion deadlock was
+the primary source of cross-seed variance.
+
+Next experiment should try: extending to 10k steps to check if the productivity
+plateau from the issue title (deposits freeze at ~5k steps) is also resolved.
