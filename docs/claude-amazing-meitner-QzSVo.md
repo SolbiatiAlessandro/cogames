@@ -132,8 +132,42 @@ affect our score. The move cooldown fix (+52.9%) already captures the main impro
 ## 2026-04-21T06:25: Planning next experiment
 
 The 3k evaluation reward is 88.64 avg/agent. To improve further, I need to look at what's
-limiting performance within the 3k evaluation window. Options:
-1. **Improve miner efficiency** — miners could potentially deposit more within 3k steps
-2. **Improve aligner performance** — more junctions aligned = more hearts available
-3. **Reduce remaining move failures** — seed 7 still has 14% move failure rate at 10k
-4. **Optimize mine-deposit cycle time** — faster round trips mean more deposits per step
+limiting performance within the 3k evaluation window. Analyzed the reward formula:
+`aligned_junction_held` is per_tick with weight 1/max_steps. Each aligned junction generates
+reward EVERY STEP. Alignments done earlier generate more total reward.
+
+Tried and discarded:
+- 5 aligners + 3 miners: +19.8% on seed 42 but inconsistent across seeds (mean 88.12)
+- 3 aligners + 5 miners: worse (75.36 on seed 42)
+- return_load=15 and return_load=8: neutral or worse
+- Multi-heart pickup for aligners: neutral
+- First-trip rush deposits: never triggers (HP retreat fires first)
+
+## 2026-04-21T07:04: Experiment 3 — Cascade priority for junction alignment
+
+**Hypothesis:** By biasing aligner junction selection toward hub-adjacent junctions
+(score = travel_dist + hub_dist * weight), inner junctions are aligned first, unlocking
+the cascade (junctions within 15 cells of friendly junctions become alignable) faster.
+
+**Changes:** Added `_cascade_priority_target` method to aligner_agent.py. Replaces
+`_nearest_known` with weighted scoring that penalizes hub-distant junctions.
+
+### Weight Sweep Results (4+4 composition, 3k steps)
+
+| Weight | Seed 42 | Seed 123 | Seed 7 | Mean | vs Baseline |
+|--------|---------|----------|--------|------|-------------|
+| 0 (none) | 91.13 | 84.05 | 90.73 | 88.64 | — |
+| 0.3 | 98.19 | 81.58 | 118.33 | 99.36 | +12.1% |
+| 0.5 | 111.09 | 77.94 | 114.46 | 101.16 | +14.1% |
+| 0.6 | 110.35 | 77.94 | 117.26 | 101.85 | +14.9% |
+| **0.7** | **110.35** | **86.09** | **115.26** | **103.90** | **+17.2%** |
+| 0.8 | 110.35 | 86.09 | 115.78 | 104.07 | +17.4% |
+| 1.0 | 98.49 | 78.72 | 129.05 | 102.09 | +15.2% |
+
+**Winner: weight=0.7** (mean 103.90, +17.2% over cooldown-only baseline).
+
+Key insight: The alignment cascade is the dominant reward driver. By prioritizing
+hub-adjacent junctions, the cascade unlocks faster, allowing more junctions to be
+aligned earlier in the episode. This generates more per-tick reward.
+
+Combined improvement from baseline: 57.97 → 103.90 = **+79.2%**
