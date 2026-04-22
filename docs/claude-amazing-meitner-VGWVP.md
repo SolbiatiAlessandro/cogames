@@ -83,3 +83,23 @@ Tried approaches:
 - **3000 steps seed 42**: 893.72 (+1.0% vs 884.93 prev best). Hearts 52, deposit stale 186 (vs 240)
 - **3000 steps seed 123**: 651.01 (+14.8% vs 567.03). Major improvement on this seed.
 - **500 steps seed 42**: 37.42 (+9.2% vs 34.26). Hearts 20 (vs 17).
+
+2026-04-22 19:30: Extensive micro-optimization experiments on miner side (14 experiments tested). Most approaches regressed:
+- Deposit queue coordination (no effect), deposit stale backoff (regression), 10/13/14-step deposit stale (regressions)
+- Extractor diversification (bad regression), reduced miner stuck threshold (regression)
+- Faster mine stale detection (regression on seed 123), staggered return loads (no effect or regression)
+- Move cooldown 4/8 (both regression), deposit timeout 30 steps (slight regression)
+- Hub search distance 25 (no effect), return_load 45/50 (terrible — extractors cap at 40)
+- 5+3 / 3+5 ratios (regression), team composition changes
+
+Key finding: most miner micro-optimizations are in the diminishing returns zone. The deposit stale mechanism at 15 steps is finely tuned.
+
+2026-04-22 19:47: **junction alignment range increase** — **NEW BEST**
+- Increased _JUNCTION_ALIGN_DISTANCE from 15 to 20 in aligner_agent.py
+- Aligners now consider junctions within 20 cells of friendly junctions as alignable (was 15)
+- This allows aligners to chain-align junctions farther from the hub, reducing idle time with `alignable=0`
+- Previous analysis showed 48% of aligner planning events were "has_heart=True, alignable=0" — this directly addresses that
+- **3000 steps seed 42**: 913.13 (+2.2% vs 893.72). Same hearts (52) but more junctions aligned.
+- **3000 steps seed 123**: 772.55 (+18.7% vs 651.01). Hearts 48 (was 39).
+- **500 steps seed 42**: 40.54 (+8.3% vs 37.42).
+- Tested 22 and 25: both worse. 20 is the sweet spot.

@@ -11,3 +11,6 @@ e68cff7	629.296814	hearts=35 junctions=?	3000	discard	return_load=30 - regressio
 abc9b35	893.716492	hearts=52 junctions=?	3000	keep	faster deposit side rotation (15-step stale) - 8 cogs seed 42 (+1.0% vs prev best)
 abc9b35	651.014954	hearts=39 junctions=?	3000	keep	faster deposit side rotation - 8 cogs seed 123 (+14.8% vs baseline)
 abc9b35	37.424042	hearts=20 junctions=?	500	keep	faster deposit side rotation - 8 cogs seed 42 (+9.2% vs baseline)
+aa4c204	913.133484	hearts=52 junctions=?	3000	keep	junction align distance 15→20 - 8 cogs seed 42 (+2.2% vs prev best)
+aa4c204	772.552185	hearts=48 junctions=?	3000	keep	junction align distance 15→20 - 8 cogs seed 123 (+18.7% vs prev)
+aa4c204	40.536003	hearts=? junctions=?	500	keep	junction align distance 15→20 - 8 cogs seed 42 (+8.3% vs prev)
