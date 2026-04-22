@@ -558,6 +558,19 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     def _active_extractors_for_element(self, state: MinerSkillState, element: str) -> set[Coord]:
         return state.extractors_by_element.get(element, set()) - state.depleted_extractors
 
+    def _hub_weighted_extractor(self, state: MinerSkillState, current_abs: Coord, candidates: set[Coord]) -> Coord | None:
+        """Select extractor that minimizes total round-trip: travel + return to hub."""
+        if not candidates:
+            return None
+        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1])) if state.known_hubs else None
+        if hub is None:
+            return self._nearest_known(current_abs, candidates)
+        def score(e: Coord) -> float:
+            travel = abs(e[0] - current_abs[0]) + abs(e[1] - current_abs[1])
+            hub_dist = abs(e[0] - hub[0]) + abs(e[1] - hub[1])
+            return travel + hub_dist * 0.5
+        return min(candidates, key=score)
+
     def _check_extractor_depletion(self, obs: AgentObservation, state: MinerSkillState) -> None:
         """Mark nearest extractor as depleted if miner hasn't gained resources for too long."""
         current_abs = self._current_abs(obs)
@@ -624,7 +637,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 action, next_state = self._move_toward_target(state, current_abs, target_abs)
                 return action, replace(next_state, last_mode=state.last_mode)
         active = self._active_extractors(state)
-        target_abs = self._nearest_known(current_abs, active)
+        target_abs = self._hub_weighted_extractor(state, current_abs, active)
         if target_abs is None:
             if state.known_hubs:
                 predicted = self._predicted_extractor_positions(state) - state.depleted_extractors
@@ -786,7 +799,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     _step_counter: dict[int, int] = {}
 
-    _STUCK_THRESHOLD = 150
+    _STUCK_THRESHOLD = 100
     _STUCK_EXPLORE_STEPS = 60
 
     def step_with_state(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
