@@ -658,23 +658,36 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         return action, replace(next_state, last_mode=state.last_mode)
 
     def _navigate_to_blocked_target(
-        self, state: MinerSkillState, current_abs: Coord, blocked_target: Coord
+        self, state: MinerSkillState, current_abs: Coord, blocked_target: Coord,
+        preferred_side: int | None = None,
     ) -> tuple[Action, MinerSkillState] | None:
         """Navigate toward a blocked object (hub/station) via its best adjacent approach cell.
 
         Issue-16 fix: hubs are blocked objects. BFS to them fails because they're
         not in known_free_cells. Navigate to the nearest adjacent free cell instead,
         then step into the blocked cell to trigger the interaction handler.
+
+        preferred_side: if set (0-3), prefer that approach direction index to
+        reduce hub congestion when multiple miners deposit simultaneously.
         """
-        # Find adjacent cells that aren't blocked
+        _SIDES = (("north", (-1, 0)), ("south", (1, 0)), ("east", (0, 1)), ("west", (0, -1)))
         approach_candidates = []
-        for _, (dr, dc) in (("north", (-1, 0)), ("south", (1, 0)), ("east", (0, 1)), ("west", (0, -1))):
+        for idx, (_, (dr, dc)) in enumerate(_SIDES):
             neighbor = (blocked_target[0] + dr, blocked_target[1] + dc)
             if neighbor not in state.blocked_cells:
-                approach_candidates.append(neighbor)
+                approach_candidates.append((idx, neighbor))
         if not approach_candidates:
             return None
-        approach = min(approach_candidates, key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
+        if preferred_side is not None:
+            approach = min(
+                approach_candidates,
+                key=lambda item: (
+                    (item[0] - preferred_side) % 4,
+                    abs(item[1][0] - current_abs[0]) + abs(item[1][1] - current_abs[1]),
+                ),
+            )[1]
+        else:
+            approach = min(approach_candidates, key=lambda item: abs(item[1][0] - current_abs[0]) + abs(item[1][1] - current_abs[1]))[1]
         if current_abs == approach:
             # Already adjacent — step into the blocked target
             dr = blocked_target[0] - current_abs[0]
@@ -718,10 +731,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s mode=deposit_to_hub load=%s", obs.agent_id, self._carried_total(obs))
             state.last_mode = "deposit_to_hub"
         current_abs = self._current_abs(obs)
+        preferred_side = obs.agent_id % 4
         visible_target = self._closest_visible_location(obs, self._hub_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
-            result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+            result = self._navigate_to_blocked_target(state, current_abs, target_abs, preferred_side=preferred_side)
             if result is not None:
                 action, next_state = result
                 return action, replace(next_state, last_mode=state.last_mode)
@@ -733,7 +747,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.blocked_cells.add(target_abs)
         if target_abs is None:
             return self._explore(obs, state)
-        result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+        result = self._navigate_to_blocked_target(state, current_abs, target_abs, preferred_side=preferred_side)
         if result is not None:
             action, next_state = result
             return action, replace(next_state, last_mode=state.last_mode)
