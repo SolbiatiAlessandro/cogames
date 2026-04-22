@@ -8,3 +8,6 @@ c908949	567.031982	hearts=28 junctions=?	3000	keep	hub approach diversification 
 0435edf	884.931763	hearts=50 junctions=47	3000	keep	hub approach + deposit side rotation - 8 cogs seed 42 (+12.1% vs baseline)
 8b9765b	718.524536	hearts=37 junctions=?	3000	discard	deposit patience 1.5x - regression. reverted
 e68cff7	629.296814	hearts=35 junctions=?	3000	discard	return_load=30 - regression. travel time too costly
+abc9b35	893.716492	hearts=52 junctions=?	3000	keep	faster deposit side rotation (15-step stale) - 8 cogs seed 42 (+1.0% vs prev best)
+abc9b35	651.014954	hearts=39 junctions=?	3000	keep	faster deposit side rotation - 8 cogs seed 123 (+14.8% vs baseline)
+abc9b35	37.424042	hearts=20 junctions=?	500	keep	faster deposit side rotation - 8 cogs seed 42 (+9.2% vs baseline)

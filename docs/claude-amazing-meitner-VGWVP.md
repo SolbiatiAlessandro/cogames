@@ -65,3 +65,21 @@ This is a good result. Keeping the change. Resource throughput up 50-78% across 
 - The 20-step stale + rotation is the optimal pattern.
 
 2026-04-22 17:49: starting new experiment: trying return_load=30 (down from 40). Hypothesis: more frequent, lighter deposits will spread hub access over time, reducing congestion spikes when 4 miners all finish mining at similar times.
+
+2026-04-22 17:50: return_load=30 results: **regression** to 629.30. Travel time overhead too costly. Discarded.
+
+2026-04-22 18:00: Analyzed event distribution from 3000-step run. **240 out of 305 deposit attempts exit as stale** (79% failure rate). Each wastes 20 steps = 4800 agent-steps wasted total. Stale exits occur when miner is adjacent to hub but deposit move doesn't succeed within the stale threshold.
+
+Tried approaches:
+- **Deposit queue coordination via SharedMap**: Added `miners_depositing` set to SharedMap. Queue never triggers — with 4 miners and hub diversification, rarely 2+ depositing simultaneously. Reverted.
+- **Deposit stale backoff (explore after 3 consecutive stale exits)**: Reduced deposit stale from 240→20 but increased mine stale 30→71. Net regression to 878.57. Explore detours waste more time than retry cycles. Reverted.
+- **10-step deposit stale threshold**: Too aggressive — 782.40 regression. Miners don't have enough time to complete deposit before being rotated away.
+- **5 miners + 3 aligners**: Regression to 608.62. Not enough aligners.
+- **3 miners + 5 aligners**: Slight regression to 847.72. Mining throughput becomes the bottleneck.
+
+2026-04-22 18:26: **faster deposit side rotation (15-step stale threshold)** — **NEW BEST**
+- Reduced deposit stale threshold from 20 to 15 steps (3/4 of stuck_threshold) specifically for deposit_to_hub
+- Miners rotate to next hub side after 15 steps of no progress instead of 20, finding clear sides ~25% faster
+- **3000 steps seed 42**: 893.72 (+1.0% vs 884.93 prev best). Hearts 52, deposit stale 186 (vs 240)
+- **3000 steps seed 123**: 651.01 (+14.8% vs 567.03). Major improvement on this seed.
+- **500 steps seed 42**: 37.42 (+9.2% vs 34.26). Hearts 20 (vs 17).
