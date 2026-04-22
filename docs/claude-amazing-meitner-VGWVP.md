@@ -37,3 +37,11 @@ Next: upload to Softmax as lessandro-scripted-v39.
 - Correct role allocation: scripted_miners=True, num_aligners=min(4, n_agents//2), num_scouts=0
 
 Next: monitor online results, then explore further improvements while we wait.
+
+2026-04-22 17:33: starting new experiment loop, in this experiment I want to try hub approach diversification.
+
+Analysis of 3000-step run logs reveals 363 stuck/stale events, of which **294 (81%)** are `deposit_to_hub exited as stale`. Miners all approach the hub from the nearest side, creating congestion when 4 miners try to deposit simultaneously.
+
+**Hypothesis**: If each miner approaches the hub from a different direction (based on agent_id), congestion will decrease and deposit throughput will improve, leading to more mine-deposit cycles and higher total reward.
+
+**Implementation**: Modify `_deposit_to_hub` to sort approach cells with an agent-id-based preference for different hub sides, distributing miners around the hub perimeter.

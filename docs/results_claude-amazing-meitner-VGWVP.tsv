@@ -2,3 +2,6 @@ commit	mission_reward	secondary_rewards	steps	status	description
 15a8c95	34.256046	hearts=17 junctions=17	500	keep	baseline 500 steps 8 cogs seed 42 - all session 13+14 fixes merged
 15a8c95	789.180542	hearts=47 junctions=43	3000	keep	baseline 3000 steps 8 cogs seed 42 - full episode
 15a8c95	18.256039	hearts=18 junctions=16	500	keep	baseline 500 steps 4 cogs seed 42 - role allocation fix verified (2m+2a)
+c908949	38.640011	hearts=23 junctions=23	500	keep	hub approach diversification - 8 cogs seed 42 (+12.8% vs baseline)
+c908949	839.352295	hearts=45 junctions=42	3000	keep	hub approach diversification - 8 cogs seed 42 (+6.4% vs baseline)
+c908949	567.031982	hearts=28 junctions=?	3000	keep	hub approach diversification - 8 cogs seed 123 (neutral)
