@@ -29,3 +29,11 @@ All results are excellent. The 4-agent scenario confirms the role allocation fix
 
 The 500-step 8-cog result (34.26) far exceeds the issue's ~8+ threshold.
 Next: upload to Softmax as lessandro-scripted-v39.
+
+2026-04-22 17:30: uploaded lessandro-scripted-v39:v1 to beta-cvc qualifying pool
+- Policy version ID: e398e343-b369-4103-b023-38e4e5d9dc2d
+- Branch: claude/amazing-meitner-VGWVP (commit 15a8c95 + baseline results abf6d4e)
+- Contains all session 13+14 fixes + issue #44 improvements
+- Correct role allocation: scripted_miners=True, num_aligners=min(4, n_agents//2), num_scouts=0
+
+Next: monitor online results, then explore further improvements while we wait.
