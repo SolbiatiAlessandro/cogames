@@ -35,6 +35,7 @@ class LLMMinerState(MinerSkillState):
     explore_start_extractors: int = 0
     recent_events: list[str] = field(default_factory=list)
     consecutive_stuck_exits: int = 0
+    deposit_side_offset: int = 0
 
 
 class LLMMinerPlannerClient:
@@ -409,6 +410,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried_total == 0:
             self._event(state, "deposit_to_hub completed after deposit")
+            state.deposit_side_offset = 0
             state.current_skill = None
         elif state.current_skill == "explore" and len(state.known_extractors) > state.explore_start_extractors:
             self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
@@ -445,6 +447,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                     for elem_set in state.extractors_by_element.values():
                         elem_set.discard(ext)
                     self._event(state, f"removed depleted extractor at {ext} from memory")
+            if state.current_skill == "deposit_to_hub":
+                state.deposit_side_offset += 1
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 

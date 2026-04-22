@@ -731,7 +731,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s mode=deposit_to_hub load=%s", obs.agent_id, self._carried_total(obs))
             state.last_mode = "deposit_to_hub"
         current_abs = self._current_abs(obs)
-        preferred_side = obs.agent_id % 4
+        side_offset = getattr(state, 'deposit_side_offset', 0)
+        preferred_side = (obs.agent_id + side_offset) % 4
         visible_target = self._closest_visible_location(obs, self._hub_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)

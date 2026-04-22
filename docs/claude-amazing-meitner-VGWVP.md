@@ -45,3 +45,12 @@ Analysis of 3000-step run logs reveals 363 stuck/stale events, of which **294 (8
 **Hypothesis**: If each miner approaches the hub from a different direction (based on agent_id), congestion will decrease and deposit throughput will improve, leading to more mine-deposit cycles and higher total reward.
 
 **Implementation**: Modify `_deposit_to_hub` to sort approach cells with an agent-id-based preference for different hub sides, distributing miners around the hub perimeter.
+
+2026-04-22 17:36: experiment results for hub approach diversification:
+- **500 steps, 8 cogs, seed 42**: 38.64 (+12.8%) — hearts 17→23 (+35%)
+- **3000 steps, 8 cogs, seed 42**: 839.35 (+6.4%) — deposit stale 294→148 (50% reduction)
+- **3000 steps, 8 cogs, seed 123**: 567.03 (neutral on this seed)
+
+This is a good result. Keeping the change. Resource throughput up 50-78% across elements.
+
+2026-04-22 17:39: starting new experiment loop. 148 deposit stale exits remain. My hypothesis is that increasing the stale tolerance for deposits (from 20 to 40 steps) will let miners wait out congestion rather than cycling through stale→explore→deposit loops. The explore cycle wastes ~30+ steps per cycle.
