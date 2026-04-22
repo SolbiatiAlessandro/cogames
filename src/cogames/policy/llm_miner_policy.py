@@ -438,6 +438,9 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
+            deposit_patience = state.current_skill == "deposit_to_hub" and state.no_progress_on_target_steps < self._stuck_threshold * 3 // 2
+            if deposit_patience:
+                return
             current_abs = self._current_abs(obs)
             if state.current_skill == "mine_until_full":
                 nearby = [e for e in state.known_extractors
