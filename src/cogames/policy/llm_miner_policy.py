@@ -434,6 +434,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 self._shared_map.move_blocked_cells.clear()
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
+        elif state.current_skill == "deposit_to_hub" and state.no_progress_on_target_steps >= (self._stuck_threshold * 3) // 4:
+            state.deposit_side_offset += 1
+            self._event(state, f"deposit_to_hub exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
+            state.current_skill = None
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
@@ -447,8 +451,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                     for elem_set in state.extractors_by_element.values():
                         elem_set.discard(ext)
                     self._event(state, f"removed depleted extractor at {ext} from memory")
-            if state.current_skill == "deposit_to_hub":
-                state.deposit_side_offset += 1
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
