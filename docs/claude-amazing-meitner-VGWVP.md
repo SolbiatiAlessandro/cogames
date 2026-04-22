@@ -54,3 +54,14 @@ Analysis of 3000-step run logs reveals 363 stuck/stale events, of which **294 (8
 This is a good result. Keeping the change. Resource throughput up 50-78% across elements.
 
 2026-04-22 17:39: starting new experiment loop. 148 deposit stale exits remain. My hypothesis is that increasing the stale tolerance for deposits (from 20 to 40 steps) will let miners wait out congestion rather than cycling through stale→explore→deposit loops. The explore cycle wastes ~30+ steps per cycle.
+
+2026-04-22 17:44: deposit side rotation results:
+- **3000 steps, 8 cogs, seed 42**: 884.93 (+12.1% vs baseline, +5.4% vs diversify-only)
+- Hearts: 50 (up from 45). max_steps_without_motion: 57 (down from 159).
+- Deposit stale exits: 240 (higher count but each triggers a side change, so deposits succeed faster overall)
+
+2026-04-22 17:46: deposit patience experiment (1.5x stale threshold): **regression** to 718.52
+- Reverted immediately. Longer patience makes miners wait at congested side longer, not better.
+- The 20-step stale + rotation is the optimal pattern.
+
+2026-04-22 17:49: starting new experiment: trying return_load=30 (down from 40). Hypothesis: more frequent, lighter deposits will spread hub access over time, reducing congestion spikes when 4 miners all finish mining at similar times.

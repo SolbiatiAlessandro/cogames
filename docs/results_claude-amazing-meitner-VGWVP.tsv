@@ -5,3 +5,6 @@ commit	mission_reward	secondary_rewards	steps	status	description
 c908949	38.640011	hearts=23 junctions=23	500	keep	hub approach diversification - 8 cogs seed 42 (+12.8% vs baseline)
 c908949	839.352295	hearts=45 junctions=42	3000	keep	hub approach diversification - 8 cogs seed 42 (+6.4% vs baseline)
 c908949	567.031982	hearts=28 junctions=?	3000	keep	hub approach diversification - 8 cogs seed 123 (neutral)
+0435edf	884.931763	hearts=50 junctions=47	3000	keep	hub approach + deposit side rotation - 8 cogs seed 42 (+12.1% vs baseline)
+8b9765b	718.524536	hearts=37 junctions=?	3000	discard	deposit patience 1.5x - regression. reverted
+e68cff7	629.296814	hearts=35 junctions=?	3000	discard	return_load=30 - regression. travel time too costly
