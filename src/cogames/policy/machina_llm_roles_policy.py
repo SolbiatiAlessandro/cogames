@@ -504,7 +504,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 bl = state.blacklisted_junctions
                 alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
                             if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
-                sm.aligner_targets[obs.agent_id] = self._nearest_known(current_abs, alignable)
+                sm.aligner_targets[obs.agent_id] = self._cascade_priority_target(current_abs, alignable, state)
             else:
                 action, base_state = self._align_neutral(obs, state, current_abs)
             state = self._copy_with(state, base_state)
