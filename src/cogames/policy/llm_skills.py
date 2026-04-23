@@ -905,6 +905,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             )
             state.steps_in_current_mode = 0
             if not active:
+                if state.depleted_extractors:
+                    logger.info(
+                        "agent=%s RESET_DEPLETED: all %d extractors depleted, resetting for retry",
+                        agent_id, len(state.depleted_extractors),
+                    )
+                    state.depleted_extractors.clear()
                 state.stuck_explore_remaining = self._STUCK_EXPLORE_STEPS * 3
             else:
                 state.stuck_explore_remaining = self._STUCK_EXPLORE_STEPS

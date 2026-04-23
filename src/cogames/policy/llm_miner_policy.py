@@ -303,7 +303,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         last_ev = state.recent_events[-1] if state.recent_events else ""
         was_stuck = "exited as stuck" in last_ev or "timed out after" in last_ev
         was_stale = "exited as stale" in last_ev
-        if was_stuck:
+        if was_stuck or was_stale:
             state.consecutive_stuck_exits += 1
         else:
             state.consecutive_stuck_exits = 0
@@ -311,20 +311,30 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             if was_stuck or was_stale:
                 return "explore", "scripted: gear_up stuck/stale, exploring for station"
             return "gear_up", "scripted: no miner gear"
+        was_explore_exit = (was_stuck or was_stale) and last_ev.startswith("explore ")
         if carried_total >= self._return_load:
-            if was_stuck:
-                return "explore", "scripted: deposit stuck, exploring for route"
+            if (was_stuck or was_stale) and not was_explore_exit:
+                state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
+                if state.consecutive_stuck_exits >= 3:
+                    return "explore", f"scripted: deposit failed {state.consecutive_stuck_exits}x, long explore"
+                return "explore", "scripted: deposit stuck/stale, exploring for route"
             return "deposit_to_hub", "scripted: cargo full"
-        if was_stale:
+        if was_stale and not was_explore_exit:
             return "explore", "scripted: stale target, exploring for new extractor"
-        if was_stuck:
+        if was_stuck and not was_explore_exit:
             return "explore", "scripted: stuck, exploring for new route"
         # Explore to find missing team-scarce element extractors
         team_scarce = self._team_scarce_element()
         if team_scarce and not state.extractors_by_element.get(team_scarce, set()):
             return "explore", f"scripted: team needs {team_scarce} but no extractors known"
-        if state.known_extractors:
-            return "mine_until_full", "scripted: known extractors available"
+        active_extractors = self._active_extractors(state)
+        if active_extractors:
+            return "mine_until_full", f"scripted: {len(active_extractors)} active extractors available"
+        if state.known_extractors and not active_extractors:
+            if state.depleted_extractors:
+                state.depleted_extractors.clear()
+                logger.info("agent=%s RESET_DEPLETED: all extractors depleted in scripted choice, resetting", obs.agent_id)
+            return "explore", "scripted: all extractors depleted, exploring for fresh ones"
         return "explore", "scripted: no extractors known"
 
     def _plan_skill(self, obs: AgentObservation, state: LLMMinerState) -> None:
@@ -413,6 +423,9 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill == "explore" and len(state.known_extractors) > state.explore_start_extractors:
             self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
             state.current_skill = None
+        elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 3:
+            self._event(state, f"explore timed out after {state.skill_steps} steps")
+            state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
             state.current_skill = None
@@ -438,18 +451,18 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
+        elif state.current_skill == "deposit_to_hub" and state.no_progress_on_target_steps >= max(6, self._stuck_threshold // 3):
+            state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
+            self._event(state, f"deposit_to_hub exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
+            state.current_skill = None
         elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
             current_abs = self._current_abs(obs)
             if state.current_skill == "mine_until_full":
                 nearby = [e for e in state.known_extractors
                           if abs(e[0] - current_abs[0]) + abs(e[1] - current_abs[1]) <= 2]
                 for ext in nearby:
-                    state.known_extractors.discard(ext)
-                    for elem_set in state.extractors_by_element.values():
-                        elem_set.discard(ext)
-                    self._event(state, f"removed depleted extractor at {ext} from memory")
-            if state.current_skill == "deposit_to_hub":
-                state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
+                    state.depleted_extractors.add(ext)
+                    self._event(state, f"marked extractor at {ext} as depleted ({len(state.depleted_extractors)}/{len(state.known_extractors)})")
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
