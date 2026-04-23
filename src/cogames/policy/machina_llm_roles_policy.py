@@ -603,7 +603,10 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         else:
             na_str = str(num_aligners).lower()
             if na_str == "auto":
-                n_aligners = min(4, n_agents // 2)
+                if n_agents >= 6:
+                    n_aligners = n_agents - 3
+                else:
+                    n_aligners = n_agents // 2
             else:
                 n_aligners = int(num_aligners)
             self._aligner_ids = frozenset(range(min(n_aligners, n_agents)))
