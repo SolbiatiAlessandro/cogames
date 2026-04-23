@@ -107,6 +107,7 @@ class AlignerState(StarterCogState):
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def __init__(self, policy_env_info: PolicyEnvInterface, agent_id: int, shared_map: SharedMap | None = None):
         self._starter = StarterCogPolicyImpl(policy_env_info, agent_id, preferred_gear="aligner")
+        self._agent_id = agent_id
         self._shared_map = shared_map
         self._team_tag = self._tag_id("team:cogs")
         self._net_tag = self._tag_id("net:cogs")
@@ -273,24 +274,31 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return None
         return parents[step][1]
 
-    def _best_approach_cell(self, state: AlignerState, current_abs: Coord, blocked_target: Coord) -> Coord | None:
+    def _best_approach_cell(self, state: AlignerState, current_abs: Coord, blocked_target: Coord, preferred_side: int | None = None) -> Coord | None:
         """Find the best adjacent cell to a blocked target (e.g., a station object) to navigate toward.
 
-        Returns the adjacent cell closest to current_abs that is not in blocked_cells."""
-        candidates = [
-            (blocked_target[0] + dr, blocked_target[1] + dc)
-            for _, (dr, dc) in _DIRECTION_DELTAS
-            if (blocked_target[0] + dr, blocked_target[1] + dc) not in state.blocked_cells
-        ]
-        if not candidates:
+        Returns the adjacent cell closest to current_abs that is not in blocked_cells.
+        If preferred_side is given (0=N, 1=E, 2=S, 3=W), prefer that side first."""
+        approach_candidates = []
+        for i, (_, (dr, dc)) in enumerate(_DIRECTION_DELTAS):
+            neighbor = (blocked_target[0] + dr, blocked_target[1] + dc)
+            if neighbor not in state.blocked_cells:
+                approach_candidates.append((i, neighbor))
+        if not approach_candidates:
             return None
-        return min(candidates, key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
+        if preferred_side is not None:
+            approach_candidates.sort(key=lambda ic: (
+                (ic[0] - preferred_side) % 4,
+                abs(ic[1][0] - current_abs[0]) + abs(ic[1][1] - current_abs[1]),
+            ))
+            return approach_candidates[0][1]
+        return min((c for _, c in approach_candidates), key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
 
-    def _navigate_to_station(self, state: AlignerState, current_abs: Coord, station_abs: Coord, avoid_hazards: bool = True) -> str | None:
+    def _navigate_to_station(self, state: AlignerState, current_abs: Coord, station_abs: Coord, avoid_hazards: bool = True, preferred_side: int | None = None) -> str | None:
         """Navigate toward a station object (which is in blocked_cells).
 
         Targets the best adjacent cell to the station rather than the station itself."""
-        approach = self._best_approach_cell(state, current_abs, station_abs)
+        approach = self._best_approach_cell(state, current_abs, station_abs, preferred_side=preferred_side)
         if approach is None:
             return None
         if current_abs == approach:
@@ -669,16 +677,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _get_heart(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         self._log_mode(obs, state, "get_heart")
+        preferred_side = self._agent_id % 4
         visible_target = self._starter._closest_tag_location(obs, self._hub_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
-            # Hub is a blocked object; navigate to adjacent approach cell then step into hub.
-            # Prefer a hazard-free path; fall back to hazard-allowing BFS only if the clean
-            # path is unreachable. This stops aligners from walking through scout/scrambler
-            # stations and losing their gear mid-episode (issue #12 / #25 seed 43/44 contam).
-            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True, preferred_side=preferred_side)
             if direction is None:
-                direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
+                direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False, preferred_side=preferred_side)
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
@@ -686,10 +691,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         target_abs = self._nearest_known(current_abs, state.known_hubs)
         if target_abs is None:
             return self._explore(obs, state)
-        # Hub known but not visible - prefer hazard-free BFS, then hazard-allowing, then greedy.
-        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True, preferred_side=preferred_side)
         if direction is None:
-            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False, preferred_side=preferred_side)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
