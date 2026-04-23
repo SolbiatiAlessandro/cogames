@@ -267,6 +267,8 @@ class CrossRoleState:
     # Issue-36 v15: per-element inventory tracking for accurate deposit accounting
     last_inventory_counts: dict[str, int] = field(default_factory=lambda: {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0})
     explore_start_extractors: int = 0
+    # Hub approach diversification
+    hub_approach_rotation: int = 0
 
     # Gear acquisition tracking (for retry + fallback logic)
     gear_up_failures: int = 0
@@ -1074,6 +1076,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_move_steps >= self._stuck_threshold:
+            if state.current_skill == "deposit_to_hub":
+                state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
                 state.gear_up_failures_total += 1
@@ -1104,6 +1108,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     for elem_set in state.extractors_by_element.values():
                         elem_set.discard(e)
                     self._event(state, f"removed depleted extractor at {e}")
+            if state.current_skill == "deposit_to_hub":
+                state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
                 state.gear_up_failures += 1
                 state.gear_up_failures_total += 1

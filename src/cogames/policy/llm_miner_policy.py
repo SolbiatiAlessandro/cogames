@@ -417,6 +417,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             self._event(state, "unstuck finished its bounded horizon")
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and state.skill_steps >= self._stuck_threshold * 2:
+            state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             # Clear stale move_blocked_cells to give BFS fresh paths on retry
             if self._shared_map is not None and hasattr(self._shared_map, 'move_blocked_cells'):
                 stale_count = len(self._shared_map.move_blocked_cells)
@@ -433,6 +434,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
+            if state.current_skill == "deposit_to_hub":
+                state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
@@ -445,6 +448,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                     for elem_set in state.extractors_by_element.values():
                         elem_set.discard(ext)
                     self._event(state, f"removed depleted extractor at {ext} from memory")
+            if state.current_skill == "deposit_to_hub":
+                state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
