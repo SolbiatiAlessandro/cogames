@@ -37,3 +37,20 @@ Results:
 - Total reward: 3681.91 → 3688.98 (+0.2%) — small because junctions are the bottleneck
 - 3000-step seed 42: 937.61 → 944.68 (+0.7%)
 - No regressions across seeds 42, 123, 7
+
+2026-04-23 10:10: Aligner hub approach diversification (v42)
+
+Key insight: 5 aligners all approaching hub from same side to get hearts → congestion.
+Same fix as miner hub diversification: each aligner prefers side (agent_id % 4).
+
+Results (massive improvement especially on seeds 123 and 7):
+- Seed 42 10k: 3689 → 3917 (+6.2%), junctions 48→52, hearts 53→57
+- Seed 123 10k: 2816 → 3818 (+35.5%), junctions 37→51
+- Seed 7 3k: 668 → 1012 (+51.4%), junctions n/a→55
+- 3-seed average at 3k: 767 → 955 (+24.5%)
+
+Uploaded as lessandro-scripted-v42 to beta-cvc and beta-teams-tiny-fixed.
+
+This is the highest-leverage improvement found so far. The hub is a single blocked object
+with only 4 approach cells, and with 5 aligners + 3 miners all needing access, diversification
+prevents the congestion deadlocks that were wasting thousands of agent-steps.

@@ -1,0 +1,12 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+15a8c95	3681.911377	hearts=53 junctions=48 deposits=42	10000	keep	baseline: 5A+3M with hub diversification (from prior session)
+21d81e0	3688.977783	hearts=53 junctions=48 deposits=97	10000	keep	fix deposit stuck loop + extractor depletion: 2.3x mining throughput
+21d81e0	944.680054	hearts=51 junctions=48	3000	keep	same fix at 3000 steps (seed 42)
+21d81e0	2816.448242	hearts=42 junctions=37	10000	keep	same fix seed 123 at 10000 steps
+21d81e0	688.695374	hearts=n/a junctions=n/a	3000	keep	same fix seed 123 at 3000 steps
+21d81e0	668.056641	hearts=n/a junctions=n/a	3000	keep	same fix seed 7 at 3000 steps
+3a92ad2	3917.304688	hearts=57 junctions=52	10000	keep	+ aligner hub diversification seed 42 (+6.2% vs prev)
+3a92ad2	949.104431	hearts=56 junctions=52	3000	keep	+ aligner hub diversification seed 42 3k (+0.5% vs prev)
+3a92ad2	3817.823975	hearts=56 junctions=51	10000	keep	+ aligner hub diversification seed 123 (+35.5% vs prev)
+3a92ad2	905.714600	hearts=55 junctions=51	3000	keep	+ aligner hub diversification seed 123 3k (+31.5% vs prev)
+3a92ad2	1011.735901	hearts=59 junctions=55	3000	keep	+ aligner hub diversification seed 7 3k (+51.4% vs prev)
