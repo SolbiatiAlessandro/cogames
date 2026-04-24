@@ -1,0 +1,759 @@
+INFO - cogames.policy.machina_llm_roles - scripted_miners=True (n_agents=8, raw=auto)
+INFO - cogames.policy.machina_llm_roles - scripted_aligners=True (n_agents=8, raw=auto)
+INFO - cogames.policy.machina_llm_roles - num_aligners=3 (n_agents=8, raw=3)
+INFO - cogames.policy.machina_llm_roles - num_scouts=0 (n_agents=8, raw=auto)
+INFO - cogames.policy.machina_llm_roles - ROLE_ASSIGNMENT agent=0 role=aligner scripted_miners=True
+INFO - cogames.policy.machina_llm_roles - ROLE_ASSIGNMENT agent=1 role=aligner scripted_miners=True
+INFO - cogames.policy.machina_llm_roles - ROLE_ASSIGNMENT agent=2 role=aligner scripted_miners=True
+INFO - cogames.policy.machina_llm_roles - ROLE_ASSIGNMENT agent=3 role=miner scripted_miners=True
+INFO - cogames.policy.machina_llm_roles - ROLE_ASSIGNMENT agent=4 role=miner scripted_miners=True
+INFO - cogames.policy.machina_llm_roles - ROLE_ASSIGNMENT agent=5 role=miner scripted_miners=True
+INFO - cogames.policy.machina_llm_roles - ROLE_ASSIGNMENT agent=6 role=miner scripted_miners=True
+INFO - cogames.policy.machina_llm_roles - ROLE_ASSIGNMENT agent=7 role=miner scripted_miners=True
+/tmp/cogames-venv/lib/python3.12/site-packages/mettagrid/mapgen/scene.py:141: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Unexpected Value)
+  PydanticSerializationUnexpectedValue(Unexpected Value)
+  data = handler(self)
+/tmp/cogames-venv/lib/python3.12/site-packages/mettagrid/map_builder/map_builder.py:108: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Unexpected Value)
+  PydanticSerializationUnexpectedValue(Unexpected Value)
+  data = handler(self)  # dict of the model's fields
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=False has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=gear_up
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=False has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=1 mode=gear_up
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=False has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=2 mode=gear_up
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected gear_up: scripted: no miner gear
+INFO - cogames.policy.llm_skills - agent=3 mode=gear_up
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected gear_up: scripted: no miner gear
+INFO - cogames.policy.llm_skills - agent=4 mode=gear_up
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected gear_up: scripted: no miner gear
+INFO - cogames.policy.llm_skills - agent=5 mode=gear_up
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected gear_up: scripted: no miner gear
+INFO - cogames.policy.llm_skills - agent=6 mode=gear_up
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected gear_up: scripted: no miner gear
+INFO - cogames.policy.llm_skills - agent=7 mode=gear_up
+INFO - cogames.policy.llm_miner - agent=6 event: gear_up completed after acquiring miner gear
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 1 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=1 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=5 event: gear_up completed after acquiring miner gear
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 1 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=2 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=3 event: gear_up completed after acquiring miner gear
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 1 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=7 event: gear_up completed after acquiring miner gear
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 3 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=2 mode=explore
+INFO - cogames.policy.llm_miner - agent=4 event: gear_up completed after acquiring miner gear
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected mine_until_full: scripted: 3 active extractors available
+INFO - cogames.policy.llm_skills - agent=4 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=6 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=2 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=3 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=2 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=6 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: team needs carbon but no extractors known
+INFO - cogames.policy.llm_skills - agent=6 mode=explore
+INFO - cogames.policy.aligner_agent - agent=0 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: team needs carbon but no extractors known
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: team needs carbon but no extractors known
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: team needs carbon but no extractors known
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 2 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: team needs carbon but no extractors known
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=False alignable=3
+INFO - cogames.policy.aligner_agent - agent=0 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (4, 4) as depleted (1/13)
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=5 mode=explore
+INFO - cogames.policy.llm_miner - agent=4 event: marked extractor at (4, 4) as depleted (1/13)
+INFO - cogames.policy.llm_miner - agent=4 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=4 mode=explore
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 14 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=4 event: explore completed after discovering 2 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected mine_until_full: scripted: 14 active extractors available
+INFO - cogames.policy.llm_skills - agent=4 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=5 event: explore completed after discovering 2 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 14 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=False alignable=1
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=False alignable=2
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=3 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 16 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=False alignable=3
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=6 mode=deposit_to_hub load=40
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=True alignable=2
+INFO - cogames.policy.aligner_agent - agent=2 mode=align_neutral
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=0 mode=explore
+INFO - cogames.policy.aligner_agent - agent=0 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=2 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=6 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 24 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.aligner_agent - agent=0 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=1 mode=get_heart
+INFO - cogames.policy.aligner_agent - agent=2 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=0 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=False alignable=2
+INFO - cogames.policy.aligner_agent - agent=2 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=6 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub exited as stale on target after 6 steps without progress
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected explore: scripted: deposit stuck/stale, exploring for route
+INFO - cogames.policy.llm_skills - agent=7 mode=explore
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-12, 4) as depleted (2/32)
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=5 mode=explore
+INFO - cogames.policy.llm_miner - agent=5 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 31 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=7 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=6 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 33 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 33 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=3 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=3 hearts_crafted_estimate=5 deposits={'carbon': 60, 'oxygen': 60, 'germanium': 40, 'silicon': 100}
+INFO - cogames.policy.llm_miner - agent=3 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 38 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=2 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=3 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=3 hearts_crafted_estimate=8 deposits={'carbon': 60, 'oxygen': 60, 'germanium': 80, 'silicon': 100}
+INFO - cogames.policy.llm_miner - agent=3 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 43 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=4 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=4 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=5 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=3 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.aligner_agent - agent=2 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.aligner_agent - agent=2 mode=explore
+INFO - cogames.policy.aligner_agent - agent=2 mode=align_neutral
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=False alignable=3
+INFO - cogames.policy.aligner_agent - agent=1 mode=get_heart
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=False alignable=2
+INFO - cogames.policy.aligner_agent - agent=2 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=4 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected mine_until_full: scripted: 51 active extractors available
+INFO - cogames.policy.llm_skills - agent=4 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=7 event: marked extractor at (-22, -2) as depleted (1/52)
+INFO - cogames.policy.llm_miner - agent=7 event: marked extractor at (-23, -1) as depleted (2/52)
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=7 mode=explore
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-23, 2) as depleted (1/52)
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-21, 2) as depleted (2/52)
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-20, 3) as depleted (3/52)
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=6 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=3 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 52 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.llm_miner - agent=7 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 51 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 50 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=5 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 52 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=2 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=0 mode=align_neutral
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=4 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=4 mode=deposit_to_hub load=40
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=2 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=False alignable=3
+INFO - cogames.policy.aligner_agent - agent=0 mode=get_heart
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=4 event: deposit_to_hub exited as stale on target after 6 steps without progress
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected explore: scripted: deposit stuck/stale, exploring for route
+INFO - cogames.policy.llm_skills - agent=4 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=False alignable=2
+INFO - cogames.policy.aligner_agent - agent=2 mode=get_heart
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=4 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=4 mode=deposit_to_hub load=40
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-8, 4) as depleted (3/69)
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-8, 6) as depleted (4/69)
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=5 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-8, 4) as depleted (1/69)
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-8, 6) as depleted (2/69)
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=3 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=4 event: deposit_to_hub exited as stale on target after 6 steps without progress
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected explore: scripted: deposit stuck/stale, exploring for route
+INFO - cogames.policy.llm_skills - agent=4 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=3 step=200 inv={'inv:miner': 1, 'inv:energy': 20, 'inv:solar': 1, 'inv:hp': 100} skill=explore
+INFO - cogames.policy.llm_miner - agent=4 step=200 inv={'inv:oxygen': 40, 'inv:miner': 1, 'inv:energy': 20, 'inv:solar': 1, 'inv:hp': 100} skill=explore
+INFO - cogames.policy.llm_miner - agent=4 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=4 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=5 step=200 inv={'inv:miner': 1, 'inv:energy': 20, 'inv:solar': 1, 'inv:hp': 100} skill=explore
+INFO - cogames.policy.llm_miner - agent=5 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 66 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=6 step=200 inv={'inv:carbon': 20, 'inv:miner': 1, 'inv:energy': 20, 'inv:solar': 1, 'inv:hp': 100} skill=mine_until_full
+INFO - cogames.policy.llm_miner - agent=7 step=200 inv={'inv:energy': 1, 'inv:miner': 1, 'inv:solar': 1, 'inv:hp': 67} skill=mine_until_full
+INFO - cogames.policy.llm_miner - agent=3 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 68 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=4 event: deposit_to_hub exited as stale on target after 6 steps without progress
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected explore: scripted: deposit stuck/stale, exploring for route
+INFO - cogames.policy.llm_skills - agent=4 mode=explore
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-12, 4) as depleted (4/71)
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=6 mode=explore
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=0 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-11, 8) as depleted (5/71)
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=5 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=4 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=4 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=5 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 67 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 68 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=False alignable=1
+INFO - cogames.policy.aligner_agent - agent=1 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=4 hearts_crafted_estimate=14 deposits={'carbon': 140, 'oxygen': 100, 'germanium': 120, 'silicon': 100}
+INFO - cogames.policy.llm_miner - agent=4 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected mine_until_full: scripted: 71 active extractors available
+INFO - cogames.policy.llm_skills - agent=4 mode=mine_until_full
+INFO - cogames.policy.llm_skills - agent=7 MINER_HP_LOW hp=24/100 (24%) inv={'inv:energy': 6, 'inv:oxygen': 40, 'inv:miner': 1, 'inv:solar': 3, 'inv:hp': 24} retreating to hub
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-12, 4) as depleted (3/76)
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=3 mode=explore
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-11, 11) as depleted (6/76)
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=5 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=3
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.llm_skills - agent=7 MINER_HP_OK hp=100/100 resuming mining
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=False alignable=1
+INFO - cogames.policy.aligner_agent - agent=0 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-8, 4) as depleted (5/76)
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-8, 6) as depleted (6/76)
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=6 mode=explore
+INFO - cogames.policy.llm_miner - agent=3 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 74 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=5 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 71 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 71 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=1 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub timed out after 40 steps, cleared 0 blocked cells
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected explore: scripted: deposit stuck/stale, exploring for route
+INFO - cogames.policy.llm_skills - agent=7 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=3 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=4 event: marked extractor at (-8, 4) as depleted (2/82)
+INFO - cogames.policy.llm_miner - agent=4 event: marked extractor at (-8, 6) as depleted (3/82)
+INFO - cogames.policy.llm_miner - agent=4 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=4 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=explore
+INFO - cogames.policy.llm_miner - agent=4 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected mine_until_full: scripted: 80 active extractors available
+INFO - cogames.policy.llm_skills - agent=4 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=7 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-11, 8) as depleted (7/83)
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=6 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=3 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 80 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 81 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=2 mode=explore
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 2 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 78 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=5 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.machina_llm_roles - agent=2 role=aligner scripted_plan has_aligner=True has_heart=False alignable=1
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=0 mode=align_neutral
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=False alignable=1
+INFO - cogames.policy.aligner_agent - agent=0 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=7 hearts_crafted_estimate=17 deposits={'carbon': 140, 'oxygen': 180, 'germanium': 120, 'silicon': 140}
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 99 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=4 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=4 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=7 hearts_crafted_estimate=20 deposits={'carbon': 140, 'oxygen': 180, 'germanium': 160, 'silicon': 140}
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 105 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=5 hearts_crafted_estimate=22 deposits={'carbon': 160, 'oxygen': 180, 'germanium': 160, 'silicon': 180}
+INFO - cogames.policy.llm_miner - agent=5 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 102 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=4 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected mine_until_full: scripted: 106 active extractors available
+INFO - cogames.policy.llm_skills - agent=4 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=3 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=7 hearts_crafted_estimate=25 deposits={'carbon': 200, 'oxygen': 180, 'germanium': 200, 'silicon': 180}
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 107 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=4 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=4 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=6 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-5, 13) as depleted (7/109)
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-4, 14) as depleted (8/109)
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=5 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 107 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=True alignable=1
+INFO - cogames.policy.aligner_agent - agent=0 mode=align_neutral
+INFO - cogames.policy.llm_miner - agent=5 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 102 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=6 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 103 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=3 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 107 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=False alignable=1
+INFO - cogames.policy.aligner_agent - agent=0 mode=get_heart
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=4 event: deposit_to_hub exited as stale on target after 6 steps without progress
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected explore: scripted: deposit stuck/stale, exploring for route
+INFO - cogames.policy.llm_skills - agent=4 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=7 hearts_crafted_estimate=31 deposits={'carbon': 250, 'oxygen': 230, 'germanium': 220, 'silicon': 220}
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 109 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.aligner_agent - agent=1 mode=align_neutral
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=3 step=400 inv={'inv:miner': 1, 'inv:energy': 20, 'inv:solar': 1, 'inv:hp': 100} skill=mine_until_full
+INFO - cogames.policy.llm_miner - agent=4 step=400 inv={'inv:oxygen': 30, 'inv:carbon': 10, 'inv:miner': 1, 'inv:energy': 20, 'inv:solar': 1, 'inv:hp': 100} skill=explore
+INFO - cogames.policy.llm_miner - agent=4 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=4 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=5 step=400 inv={'inv:energy': 20, 'inv:miner': 1, 'inv:solar': 1, 'inv:hp': 100} skill=mine_until_full
+INFO - cogames.policy.llm_miner - agent=6 step=400 inv={'inv:silicon': 20, 'inv:miner': 1, 'inv:energy': 20, 'inv:solar': 1, 'inv:hp': 100} skill=mine_until_full
+INFO - cogames.policy.llm_miner - agent=7 step=400 inv={'inv:energy': 20, 'inv:miner': 1, 'inv:solar': 1, 'inv:hp': 100} skill=mine_until_full
+INFO - cogames.policy.llm_miner - agent=7 event: marked extractor at (-1, 15) as depleted (3/112)
+INFO - cogames.policy.llm_miner - agent=7 event: marked extractor at (-1, 17) as depleted (4/112)
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=7 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-2, 18) as depleted (8/112)
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-1, 17) as depleted (9/112)
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-1, 19) as depleted (10/112)
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (0, 19) as depleted (11/112)
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=6 mode=explore
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.aligner_agent - agent=1 mode=explore
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-3, 15) as depleted (9/112)
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-1, 15) as depleted (10/112)
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-1, 17) as depleted (11/112)
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=5 mode=explore
+INFO - cogames.policy.llm_miner - agent=7 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 109 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=5 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 102 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 102 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (3, 15) as depleted (4/113)
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (3, 17) as depleted (5/113)
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=3 mode=explore
+INFO - cogames.policy.llm_miner - agent=3 event: explore completed after discovering 2 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 110 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=4 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected mine_until_full: scripted: 112 active extractors available
+INFO - cogames.policy.llm_skills - agent=4 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (-1, 19) as depleted (12/115)
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (0, 19) as depleted (13/115)
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=5 mode=explore
+INFO - cogames.policy.llm_miner - agent=7 event: marked extractor at (-2, 18) as depleted (5/115)
+INFO - cogames.policy.llm_miner - agent=7 event: marked extractor at (-1, 17) as depleted (5/115)
+INFO - cogames.policy.llm_miner - agent=7 event: marked extractor at (-1, 19) as depleted (6/115)
+INFO - cogames.policy.llm_miner - agent=7 event: marked extractor at (0, 19) as depleted (7/115)
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=7 mode=explore
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-3, 15) as depleted (12/115)
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-1, 15) as depleted (13/115)
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (-1, 17) as depleted (13/115)
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=6 mode=explore
+INFO - cogames.policy.llm_miner - agent=5 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 103 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 103 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=7 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 109 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-3, 15) as depleted (6/116)
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-1, 15) as depleted (7/116)
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-1, 17) as depleted (8/116)
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=3 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=3 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 109 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=4 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=4 mode=deposit_to_hub load=40
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 0 to 10
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 10 to 20
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 20 to 30
+INFO - cogames.policy.llm_miner - agent=? event: cargo increased from 30 to 40
+INFO - cogames.policy.llm_miner - agent=7 event: mine_until_full completed at load=40
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected deposit_to_hub: scripted: cargo full
+INFO - cogames.policy.llm_skills - agent=7 mode=deposit_to_hub load=40
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=get_heart
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-2, 18) as depleted (9/124)
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-1, 17) as depleted (9/124)
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-1, 19) as depleted (10/124)
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (0, 19) as depleted (11/124)
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=3 mode=explore
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (3, 15) as depleted (14/124)
+INFO - cogames.policy.llm_miner - agent=6 event: marked extractor at (3, 17) as depleted (15/124)
+INFO - cogames.policy.llm_miner - agent=6 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=6 mode=explore
+INFO - cogames.policy.llm_miner - agent=3 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected mine_until_full: scripted: 114 active extractors available
+INFO - cogames.policy.llm_skills - agent=3 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=4 hearts_crafted_estimate=34 deposits={'carbon': 260, 'oxygen': 260, 'germanium': 260, 'silicon': 240}
+INFO - cogames.policy.llm_miner - agent=4 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=4 event: planner selected mine_until_full: scripted: 122 active extractors available
+INFO - cogames.policy.llm_skills - agent=4 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (3, 15) as depleted (14/125)
+INFO - cogames.policy.llm_miner - agent=5 event: marked extractor at (3, 17) as depleted (15/125)
+INFO - cogames.policy.llm_miner - agent=5 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=5 mode=explore
+INFO - cogames.policy.llm_miner - agent=6 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=6 event: planner selected mine_until_full: scripted: 110 active extractors available
+INFO - cogames.policy.llm_skills - agent=6 mode=mine_until_full
+INFO - cogames.policy.llm_miner - agent=5 event: explore completed after discovering 1 new extractor(s)
+INFO - cogames.policy.llm_miner - agent=5 event: planner selected mine_until_full: scripted: 111 active extractors available
+INFO - cogames.policy.llm_skills - agent=5 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=0 role=aligner scripted_plan has_aligner=True has_heart=False alignable=0
+INFO - cogames.policy.aligner_agent - agent=0 mode=explore
+INFO - cogames.policy.llm_miner - agent=? event: deposited cargo from 40 to 0
+INFO - cogames.policy.llm_miner - agent=7 event: deposit_to_hub completed after deposit
+INFO - cogames.policy.llm_miner - agent=7 event: planner selected mine_until_full: scripted: 119 active extractors available
+INFO - cogames.policy.llm_skills - agent=7 mode=mine_until_full
+INFO - cogames.policy.machina_llm_roles - agent=1 role=aligner scripted_plan has_aligner=True has_heart=True alignable=0
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-4, 16) as depleted (12/126)
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-5, 17) as depleted (13/126)
+INFO - cogames.policy.llm_miner - agent=3 event: marked extractor at (-5, 19) as depleted (14/126)
+INFO - cogames.policy.llm_miner - agent=3 event: mine_until_full exited as stale on target after 20 steps without progress
+INFO - cogames.policy.llm_miner - agent=3 event: planner selected explore: scripted: stale target, exploring for new extractor
+INFO - cogames.policy.llm_skills - agent=3 mode=explore
+[W424 10:36:12.426695705 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())

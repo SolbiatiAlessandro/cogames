@@ -24,7 +24,7 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline→online): 2026-04-23 (Session 16)_
+_Updated by Director: 2026-04-24 (Session 17)_
 
 ### Online Tournament (beta-cvc, 10k steps, cooperative scoring)
 
@@ -38,71 +38,69 @@ _Updated by Director (offline→online): 2026-04-23 (Session 16)_
 | #7/165 | 39.47 | `slinky:v3` | - | New entrant |
 | #8/165 | 39.24 | `slanky:v155` | - | New entrant |
 | ... | ... | ... | ... | ... |
-| **#90/165** | **21.78** | **`lessandro-scripted-v42:v1`** | **20** | **NEW BEST (+29%)** |
-| #95/165 | 17.70 | `lessandro-scripted-v41:v1` | 20 | +2% vs v32 |
+| **#90/165** | **21.78** | **`lessandro-scripted-v42:v1`** | **20** | **CURRENT BEST (+29% vs v32)** |
+| #95/165 | 17.70 | `lessandro-scripted-v41:v1` | 20 | |
 | #96/165 | 17.38 | `lessandro-scripted-v32:v1` | 30+ | Previous best |
-| #99/165 | 17.18 | `lessandro-scripted-v40:v1` | 20 | |
-| #100/165 | 16.63 | `lessandro-scripted-v39:v1` | 20 | |
 
-_165 entries (up from 154). v42 uploaded from `amazing-meitner-pzwh4` — correct branch with all fixes._
+_Online API unreachable (DNS cache overflow) — scores from session 16. v42/v43 versions may have updated rankings._
 
-### v42 Match Analysis (session 16)
+### v42 Partner Sensitivity (the key online problem)
 
-v42 shows extreme partner dependence (stddev=12.6):
-
-| Partner | Score | Analysis |
-|---------|-------|----------|
-| Gryffindor:v24 | 49.92 | Top RL partner — competitive with #1! |
-| dinky_edsel:v12 | 47.29 | Good partner |
-| slinky:v5 | 42.51 | Top RL partner |
-| Luna:v8 | 35.16 | Good |
-| Paz-Bot-9000:v49 | 26.68 | Top RL |
-| anoop.dazzle:v1 | 1.78 | Bad partner — near zero |
-| shweta.v34:v1 | 0.23 | Bad partner — near zero |
-
-**Key insight**: with top partners we score 42-50 (top-10 level!). Bad partners drag the average to 21.78. Partner robustness is the #1 lever for improving rank.
+| Partner quality | Score range | Impact |
+|----------------|-------------|--------|
+| Top RL (Gryffindor, slinky) | 42-50 | Competitive with #1! |
+| Good (dinky_edsel, Luna) | 35-47 | Strong |
+| Medium (Paz-Bot, anoop.spectre) | 19-27 | OK |
+| Bad (shweta, anoop.dazzle) | 0.2-1.8 | Near zero — tanks average |
 
 ### Offline Best Results (8-agent, machina_1 88x88)
 
-| Rank | Reward | Config | Steps | Seeds | Notes |
-|------|--------|--------|-------|-------|-------|
-| 1 | **3917.30** | 5A+3M hub diversification | 10000 | seed 42 | +6.2% (pzwh4, v42 source) |
-| 2 | 1011.74 | 5A+3M hub diversification | 3000 | seed 7 | +51.4% vs baseline |
-| 3 | 913.13 | junction dist 20 + deposit rot | 3000 | seed 42 | +15.7% (VGWVP) |
-| 4 | 884.93 | hub approach + deposit rotation | 3000 | seed 42 | +12.1% (v40 source) |
-| 5 | 789.18 | baseline (session 15 main) | 3000 | seed 42 | |
+| Rank | Reward | Config | Steps | Seed | Notes |
+|------|--------|--------|-------|------|-------|
+| 1 | **3917.30** | 5A+3M hub diversification | 10000 | 42 | v42 source (pzwh4) |
+| 2 | 3.04 | 5A+3M junction dist=15 | 10000 | 42 | wKR1D: +5.2% vs dist=20 |
+| 3 | 2.87 | 5A+3M heart cooldown fix | 10000 | 456 | wKR1D: +41% vs baseline |
+| 4 | 7.66 | 4A+4M shared extractors | 500 | avg 10 | +18.6% |
+| 5 | 7.44 | junction coordination | 1000 | avg 3 | |
+
+### Replay Diagnostics (session 17)
+
+- **4-agent (3A+1M)**: 0.48/agent at 500 steps, linear growth, no plateau. 12 hearts crafted, 350 deposits.
+- **8-agent (5A+3M)**: 0.42/agent at 500 steps. 30 hearts crafted, 210 balanced deposits per element. Mining and heart supply healthy.
+- **Gear acquisition**: All agents gear up within 20-30 steps. No contamination observed.
+- **Navigation**: No stuck agents detected. Agents disperse well across rows 38-67 by step 500.
+- **Junction distance**: Junctions at map edges (rows 6-8, 91-93). Agents operate rows 38-67. JUNCTION_ALIGN_DISTANCE reverted 20→15 based on 10k evidence from wKR1D.
 
 ### Gap Analysis
 
 ```
-Metric                    Us (online best)         Top RL (online)       Gap       Status
+Metric                    Us (v42)                 Top RL (#1)           Gap       Status
 ──────────────────────────────────────────────────────────────────────────────────────────
 Online score              21.78 (#90/165)          41.10 (#1/165)        1.9x      IMPROVING
 Score with good partner   42-50                    41.10                 ~1x       COMPETITIVE!
-Score with bad partner    0.2-1.8                  ~20-30 (estimated)    10-100x   CRITICAL
-Offline reward (10k)      3917 (5A3M)              n/a                   ?         +6.2%
+Score with bad partner    0.2-1.8                  ~20-30 (est.)         10-100x   CRITICAL
 ```
 
-**Current bottleneck**: Partner robustness (#47). With good partners we're competitive with the top 10, but bad partners crater our average to near zero. This is the single biggest lever for improving rank. RL training (#41) remains the fundamental ceiling for individual agent quality.
+**Current bottleneck**: Partner robustness (#47). Bad-partner matches score 0-2 and tank our average. This is a bigger lever than further offline optimization.
 
-**Next up**: #47 — partner robustness experiments, then #41 (RL training, blocked on GPU)
+**Secondary bottleneck**: Startup mortality (#38/#48). In 6+2 online matches, 3 of 6 agents die at steps 4-15 due to uncaught LLM exceptions. Root cause identified on branch `dtLLg`.
+
+**Next up**: #47 (partner robustness) then #48 (cherry-pick #38 crash fixes)
 
 **Research tree:**
 ```
-priority:1  #47  Partner robustness (bad partners -> 0 score)  <- SPAWN NEXT
-priority:2  #41  RL policy training        <- BLOCKED (needs GPU)
-priority:2  #32  Partner robustness (general)  <- upgraded from p3
-priority:2  #36  Agent mortality           <- MOSTLY FIXED
-priority:2  #40  Mining throughput         <- subsumed by pzwh4
+priority:1  #47  Partner robustness (bad partners → 0 score)    <- SPAWN NEXT
+priority:2  #48  Cherry-pick #38 crash fixes (try/except)       <- NEW
+priority:2  #38  6+2 startup mortality (root cause found)       <- UPGRADED
+priority:2  #41  RL policy training                             <- BLOCKED (GPU)
 priority:2  #27  Andre Von Huck / A*
 
-CLOSED/RESOLVED:
-  #46 v37/v38 regression | #45 Submit #44 | #44 Miner productivity
-  #43 v34 regression | #42 httpx import | #39 Submission | #25 8-Agent Scaling
+CLOSED this session:
+  #32 Partner robustness (subsumed by #47) | #40 Mining throughput (pzwh4)
+  #36 Agent mortality (fixed) | #30 Self-play collapse (same as #38)
 
-DEPRIORITIZED (priority:3):
-  #38 6+2 mortality | #31 change_vibe | #30 Self-Play
-  #26 shweta | #12 Gear | #10-#23 various
+Previously closed:
+  #46 #45 #44 #43 #42 #39 #25
 ```
 <!-- LEADERBOARD_END -->
 
