@@ -15,3 +15,6 @@ e30dfff	3.04	junctions=54 deposits=2774 hearts=5 deaths=6	10000	keep	JUNCTION_AL
 e30dfff	2.04	junctions=38 deposits=2148 hearts=4 deaths=17	10000	keep	JUNCTION_ALIGN_DISTANCE 20->15 (seed 456) - +1.5% reward +52% junctions
 e0e6e6f	2.77	junctions=50 deposits=1520 hearts=5 deaths=2	10000	discard	hub_dist weight 0.7->0.3 (seed 42) - deposits crashed -45%, reverted
 e0e6e6f	2.04	junctions=38 deposits=2092 hearts=4 deaths=17	10000	discard	hub_dist weight 0.7->0.3 (seed 456) - no change from junction fix alone
+e30dfff	2.84	junctions=54 deposits=3430 hearts=56 deaths=11	10000	discard	junction fix + return_load=40 (seed 42) - deposits +24% but reward -7% vs jf alone, more deaths
+e30dfff	1.44	junctions=4 deposits=840 hearts=4 deaths=1	10000	discard	junction fix + return_load=40 (seed 123) - unchanged from baseline bad seed
+e30dfff	2.71	junctions=40 deposits=2310 hearts=45 deaths=33	10000	discard	junction fix + return_load=40 (seed 456) - reward +33% but 2x deaths, high variance

@@ -131,3 +131,25 @@ My plan: first run baseline, then profile where miners spend their time at 5k-10
 ## Experiment 7: Junction fix + return_load=40 (combined)
 
 2026-04-24T09:35: Hypothesis — the junction fix (exp 5, KEEP) improved alignment accuracy. return_load=40 (exp 4, discarded alone) improved deposits by +33-47%. Perhaps combining them compounds the benefits: better alignment targeting + more hearts from higher deposits. The junction fix might also mitigate the seed 42 regression seen with return_load=40 alone (since aligners are now more accurate, they don't waste time on false targets).
+
+### Results
+
+| Config | Seed | Score/cog | Junctions | Deposits | Deaths |
+|--------|------|-----------|-----------|----------|--------|
+| junction fix only | 42 | 3.04 | 54 | 2774 | 6 |
+| junction fix only | 456 | 2.04 | 38 | 2148 | 17 |
+| combined (jf+rl40) | 42 | 2.84 | 54 | 3430 | 11 |
+| combined (jf+rl40) | 123 | 1.44 | 4 | 840 | 1 |
+| combined (jf+rl40) | 456 | 2.71 | 40 | 2310 | 33 |
+
+**Conclusion: DISCARDED.** Mixed results. Seed 456 improved +33% but seed 42 (our best, 3.04) regressed -7%. Miner mortality nearly doubled on both seeds (11 vs 6, 33 vs 17) because miners carry 40 cargo and stay away from hub longer, losing HP. The extra deposits don't compensate for the increased downtime from deaths (respawn + re-gear). return_load=40 definitively hurts on maps where miners face more combat/hazard exposure.
+
+2026-04-24T10:00: CRITICAL FINDING — the `get_heart_cooldown_steps` field is NEVER set to a positive value in the entire codebase. It's initialized to 0 and only ever reset to 0 (lines 678, 693, 713). This means the entire heart cooldown system is dead code:
+- `hub_on_cooldown` is always False
+- `hub_depleted` is always False
+- The periodic hub return interval (200 steps) never triggers
+- The fast-path "explore when hub depleted" never triggers
+- The LLM override "get_heart → explore when depleted" never triggers
+The only working throttle on heart acquisition is the `agents_getting_hearts` set-based queue management.
+
+## Experiment 8: Fix heart cooldown system
