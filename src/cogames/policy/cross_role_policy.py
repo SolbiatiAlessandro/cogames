@@ -269,6 +269,18 @@ class CrossRoleState:
     explore_start_extractors: int = 0
     # Hub approach diversification
     hub_approach_rotation: int = 0
+    # Issue-44: per-agent move cooldown to break congestion deadlocks
+    move_cooldowns: dict[Coord, int] = field(default_factory=dict)
+    steps_since_last_move: int = 0
+    # Issue-44: extractor depletion tracking
+    depleted_extractors: set[Coord] = field(default_factory=set)
+    steps_near_extractor_no_gain: int = 0
+    # HP tracking for miner survival
+    retreating_to_hub: bool = False
+    preferred_extractor: Coord | None = None
+    steps_in_current_mode: int = 0
+    stuck_explore_remaining: int = 0
+    consecutive_stuck_exits: int = 0
 
     # Gear acquisition tracking (for retry + fallback logic)
     gear_up_failures: int = 0
@@ -748,11 +760,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 self._set_skill_fast(obs, state, "deposit_to_hub",
                     f"fast-path: cargo full ({carried}/{self._return_load})")
                 return
-            if state.known_extractors and carried < self._return_load:
+            active_extractors = state.known_extractors - state.depleted_extractors
+            if active_extractors and carried < self._return_load:
                 self._set_skill_fast(obs, state, "mine_until_full",
-                    f"fast-path: have {len(state.known_extractors)} extractors, cargo {carried}/{self._return_load}")
+                    f"fast-path: have {len(active_extractors)} active extractors (of {len(state.known_extractors)} known), cargo {carried}/{self._return_load}")
                 return
-            # Issue-36: fast-path explore when miner has no known extractors
+            if state.known_extractors and not active_extractors and carried < self._return_load:
+                state.depleted_extractors.clear()
+                self._set_skill_fast(obs, state, "explore",
+                    f"fast-path: all {len(state.known_extractors)} extractors depleted, reset + exploring for fresh ones")
+                return
             if not state.known_extractors and carried < self._return_load:
                 self._set_skill_fast(obs, state, "explore",
                     "fast-path: miner has no known extractors, exploring to discover some")
@@ -1032,6 +1049,18 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         ):
             self._event(state, f"explore interrupted: found {len(self._known_alignable_junctions(state))} alignable targets")
             state.current_skill = None
+        elif (
+            state.current_skill == "explore"
+            and gear == "miner"
+            and state.skill_steps >= self._stuck_threshold * 5
+        ):
+            carried = self._carried_total(obs)
+            if carried > 0:
+                self._event(state, f"miner explore timeout after {state.skill_steps} steps, depositing {carried} partial cargo")
+            else:
+                state.depleted_extractors.clear()
+                self._event(state, f"miner explore timeout after {state.skill_steps} steps, reset depleted extractors")
+            state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             # Issue-16: agent got a heart while defending — switch to aligning
             self._event(state, "defend completed: acquired heart, switching to align")
@@ -1103,11 +1132,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     if abs(current_abs[0] - e[0]) + abs(current_abs[1] - e[1]) <= 1
                 }
                 for e in nearby_extractors:
-                    state.known_extractors.discard(e)
-                    # Also remove from per-element tracking
-                    for elem_set in state.extractors_by_element.values():
-                        elem_set.discard(e)
-                    self._event(state, f"removed depleted extractor at {e}")
+                    state.depleted_extractors.add(e)
+                    self._event(state, f"marked extractor depleted at {e} ({len(state.depleted_extractors)}/{len(state.known_extractors)})")
             if state.current_skill == "deposit_to_hub":
                 state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             if state.current_skill in {"gear_up_aligner", "gear_up_miner"}:
@@ -1394,9 +1420,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 logger.info("agent=%s HP_RECOVERED hp=%d/%d", obs.agent_id, current_hp, state.max_hp_seen)
 
         # Issue-36 v6: miner hub tethering — prevent miners from wandering too far from hub.
-        # Miners that explore beyond MAX_HUB_DISTANCE can't retreat in time when HP drops.
-        # At 70% HP threshold, agents have ~30 steps to reach hub. Keep miners within range.
-        _MAX_HUB_DISTANCE = 40
+        # Increased from 40 to 55 to allow miners to reach extractors further from hub
+        # after nearby ones deplete. Map is 88x88 so 40 only covers ~45% of the map.
+        _MAX_HUB_DISTANCE = 55
         gear = self._current_gear(obs)
         if (
             not state.retreating
