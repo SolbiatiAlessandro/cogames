@@ -1,1 +1,8 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+cbbc1e9	826.429260	hearts=49 junctions=45	3000	keep	baseline: 8 real agents seed 42
+cbbc1e9	164.967331	hearts=6 junctions=6	3000	discard	pre-fix: 4 real + 4 noop seed 42 (ALL aligners 0 miners)
+9ccb6df	881.642700	hearts=53 junctions=48	3000	keep	dynamic roles: 8 real agents seed 42 (+6.7% vs baseline)
+9ccb6df	776.702148	hearts=n/a junctions=n/a	3000	keep	dynamic roles: 8 real agents seed 123
+9ccb6df	566.797668	hearts=35 junctions=33	3000	keep	dynamic roles: 4 real + 4 noop seed 42 (3.4x vs pre-fix)
+9ccb6df	421.241730	hearts=26 junctions=24	3000	keep	dynamic roles: 4 real + 4 noop seed 123
+9ccb6df	565.316589	hearts=34 junctions=33	3000	keep	dynamic roles: 2 real + 6 noop seed 42 (1A+1M nearly same!)
