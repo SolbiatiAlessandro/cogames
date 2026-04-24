@@ -110,3 +110,24 @@ My plan: first run baseline, then profile where miners spend their time at 5k-10
 **Average: baseline 2.45/cog → junction fix 2.54/cog (+3.7%). Junctions: 35.5 → 46 (+30%).**
 
 **Conclusion: KEEP.** Both seeds improved. Seed 42 new all-time best: 3.04/cog. Junctions consistently improved on both seeds (+17%, +52%). The fix prevents wasted aligner trips to non-alignable junctions and prevents false blacklisting of junctions that could become alignable as the network expands. Committed as e30dfff.
+
+## Experiment 6: Reduce cascade_priority_target hub_dist weight (0.7→0.3)
+
+2026-04-24T09:00: Hypothesis — the `_cascade_priority_target` scoring `travel + hub_dist * 0.7` heavily favors junctions near the hub. Since clips is a PvE faction (not a real opponent), alignment speed matters more than defensive positioning. Reducing the weight to 0.3 lets aligners pick closer junctions even if they're farther from hub, reducing travel time per alignment and increasing alignment throughput.
+
+### Results
+
+| Config | Seed | Score/cog | Junctions | Deposits | Deaths |
+|--------|------|-----------|-----------|----------|--------|
+| junction fix (0.7) | 42 | 3.04 | 54 | 2774 | 6 |
+| junction fix (0.7) | 456 | 2.04 | 38 | 2148 | 17 |
+| hub_dist=0.3 | 42 | 2.77 | 50 | 1520 | 2 |
+| hub_dist=0.3 | 456 | 2.04 | 38 | 2092 | 17 |
+
+**Conclusion: DISCARDED.** Seed 42 regressed significantly (-9% reward). Deposits crashed from 2774 to 1520 (-45%). Seed 456 unchanged. The 0.7 weight keeps aligners near the hub where their aligned junctions are protected from clips' scrambling and contribute more to territory control (healing for miners). Reverted to 0.7.
+
+2026-04-24T09:30: Key learning — hub proximity matters for junctions because: (1) clips scramble junctions near their network, (2) territory control from hub+junctions heals nearby agents, (3) junctions aligned early near hub accumulate more hold-time for scoring. The 0.7 weight is well-tuned.
+
+## Experiment 7: Junction fix + return_load=40 (combined)
+
+2026-04-24T09:35: Hypothesis — the junction fix (exp 5, KEEP) improved alignment accuracy. return_load=40 (exp 4, discarded alone) improved deposits by +33-47%. Perhaps combining them compounds the benefits: better alignment targeting + more hearts from higher deposits. The junction fix might also mitigate the seed 42 regression seen with return_load=40 alone (since aligners are now more accurate, they don't waste time on false targets).

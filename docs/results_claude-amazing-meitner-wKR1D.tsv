@@ -13,3 +13,5 @@ e1e40e6	2.37	junctions=42 deposits=2148 hearts=4 deaths=44	10000	discard	faster 
 10f5da7	3.22	junctions=51 deposits=2780 hearts=4 deaths=49	10000	discard	return_load=40 (seed 456) - deposits +32% reward +60% but high variance avg only +6%
 e30dfff	3.04	junctions=54 deposits=2774 hearts=5 deaths=6	10000	keep	JUNCTION_ALIGN_DISTANCE 20->15 (seed 42) - new best! +5.2% reward +17% junctions
 e30dfff	2.04	junctions=38 deposits=2148 hearts=4 deaths=17	10000	keep	JUNCTION_ALIGN_DISTANCE 20->15 (seed 456) - +1.5% reward +52% junctions
+e0e6e6f	2.77	junctions=50 deposits=1520 hearts=5 deaths=2	10000	discard	hub_dist weight 0.7->0.3 (seed 42) - deposits crashed -45%, reverted
+e0e6e6f	2.04	junctions=38 deposits=2092 hearts=4 deaths=17	10000	discard	hub_dist weight 0.7->0.3 (seed 456) - no change from junction fix alone
