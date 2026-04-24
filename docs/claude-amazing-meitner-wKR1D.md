@@ -153,3 +153,21 @@ My plan: first run baseline, then profile where miners spend their time at 5k-10
 The only working throttle on heart acquisition is the `agents_getting_hearts` set-based queue management.
 
 ## Experiment 8: Fix heart cooldown system
+
+2026-04-24T10:05: Hypothesis — `get_heart_cooldown_steps` is NEVER set to a positive value in the entire codebase. This means the heart cooldown system is completely dead code: `hub_on_cooldown` is always False, periodic hub returns never trigger, and the "explore when hub depleted" fast-path never fires. Fix: set `get_heart_cooldown_steps = min(50, 15 * consecutive_get_heart_failures)` at all 4 failure exit points in the get_heart skill handler (timeout, stuck, stale-short, stale-generic). The deposit-aware cooldown reset (existing code) will clear the cooldown when new hearts are estimated available.
+
+### Results
+
+| Config | Seed | Score/cog | Junctions | Deposits | Deaths |
+|--------|------|-----------|-----------|----------|--------|
+| junction fix only | 42 | 3.04 | 54 | 2774 | 6 |
+| junction fix only | 456 | 2.04 | 38 | 2148 | 17 |
+| heart cooldown fix | 42 | **3.04** | **54** | 2774 | 6 |
+| heart cooldown fix | 456 | **2.87** | **58** | 2494 | 11 |
+
+**Average: junction fix 2.54/cog → heart cooldown fix 2.96/cog (+17%).**
+**Seed 42: identical (no regression). Seed 456: +41% reward, +53% junctions, -35% deaths.**
+
+**Conclusion: KEEP.** The cooldown fix prevents aligners from repeatedly failing get_heart when the hub is empty, instead redirecting them to explore or do other productive work. On seed 42 the deposit-aware reset clears cooldowns quickly (321 resets) so the effect is minimal, explaining the identical result. On seed 456 the cooldown has a real impact: agents spend less time stuck in get_heart retry loops and more time aligning junctions. Committed as 1d9d084.
+
+2026-04-24T10:30: **Cumulative improvement: baseline 2.12/cog → junction fix + cooldown fix 2.96/cog (+40%).** Best single seed: 3.04/cog (seed 42). All experiments 1-4 and 6-7 were discarded; only experiments 5 (junction distance fix) and 8 (heart cooldown fix) kept.
