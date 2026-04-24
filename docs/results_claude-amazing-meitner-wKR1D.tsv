@@ -8,3 +8,8 @@ baseline	2.01	junctions=25 deposits=2100 hearts=4 deaths=6	10000	keep	CrossRoleS
 e1e40e6	2.24	junctions=21 deposits=590 hearts=5 deaths=3	10000	discard	faster gear conversion 10->4 (seed 42) - lost aligners -> -54% junctions -72% deposits
 e1e40e6	1.47	junctions=4 deposits=40 hearts=4 deaths=1	10000	discard	faster gear conversion 10->4 (seed 123) - no change
 e1e40e6	2.37	junctions=42 deposits=2148 hearts=4 deaths=44	10000	discard	faster gear conversion 10->4 (seed 456) - +18% but avg is worse
+10f5da7	2.10	junctions=29 deposits=2840 hearts=5 deaths=5	10000	discard	return_load=40 (seed 42) - deposits +33% but reward -27%
+10f5da7	1.44	junctions=4 deposits=840 hearts=4 deaths=1	10000	discard	return_load=40 (seed 123) - deposits +425% but reward -2%
+10f5da7	3.22	junctions=51 deposits=2780 hearts=4 deaths=49	10000	discard	return_load=40 (seed 456) - deposits +32% reward +60% but high variance avg only +6%
+e30dfff	3.04	junctions=54 deposits=2774 hearts=5 deaths=6	10000	keep	JUNCTION_ALIGN_DISTANCE 20->15 (seed 42) - new best! +5.2% reward +17% junctions
+e30dfff	2.04	junctions=38 deposits=2148 hearts=4 deaths=17	10000	keep	JUNCTION_ALIGN_DISTANCE 20->15 (seed 456) - +1.5% reward +52% junctions

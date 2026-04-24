@@ -75,3 +75,38 @@ My plan: first run baseline, then profile where miners spend their time at 5k-10
 ## Experiment 4: return_load=40 (double batch size)
 
 2026-04-24T08:16: Hypothesis — increasing return_load from 20 to 40 doubles the cargo per trip. With only 3 miners, each trip's overhead (walking to extractor, walking back to hub) is significant. Doubling the payload per trip should increase net deposits. Previous researcher found return_load=20 was -28.3% at 3k steps with broken CrossRoleState, so that data is unreliable. Testing fresh.
+
+### Results
+
+| Config | Seed | Score/cog | Junctions | Deposits | Deaths |
+|--------|------|-----------|-----------|----------|--------|
+| baseline (RL=20) | 42 | 2.89 | 46 | 2134 | 2 |
+| baseline (RL=20) | 123 | 1.47 | 4 | 160 | 1 |
+| baseline (RL=20) | 456 | 2.01 | 25 | 2100 | 6 |
+| return_load=40 | 42 | 2.10 | 29 | 2840 | 5 |
+| return_load=40 | 123 | 1.44 | 4 | 840 | 1 |
+| return_load=40 | 456 | 3.22 | 51 | 2780 | 49 |
+
+**Average: baseline 2.12/cog → return_load=40 2.25/cog (+6%).**
+**Deposits: 1465 → 2153 (+47%) — consistent improvement across all seeds.**
+
+**Conclusion: DISCARDED.** Deposits consistently improved (+33-425%) but reward is mixed (1/3 improved, 1/3 flat, 1/3 worse). The +6% average reward is within noise given the massive variance (seed 42: -27%, seed 456: +60%). The deposit pipeline improvement is real but doesn't translate reliably to reward because junctions, not deposits, drive score. Moving to aligner efficiency improvements instead.
+
+2026-04-24T08:30: Key insight from code review — the policy uses `_JUNCTION_ALIGN_DISTANCE = 20` but the game engine (`CvCConfig.JUNCTION_ALIGN_DISTANCE`) uses 15. Aligners incorrectly consider junctions at distance 16-20 from friendly junctions as alignable. This wastes aligner time traveling to junctions they can't actually align. This is a bug fix, not a tuning change.
+
+## Experiment 5: Fix _JUNCTION_ALIGN_DISTANCE (20→15)
+
+2026-04-24T08:35: Hypothesis — aligner_agent.py uses `_JUNCTION_ALIGN_DISTANCE = 20` but the game engine (CvCConfig) uses 15. This means the policy incorrectly considers junctions at distance 16-20 from friendly junctions as alignable. Aligners waste time traveling to these junctions, attempting alignment, failing, and getting the junction blacklisted. Fix: change 20→15 to match game config.
+
+### Results
+
+| Config | Seed | Score/cog | Junctions | Deposits | Deaths |
+|--------|------|-----------|-----------|----------|--------|
+| baseline | 42 | 2.89 | 46 | 2134 | 2 |
+| baseline | 456 | 2.01 | 25 | 2100 | 6 |
+| junction fix | 42 | **3.04** | **54** | 2774 | 6 |
+| junction fix | 456 | **2.04** | **38** | 2148 | 17 |
+
+**Average: baseline 2.45/cog → junction fix 2.54/cog (+3.7%). Junctions: 35.5 → 46 (+30%).**
+
+**Conclusion: KEEP.** Both seeds improved. Seed 42 new all-time best: 3.04/cog. Junctions consistently improved on both seeds (+17%, +52%). The fix prevents wasted aligner trips to non-alignable junctions and prevents false blacklisting of junctions that could become alignable as the network expands. Committed as e30dfff.
