@@ -72,6 +72,8 @@ class SharedMap:
         # Prevents all aligners from rushing to hub when only 1-2 hearts are available.
         self.agents_getting_hearts: set[int] = set()
         self.hub_deposits_total: int = 0
+        self.active_miner_ids: set[int] = set()
+        self.global_step: int = 0
         # Issue-36 v20: shared per-element extractor locations. When one miner discovers
         # a silicon extractor, all miners immediately know where it is. Critical for
         # team_scarce_element (V15) — without shared data, a miner told to mine silicon

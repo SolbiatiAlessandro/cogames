@@ -828,6 +828,19 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     _STUCK_THRESHOLD = 150
     _STUCK_EXPLORE_STEPS = 60
 
+    def _effective_return_load(self, obs: AgentObservation) -> int:
+        sm = self._shared_map
+        if sm is None or not hasattr(sm, "active_miner_ids"):
+            return self._return_load
+        sm.active_miner_ids.add(obs.agent_id)
+        sm.global_step += 1
+        n_miners = len(sm.active_miner_ids)
+        if n_miners >= 3:
+            return self._return_load
+        # Fewer miners: reduce load for faster trips and more frequent heart crafting
+        adjusted = max(15, self._return_load * n_miners // 3)
+        return adjusted
+
     def step_with_state(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         self._update_map_memory(obs, state)
 
@@ -918,7 +931,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             self._record_move_target(action, obs, state)
             return action, state
 
-        if carried >= self._return_load:
+        effective_load = self._effective_return_load(obs)
+        if carried >= effective_load:
             action, state = self._deposit_to_hub(obs, state)
             self._record_move_target(action, obs, state)
             return action, state

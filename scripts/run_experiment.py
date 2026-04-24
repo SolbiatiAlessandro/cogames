@@ -84,8 +84,18 @@ def main():
         )
         policy_specs = [policy_spec, noop_spec]
         n_real = env_cfg.game.num_agents - noop_agents
-        assignments = [0] * n_real + [1] * noop_agents
-        log.info("MIXED MODE: %d real agents + %d noop agents", n_real, noop_agents)
+        # Interleave real/noop so our agents get non-sequential IDs (like tournament)
+        assignments = []
+        real_placed = 0
+        noop_placed = 0
+        for i in range(env_cfg.game.num_agents):
+            if real_placed < n_real and (i % 2 == 0 or noop_placed >= noop_agents):
+                assignments.append(0)
+                real_placed += 1
+            else:
+                assignments.append(1)
+                noop_placed += 1
+        log.info("MIXED MODE: %d real agents + %d noop agents, assignments=%s", n_real, noop_agents, assignments)
     else:
         policy_specs = [policy_spec]
         assignments = [0] * env_cfg.game.num_agents
