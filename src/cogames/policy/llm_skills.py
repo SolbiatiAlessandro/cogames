@@ -833,7 +833,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if sm is None or not hasattr(sm, "active_miner_ids"):
             return self._return_load
         sm.active_miner_ids.add(obs.agent_id)
-        sm.global_step += 1
         n_miners = len(sm.active_miner_ids)
         if n_miners >= 3:
             return self._return_load
