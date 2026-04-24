@@ -1,0 +1,5 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+baseline	2.89	junctions=46 deposits=2134 hearts=5 deaths=2	10000	keep	CrossRoleState fix only (seed 42) - 5A3M return_load=20
+baseline	1.47	junctions=4 deposits=160 hearts=4 deaths=1	10000	keep	CrossRoleState fix only (seed 123) - 5A3M return_load=20 - severe congestion
+baseline	2.01	junctions=25 deposits=2100 hearts=4 deaths=6	10000	keep	CrossRoleState fix only (seed 456) - 5A3M return_load=20
+818a5bb	2.42	junctions=30 deposits=1910 hearts=5 deaths=2	10000	discard	all mining fixes (depleted_extractors+explore_timeout+hub55) seed 42 - WORSE than baseline
