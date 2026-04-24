@@ -594,25 +594,26 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
 
         self._shared_map = SharedMap()  # ONE map, shared by ALL agents
 
-        # Resolve aligner IDs: "auto" uses 4 aligners at 8+ agents. With shared
-        # extractor knowledge and deposit tracking, 4 miners suffice for element
-        # diversity; more aligners capture junctions faster.
+        # Resolve aligner ratio for dynamic role assignment.
+        # Instead of pre-computing aligner IDs based on total num_agents,
+        # we assign roles dynamically as agents register via agent_policy().
+        # This ensures a balanced mix regardless of which agent IDs we control
+        # (critical for tournament where we may only control a subset).
         parsed_aligner_ids = tuple(int(p.strip()) for p in aligner_ids.split(",") if p.strip())
         if parsed_aligner_ids:
             self._aligner_ids = frozenset(parsed_aligner_ids)
+            self._dynamic_roles = False
         else:
             na_str = str(num_aligners).lower()
             if na_str == "auto":
-                if n_agents >= 6:
-                    n_aligners = n_agents - 3
-                else:
-                    n_aligners = n_agents // 2
+                self._aligner_ratio = 0.625  # ~5/8 aligners (same as n-3 for 8 agents)
+                self._dynamic_roles = True
+                self._aligner_ids = frozenset()
             else:
                 n_aligners = int(num_aligners)
-            self._aligner_ids = frozenset(range(min(n_aligners, n_agents)))
-        logger.info("num_aligners=%d (n_agents=%d, raw=%s)", len(self._aligner_ids), n_agents, num_aligners)
+                self._aligner_ids = frozenset(range(min(n_aligners, n_agents)))
+                self._dynamic_roles = False
 
-        # Resolve scout IDs: "auto" means 0 scouts at 6+ agents (scouts are fragile)
         parsed_scout_ids = tuple(int(p.strip()) for p in scout_ids.split(",") if p.strip())
         if parsed_scout_ids:
             self._scout_ids = frozenset(parsed_scout_ids)
@@ -622,11 +623,16 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                 n_scouts = 0
             else:
                 n_scouts = int(num_scouts)
-            aligner_count = len(self._aligner_ids)
-            self._scout_ids = frozenset(
-                range(aligner_count, min(aligner_count + n_scouts, n_agents))
-            )
-        logger.info("num_scouts=%d (n_agents=%d, raw=%s)", len(self._scout_ids), n_agents, num_scouts)
+            if self._dynamic_roles:
+                self._scout_ids = frozenset()
+            else:
+                aligner_count = len(self._aligner_ids)
+                self._scout_ids = frozenset(
+                    range(aligner_count, min(aligner_count + n_scouts, n_agents))
+                )
+        self._dynamic_role_assignments: dict[int, str] = {}
+        logger.info("dynamic_roles=%s aligner_ids=%s scout_ids=%s (n_agents=%d)",
+                     self._dynamic_roles, self._aligner_ids, self._scout_ids, n_agents)
 
         self._planner = LLMMinerPlannerClient(
             api_url=llm_api_url,
@@ -643,11 +649,26 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         self._unstuck_horizon = int(unstuck_horizon)
         self._agent_policies: dict[int, StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]] = {}
 
+    def _assign_role(self, agent_id: int) -> str:
+        if not self._dynamic_roles:
+            if agent_id in self._aligner_ids:
+                return "aligner"
+            if agent_id in self._scout_ids:
+                return "scout"
+            return "miner"
+        n_assigned = len(self._dynamic_role_assignments)
+        n_miners = sum(1 for r in self._dynamic_role_assignments.values() if r == "miner")
+        miner_ratio = 1.0 - self._aligner_ratio
+        target_miners = round((n_assigned + 1) * miner_ratio)
+        role = "miner" if n_miners < target_miners else "aligner"
+        self._dynamic_role_assignments[agent_id] = role
+        return role
+
     def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]:
         if agent_id not in self._agent_policies:
-            role = "aligner" if agent_id in self._aligner_ids else ("scout" if agent_id in self._scout_ids else "miner")
+            role = self._assign_role(agent_id)
             logger.info("ROLE_ASSIGNMENT agent=%d role=%s scripted_miners=%s", agent_id, role, self._scripted_miners)
-            if agent_id in self._aligner_ids:
+            if role == "aligner":
                 impl = LLMAlignerPolicyImpl(
                     self._policy_env_info,
                     agent_id,
@@ -657,11 +678,9 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     shared_map=self._shared_map,
                     scripted=self._scripted_aligners,
                 )
-            elif agent_id in self._scout_ids:
-                # Scouts are offset across the grid so multiple scouts cover
-                # different sections; the last scout in the set gets offset=0.75.
-                sorted_scouts = sorted(self._scout_ids)
-                scout_rank = sorted_scouts.index(agent_id)
+            elif role == "scout":
+                sorted_scouts = sorted(aid for aid, r in self._dynamic_role_assignments.items() if r == "scout")
+                scout_rank = sorted_scouts.index(agent_id) if agent_id in sorted_scouts else 0
                 offset_fraction = scout_rank / max(len(sorted_scouts), 1)
                 impl = ScoutExplorerPolicyImpl(
                     self._policy_env_info,

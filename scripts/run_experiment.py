@@ -40,6 +40,8 @@ def main():
     parser.add_argument("--mission", type=str, default="basic")
     parser.add_argument("--num-aligners", type=int, default=None)
     parser.add_argument("--return-load", type=int, default=None)
+    parser.add_argument("--noop-agents", type=int, default=0,
+                        help="Number of agents to replace with noop (simulates weak partners)")
     args = parser.parse_args()
 
     from cogames.cogs_vs_clips.missions import get_core_missions
@@ -74,15 +76,29 @@ def main():
         init_kwargs=policy_kwargs,
     )
 
-    log.info("Mission=%s cogs=%d steps=%d seed=%d", args.mission, args.cogs, args.steps, args.seed)
+    noop_agents = args.noop_agents
+    if noop_agents > 0:
+        noop_spec = PolicySpec(
+            class_path="mettagrid.policy.noop.NoopPolicy",
+            init_kwargs={},
+        )
+        policy_specs = [policy_spec, noop_spec]
+        n_real = env_cfg.game.num_agents - noop_agents
+        assignments = [0] * n_real + [1] * noop_agents
+        log.info("MIXED MODE: %d real agents + %d noop agents", n_real, noop_agents)
+    else:
+        policy_specs = [policy_spec]
+        assignments = [0] * env_cfg.game.num_agents
+
+    log.info("Mission=%s cogs=%d steps=%d seed=%d noop=%d", args.mission, args.cogs, args.steps, args.seed, noop_agents)
 
     from mettagrid.runner.rollout import run_episode_local
 
     console = Console()
     start = time.time()
     results, _replay = run_episode_local(
-        policy_specs=[policy_spec],
-        assignments=[0] * env_cfg.game.num_agents,
+        policy_specs=policy_specs,
+        assignments=assignments,
         env=env_cfg,
         seed=args.seed,
         device="cpu",
