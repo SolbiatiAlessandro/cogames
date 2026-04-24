@@ -38,3 +38,24 @@ My plan: first run baseline, then profile where miners spend their time at 5k-10
 2026-04-24T07:10: all 3 seeds done. Seed 123 is a "bad seed" with severe congestion (agents stuck 5000+ steps, max_steps_without_motion up to 5890). Seed 456 has high mortality (6 deaths). Average across seeds: 2.12/cog. Baseline established.
 
 2026-04-24T07:11: DISCARDING mining fixes. The baseline without them is better. The CrossRoleState field fix alone is the only "keep" from this session. Previous best was 2.53/cog at 10k (seed 42), so our 2.89/cog is a new high. Next experiment: investigate why seed 123 has such severe congestion (5A/3M might be suboptimal — too many agents competing for gear stations).
+
+## Experiment 2: 3A/5M vs 5A/3M configuration
+
+2026-04-24T07:15: Hypothesis — the default 3A/5M config (more miners) might be better than 5A/3M because: (1) more miners = more deposits, (2) fewer aligners still cover junction needs since aligners are already efficient, (3) the 5A/3M config was tested before by another researcher who found -26.3% vs 4A/4M, but that was before the CrossRoleState fix so results may differ now. Also, the tournament defaults to 3A/5M, so optimizing for that config is more directly applicable.
+
+### 3A/5M Results
+
+| Config | Seed | Score/cog | Junctions | Deposits | Deaths |
+|--------|------|-----------|-----------|----------|--------|
+| 5A/3M (baseline) | 42 | 2.89 | 46 | 2134 | 2 |
+| 5A/3M (baseline) | 456 | 2.01 | 25 | 2100 | 6 |
+| 3A/5M | 42 | 2.05 | 34 | 1610 | 2 |
+| 3A/5M | 456 | 2.17 | 24 | 1788 | 89 |
+
+**Conclusion: 3A/5M is WORSE.** 5A/3M wins on both seeds. Seed 42: -29% reward, -25% deposits. Seed 456: similar junctions but 89 deaths vs 6 (miners die constantly). More miners creates extractor/hub congestion and doesn't produce more deposits. The junction advantage of 5 aligners (46 vs 34) is the main reward driver. DISCARDING 3A/5M.
+
+2026-04-24T07:40: Seed 123 diagnostic revealed the root cause of congestion: 5 agents trying to gear up as aligners at a single aligner station, creating a bottleneck. Agents 0,1,3,4 accumulate 8+ gear_up failures each. The conversion ceiling (10 failures before converting aligner→miner) wastes ~2000 steps per agent.
+
+## Experiment 3: Faster gear-up failure conversion
+
+2026-04-24T07:45: Hypothesis — reducing the gear_up_failures_total threshold from 10 to 4 will reduce wasted steps on gear station contention. Agents that can't reach the aligner station quickly convert to miners and start being productive earlier. This should especially help seed 123 where 4 agents are stuck in the gear_up retry loop.
