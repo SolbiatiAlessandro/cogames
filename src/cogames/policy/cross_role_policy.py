@@ -628,7 +628,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 # Convert to miner to reclaim the agent as a productive miner.
                 # Use gear_up_failures_total (never resets) instead of gear_up_failures
                 # (resets on contamination, which happens during hazard-bypass navigation).
-                if state.gear_up_failures_total >= 4:
+                if state.gear_up_failures_total >= 10:
                     bootstrap_gear = "miner"
                     state.phase_preferred_gear = "miner"
                     reason = f"phase{state.phase} aligner->miner conversion: {state.gear_up_failures_total} total gear_up failures, station unreachable"

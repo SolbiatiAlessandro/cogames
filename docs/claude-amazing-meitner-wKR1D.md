@@ -59,3 +59,19 @@ My plan: first run baseline, then profile where miners spend their time at 5k-10
 ## Experiment 3: Faster gear-up failure conversion
 
 2026-04-24T07:45: Hypothesis — reducing the gear_up_failures_total threshold from 10 to 4 will reduce wasted steps on gear station contention. Agents that can't reach the aligner station quickly convert to miners and start being productive earlier. This should especially help seed 123 where 4 agents are stuck in the gear_up retry loop.
+
+### Results
+
+| Seed | Baseline | Faster-gear (10→4) | Delta |
+|------|----------|-------------------|-------|
+| 42   | 2.89     | 2.24              | -22%  |
+| 123  | 1.47     | 1.47              | 0%    |
+| 456  | 2.01     | 2.37              | +18%  |
+
+**Conclusion: DISCARDED.** Seed 42 regression (-22%) is catastrophic: drops from 46→21 junctions because converting aligners to miners too early removes productive aligners on maps where the station IS reachable. Seed 123 unchanged (problem is deeper). Seed 456 improves but net negative. REVERTED.
+
+2026-04-24T08:15: Key learning — aligners are the primary reward driver, not miners. The 5A/3M configuration works because junctions drive reward. Any change that reduces effective aligner count hurts badly. Mining throughput improvements must NOT come at the cost of alignment capacity.
+
+## Experiment 4: return_load=40 (double batch size)
+
+2026-04-24T08:16: Hypothesis — increasing return_load from 20 to 40 doubles the cargo per trip. With only 3 miners, each trip's overhead (walking to extractor, walking back to hub) is significant. Doubling the payload per trip should increase net deposits. Previous researcher found return_load=20 was -28.3% at 3k steps with broken CrossRoleState, so that data is unreliable. Testing fresh.
