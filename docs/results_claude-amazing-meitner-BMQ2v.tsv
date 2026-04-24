@@ -13,3 +13,13 @@ f435ae7	557.738647	hearts=n/a junctions=n/a	3000	keep	exp3 adaptive load: 4+4 no
 f435ae7	881.642700	hearts=53 junctions=48	3000	keep	exp3 adaptive load: 8 real seed 42 (no regression)
 f435ae7	3625.930664	hearts=53 junctions=48	10000	keep	exp3 adaptive load: 8 real seed 42 (10k steps)
 f435ae7	2470.606445	hearts=35 junctions=33	10000	keep	exp3 adaptive load: 4+4 noop seed 42 (10k steps)
+5716f27	644.158081	hearts=34 junctions=32	3000	keep	multi-seed: 4+4 noop seed 42
+5716f27	557.738647	hearts=n/a junctions=n/a	3000	keep	multi-seed: 4+4 noop seed 123
+5716f27	637.700000	hearts=n/a junctions=n/a	3000	keep	multi-seed: 4+4 noop seed 7
+5716f27	516.280000	hearts=n/a junctions=n/a	3000	keep	multi-seed: 4+4 noop seed 999
+5716f27	411.800000	hearts=n/a junctions=n/a	3000	keep	multi-seed: 4+4 noop seed 2024
+5716f27	370.055450	hearts=n/a junctions=n/a	3000	keep	multi-seed: 4+4 noop seed 100
+5716f27	555.941956	hearts=n/a junctions=n/a	3000	keep	multi-seed: 4+4 noop seed 200
+5716f27	722.852539	hearts=n/a junctions=n/a	3000	keep	multi-seed: 4+4 noop seed 300
+5716f27	596.264954	hearts=n/a junctions=n/a	3000	keep	multi-seed: 4+4 noop seed 400
+5716f27	459.841980	hearts=n/a junctions=n/a	3000	keep	multi-seed: 4+4 noop seed 500

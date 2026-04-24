@@ -72,4 +72,31 @@ Noop-partner performance is now 63-73% of full team (was 20%). Two core changes:
 1. Dynamic proportional role assignment (works regardless of agent IDs)
 2. Adaptive return_load (fewer miners → faster trips)
 
-Next researcher should try: runtime role adaptation (convert idle aligners to miners when no hearts available), or test with other partner behaviors (random actions, early death agents).
+## Multi-seed validation (5 seeds, 4+4 noop, 3000 steps)
+
+| Seed | Score |
+|------|-------|
+| 42   | 644.16 |
+| 123  | 557.74 |
+| 7    | 637.70 |
+| 999  | 516.28 |
+| 2024 | 411.80 |
+| **Avg** | **553.5** |
+
+Average noop-partner performance is 63% of full team (553/882).
+
+## Experiment 4: Failed approaches (no improvement retained)
+
+### 4a: Conditional defend skip (no effect)
+Hypothesis: skipping defend and keeping aligners in get_heart/explore loop with few miners would reduce idle time. Result: the defend code path is never actually reached in the noop scenario (was_stuck flag prevents get_heart from being selected after timeout). No change in scores.
+
+### 4b: Broader explore for junction-poor seeds (regression on some seeds)
+Hypothesis: using unrestricted _explore() instead of _explore_for_alignment() when no alignable junctions known would help weak seeds discover distant junctions. Result: helped seed 999 (+9%) but hurt seed 123 (-21%). Reverted.
+
+### 4c: Miner junction detection (high variance, net negative on 10 seeds)
+Hypothesis: miners discovering junctions during mining trips and sharing via SharedMap would help aligners find alignment targets faster. Result: +8% on full team and +37% on some noop seeds, but -29% to -59% on others. Root cause: miner-discovered junctions trigger premature explore termination, disrupting aligner flow. Net negative across 10 seeds (-7.7% average). Reverted.
+
+### Key insight
+The remaining performance gap (37%) is primarily map-layout dependent: some seeds have junctions concentrated near the hub (easy for 2 aligners), others have them spread far apart (impossible to improve without more exploration agents). Policy changes that help scattered-junction maps hurt concentrated-junction maps and vice versa.
+
+Next researcher should try: aligner-miner role swapping at runtime (convert idle aligners to temporary miners when hearts are unavailable), test with other partner behaviors (random actions, early death agents), or try coordinated exploration offsets to reduce aligner overlap.
