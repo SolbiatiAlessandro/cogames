@@ -24,43 +24,41 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline→online): 2026-04-23 (Session 16)_
+_Updated by Director (offline→online): 2026-04-25 (Session 17)_
 
 ### Online Tournament (beta-cvc, 10k steps, cooperative scoring)
 
 | Rank | Score | Policy | Matches | Notes |
 |------|-------|--------|---------|-------|
-| #1/165 | **41.10** | `Paz-Bot-9000:v47` | - | Pure RL |
-| #2/165 | 40.82 | `Gryffindor:v11` | - | Pure RL |
-| #3/165 | 40.73 | `Slytherin:v14` | - | Pure RL |
-| #4/165 | 40.33 | `Paz-Bot-9000:v50` | - | Pure RL (new) |
-| #5/165 | 40.11 | `Hufflepuff:v11` | - | Pure RL |
-| #7/165 | 39.47 | `slinky:v3` | - | New entrant |
-| #8/165 | 39.24 | `slanky:v155` | - | New entrant |
+| #1/229 | **41.10** | `Paz-Bot-9000:v47` | 21 | Pure RL (stable) |
+| #2/229 | 40.82 | `Gryffindor` | 27 | Pure RL |
+| #3/229 | 40.73 | `Slytherin` | 32 | Pure RL |
+| #4/229 | 40.33 | `Paz-Bot-9000:v50` | 20 | Pure RL |
+| #5/229 | 40.11 | `Hufflepuff` | 25 | Pure RL |
+| #12/229 | 38.28 | `Softy` | 20 | |
+| #13/229 | 38.18 | `dinky_hank` | 33 | |
 | ... | ... | ... | ... | ... |
-| **#90/165** | **21.78** | **`lessandro-scripted-v42:v1`** | **20** | **NEW BEST (+29%)** |
-| #95/165 | 17.70 | `lessandro-scripted-v41:v1` | 20 | +2% vs v32 |
-| #96/165 | 17.38 | `lessandro-scripted-v32:v1` | 30+ | Previous best |
-| #99/165 | 17.18 | `lessandro-scripted-v40:v1` | 20 | |
-| #100/165 | 16.63 | `lessandro-scripted-v39:v1` | 20 | |
+| **#105/229** | **18.74** | **`lessandro-scripted-v42:v1`** | **34** | **Best (settled from 21.78)** |
+| #106/229 | 18.05 | `lessandro-scripted-v41:v1` | 32 | |
+| #109/229 | 16.02 | `lessandro-scripted-v40:v1` | 36 | |
+| #111/229 | 15.55 | `lessandro-scripted-v32:v1` | 54 | Previous best |
+| #112/229 | 15.38 | `lessandro-scripted-v39:v1` | 46 | |
 
-_165 entries (up from 154). v42 uploaded from `amazing-meitner-pzwh4` — correct branch with all fixes._
+_229 entries (up from 165). v42:v2/v3 uploaded session 16 but scored None — failed online. Only v42:v1 works._
 
-### v42 Match Analysis (session 16)
+### v42 Match Analysis (session 17, 34 matches)
 
-v42 shows extreme partner dependence (stddev=12.6):
+**Score by agent split** — the most important finding this session:
 
-| Partner | Score | Analysis |
-|---------|-------|----------|
-| Gryffindor:v24 | 49.92 | Top RL partner — competitive with #1! |
-| dinky_edsel:v12 | 47.29 | Good partner |
-| slinky:v5 | 42.51 | Top RL partner |
-| Luna:v8 | 35.16 | Good |
-| Paz-Bot-9000:v49 | 26.68 | Top RL |
-| anoop.dazzle:v1 | 1.78 | Bad partner — near zero |
-| shweta.v34:v1 | 0.23 | Bad partner — near zero |
+| Split | Our Agents | Avg Score | Range | N |
+|-------|-----------|-----------|-------|---|
+| 2+6 (us majority) | 6 | **23.27** | 15.28–31.99 | 11 |
+| 6+2 (us minority) | 2 | 16.22 | 0.23–49.92 | 12 |
+| 4+4 (even) | 4 | 13.33 | 0.49–42.51 | 11 |
 
-**Key insight**: with top partners we score 42-50 (top-10 level!). Bad partners drag the average to 21.78. Partner robustness is the #1 lever for improving rank.
+When we have 6 agents, our floor is 15.28 (no catastrophic failures). When we have 2, we're at partner mercy.
+
+**Root cause found (issue #47)**: static ID-based role assignment caused ALL agents to become aligners when assigned IDs 0-3, leaving zero miners. Fixed in branch `amazing-meitner-Y1TiB` — noop-partner floor improved 3.6x (164→591 at 3k steps). **Awaiting v43 submission.**
 
 ### Offline Best Results (8-agent, machina_1 88x88)
 
@@ -69,7 +67,7 @@ v42 shows extreme partner dependence (stddev=12.6):
 | 1 | **3917.30** | 5A+3M hub diversification | 10000 | seed 42 | +6.2% (pzwh4, v42 source) |
 | 2 | 1011.74 | 5A+3M hub diversification | 3000 | seed 7 | +51.4% vs baseline |
 | 3 | 913.13 | junction dist 20 + deposit rot | 3000 | seed 42 | +15.7% (VGWVP) |
-| 4 | 884.93 | hub approach + deposit rotation | 3000 | seed 42 | +12.1% (v40 source) |
+| 4 | **591.4 avg** | dynamic roles + adaptive load | 3000 | 10-seed noop | **Partner robustness fix** |
 | 5 | 789.18 | baseline (session 15 main) | 3000 | seed 42 | |
 
 ### Gap Analysis
@@ -77,32 +75,31 @@ v42 shows extreme partner dependence (stddev=12.6):
 ```
 Metric                    Us (online best)         Top RL (online)       Gap       Status
 ──────────────────────────────────────────────────────────────────────────────────────────
-Online score              21.78 (#90/165)          41.10 (#1/165)        1.9x      IMPROVING
-Score with good partner   42-50                    41.10                 ~1x       COMPETITIVE!
-Score with bad partner    0.2-1.8                  ~20-30 (estimated)    10-100x   CRITICAL
-Offline reward (10k)      3917 (5A3M)              n/a                   ?         +6.2%
+Online score              18.74 (#105/229)         41.10 (#1/229)        2.2x      SETTLED
+Score w/ 6 agents (2+6)   23.27 avg               41.10                 1.8x      BEST SPLIT
+Score w/ good partner     42-50                    41.10                 ~1x       COMPETITIVE!
+Score w/ bad partner      0.2-1.8                  ~20-30 (estimated)    10-100x   FIX MERGED
+Offline noop floor        591.4 (post-fix)         n/a                   n/a       3.6x IMPROVED
 ```
 
-**Current bottleneck**: Partner robustness (#47). With good partners we're competitive with the top 10, but bad partners crater our average to near zero. This is the single biggest lever for improving rank. RL training (#41) remains the fundamental ceiling for individual agent quality.
+**Current bottleneck**: v43 submission. The partner robustness fix (dynamic role assignment + adaptive return_load) is merged but NOT yet submitted online. This is the single highest-impact change: noop-partner floor went from 165→591 (+3.6x). Estimated online impact: score from ~18.74 to ~25+ by eliminating the 0-2 point bad-partner matches.
 
-**Next up**: #47 — partner robustness experiments, then #41 (RL training, blocked on GPU)
+**Next up**: Submit v43 (needs cogames CLI), then #48 (crash-prevention wrappers), then #41 (RL training, blocked on GPU)
 
 **Research tree:**
 ```
-priority:1  #47  Partner robustness (bad partners -> 0 score)  <- SPAWN NEXT
-priority:2  #41  RL policy training        <- BLOCKED (needs GPU)
-priority:2  #32  Partner robustness (general)  <- upgraded from p3
-priority:2  #36  Agent mortality           <- MOSTLY FIXED
-priority:2  #40  Mining throughput         <- subsumed by pzwh4
+priority:1  #47  Partner robustness         <- FIX MERGED, SUBMIT v43 ASAP
+priority:2  #48  Cherry-pick crash wrappers <- NEW, prevents miner/scout crashes
+priority:2  #41  RL policy training         <- BLOCKED (needs GPU)
 priority:2  #27  Andre Von Huck / A*
+priority:3  #38  6+2 mortality             <- partially addressed by #47 fix
+priority:3  #31  change_vibe investigation
+priority:3  #12  Gear reliability
+priority:3  #10-#24 various research
 
 CLOSED/RESOLVED:
   #46 v37/v38 regression | #45 Submit #44 | #44 Miner productivity
-  #43 v34 regression | #42 httpx import | #39 Submission | #25 8-Agent Scaling
-
-DEPRIORITIZED (priority:3):
-  #38 6+2 mortality | #31 change_vibe | #30 Self-Play
-  #26 shweta | #12 Gear | #10-#23 various
+  #43 v34 regression | #42 httpx import | #39 Submission | #32 Partner robustness (general)
 ```
 <!-- LEADERBOARD_END -->
 

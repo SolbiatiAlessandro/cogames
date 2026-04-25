@@ -1,104 +1,113 @@
 # Director Notes
-_Written: 2026-04-23 (Session 16, offline→online)_
+_Written: 2026-04-25 (Session 17, offline→online)_
 
 ## Offline observations
 
-### Branch `amazing-meitner-pzwh4` (source of v42, our new online best)
-- Hub approach diversification: +6.2% at 10k (seed 42), +35.5% (seed 123), +51.4% (seed 7 at 3k)
-- Deposit stuck loop fix + extractor depletion tracking: 2.3x mining throughput
-- 5A+3M role allocation for 8 agents: +9.3% over 4A+4M
-- Best: 3917.30 reward at 10k steps (seed 42)
+### Branch `amazing-meitner-Y1TiB` (partner robustness fix — MERGED)
+- **Root cause found**: Static ID-based role assignment (`aligner_ids={0,1,2,3,4}`) caused ALL agents to become aligners when tournament assigns IDs 0-3, leaving zero miners → no mining → no hearts → score collapse with bad partners.
+- **Fix 1**: Dynamic proportional role assignment. Roles assigned as agents register via `agent_policy()` using 62.5% aligner ratio. Pattern for 4 agents: A,M,A,M (balanced!).
+- **Fix 2**: Adaptive return_load. With <3 miners, cargo threshold drops from 40 to ~26 for faster trips.
+- **10-seed validation** (4+4 noop, 3000 steps): avg=591.4, range 370-769. Floor went from 165→591 (+3.6x).
+- **No full-team regression**: 826→882 (+6.7% on seed 42).
 
-### Branch `amazing-meitner-VGWVP` (source of v39, v40)
-- Hub approach diversification: +6.4% to +12.8%
-- Deposit side rotation: +12.1%
-- Junction align distance 15→20: +2.2% (3k seed 42), +18.7% (3k seed 123)
-- Best: 913.13 reward at 3k steps
+### Branch `amazing-meitner-BMQ2v` (same fix, different researcher)
+- Independently found same root cause and applied same fix. 10-seed avg=547.3. Confirms Y1TiB's findings.
+- Also tested junction discovery sharing for miners — hurt more than helped due to premature explore termination.
+
+### Branch `amazing-meitner-wKR1D` (cross_role_policy experiments)
+- NOT MERGED. Works on cross_role_policy (not our submitted machina_llm_roles).
+- Found junction distance 20→15 and heart cooldown fix help cross_role (+17%).
+- Contradicts session 16's 15→20 junction distance change. Cross-role isn't used online.
 
 ### Offline ceiling
-The offline reward continues improving: 3917 at 10k steps is 6.4% above the session 15 baseline (3682). The trend is positive but flattening — most gains now come from mining efficiency and hub congestion reduction rather than new strategies.
+3917.30 at 10k steps (seed 42, 5A+3M). No new full-team experiments this session — researchers focused on partner robustness.
 
 ## Online observations
 
-### Leaderboard (beta-cvc, 165 entries)
-- **v42:v1 = #90/165, score 21.78** — NEW BEST (+29% vs v32's 17.38)
-- v41:v1 = #95/165, score 17.70 (+2%)
-- v40:v1 = #99/165, score 17.18 (-1%)
-- v39:v1 = #100/165, score 16.63 (-4%)
-- v32:v1 = #96/165, score 17.38 (baseline, slight decay with more matches)
-- Top: Paz-Bot-9000:v47 at 41.10, stable
-- New entrants: slinky:v3 (#7, 39.47), slanky:v155 (#8, 39.24), Paz-Bot-9000:v50 (#4, 40.33)
+### Leaderboard (beta-cvc, 229 entries)
+- **v42:v1 = #105/229, score 18.74** — settled down from session 16's 21.78 (20 matches) to 18.74 (34 matches). More matches revealed the true average.
+- v41:v1 = #106/229, score 18.05
+- v40:v1 = #109/229, score 16.02
+- v32:v1 = #111/229, score 15.55 (previous best, also settled)
+- Top: Paz-Bot-9000:v47 at 41.10 (unchanged, stable)
+- Leaderboard grew 165→229 entries
 
-### v42 match analysis (20 matches)
-Extreme partner dependence (stddev=12.6):
-- With Gryffindor:v24: 49.92 (would be #1 if consistent!)
-- With dinky_edsel:v12: 47.29
-- With slinky:v5: 42.51
-- With Paz-Bot-9000:v49: 26.68
-- With shweta.v34:v1: 0.23
-- With anoop.dazzle:v1: 1.78
+### v42:v2/v3 and v41:v2/v3 status
+- **v42:v2**: 4 matches but **all scored None** — policy crashed/failed online. Never made it to leaderboard.
+- **v42:v3**: 0 matches — never entered self-play pool.
+- **v41:v2/v3**: Same — 4 matches with None scores / 0 matches respectively.
+- These were uploaded session 16 (2026-04-23). Something broke in the v2/v3 upload process.
 
-### v42:v2/v3 and v41:v2/v3
-Uploaded 2026-04-23 but NOT on the leaderboard yet. May need time to qualify through self-play pool before entering competition. Status unknown.
+### Agent split analysis (NEW — most important finding)
+34 v42 matches broken down by how many agents we control:
 
-### Season updates
-- beta-cvc: now version 8, "freeplay" format, compat 0.25
-- beta-teams-tiny-fixed: NEW season created 2026-04-23 (team-based tournament format). Not yet investigated.
+| Split | Our Agents | Avg Score | Floor | Ceiling | N |
+|-------|-----------|-----------|-------|---------|---|
+| 2+6 | 6 | **23.27** | 15.28 | 31.99 | 11 |
+| 6+2 | 2 | 16.22 | 0.23 | 49.92 | 12 |
+| 4+4 | 4 | 13.33 | 0.49 | 42.51 | 11 |
+
+When we control 6 of 8 agents, our minimum score is 15.28 — no catastrophic failures. When we have only 2 or 4, bad partners (shweta, anoop) can crash us to 0-2.
+
+### Partner distribution
+- **mammet**: new frequent opponent (10 matches), scores 1.5-21.1 depending on split
+- **Paz-Bot-9000**: consistently good (26-27 with 2 agents, strong RL partner)
+- **shweta/anoop**: still catastrophic (0.2-1.8 with these partners)
+- Action failures correlate with bad matches: ~4000-6000 failures in 0-score matches vs ~100-300 in good matches
+
+### beta-teams-tiny-fixed
+- 10 entries total. Only Paz-Bot-9000, slinky, slanky competing.
+- We're not entered. Small tournament, not a priority.
 
 ## Offline→Online gap
 
-1. **Online best: 21.78 (#90/165), offline best: 3917 at 10k steps.** The offline→online correlation is positive: pzwh4's improvements (hub diversification, mining fixes, 5A3M) translated to a +29% online improvement. This confirms we're optimizing the right things offline.
+1. **Online best: 18.74 (#105/229), offline best: 3917 at 10k steps.** v42's score has settled from the optimistic 21.78 (20 matches) to 18.74 (34 matches). The gap to #1 widened from 1.9x to 2.2x.
 
-2. **Gap narrowing: 2.4x → 1.9x.** At session 15 the gap to #1 was 2.4x (16.87 vs 41.10). Now it's 1.9x (21.78 vs 41.10). Progress is real.
+2. **Root cause of bad-partner collapse identified and fixed offline.** Static role assignment caused all agents to become aligners (zero miners) when given IDs 0-3. This explains why 4+4 splits with bad partners score 0-2: the partner's 4 agents do nothing, and our 4 agents are all aligners with no mining.
 
-3. **Partner sensitivity is the dominant online factor.** With good partners we score 42-50 (competitive with #1). With bad partners we score 0-2. Since partners are random, our average is heavily influenced by the partner quality distribution.
+3. **Fix not yet submitted online.** The dynamic role assignment fix (Y1TiB) is merged to main but we can't run the cogames CLI in this environment. v43 submission is the top priority action item.
 
-4. **The remaining gap is NOT primarily offline quality.** Our agents perform at top-10 levels when paired with good partners. The bottleneck is:
-   a. Bad partners tank scores (100x worse than good partner games)
-   b. Fundamental RL vs scripted ceiling for individual agent actions
+4. **Estimated v43 impact**: In offline noop tests, the fix raises the floor from 165 to 591 (+3.6x). If online bad-partner matches go from 0-2 to 10-15, the average should jump from ~18.74 to ~25+. This would move us from #105 to roughly #80-90 range.
 
-5. **No replay analysis possible.** S3 downloads and the Softmax API both return "DNS cache overflow" (503) for binary data. Code-based analysis only.
+5. **v42:v2/v3 failed online**: all scored None. The upload process was broken. v43 should be uploaded fresh from the fixed codebase using `cogames upload`.
 
 ## Current bottleneck
 
-**Partner robustness** (#47). Our average score is dragged down by 0-2 point matches with bad partners. If we could raise the floor from ~0 to ~10 on these matches, our average would jump from ~22 to ~27+. This is a bigger lever than further offline optimization.
+**Submission**: the partner robustness fix is merged but not submitted. This is the single highest-impact pending action.
 
-Secondary: **RL training** (#41) remains blocked on GPU and is the fundamental ceiling.
+Secondary: **RL training** (#41) remains blocked on GPU and is the fundamental ceiling for individual agent quality. Our agents score 42-50 with good RL partners — proving the RL partners are doing the heavy lifting.
 
 ## Branches merged this session
-- `amazing-meitner-pzwh4` → my branch (fast-forward): v42 source, hub diversification, 5A3M, mining fixes
-
-## Code changes applied this session
-- Junction align distance 15→20 (cherry-picked from VGWVP, +2.2% evidence)
-- Merged pzwh4: aligner hub approach diversification, deposit stuck loop fix, extractor depletion tracking, 5A+3M role allocation, explore timeout
+- `amazing-meitner-Y1TiB` → working branch (fast-forward): issue #47 fix, dynamic role assignment + adaptive return_load
 
 ## Issues updated this session
-- **#46**: CLOSED (v37/v38 regression resolved — v42 proves correct branch works)
-- **#45**: CLOSED (submit #44 — superseded by v42)
-- **#44**: CLOSED (miner productivity — merged and validated online)
-- **#47**: CREATED (priority:1 — partner robustness)
-- **#32**: Upgraded priority:3→2 (partner robustness evidence from v42 match data)
+- **#47**: Added director update comment with session 17 findings. Two researchers independently found and fixed the root cause. Merged Y1TiB.
+- **#48**: Reviewed — cherry-pick crash wrappers from dtLLg. Still open, priority:2.
+- **#38**: 6+2 mortality — partially addressed by #47's dynamic role assignment fix.
 
 ## Priority stack
 ```
-priority:1  #47  Partner robustness (bad partner → 0 score)   <- SPAWN NEXT
+priority:1  #47  Partner robustness       <- FIX MERGED, SUBMIT v43 ASAP
+priority:2  #48  Cherry-pick crash wrappers <- prevents miner/scout online crashes
 priority:2  #41  RL policy training        <- BLOCKED (needs GPU)
-priority:2  #32  Partner robustness (general)  <- upgraded from p3
-priority:2  #36  Agent mortality           <- MOSTLY FIXED
-priority:2  #40  Mining throughput         <- subsumed by pzwh4
 priority:2  #27  Andre Von Huck / A*
+priority:3  #38  6+2 mortality            <- partially fixed by #47
+priority:3  #31  change_vibe              <- investigation only
+priority:3  #12  Gear reliability
 ```
 
 ## Open questions for next director
 
-1. **v42:v2/v3 and v41:v2/v3**: these were uploaded 2026-04-23 but don't appear on the leaderboard. Check if they qualified through self-play and entered the competition pool. If not, investigate why.
+1. **Submit v43**: Use `cogames upload -p . -n lessandro-scripted-v43 --season beta-cvc --skip-validation` from a local environment with cogames CLI. This is the top priority — the partner robustness fix is the biggest improvement since v42.
 
-2. **beta-teams-tiny-fixed season**: new team-based tournament created today. Should we submit a policy? The format has multiple stages with progressive culling. Might favor different strategies than freeplay.
+2. **v42:v2/v3 failure**: All scored None online. Investigate what went wrong with the upload. Was it a code change that broke compatibility? Or an upload process issue? v43 should be uploaded carefully.
 
-3. **Partner robustness testing**: the ideal offline test is 4 our agents + 4 noop agents. Can we simulate this? If our agents can score >10 in this setup (vs 0 with bad partners online), that confirms the hypothesis.
+3. **Issue #48 (crash wrappers)**: Cherry-picking try/except wrappers from dtLLg for miners and scouts. This addresses the remaining online crash scenarios. Should be attempted after v43 is submitted and validated.
 
-4. **DNS cache overflow**: still blocks S3 replay downloads and httpx API calls. Previous sessions have the same issue. Need a different environment or workaround for replay analysis.
+4. **Split-aware strategy**: Our agents perform significantly better in 2+6 (avg 23.27) vs 4+4 (avg 13.33). The fix should help 4+4 splits most (where the role imbalance was worst). Monitor v43's split-specific scores.
 
-5. **Branch cleanup**: VGWVP is partially subsumed by pzwh4. The junction distance change was cherry-picked. The deposit_side_offset approach in VGWVP differs from pzwh4's hub_approach_rotation but the TSV evidence favors pzwh4. VGWVP could be deleted after confirming all value is captured.
+5. **mammet**: New frequent opponent in the tournament pool. Scores are variable (1.5-21) depending on split. Understanding mammet's behavior could help.
 
-6. **Submission from merged code**: the current branch has pzwh4 + junction distance 20 — this is newer than v42. Should be uploaded as v43 and tested online. But first confirm whether the change improves things (the junction distance increase has moderate evidence).
+6. **Branch cleanup**: BMQ2v can be deleted (superseded by Y1TiB). VGWVP was partially cherry-picked in session 16. wKR1D works on cross_role_policy (unused online). dtLLg has crash wrappers needed for #48 — keep until cherry-picked.
+
+7. **DNS cache overflow**: Still blocks S3 replay downloads (503). No workaround found in 5+ sessions. Episode stats are available via API as alternative.
