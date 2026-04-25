@@ -77,10 +77,23 @@ a severe production bottleneck.
 
 Changes: aligner_fraction for ≥6 agents: (n-3)/n → 0.5. Gives 4A+4M instead of 5A+3M.
 
-Result: IMPROVED.
-- seed 42: 131.37 → 137.78 (+4.9%), hearts 33→36, junction.aligned 26→35
-- seed 43: 91.74 (no baseline for comparison, different map layout)
-- max_steps_without_motion 47→115 (navigation regression, needs investigation)
+Result: IMPROVED. 5-seed validation (seeds 42-46):
+- 4A+4M avg: 122.64 (137.78, 91.74, 109.78, 164.04, 109.86)
+- 5A+3M avg: 115.63 (131.37, 91.41, 136.45, 108.97, 109.95)
+- Improvement: +6.1% on average
 
 Learning: heart production was the bottleneck, not junction coverage. 4 productive
-aligners beat 5 idle ones.
+aligners beat 5 idle ones. High seed variance (91-164) driven by map layout.
+
+---
+
+## Experiments 5-7: Navigation improvements — ALL REVERTED
+
+Tested three navigation changes, all neutral on 5-seed average:
+- Exp 5: deposit retry with rotated side (avg 121.34 vs 122.64)
+- Exp 6: increase HUB_ALIGN_DISTANCE 25→30/40 (avg 122.02/116.95 vs 122.64)
+- Exp 7: gear_up approach side diversification (avg 123.34 vs 122.64)
+
+Learning: navigation improvements help some seeds but hurt others. The variance
+is dominated by map layout (corridor width, hub position) not agent behavior.
+Move failures are 3.2% on good maps vs 12.9% on bad maps.
