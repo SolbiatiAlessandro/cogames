@@ -65,6 +65,13 @@ class LLMAlignerState(AlignerState):
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
     _UNSTUCK_DIRECTIONS = ("north", "east", "south", "west")
 
+    _QUADRANT_BIASES: tuple[tuple[int, int], ...] = (
+        (-1, 1),   # NE
+        (1, 1),    # SE
+        (1, -1),   # SW
+        (-1, -1),  # NW
+    )
+
     def __init__(
         self,
         policy_env_info: PolicyEnvInterface,
@@ -74,12 +81,14 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         unstuck_horizon: int,
         shared_map: SharedMap | None = None,
         scripted: bool = False,
+        explore_quadrant: int = 0,
     ) -> None:
         super().__init__(policy_env_info, agent_id, shared_map=shared_map)
         self._planner = planner
         self._stuck_threshold = stuck_threshold
         self._unstuck_horizon = unstuck_horizon
         self._scripted = scripted
+        self._explore_quadrant = explore_quadrant % 4
 
     def initial_agent_state(self) -> LLMAlignerState:
         base = super().initial_agent_state()
@@ -433,6 +442,33 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.retreating = False
         return False
 
+    def _explore_frontier(self, obs: AgentObservation, state: LLMAlignerState, frontier_cells: set[tuple[int, int]]) -> tuple[Action, LLMAlignerState]:
+        from dataclasses import replace as _replace
+        self._log_mode(obs, state, "explore")
+        current_abs = self._spawn_offset(obs)
+        if current_abs in frontier_cells:
+            for direction, neighbor in self._neighbors(current_abs):
+                if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
+                    continue
+                return self._starter._action(f"move_{direction}"), _replace(state, last_mode=state.last_mode)
+        sm = self._shared_map
+        other_positions = (
+            [pos for aid, pos in sm.agent_positions.items() if aid != obs.agent_id]
+            if sm is not None else []
+        )
+        if other_positions:
+            def score(cell: tuple[int, int]) -> tuple[float, tuple[int, int]]:
+                travel = abs(cell[0] - current_abs[0]) + abs(cell[1] - current_abs[1])
+                nearest_other = min(
+                    abs(cell[0] - p[0]) + abs(cell[1] - p[1]) for p in other_positions
+                )
+                return (travel - nearest_other * 0.3, cell)
+            target_abs = min(frontier_cells, key=score)
+        else:
+            target_abs = self._nearest_known(current_abs, frontier_cells)
+        action, next_state = self._move_to(state, current_abs, target_abs)
+        return action, _replace(next_state, last_mode=state.last_mode)
+
     def step_with_state(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         try:
             return self._step_impl(obs, state)
@@ -447,6 +483,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         # ── Team coordination: sync shared state ──
         sm = self._shared_map
         if sm is not None:
+            sm.agent_positions[obs.agent_id] = current_abs
             if state.current_skill != "align_neutral":
                 sm.aligner_targets.pop(obs.agent_id, None)
             if state.current_skill != "get_heart":
@@ -644,6 +681,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         self._stuck_threshold = int(stuck_threshold)
         self._unstuck_horizon = int(unstuck_horizon)
         self._agent_policies: dict[int, StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]] = {}
+        self._aligner_count = 0
 
     def _assign_role(self, agent_id: int) -> str:
         if agent_id in self._scout_ids:
@@ -668,6 +706,8 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             role = self._assign_role(agent_id)
             logger.info("ROLE_ASSIGNMENT agent=%d role=%s scripted_miners=%s", agent_id, role, self._scripted_miners)
             if role == "aligner":
+                quadrant = self._aligner_count
+                self._aligner_count += 1
                 impl = LLMAlignerPolicyImpl(
                     self._policy_env_info,
                     agent_id,
@@ -676,6 +716,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     unstuck_horizon=self._unstuck_horizon,
                     shared_map=self._shared_map,
                     scripted=self._scripted_aligners,
+                    explore_quadrant=quadrant,
                 )
             elif role == "scout":
                 # Scouts are offset across the grid so multiple scouts cover

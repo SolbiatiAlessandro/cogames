@@ -499,6 +499,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         self._update_map_memory(obs, state)
         self._update_progress(obs, state)
 
+        sm = self._shared_map
+        if sm is not None and hasattr(sm, 'agent_positions'):
+            sm.agent_positions[obs.agent_id] = self._current_abs(obs)
+
         aid = obs.agent_id
         state._debug_aid = aid
         self._miner_step_counts[aid] = self._miner_step_counts.get(aid, 0) + 1
