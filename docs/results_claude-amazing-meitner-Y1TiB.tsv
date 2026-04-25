@@ -1,0 +1,8 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+cbbc1e9	826.429260	8real_seed42	3000	keep	baseline: 8 real agents
+cbbc1e9	164.967331	4+4noop_seed42	3000	keep	baseline: 4+4 noop (all aligners - 0 miners)
+100c007	881.642700	8real_seed42	3000	keep	fix1: dynamic proportional role assignment
+100c007	566.797668	4+4noop_seed42	3000	keep	fix1: 4+4 noop with balanced A-M-A-M roles
+d2e98c9	881.642700	8real_seed42	3000	keep	fix2: adaptive return_load (unchanged for 3+ miners)
+d2e98c9	608.396423	4+4noop_seed42	3000	keep	fix2: 4+4 noop with adaptive return_load
+d2e98c9	591.398126	10seed_avg_4+4noop	3000	keep	fix1+2 combined: 10-seed avg (67% of full team)
