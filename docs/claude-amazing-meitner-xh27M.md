@@ -210,3 +210,54 @@ Combined improvement stack:
 4. wait_time tuning (3→6): +13.5%
 
 **Total: 5A+3M baseline 115.63 → 162.38 = +40.4%**
+
+---
+
+## Experiment 12: Miner junction sharing via SharedMap — SUCCESS, KEPT
+
+2026-04-25T20:35: Key observation from diagnostic run: agents enter "explore"
+mode 110 times per 1000-step episode, and there are 144 "stale" navigation exits.
+Exploration is the #1 time sink.
+
+Root cause: miners traverse large parts of the map during mining but do NOT
+report junction locations to SharedMap. Aligners must discover every junction
+through their own exploration, duplicating work.
+
+Fix: added junction tag detection to MinerSkillImpl._update_map_memory.
+Miners now classify visible junctions as neutral/friendly/enemy and update
+SharedMap. Aligners immediately know about junctions miners have seen.
+
+**Also re-tested aligner ratios with multi-heart (wait=6):**
+
+| Ratio | 5-seed avg | Delta |
+|-------|-----------|-------|
+| 1A+7M | 115.40 | -28.9% |
+| 2A+6M | 167.61 | +3.2% |
+| 3A+5M | 163.76 | +0.9% |
+| 4A+4M | 162.38 | baseline |
+| 5A+3M | 166.82 | +2.7% |
+
+2A-5A range is essentially flat (162-168). 4A+4M kept as default.
+
+**Return load sweep (5-seed avg):**
+
+| return_load | 5-seed avg | Delta |
+|------------|-----------|-------|
+| 20 | 126.55 | -22.1% |
+| 30 | 153.96 | -5.2% |
+| 40 | 162.38 | baseline |
+
+return_load=40 confirmed optimal.
+
+**Junction sharing results (10-seed avg, seeds 42-51):**
+- With sharing: 171.73 (+5.7%)
+- Without: 162.43 (baseline)
+- 6/10 seeds improved
+
+Combined improvement stack:
+1. aligner_fraction 62.5%→50% (4A+4M): +6.1%
+2. hub_dist weight 0.7→0.3: +5.4%
+3. multi-heart accumulation (wait=6): +25.6%
+4. miner junction sharing: +5.7%
+
+**Total: 5A+3M baseline 115.63 → 171.73 (10-seed) = +48.5%**

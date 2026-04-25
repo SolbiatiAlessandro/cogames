@@ -14,3 +14,4 @@ da92655	91.735855	junction.aligned=17 heart.gained=18	1000	keep	aligner_fraction
 696fb49	143.080000	5-seed avg (42-46)	1000	keep	multi-heart accum: 189.77/98.95/120.77/157.75/148.18 (+10.6%)
 696fb49	3267.497559	junction.aligned=50 heart.gained=54	10000	info	10k scaling test: 408.44/agent, 53 junctions on map
 9cdf565	162.380000	5-seed avg (42-46)	1000	keep	wait_time 3→6: 191.12/103.67/152.53/157.17/207.43 (+13.5% vs wait=3)
+0e2b32d	171.730000	10-seed avg (42-51)	1000	keep	miner junction sharing: 246.13/91.11/134.85/169.41/149.15/139.11/216.19/193.78/203.37/174.16 (+5.7%)
