@@ -41,3 +41,46 @@ Average score should jump from 18.74 → ~25+, improving rank from #105 → ~#80
 - Wait for 5-10 matches to complete on v43
 - Check split-specific scores (4+4 and 6+2 splits)
 - If v43 shows improvement, move to further offline reward optimization
+
+---
+
+## Experiment 2: Reduce cooldown over-blocking — FAILED, REVERTED
+
+2026-04-25T17:28: hypothesis was that MOVE_COOLDOWN=6 is too aggressive.
+Changes: cooldown TTL 6→3, deposit stale min 6→10, clear cooldowns on skill change.
+
+Result: WORSE. 131.37 → 112.46 total reward. max_steps_without_motion 47 → 253.
+Cooldowns actually HELP navigation by forcing agents to find alternative paths.
+Clearing on skill change was especially bad — stale cooldowns represent real walls.
+
+Learning: cooldowns are GOOD for the BFS pathfinding. Don't reduce them.
+
+---
+
+## Experiment 3: Increase stuck_threshold 20→30 — FAILED, REVERTED
+
+2026-04-25T17:33: hypothesis was that agents abort too early.
+Changes: stuck_threshold 20→30 (deposit timeout 40→60, mine timeout 100→150).
+
+Result: WORSE. 131.37 → 96.22 total_reward (-26.7%). Hearts dropped 33→29.
+Agents waste more time stuck instead of switching to productive alternatives.
+
+Learning: stuck_threshold=20 is already well-tuned. Don't increase it.
+
+---
+
+## Experiment 4: Reduce aligner_fraction 62.5%→50% — SUCCESS, KEPT
+
+2026-04-25T17:36: key observation from logs: aligners are heartless 59% of the time
+(54/91 decision points). With 5 aligners competing for hearts from 3 miners, there's
+a severe production bottleneck.
+
+Changes: aligner_fraction for ≥6 agents: (n-3)/n → 0.5. Gives 4A+4M instead of 5A+3M.
+
+Result: IMPROVED.
+- seed 42: 131.37 → 137.78 (+4.9%), hearts 33→36, junction.aligned 26→35
+- seed 43: 91.74 (no baseline for comparison, different map layout)
+- max_steps_without_motion 47→115 (navigation regression, needs investigation)
+
+Learning: heart production was the bottleneck, not junction coverage. 4 productive
+aligners beat 5 idle ones.

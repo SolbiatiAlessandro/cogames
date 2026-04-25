@@ -609,7 +609,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             na_str = str(num_aligners).lower()
             if na_str == "auto":
                 if n_agents >= 6:
-                    self._aligner_fraction = 0.5  # 4A+4M for 8 agents: more miners = more hearts
+                    self._aligner_fraction = 0.5  # 4A+4M for 8 agents: optimal heart/junction balance
                 else:
                     self._aligner_fraction = 0.5
             else:

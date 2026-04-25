@@ -3,3 +3,7 @@ cbbc1e9	32.815983	junction.held=0 heart.gained=17	500	keep	baseline: 8 agents st
 761fcb5	32.720016	junction.held=0 heart.gained=15	500	keep	post-merge: 8 agents proportional roles (no regression)
 761fcb5	27.143950	junction.held=0 heart.gained=10	500	keep	4+4 noop: partner robustness test (A M A M assignment)
 761fcb5	131.367661	junction.held=0 heart.gained=33	1000	keep	post-merge: 8 agents 1000 steps validation
+a06c746	112.456070	junction.aligned=? heart.gained=30	1000	discard	cooldown 6→3 + stale 6→10 + clear on skill: REGRESSION
+1cb4e88	96.224243	junction.aligned=26 heart.gained=29	1000	discard	stuck_threshold 20→30: REGRESSION (-26.7%)
+da92655	137.783783	junction.aligned=35 heart.gained=36	1000	keep	aligner_fraction 62.5%→50% (4A+4M): +4.9% improvement
+da92655	91.735855	junction.aligned=17 heart.gained=18	1000	keep	aligner_fraction 50% seed=43 validation
