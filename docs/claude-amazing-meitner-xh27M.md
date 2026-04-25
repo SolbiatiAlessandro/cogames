@@ -125,3 +125,59 @@ Changed to 0.3. Also tested aligner ratios comprehensively:
 | 3A+5M | 121.26 |
 
 Combined improvements: 5A+3M baseline 115.63 → 4A+4M + hub_dist=0.3: 129.32 (+11.8%).
+
+---
+
+## Experiment 9: Junction-based deposits for miners — FAILED, REVERTED
+
+2026-04-25T19:10: Hypothesis: miners deposit at friendly junctions (closer than hub)
+to reduce travel time. Junctions have a remote deposit handler.
+
+Result: WORSE. 5-seed avg 127.73 vs 129.32 (-1.2%). Mixed per-seed results.
+Root cause: depositing at junctions bypasses the hub's make_heart handler.
+Hearts only get made when agents visit the hub directly. Junction deposits
+delay heart production, which is the primary bottleneck.
+
+Learning: hub visits are essential for heart production. Can't shortcut them.
+
+---
+
+## Experiment 10: Multi-heart accumulation for aligners — SUCCESS, KEPT
+
+2026-04-25T19:26: Key observation: aligners leave the hub with just 1 heart,
+making expensive round trips for each junction alignment. If they accumulate
+multiple hearts, they can align 2-3 junctions per trip.
+
+Changes: when near the hub (Manhattan dist ≤ 2), aligners wait to collect
+up to 3 hearts before leaving. Uses a 3-tick no_progress timeout to avoid
+indefinite waiting if hub is empty.
+
+Result: 5-seed avg 143.08 vs 129.32 (+10.6%)
+- Seed 42: 189.77 vs 157.54 (+20.4%) — 43 junctions aligned vs 33
+- Seed 43: 98.95 vs 84.93 (+16.5%)
+- Seed 44: 120.77 vs 118.04 (+2.3%)
+- Seed 45: 157.75 vs 159.16 (-0.9%)
+- Seed 46: 148.18 vs 126.92 (+16.7%)
+
+Also tested heart_target=2: identical results — aligners naturally get 2 hearts
+before the timeout. The 3rd heart is rarely available within 3 ticks.
+
+Combined: 5A+3M baseline 115.63 → 143.08 (+23.7%)
+
+Uploaded as lessandro-scripted-v46:v1 to beta-cvc.
+
+---
+
+## 10k step scaling test
+
+2026-04-25T19:03: 10k steps (tournament length), seed 42, pre-multi-heart:
+- total_reward=3267.50, avg_per_agent=408.44
+- junction.aligned=50 out of 53 on map
+- heart.gained=54, heart.lost=50
+- Move failure rate: 12.3% (9817/80000)
+- 4 agent deaths
+- Resources: C=1192, O=900, Ge=920, Si=1290
+
+Key finding: 53 junctions on map, not 4-6 as previously assumed.
+Offline 10k performance is very high; the gap to online (18.74/agent)
+is due to opponents recapturing junctions and weak partner agents.
