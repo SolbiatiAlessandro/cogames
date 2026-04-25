@@ -187,6 +187,20 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         self._planner = planner
         self._stuck_threshold = stuck_threshold
         self._unstuck_horizon = unstuck_horizon
+        self._base_return_load = return_load
+        self._agent_id = agent_id
+        if shared_map is not None and hasattr(shared_map, 'active_miner_ids'):
+            shared_map.active_miner_ids.add(agent_id)
+
+    @property
+    def _effective_return_load(self) -> int:
+        sm = self._shared_map
+        if sm is None or not hasattr(sm, 'active_miner_ids'):
+            return self._base_return_load
+        n_miners = len(sm.active_miner_ids)
+        if n_miners >= 3:
+            return self._base_return_load
+        return max(15, self._base_return_load * n_miners // 3)
 
     def initial_agent_state(self) -> LLMMinerState:
         base = super().initial_agent_state()
@@ -312,7 +326,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 return "explore", "scripted: gear_up stuck/stale, exploring for station"
             return "gear_up", "scripted: no miner gear"
         was_explore_exit = (was_stuck or was_stale) and last_ev.startswith("explore ")
-        if carried_total >= self._return_load:
+        if carried_total >= self._effective_return_load:
             if (was_stuck or was_stale) and not was_explore_exit:
                 state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
                 if state.consecutive_stuck_exits >= 3:
@@ -344,7 +358,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         else:
             prompt = build_llm_miner_prompt(
                 carried_total=self._carried_total(obs),
-                return_load=self._return_load,
+                return_load=self._effective_return_load,
                 has_miner=has_miner,
                 hub_visible=self._hub_visible(obs),
                 remembered_hub=(state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn),
@@ -371,7 +385,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             carried_total = self._carried_total(obs)
             if not has_miner:
                 skill = "gear_up"
-            elif carried_total >= self._return_load:
+            elif carried_total >= self._effective_return_load:
                 skill = "deposit_to_hub"
             elif state.known_extractors:
                 skill = "mine_until_full"
@@ -387,7 +401,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 reason = f"overrode {skill} to gear_up because miner gear is missing"
                 skill = "gear_up"
         if has_miner and skill == "gear_up":
-            if self._carried_total(obs) >= self._return_load:
+            if self._carried_total(obs) >= self._effective_return_load:
                 reason = "overrode gear_up to deposit_to_hub because miner gear is already equipped and cargo is full"
                 skill = "deposit_to_hub"
             elif state.known_extractors:
@@ -396,7 +410,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             else:
                 reason = "overrode gear_up to explore because miner gear is already equipped and no extractor is known"
                 skill = "explore"
-        if has_miner and self._carried_total(obs) >= self._return_load and skill == "mine_until_full":
+        if has_miner and self._carried_total(obs) >= self._effective_return_load and skill == "mine_until_full":
             reason = "overrode mine_until_full to deposit_to_hub because cargo is full"
             skill = "deposit_to_hub"
         state.current_skill = skill
@@ -414,7 +428,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         if state.current_skill == "gear_up" and has_miner:
             self._event(state, "gear_up completed after acquiring miner gear")
             state.current_skill = None
-        elif state.current_skill == "mine_until_full" and carried_total >= self._return_load:
+        elif state.current_skill == "mine_until_full" and carried_total >= self._effective_return_load:
             self._event(state, f"mine_until_full completed at load={carried_total}")
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried_total == 0:
