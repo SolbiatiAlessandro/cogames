@@ -181,3 +181,32 @@ Uploaded as lessandro-scripted-v46:v1 to beta-cvc.
 Key finding: 53 junctions on map, not 4-6 as previously assumed.
 Offline 10k performance is very high; the gap to online (18.74/agent)
 is due to opponents recapturing junctions and weak partner agents.
+
+---
+
+## Experiment 11: Multi-heart wait_time tuning — SUCCESS, KEPT
+
+2026-04-25T19:40: the multi-heart accumulation (experiment 10) used
+no_progress_on_target_steps < 3 as the timeout. Hypothesis: 3 ticks
+is too short — aligners leave with 1 heart before the hub can make more.
+
+Wait-time sweep (5-seed avg, seeds 42-46):
+
+| wait_time | 5-seed avg | Delta vs wait=3 | Per-seed |
+|-----------|-----------|-----------------|----------|
+| 3 | 143.08 | baseline | 189.77/98.95/120.77/157.75/148.18 |
+| 5 | 153.77 | +7.5% | — |
+| 6 | **162.38** | **+13.5%** | 191.12/103.67/152.53/157.17/207.43 |
+| 7 | 138.81 | -3.0% | — |
+| 8 | 151.87 | +6.1% | — |
+
+Non-monotonic relationship: sweet spot at 6 ticks. With wait=6, aligners
+get 2+ hearts reliably before leaving. wait=7+ wastes time when hub is empty.
+
+Combined improvement stack:
+1. aligner_fraction 62.5%→50% (4A+4M): +6.1%
+2. hub_dist weight 0.7→0.3: +5.4%
+3. multi-heart accumulation (wait=3): +10.6%
+4. wait_time tuning (3→6): +13.5%
+
+**Total: 5A+3M baseline 115.63 → 162.38 = +40.4%**

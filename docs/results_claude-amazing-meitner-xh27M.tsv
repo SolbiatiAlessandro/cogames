@@ -13,3 +13,4 @@ da92655	91.735855	junction.aligned=17 heart.gained=18	1000	keep	aligner_fraction
 6590a17	127.730000	5-seed avg (42-46)	1000	discard	junction deposit: 146.48/93.06/110.65/173.60/114.89 (-1.2% — delays make_heart)
 696fb49	143.080000	5-seed avg (42-46)	1000	keep	multi-heart accum: 189.77/98.95/120.77/157.75/148.18 (+10.6%)
 696fb49	3267.497559	junction.aligned=50 heart.gained=54	10000	info	10k scaling test: 408.44/agent, 53 junctions on map
+9cdf565	162.380000	5-seed avg (42-46)	1000	keep	wait_time 3→6: 191.12/103.67/152.53/157.17/207.43 (+13.5% vs wait=3)
