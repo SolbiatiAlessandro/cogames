@@ -428,7 +428,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         target_set.difference_update(visible_cells)
         target_set.update(current_values)
 
-    _MOVE_COOLDOWN = 6
+    _MOVE_COOLDOWN = 3
 
     def _update_map_memory(self, obs: AgentObservation, state: AlignerState) -> Coord:
         current_abs = self._spawn_offset(obs)
