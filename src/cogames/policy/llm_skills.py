@@ -79,6 +79,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._return_load = return_load
         self._obs_radius_row = self._starter._center[0]
         self._obs_radius_col = self._starter._center[1]
+        self._junction_tags = self._starter._resolve_tag_ids(["junction"])
+        self._team_tag = self._starter._tag_name_to_id.get("team:cogs")
+        self._net_tag = self._starter._tag_name_to_id.get("net:cogs")
+        self._enemy_team_tag = self._starter._tag_name_to_id.get("team:clips")
+        self._enemy_net_tag = self._starter._tag_name_to_id.get("net:clips")
 
     def _miner_station_names(self, policy_env_info: PolicyEnvInterface) -> list[str]:
         names = {"miner_station"}
@@ -231,10 +236,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         extractors_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
 
+        visible_tag_ids_by_cell: dict[Coord, set[int]] = {}
         for token in obs.tokens:
             if token.feature.name != "tag" or token.location is None:
                 continue
             abs_cell = self._visible_abs_cell(current_abs, token.location)
+            visible_tag_ids_by_cell.setdefault(abs_cell, set()).add(int(token.value))
             if token.value in self._wall_tags:
                 blocked_now.add(abs_cell)
             if token.value in self._hub_tags:
@@ -248,6 +255,23 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                         state.extractors_by_element[element].add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
+
+        sm = self._shared_map
+        if sm is not None and self._junction_tags:
+            for abs_cell, tag_ids in visible_tag_ids_by_cell.items():
+                if not (tag_ids & self._junction_tags):
+                    continue
+                if (self._team_tag in tag_ids) or (self._net_tag in tag_ids):
+                    sm.known_friendly_junctions.add(abs_cell)
+                    sm.known_neutral_junctions.discard(abs_cell)
+                    sm.known_enemy_junctions.discard(abs_cell)
+                elif (self._enemy_team_tag in tag_ids) or (self._enemy_net_tag in tag_ids):
+                    sm.known_enemy_junctions.add(abs_cell)
+                    sm.known_neutral_junctions.discard(abs_cell)
+                    sm.known_friendly_junctions.discard(abs_cell)
+                else:
+                    if abs_cell not in sm.known_friendly_junctions and abs_cell not in sm.known_enemy_junctions:
+                        sm.known_neutral_junctions.add(abs_cell)
 
         blocked_now.update(extractors_now)
         blocked_now.update(hubs_now)
