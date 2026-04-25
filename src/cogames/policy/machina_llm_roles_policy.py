@@ -271,16 +271,38 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             reason = "overrode align_neutral to get_heart because no heart is held"
             skill = "get_heart"
         if has_aligner and has_heart and known_alignable_junctions and skill in {"explore", "get_heart"} and not was_stuck:
-            reason = f"overrode {skill} to align_neutral because an alignable neutral junction is already known"
-            skill = "align_neutral"
+            if skill == "get_heart":
+                heart_count = self._inventory_count(obs, "heart")
+                current_abs = self._spawn_offset(obs)
+                near_hub = any(
+                    abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+                    for h in state.known_hubs
+                )
+                if heart_count < 3 and near_hub:
+                    pass
+                else:
+                    reason = f"overrode get_heart to align_neutral ({heart_count} hearts, not near hub)"
+                    skill = "align_neutral"
+            else:
+                reason = f"overrode {skill} to align_neutral because an alignable neutral junction is already known"
+                skill = "align_neutral"
         # After stuck/timeout with gear+heart+junction: try unstuck to escape navigation deadlock
         if has_aligner and has_heart and known_alignable_junctions and skill == "align_neutral" and was_stuck:
             reason = "overrode align_neutral to unstuck after stuck exit (escape navigation deadlock near junction)"
             skill = "unstuck"
         # Prevent immediate-completion loops: get_heart already done if has_heart=True
+        # Exception: near hub with <3 hearts, allow accumulation
         if has_aligner and has_heart and skill == "get_heart":
-            if known_alignable_junctions:
-                reason = "overrode get_heart to align_neutral (heart already held)"
+            heart_count = self._inventory_count(obs, "heart")
+            current_abs = self._spawn_offset(obs)
+            near_hub = any(
+                abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+                for h in state.known_hubs
+            )
+            if heart_count < 3 and near_hub:
+                pass
+            elif known_alignable_junctions:
+                reason = f"overrode get_heart to align_neutral ({heart_count} hearts held)"
                 skill = "align_neutral"
             else:
                 reason = "overrode get_heart to explore (heart already held, no target known)"
@@ -333,14 +355,22 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, "gear_up completed after acquiring aligner gear")
             state.current_skill = None
         elif state.current_skill == "get_heart" and has_heart and state.skill_steps > 0:
-            self._event(state, "get_heart completed after acquiring heart")
-            state.get_heart_timeouts = 0
-            # Track heart withdrawal for team heart queue management
-            sm = self._shared_map
-            if sm is not None:
-                sm.hub_hearts_withdrawn += 1
-                sm.agents_getting_hearts.discard(obs.agent_id)
-            state.current_skill = None
+            heart_count = self._inventory_count(obs, "heart")
+            current_abs = self._spawn_offset(obs)
+            near_hub = any(
+                abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+                for h in state.known_hubs
+            )
+            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
+                pass
+            else:
+                self._event(state, f"get_heart completed with {heart_count} heart(s)")
+                state.get_heart_timeouts = 0
+                sm = self._shared_map
+                if sm is not None:
+                    sm.hub_hearts_withdrawn += heart_count
+                    sm.agents_getting_hearts.discard(obs.agent_id)
+                state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             self._event(state, "defend ended: acquired heart while defending")
             state.get_heart_timeouts = 0

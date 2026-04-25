@@ -752,9 +752,15 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         current_abs = self._update_map_memory(obs, state)
+        heart_count = self._inventory_count(obs, "heart")
+        near_hub = any(
+            abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+            for h in state.known_hubs
+        )
+        want_more_hearts = heart_count > 0 and heart_count < 3 and near_hub
         if self._current_gear(obs) != "aligner":
             action, state = self._gear_up(obs, state, current_abs)
-        elif self._inventory_count(obs, "heart") <= 0:
+        elif heart_count <= 0 or want_more_hearts:
             action, state = self._get_heart(obs, state, current_abs)
         else:
             action, state = self._align_neutral(obs, state, current_abs)
