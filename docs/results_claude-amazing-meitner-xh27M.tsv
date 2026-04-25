@@ -1,1 +1,5 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+cbbc1e9	32.815983	junction.held=0 heart.gained=17	500	keep	baseline: 8 agents static roles (pre-merge)
+761fcb5	32.720016	junction.held=0 heart.gained=15	500	keep	post-merge: 8 agents proportional roles (no regression)
+761fcb5	27.143950	junction.held=0 heart.gained=10	500	keep	4+4 noop: partner robustness test (A M A M assignment)
+761fcb5	131.367661	junction.held=0 heart.gained=33	1000	keep	post-merge: 8 agents 1000 steps validation
