@@ -418,7 +418,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
-        state.move_cooldowns.clear()
         if skill == "explore":
             state.explore_start_extractors = len(state.known_extractors)
         self._event(state, f"planner selected {skill}: {reason}")
@@ -466,7 +465,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
-        elif state.current_skill == "deposit_to_hub" and state.no_progress_on_target_steps >= max(10, self._stuck_threshold // 3):
+        elif state.current_skill == "deposit_to_hub" and state.no_progress_on_target_steps >= max(6, self._stuck_threshold // 3):
             state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             self._event(state, f"deposit_to_hub exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
