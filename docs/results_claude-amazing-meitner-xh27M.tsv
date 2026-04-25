@@ -9,3 +9,4 @@ da92655	137.783783	junction.aligned=35 heart.gained=36	1000	keep	aligner_fractio
 da92655	91.735855	junction.aligned=17 heart.gained=18	1000	keep	aligner_fraction 50% seed=43 validation
 13fbfef	122.640000	5-seed avg (42-46)	1000	keep	4A+4M 5-seed avg: 137.78/91.74/109.78/164.04/109.86
 13fbfef	115.630000	5-seed avg (42-46)	1000	discard	5A+3M 5-seed avg: 131.37/91.41/136.45/108.97/109.95
+6590a17	129.320000	5-seed avg (42-46)	1000	keep	hub_dist 0.7→0.3: 157.54/84.93/118.04/159.16/126.92 (+5.4% vs 4A+4M)

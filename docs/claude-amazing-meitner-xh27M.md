@@ -97,3 +97,31 @@ Tested three navigation changes, all neutral on 5-seed average:
 Learning: navigation improvements help some seeds but hurt others. The variance
 is dominated by map layout (corridor width, hub position) not agent behavior.
 Move failures are 3.2% on good maps vs 12.9% on bad maps.
+
+---
+
+## Experiment 8: Reduce hub_dist junction targeting weight — SUCCESS, KEPT
+
+2026-04-25T18:30: the junction targeting score was `travel + hub_dist * 0.7`.
+The hub proximity bias made aligners avoid far-from-hub junctions even when
+they were close to the agent. Sweeping the weight:
+
+| Weight | 5-seed avg | Delta |
+|--------|-----------|-------|
+| 0.0 | 128.80 | +5.0% |
+| 0.2 | 128.29 | +4.6% |
+| 0.3 | 129.32 | +5.4% |
+| 0.5 | 126.44 | +3.1% |
+| 0.7 | 122.64 | baseline |
+
+Changed to 0.3. Also tested aligner ratios comprehensively:
+
+| Ratio | 5-seed avg |
+|-------|-----------|
+| 8A+0M | 51.65 |
+| 6A+2M | 110.61 |
+| 5A+3M | 115.63 |
+| 4A+4M | 122.64 |
+| 3A+5M | 121.26 |
+
+Combined improvements: 5A+3M baseline 115.63 → 4A+4M + hub_dist=0.3: 129.32 (+11.8%).
