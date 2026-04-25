@@ -561,7 +561,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         num_scouts: int | str = "auto",
         scout_ids: str = "",
         return_load: int | str = 40,
-        stuck_threshold: int | str = 20,
+        stuck_threshold: int | str = 30,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
         llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
