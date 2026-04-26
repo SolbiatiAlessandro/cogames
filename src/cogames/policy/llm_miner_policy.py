@@ -502,7 +502,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
-        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
+        if state.current_skill not in {None, "unstuck", "deposit_to_hub"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck(state)
             state.skill_steps += 1
             return action, state
