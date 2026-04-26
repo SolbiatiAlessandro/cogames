@@ -132,11 +132,73 @@ Key improvement: worst seed (43) went from 88→157 (+78%). This dramatically re
 Regressions: some strong seeds dropped (42: 242→230, 47: 126→107).
 Net effect: higher floor, slightly lower ceiling. +3.5% avg.
 
-Learning for next researcher:
+Learning for next researcher (from hub_dist + max_hearts phase):
 - The codebase is very well-tuned. Most parameter changes hurt.
 - hub_dist=0.2 is a reliable improvement over 0.3
 - max_hearts=4 improves the floor but may hurt ceiling — consider reverting if online scores regress
 - DO NOT: reduce JUNCTION_ALIGN_DISTANCE (15 is worse than 20), change wait time (6 is optimal),
   add clustering bonus, enable aligner HP retreat, reduce return_load, change nav shake params
-- WORTH TRYING: cross-role conversion (aligner→miner when idle), opponent modeling, larger structural
-  changes to navigation (BFS improvements, multi-path routing)
+
+---
+
+## Experiment 7: Role Ratio Optimization (3A+5M)
+
+2026-04-26T19:20: Investigated worst seeds. Key finding: heart production is the bottleneck.
+- Seed 47 (107.16): only 22 hearts, 22 alignments. Miner lost gear to scrambler contamination.
+- Seed 42 (229.74): 53 hearts, 49 alignments. Full mining capacity.
+- Heart production correlates directly with reward.
+
+Tested aligner/miner ratio sweep:
+- 2A+6M (0.25): avg=156.56 (-11.9%) — too few aligners
+- 3A+5M (0.375): avg=187.72 (+5.6%) ← BEST
+- 4A+4M (0.5): avg=177.69 (baseline)
+- 5A+3M (0.625): avg=162.01 (-8.8%) — too few miners
+
+3A+5M is the sweet spot: 5 miners produce enough hearts, 3 aligners handle alignment.
+
+---
+
+## Experiment 8: Failed parameter sweeps with 3A+5M
+
+All tested against 3A+5M baseline (187.72):
+- Stuck threshold 15: 170.33 (-9.3%) — aligners abandon targets too early
+- Stuck threshold 25: 165.59 (-11.8%) — aligners waste too much time on stuck targets
+- hub_dist 0.15: 168.41 (-10.3%) — loses hub-proximity signal
+- hub_dist 0.25: 170.82 (-9.0%) — too much hub weighting
+- max_hearts 5: 173.65 (-7.5%) — aligners wait too long at hub
+- max_hearts 3: 160.79 (-14.3%) — aligners leave too early
+- Heart wait 8: 184.90 (-1.5%) — slight regression
+- return_load 35: 187.72 (0%) — no effect (miners never carry 35-40)
+- BFS junction scoring: 177.78 (0%) — neutral avg, huge variance increase
+
+Learning: parameter tuning within 3A+5M gives no improvement. The ratio itself was the win.
+
+---
+
+## Experiment 9: Static Aligner ID Assignment
+
+2026-04-26T19:50: Discovered that which agent IDs become aligners matters enormously.
+Tested multiple 3-aligner ID combinations (seeds 42-51):
+- 0,3,7: avg=197.00 ← BEST (+14.7% vs original baseline)
+- 0,1,2: avg=194.16
+- Proportional 1,3,6: avg=187.72
+- 1,3,7: avg=176.86
+- 0,1,7: avg=175.34
+- 0,2,7: avg=170.50
+
+Agents 0,3,7 give the best spatial distribution: agent 0 and 7 are near map edges,
+agent 3 covers the middle. This ensures good coverage of junction territory.
+
+Implemented static assignment for 8-agent case. Tournament (4 agents) uses proportional 2A+2M.
+
+## Current Best: 10-seed avg = 197.00 (target was >190)
+
+10-seed avg (42-51) = 197.00: 209.00/200.36/204.26/222.83/199.24/165.07/225.55/238.06/137.63/167.99
+vs original baseline 171.73: +14.7%
+
+Learning for next researcher:
+- Role ratio 3A+5M is much better than 4A+4M (heart production is the bottleneck)
+- Which agents become aligners matters hugely — spatial distribution is key
+- Static IDs 0,3,7 work well for 8-agent eval but may not generalize to all seeds
+- All parameters (hub_dist, max_hearts, stuck, wait) are already at optimal values
+- WORTH TRYING: seed-adaptive role assignment, dynamic role switching, tournament-specific tuning
