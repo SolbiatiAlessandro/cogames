@@ -24,85 +24,80 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline→online): 2026-04-23 (Session 16)_
+_Updated by Director: 2026-04-26 (Session 18)_
 
-### Online Tournament (beta-cvc, 10k steps, cooperative scoring)
+### Online Tournament (beta-cvc, cooperative scoring, 293 entries)
 
-| Rank | Score | Policy | Matches | Notes |
-|------|-------|--------|---------|-------|
-| #1/165 | **41.10** | `Paz-Bot-9000:v47` | - | Pure RL |
-| #2/165 | 40.82 | `Gryffindor:v11` | - | Pure RL |
-| #3/165 | 40.73 | `Slytherin:v14` | - | Pure RL |
-| #4/165 | 40.33 | `Paz-Bot-9000:v50` | - | Pure RL (new) |
-| #5/165 | 40.11 | `Hufflepuff:v11` | - | Pure RL |
-| #7/165 | 39.47 | `slinky:v3` | - | New entrant |
-| #8/165 | 39.24 | `slanky:v155` | - | New entrant |
-| ... | ... | ... | ... | ... |
-| **#90/165** | **21.78** | **`lessandro-scripted-v42:v1`** | **20** | **NEW BEST (+29%)** |
-| #95/165 | 17.70 | `lessandro-scripted-v41:v1` | 20 | +2% vs v32 |
-| #96/165 | 17.38 | `lessandro-scripted-v32:v1` | 30+ | Previous best |
-| #99/165 | 17.18 | `lessandro-scripted-v40:v1` | 20 | |
-| #100/165 | 16.63 | `lessandro-scripted-v39:v1` | 20 | |
+| Rank | Score | Policy | Matches | p5 | p50 | p95 | Notes |
+|------|-------|--------|---------|-----|------|------|-------|
+| #1/293 | **41.10** | `Paz-Bot-9000:v47` | 21 | 2.3 | 51.5 | 54.6 | RL |
+| #2/293 | 40.82 | `Gryffindor:v11` | 27 | 0.9 | 47.9 | 55.8 | RL |
+| #3/293 | 40.73 | `Slytherin:v14` | 32 | 1.2 | 45.7 | 53.8 | RL |
+| #4/293 | 40.38 | `slinky:v10` | 21 | 2.3 | 50.9 | 54.1 | RL (new) |
+| #5/293 | 40.33 | `Paz-Bot-9000:v50` | 20 | 2.5 | 51.4 | 53.8 | RL |
+| ... | | | | | | | |
+| **#57/293** | **32.51** | **`lessandro-scripted-v48:v1`** | **26** | **8.9** | **33.6** | **46.8** | **NEW BEST (+81% vs v42)** |
+| #101/293 | 24.35 | `lessandro-scripted-v47:v1` | 32 | 5.9 | 21.2 | 47.4 | |
+| #104/293 | 22.89 | `lessandro-scripted-v45:v1` | 30 | 0.8 | 21.9 | 44.9 | |
+| #109/293 | 20.14 | `lessandro-scripted-v44:v1` | 30 | 1.9 | 21.4 | 50.4 | |
+| #112/293 | 18.25 | `lessandro-scripted-v43:v1` | 30 | 6.0 | 19.8 | 31.3 | Partner fix only |
+| #113/293 | 17.92 | `lessandro-scripted-v42:v1` | 45 | 0.5 | 19.4 | 42.5 | Previous best |
 
-_165 entries (up from 154). v42 uploaded from `amazing-meitner-pzwh4` — correct branch with all fixes._
+_293 entries (up from 165). v48 uploaded from `amazing-meitner-xh27M` — all improvements stacked._
 
-### v42 Match Analysis (session 16)
+### v48 Improvement Breakdown (sessions 17-18)
 
-v42 shows extreme partner dependence (stddev=12.6):
-
-| Partner | Score | Analysis |
-|---------|-------|----------|
-| Gryffindor:v24 | 49.92 | Top RL partner — competitive with #1! |
-| dinky_edsel:v12 | 47.29 | Good partner |
-| slinky:v5 | 42.51 | Top RL partner |
-| Luna:v8 | 35.16 | Good |
-| Paz-Bot-9000:v49 | 26.68 | Top RL |
-| anoop.dazzle:v1 | 1.78 | Bad partner — near zero |
-| shweta.v34:v1 | 0.23 | Bad partner — near zero |
-
-**Key insight**: with top partners we score 42-50 (top-10 level!). Bad partners drag the average to 21.78. Partner robustness is the #1 lever for improving rank.
+| Version | Score | Key Change | Cumulative vs v42 |
+|---------|-------|------------|-------------------|
+| v42 | 17.92 | baseline (5A+3M, hub diversification) | — |
+| v43 | 18.25 | + partner robustness fix (dynamic role assignment) | +2% |
+| v44 | 20.14 | + 4A+4M ratio (was 5A+3M) | +12% |
+| v45 | 22.89 | + hub_dist weight 0.7 to 0.3 | +28% |
+| v47 | 24.35 | + multi-heart accumulation | +36% |
+| v48 | 32.51 | + miner junction sharing + wait=6 | **+81%** |
 
 ### Offline Best Results (8-agent, machina_1 88x88)
 
 | Rank | Reward | Config | Steps | Seeds | Notes |
 |------|--------|--------|-------|-------|-------|
-| 1 | **3917.30** | 5A+3M hub diversification | 10000 | seed 42 | +6.2% (pzwh4, v42 source) |
-| 2 | 1011.74 | 5A+3M hub diversification | 3000 | seed 7 | +51.4% vs baseline |
-| 3 | 913.13 | junction dist 20 + deposit rot | 3000 | seed 42 | +15.7% (VGWVP) |
-| 4 | 884.93 | hub approach + deposit rotation | 3000 | seed 42 | +12.1% (v40 source) |
-| 5 | 789.18 | baseline (session 15 main) | 3000 | seed 42 | |
+| 1 | **171.73** | 4A+4M, all xh27M fixes | 1000 | 10-seed avg | v48 source, +31% vs session 16 |
+| 2 | 162.38 | 4A+4M, multi-heart wait=6 | 1000 | 5-seed avg | |
+| 3 | 143.08 | 4A+4M, multi-heart accum | 1000 | 5-seed avg | |
+| 4 | 131.37 | 4A+4M, partner fix only | 1000 | seed 42 | v43 baseline |
+| 5 | 3917.30 | 5A+3M hub diversification | 10000 | seed 42 | v42, different config |
 
 ### Gap Analysis
 
 ```
-Metric                    Us (online best)         Top RL (online)       Gap       Status
-──────────────────────────────────────────────────────────────────────────────────────────
-Online score              21.78 (#90/165)          41.10 (#1/165)        1.9x      IMPROVING
-Score with good partner   42-50                    41.10                 ~1x       COMPETITIVE!
-Score with bad partner    0.2-1.8                  ~20-30 (estimated)    10-100x   CRITICAL
-Offline reward (10k)      3917 (5A3M)              n/a                   ?         +6.2%
+Metric                    Us (v48)                Top RL (#1)           Gap       Status
+------------------------------------------------------------------------------------
+Online score              32.51 (#57/293)         41.10 (#1/293)        1.26x     CLOSING FAST
+p50 (median match)        33.56                   51.51                 1.53x     Main gap
+p5 (worst matches)        8.93                    2.29                  0.26x     WE ARE BETTER
+p95 (best matches)        46.78                   54.62                 1.17x     Near competitive
+Score floor (session 16)  0.49 (v42)              ---                   ---       FIXED to 8.93
 ```
 
-**Current bottleneck**: Partner robustness (#47). With good partners we're competitive with the top 10, but bad partners crater our average to near zero. This is the single biggest lever for improving rank. RL training (#41) remains the fundamental ceiling for individual agent quality.
+**Current bottleneck**: Per-agent alignment efficiency (#50). Partner robustness is solved. The remaining 21% gap to #1 is evenly distributed across matches — our p50 (33.56) vs their p50 (51.51) shows we need ~53% more score per match. RL training (#41) remains the fundamental ceiling.
 
-**Next up**: #47 — partner robustness experiments, then #41 (RL training, blocked on GPU)
+**Next up**: #50 — alignment efficiency tuning (JUNCTION_ALIGN_DISTANCE, heart cooldown, junction prioritization), then #51 — submit v49 from merged main
 
 **Research tree:**
 ```
-priority:1  #47  Partner robustness (bad partners -> 0 score)  <- SPAWN NEXT
+priority:1  #50  Per-agent alignment efficiency tuning  <- SPAWN NEXT
+priority:1  #51  Submit v49 and validate online          <- SPAWN NEXT
 priority:2  #41  RL policy training        <- BLOCKED (needs GPU)
-priority:2  #32  Partner robustness (general)  <- upgraded from p3
-priority:2  #36  Agent mortality           <- MOSTLY FIXED
-priority:2  #40  Mining throughput         <- subsumed by pzwh4
-priority:2  #27  Andre Von Huck / A*
+priority:3  #27  Andre Von Huck / A*
+priority:3  #26  shweta policy
+priority:3  #31  change_vibe actions
+priority:3  #12-#23  various speculative
 
-CLOSED/RESOLVED:
+CLOSED (sessions 16-18):
+  #49 Submit v43 | #48 Cherry-pick #38 | #47 Partner robustness
   #46 v37/v38 regression | #45 Submit #44 | #44 Miner productivity
-  #43 v34 regression | #42 httpx import | #39 Submission | #25 8-Agent Scaling
-
-DEPRIORITIZED (priority:3):
-  #38 6+2 mortality | #31 change_vibe | #30 Self-Play
-  #26 shweta | #12 Gear | #10-#23 various
+  #43 v34 regression | #42 httpx import | #39-#40 Submission/Mining
+  #38 Agent mortality | #36 Agent mortality | #32 Partner robustness
+  #25 8-Agent Scaling | #24 Mining strategy
 ```
 <!-- LEADERBOARD_END -->
 
