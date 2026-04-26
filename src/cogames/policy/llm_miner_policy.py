@@ -502,6 +502,11 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
+        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
+            action, state = self._unstuck(state)
+            state.skill_steps += 1
+            return action, state
+
         if state.current_skill == "gear_up":
             action, base_state = self._gear_up(obs, state)
             state = self._copy_with(state, base_state)

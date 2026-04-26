@@ -1,0 +1,10 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+cbbc1e9	826.429260	hearts=49 junctions=45	3000	discard	baseline HEAD with junction_distance=20 regression (seed 42)
+ee6fd4a	949.104431	hearts=56 junctions=52	3000	keep	fix junction distance 20→15 + dynamic role assignment (seed 42)
+ee6fd4a	905.714600	hearts=n/a junctions=51	3000	keep	same fix seed 123
+ee6fd4a	1011.735901	hearts=n/a junctions=55	3000	keep	same fix seed 7
+ee6fd4a	3917.304688	hearts=57 junctions=52	10000	keep	same fix seed 42 10k steps
+PENDING	954.819580	junctions=n/a	3000	keep	miner nav shake (seed 42)
+PENDING	905.714600	junctions=n/a	3000	keep	miner nav shake (seed 123)
+PENDING	1020.648621	junctions=n/a	3000	keep	miner nav shake (seed 7)
+PENDING	3923.020752	junctions=n/a	10000	keep	miner nav shake (seed 42 10k)
