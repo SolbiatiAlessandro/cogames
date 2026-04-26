@@ -701,37 +701,14 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 
-    def _bfs_distances(self, state: AlignerState, start: Coord, targets: set[Coord], max_cells: int = 15000) -> dict[Coord, int]:
-        """Single BFS from start returning actual path distances to all reachable targets."""
-        if not targets:
-            return {}
-        avoid = state.known_hazard_stations
-        frontier: deque[tuple[Coord, int]] = deque([(start, 0)])
-        visited: dict[Coord, int] = {start: 0}
-        found: dict[Coord, int] = {}
-        remaining = set(targets)
-        while frontier and remaining and len(visited) < max_cells:
-            cell, dist = frontier.popleft()
-            if cell in remaining:
-                found[cell] = dist
-                remaining.discard(cell)
-            for _, neighbor in self._neighbors(cell):
-                if neighbor in visited or neighbor in state.blocked_cells or neighbor in avoid:
-                    continue
-                visited[neighbor] = dist + 1
-                frontier.append((neighbor, dist + 1))
-        return found
-
     def _cascade_priority_target(self, current_abs: Coord, candidates: set[Coord], state: AlignerState) -> Coord | None:
         if not candidates:
             return None
         hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1])) if state.known_hubs else None
         if hub is None:
             return self._nearest_known(current_abs, candidates)
-        bfs_dists = self._bfs_distances(state, current_abs, candidates)
         def score(j: Coord) -> float:
-            manhattan = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
-            travel = bfs_dists.get(j, manhattan * 2)
+            travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
             return travel + hub_dist * 0.2
         return min(candidates, key=score)
