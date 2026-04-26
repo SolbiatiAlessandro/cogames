@@ -35,3 +35,6 @@ build/
 .venv_local/
 *.pyc
 __pycache__/
+.env.openrouter.local
+.softmax_token
+experiment_run.log

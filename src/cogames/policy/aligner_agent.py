@@ -22,7 +22,7 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
 _HUB_SEARCH_DISTANCE = 20
 _HUB_ALIGN_DISTANCE = 25
-_JUNCTION_ALIGN_DISTANCE = 20
+_JUNCTION_ALIGN_DISTANCE = 15
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
 # Issue-36 v4: increased from 0.50 to 0.70 — at 50%, agents only have 49 steps
@@ -108,6 +108,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def __init__(self, policy_env_info: PolicyEnvInterface, agent_id: int, shared_map: SharedMap | None = None):
         self._starter = StarterCogPolicyImpl(policy_env_info, agent_id, preferred_gear="aligner")
         self._agent_id = agent_id
+        self._hub_preferred_side = agent_id % 4
         self._shared_map = shared_map
         self._team_tag = self._tag_id("team:cogs")
         self._net_tag = self._tag_id("net:cogs")
@@ -677,7 +678,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _get_heart(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         self._log_mode(obs, state, "get_heart")
-        preferred_side = self._agent_id % 4
+        preferred_side = self._hub_preferred_side
         visible_target = self._starter._closest_tag_location(obs, self._hub_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
