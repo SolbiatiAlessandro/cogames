@@ -1,0 +1,14 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+4838534	171.730000	10-seed avg (42-51)	1000	keep	baseline: 246.13/91.11/134.85/169.41/149.15/139.11/216.19/193.78/203.37/174.16
+f3ffc00	168.640000	10-seed avg (42-51)	1000	discard	JUNCTION_ALIGN_DISTANCE 20→15: 245.85/61.42/136.64/157.80/128.77/132.52/219.00/200.10/229.02/175.25 (-1.8%)
+4838534	150.940000	10-seed avg (42-51)	1000	discard	heart wait=4: REGRESSION (-12.1%)
+4838534	163.640000	10-seed avg (42-51)	1000	discard	heart wait=8: REGRESSION (-4.7%)
+8ae104a	176.260000	10-seed avg (42-51)	1000	keep	hub_dist 0.3→0.2: 242.21/88.10/157.78/169.41/166.19/126.19/207.14/199.42/203.37/202.76 (+2.6%)
+8ae104a	170.040000	10-seed avg (42-51)	1000	discard	hub_dist 0.1: REGRESSION (-1.0%)
+8ae104a	175.120000	10-seed avg (42-51)	1000	discard	hub_dist 0.4: neutral (+2.0% but less than 0.2)
+8ae104a	175.190000	10-seed avg (42-51)	1000	discard	hub_dist 0.5: neutral (+2.0% but less than 0.2)
+8ae104a	162.770000	10-seed avg (42-51)	1000	discard	return_load 40→30: REGRESSION (-7.6%)
+8ae104a	156.770000	10-seed avg (42-51)	1000	discard	junction clustering bonus * 3: REGRESSION (-11.0%)
+8ae104a	168.070000	10-seed avg (42-51)	1000	discard	junction clustering bonus * 1: REGRESSION (-4.6%)
+8ae104a	161.120000	10-seed avg (42-51)	1000	discard	max hearts 3→2: REGRESSION (-8.6%)
+8ae104a	177.690000	10-seed avg (42-51)	1000	keep	hub_dist=0.2 + max_hearts=4: 229.74/156.80/164.10/179.22/148.41/107.16/221.00/180.43/194.54/195.52 (+3.5%)

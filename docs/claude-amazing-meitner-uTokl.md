@@ -77,3 +77,66 @@ higher (0.4-0.5) makes aligners skip nearby junctions for distant hub-close ones
 ## Experiment 4: Aligner heart cooldown on failure (progressive backoff)
 
 2026-04-26T18:06: starting new experiment. When get_heart fails (times out), the aligner currently gets a timeout counter but immediately retries. The wKR1D branch had a `get_heart_cooldown_steps` feature that backs off progressively. My hypothesis is that after a timeout at the hub (likely empty), the aligner should do something productive (explore, defend) before retrying, rather than camping at an empty hub.
+
+Pivoted to investigating agent deaths. Found 7 deaths across 10 seeds (seeds 43/44/49/50).
+Deaths are from aligners (HP retreat is disabled).
+
+2026-04-26T18:10: tried return_load=30 — WORSE (-7.6%). Extra travel overhead outweighs faster hearts.
+
+2026-04-26T18:15: tried enabling aligner HP retreat at 0.30 threshold — MUCH WORSE.
+Deaths went from 7→11! The retreat causes oscillation and wastes time, as documented.
+
+2026-04-26T18:20: tried raising miner HP retreat 0.25→0.35 — SLIGHTLY WORSE (-1.3%).
+Deaths unchanged at 7, confirming they're aligner deaths.
+
+Learning: aligner HP retreat hurts more than it helps. The deaths are unavoidable map hazards.
+Focus on efficiency improvements instead of death prevention.
+
+---
+
+## Experiment 5: Junction clustering bonus in cascade priority
+
+2026-04-26T18:25: starting new experiment. Currently aligners pick junctions by travel_distance + hub_dist * 0.2. My hypothesis is that adding a bonus for junctions near OTHER alignable junctions will let aligners align multiple junctions per heart trip, improving heart-to-junction efficiency.
+
+2026-04-26T18:30: RESULT clustering bonus * 3 — MUCH WORSE, REVERTED (-11.0%)
+2026-04-26T18:35: RESULT clustering bonus * 1 — WORSE, REVERTED (-4.6%)
+Learning: clustering bonus diverts aligners from nearby isolated junctions to distant clusters.
+
+---
+
+## Experiments 6-12: Additional parameter sweeps
+
+- max_hearts=2: -8.6% (aligners leave with too few hearts)
+- max_hearts=4: +0.8% (less hub congestion, huge floor improvement on seed 43: 88→157)
+- return_load=35: no change (identical behavior)
+- explore_cap 60: -9.6% (too much idle exploration)
+- heart_queue_limit 1: -3.7% (too restrictive, aligners forced to idle)
+- nav_shake 7/4: -2.0%
+- nav_shake 3/2: -3.7%
+- extractor_depletion 25: no change
+
+---
+
+## Final Result: hub_dist=0.2 + max_hearts=4
+
+2026-04-26T19:10: I combined the two improvements:
+- hub_dist 0.3→0.2: aligners prefer nearer junctions, less travel waste
+- max_hearts 3→4: aligners accumulate one more heart, fewer hub trips
+
+10-seed avg (42-51) = 177.69: 229.74/156.80/164.10/179.22/148.41/107.16/221.00/180.43/194.54/195.52
+vs original baseline 171.73: +3.5%
+vs hub_dist-only 176.26: +0.8%
+
+Key improvement: worst seed (43) went from 88→157 (+78%). This dramatically reduces variance.
+
+Regressions: some strong seeds dropped (42: 242→230, 47: 126→107).
+Net effect: higher floor, slightly lower ceiling. +3.5% avg.
+
+Learning for next researcher:
+- The codebase is very well-tuned. Most parameter changes hurt.
+- hub_dist=0.2 is a reliable improvement over 0.3
+- max_hearts=4 improves the floor but may hurt ceiling — consider reverting if online scores regress
+- DO NOT: reduce JUNCTION_ALIGN_DISTANCE (15 is worse than 20), change wait time (6 is optimal),
+  add clustering bonus, enable aligner HP retreat, reduce return_load, change nav shake params
+- WORTH TRYING: cross-role conversion (aligner→miner when idle), opponent modeling, larger structural
+  changes to navigation (BFS improvements, multi-path routing)
