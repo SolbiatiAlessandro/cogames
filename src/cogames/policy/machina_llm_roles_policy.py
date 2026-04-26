@@ -635,15 +635,16 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             self._static_aligner_ids: frozenset[int] | None = frozenset(parsed_aligner_ids)
             self._aligner_fraction = 0.0  # unused when static
         else:
-            self._static_aligner_ids = None
             na_str = str(num_aligners).lower()
-            if na_str == "auto":
-                if n_agents >= 6:
-                    self._aligner_fraction = 0.375  # 3A+5M for 8 agents: more miners for heart pipeline
-                else:
-                    self._aligner_fraction = 0.5
+            if na_str == "auto" and n_agents == 8:
+                self._static_aligner_ids = frozenset({0, 3, 7})
+                self._aligner_fraction = 0.0
             else:
-                self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
+                self._static_aligner_ids = None
+                if na_str == "auto":
+                    self._aligner_fraction = 0.5
+                else:
+                    self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
         self._assigned_roles: dict[int, str] = {}
         self._n_aligners_assigned = 0
         self._n_miners_assigned = 0
