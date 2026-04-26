@@ -84,3 +84,23 @@ All match previous best exactly. The dynamic role assignment preserves offline p
 | 42   | 10000 | 3917.3   | 3923.0      | +5.7  | keep   |
 
 Consistent small improvement (+0.6-0.9% on seed 42 and 7). System is very well-optimized — 17 of 18 parameter/structural changes hurt performance.
+
+## 2026-04-26T08:42: Experiment 3 — Non-deposit miner nav shake
+
+### Changes:
+1. **Exclude deposit_to_hub from miner nav shake**: Added `"deposit_to_hub"` to the exclusion set. During deposit_to_hub, miners should persistently try to reach the hub, not wander randomly. The nav shake during hub approach caused miners to drift away and lose time.
+
+### 8-seed validation (commit 9ac17d1):
+| Seed | Steps | Baseline | General Shake | Non-deposit Shake | Delta vs General |
+|------|-------|----------|--------------|-------------------|-----------------|
+| 42   | 3000  | 949.1    | 954.8        | 954.8             | 0.0             |
+| 7    | 3000  | 1011.7   | 1020.6       | 1011.7            | -8.9            |
+| 123  | 3000  | 905.7    | 905.7        | 905.7             | 0.0             |
+| 1    | 3000  | 730.4    | 733.2        | 733.2             | 0.0             |
+| 2    | 3000  | 625.9    | 626.0        | 626.0             | 0.0             |
+| 3    | 3000  | 992.9    | 992.9        | 992.9             | 0.0             |
+| 99   | 3000  | 822.4    | 822.4        | 822.4             | 0.0             |
+| 256  | 3000  | 675.6    | 664.1        | 705.1             | +41.0           |
+| 42   | 10000 | 3917.3   | 3923.0       | 3923.0            | 0.0             |
+
+**8-seed 3k average**: Non-deposit=843.98 vs General=839.96 (+4.0, +0.5%). The improvement comes entirely from seed 256 (+41 vs general shake) where deposit_to_hub shake was causing miners to wander away from the hub. Seed 7 trades the general shake's +8.9 gain for baseline match, but the net is strongly positive.

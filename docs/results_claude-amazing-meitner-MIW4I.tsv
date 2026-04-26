@@ -4,7 +4,16 @@ ee6fd4a	949.104431	hearts=56 junctions=52	3000	keep	fix junction distance 20→1
 ee6fd4a	905.714600	hearts=n/a junctions=51	3000	keep	same fix seed 123
 ee6fd4a	1011.735901	hearts=n/a junctions=55	3000	keep	same fix seed 7
 ee6fd4a	3917.304688	hearts=57 junctions=52	10000	keep	same fix seed 42 10k steps
-PENDING	954.819580	junctions=n/a	3000	keep	miner nav shake (seed 42)
-PENDING	905.714600	junctions=n/a	3000	keep	miner nav shake (seed 123)
-PENDING	1020.648621	junctions=n/a	3000	keep	miner nav shake (seed 7)
-PENDING	3923.020752	junctions=n/a	10000	keep	miner nav shake (seed 42 10k)
+94a19e6	954.819580	hearts=56 junctions=52	3000	keep	miner nav shake (seed 42)
+94a19e6	905.714600	hearts=n/a junctions=n/a	3000	keep	miner nav shake (seed 123)
+94a19e6	1020.648621	hearts=n/a junctions=n/a	3000	keep	miner nav shake (seed 7)
+94a19e6	3923.020752	hearts=57 junctions=n/a	10000	keep	miner nav shake (seed 42 10k)
+9ac17d1	954.819580	hearts=56 junctions=52	3000	keep	non-deposit nav shake (seed 42)
+9ac17d1	905.714600	hearts=n/a junctions=n/a	3000	keep	non-deposit nav shake (seed 123)
+9ac17d1	1011.735901	hearts=59 junctions=55	3000	keep	non-deposit nav shake (seed 7)
+9ac17d1	733.246094	hearts=n/a junctions=n/a	3000	keep	non-deposit nav shake (seed 1)
+9ac17d1	626.012329	hearts=n/a junctions=n/a	3000	keep	non-deposit nav shake (seed 2)
+9ac17d1	992.858521	hearts=n/a junctions=n/a	3000	keep	non-deposit nav shake (seed 3)
+9ac17d1	822.384888	hearts=n/a junctions=n/a	3000	keep	non-deposit nav shake (seed 99)
+9ac17d1	705.084656	hearts=43 junctions=n/a	3000	keep	non-deposit nav shake (seed 256)
+9ac17d1	3923.020752	hearts=57 junctions=n/a	10000	keep	non-deposit nav shake (seed 42 10k)
