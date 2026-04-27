@@ -298,6 +298,23 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         self._remember_visible_hub(obs, state)
 
+    def _safe_wander(self, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
+        """Wander avoiding hazard stations (non-miner stations) and blocked cells."""
+        current_abs = (
+            state.last_pos if state.last_pos is not None
+            else (state.remembered_hub_row_from_spawn or 0, state.remembered_hub_col_from_spawn or 0)
+        )
+        hard_avoid = state.known_hazard_stations | state.blocked_cells
+        for i in range(4):
+            idx = (state.wander_direction_index + i) % 4
+            direction, (dr, dc) = _DIRECTION_DELTAS[idx]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in hard_avoid:
+                state.wander_direction_index = (idx + 1) % 4
+                return self._starter._action(f"move_{direction}"), state
+        state.wander_direction_index = (state.wander_direction_index + 1) % 4
+        return self._starter._wander(state)
+
     def _neighbors(self, cell: Coord) -> list[tuple[str, Coord]]:
         return [(name, (cell[0] + delta[0], cell[1] + delta[1])) for name, delta in _DIRECTION_DELTAS]
 
@@ -416,12 +433,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     def _move_to(self, state: MinerSkillState, current_abs: Coord, target_abs: Coord | None) -> tuple[Action, MinerSkillState]:
         if target_abs is None:
-            return self._starter._wander(state)
+            return self._safe_wander(state)
         direction = self._bfs_first_direction(state, current_abs, target_abs)
         if direction is None:
             direction = self._bfs_without_cooldowns(state, current_abs, target_abs)
         if direction is None:
-            return self._starter._wander(state)
+            return self._safe_wander(state)
         return self._starter._action(f"move_{direction}"), state
 
     def _move_toward_target(
@@ -431,7 +448,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         target_abs: Coord | None,
     ) -> tuple[Action, MinerSkillState]:
         if target_abs is None:
-            return self._starter._wander(state)
+            return self._safe_wander(state)
         direction = self._bfs_first_direction(state, current_abs, target_abs)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), state
@@ -448,7 +465,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         frontier_cells = self._frontier_cells(state)
         if not frontier_cells:
-            return self._starter._wander(state)
+            return self._safe_wander(state)
 
         best_frontier = min(
             frontier_cells,
@@ -470,7 +487,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells:
                     continue
                 return self._starter._action(f"move_{direction_name}"), state
-            return self._starter._wander(state)
+            return self._safe_wander(state)
         return self._move_to(state, current_abs, best_frontier)
 
     def _explore(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:

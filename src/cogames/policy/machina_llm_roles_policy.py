@@ -278,7 +278,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                     for h in state.known_hubs
                 )
-                if heart_count < 3 and near_hub:
+                if heart_count < 4 and near_hub:
                     pass
                 else:
                     reason = f"overrode get_heart to align_neutral ({heart_count} hearts, not near hub)"
@@ -334,7 +334,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             sm = self._shared_map
             available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
-            if already_getting >= max(2, available_hearts):
+            if already_getting >= max(3, available_hearts):
                 skill = "explore"
                 reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
@@ -635,15 +635,16 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             self._static_aligner_ids: frozenset[int] | None = frozenset(parsed_aligner_ids)
             self._aligner_fraction = 0.0  # unused when static
         else:
-            self._static_aligner_ids = None
             na_str = str(num_aligners).lower()
-            if na_str == "auto":
-                if n_agents >= 6:
-                    self._aligner_fraction = 0.5  # 4A+4M for 8 agents: optimal heart/junction balance
-                else:
-                    self._aligner_fraction = 0.5
+            if na_str == "auto" and n_agents == 8:
+                self._static_aligner_ids = frozenset({0, 3, 7})
+                self._aligner_fraction = 0.0
             else:
-                self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
+                self._static_aligner_ids = None
+                if na_str == "auto":
+                    self._aligner_fraction = 0.5
+                else:
+                    self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
         self._assigned_roles: dict[int, str] = {}
         self._n_aligners_assigned = 0
         self._n_miners_assigned = 0
