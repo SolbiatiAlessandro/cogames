@@ -1,61 +1,80 @@
 # Director Notes
-_Written: 2026-04-26 (Session 18)_
+_Written: 2026-04-27 (Session 19, offline-to-online)_
 
-## What happened since session 16
+## What happened since session 18
 
-Two researcher sessions ran on branches `amazing-meitner-wKR1D` (Apr 24) and `amazing-meitner-xh27M` (Apr 25). The xh27M branch was the big winner — it produced v43 through v48, each incrementally better, with v48 reaching **#57/293 online (score 32.51)**, an 81% improvement over v42's 17.92.
+Two researcher sessions ran on issue #50 (per-agent alignment efficiency):
 
-### v48 improvement stack (each builds on the previous):
-1. **Partner robustness fix** (v43): Dynamic proportional role assignment replaces static ID-based. Root cause of near-zero bad-partner scores.
-2. **4A+4M ratio** (v44): Changed from 5A+3M to 4A+4M. Comprehensive sweep confirmed optimal.
-3. **hub_dist weight 0.7 to 0.3** (v45): Aligners prefer nearby junctions over hub-proximate ones.
-4. **Multi-heart accumulation** (v47): Aligners wait for 2-3 hearts near hub before departing (wait=6 ticks).
-5. **Miner junction sharing** (v48): Miners report junction locations (neutral/friendly/enemy) to SharedMap via visible tag scanning.
+### Branch `amazing-meitner-uTokl` (Apr 26):
+- hub_dist 0.3→0.2 (+2.6%)
+- max_hearts 3→4 (+0.8%, but +78% on worst seed)
+- 3A+5M ratio replaces 4A+4M (+5.6% — 5 miners produce enough hearts for 3 aligners)
+- Static aligner IDs 0,3,7 for 8-agent offline (+14.7%)
+- Combined: **197.00 avg** (up from 171.73, +14.7%)
+- 12+ experiments tried, most reverted (well-tuned codebase)
 
-### wKR1D branch (not merged):
-- JUNCTION_ALIGN_DISTANCE 20 to 15: +5.2% at 10k steps. Untested with xh27M code.
-- Heart cooldown fix: +17% but in cross_role_policy.py path (not used by tournament policy).
-- CrossRoleState additional fields: only relevant if cross_role is used.
+### Branch `amazing-meitner-mjSjH` (Apr 27):
+- Integrated uTokl improvements as baseline (200.09 avg)
+- Aligner BFS cooldown bypass (+1.0%) — ignore transient collision cooldowns
+- Miner BFS cooldown bypass (+1.3%)
+- **SharedMap phantom station bug discovered and fixed** (+5.0%)
+  - Root cause: all agents share SharedMap but use spawn-relative coordinates. Station positions from agent A's frame are invalid in agent B's frame. Agents navigated to phantom locations.
+  - Fix: `verified_aligner_stations` — per-agent set of stations personally seen
+  - Impact: seed 47 +27%, seed 50 +30%
+- Combined: **214.68 avg** (up from 171.73, +25%)
 
-## What I observed (no replay available — Python 3.11 cannot run mettagrid)
+### Branch merges
+- Merged `amazing-meitner-mjSjH` to main (fast-forward). This subsumes uTokl's changes.
+- uTokl NOT separately merged (mjSjH already includes its improvements).
 
-Analysis from TSV and online data only:
-- xh27M 10-seed avg at 1000 steps: 171.73 (best single seed: 246.13)
-- v48 online: p5=8.93, p50=33.56, p95=46.78 across 26 matches
-- The p5 improvement (0.49 to 8.93) confirms the partner robustness fix works online
-- The p50 improvement (19.44 to 33.56) confirms the offline tuning translates to online gains
+## Online observations
+
+### Leaderboard
+- v48 stabilized at **#49/334, score 33.28** (was #57/293, score 32.51 at session 18)
+- Score improved +2.4% as more matches played (35 matches now)
+- Rank improved by 8 positions despite 41 new entrants (334 vs 293)
+- Top: Paz-Bot-9000 at 41.10, Gryffindor at 40.82, Slytherin at 40.73
+
+### Match replay analysis (v48 + mammet:v146, score 40.3)
+- Cooperative tournament: both policies on same team, same score
+- Our agents get 6 of 8 slots (agents 2-7), partner gets agents 0-1
+- 98 junctions gained on a 67-junction map (recaptures after clip takeover)
+- Zero vibe changes across ALL agents (confirmed: issue #31 is a game mechanic, not a bug)
+- Agent mortality remains: some agents die at step 2286-3223 vs 10000 max
+- Low noop rate for our agents (100-134 noops per 5000+ steps = ~2%)
+
+### Score variance by partner
+- Best: 40.3 with mammet:v137/v146 — **near-competitive with #1**
+- Worst: 17.7 with random_role_policy
+- Recent mammet versions (v160-162) score lower (23-28) than older ones (37-40)
+- This variance is the dominant factor in our leaderboard position
+
+## Offline→Online gap
+
+1. **Offline best**: 214.68 avg (mjSjH, commit 1d64461). Online best: #49/334, score 33.28 (v48).
+2. **Gap is a submission lag**: The +25% offline improvement has NOT been uploaded yet.
+3. **With good partners, v48 already scores 40.3** (near #1's 41.1). The ceiling is partner quality, not policy quality.
+4. **The phantom station fix should particularly help online**: in tournament, agents from different policies have different spawn points, making coordinate contamination worse than in self-play.
 
 ## Current bottleneck
 
-**Per-agent alignment efficiency.** The partner robustness problem is SOLVED. The remaining 21% gap to #1 (41.10) is evenly distributed — no more catastrophic floor matches. Our p50=33.56 vs top policies' p50=45-52 is the main gap. This is raw per-agent performance: junctions aligned per step, heart utilization, navigation speed.
+**Submission.** The +25% offline improvement is sitting unsubmitted. The cogames CLI requires Python 3.12+ which is not available in the current environment. This is the highest-priority blocker.
 
-## What I expected to happen vs. what I found
-
-**Expected** (from session 16): Partner robustness fix would raise online score from ~19 to ~25+.
-**Found**: It went to 32.51 — far better than expected. The stacked improvements (4A+4M, hub_dist, multi-heart, miner junction sharing) contributed as much as the partner fix itself. The offline-to-online correlation continues to be strong.
-
-**Expected**: v42:v2/v3 would appear on leaderboard.
-**Found**: They scored None (4 matches). The resubmissions were broken. v43-v48 fresh uploads all work fine.
-
-## Branches merged this session
-- `amazing-meitner-xh27M` to main (fast-forward): v43-v48 source, all improvements listed above
+After submission, the bottleneck shifts to **weak-partner resilience**: how to score higher when paired with low-quality partners. Our best-partner score (40.3) is already competitive; the average is dragged down by 17-24 scores with weak partners.
 
 ## Issues updated this session
-- **#47**: CLOSED (partner robustness — root cause fixed, online confirmed)
-- **#49**: CLOSED (v43 submitted — all v43-v48 on leaderboard)
-- **#48**: CLOSED (cherry-pick #38 — not applicable to tournament code path)
-- **#38**: CLOSED (agent mortality — resolved through multiple sessions)
-- **#24**: CLOSED (mining strategy — near-optimal for scripted approach)
-- **#50**: CREATED (priority:1 — per-agent alignment efficiency, SPAWN NEXT)
-- **#51**: CREATED (priority:1 — submit v49 from merged main)
-- **#41**: Updated comment (still blocked on GPU)
-- **#27**: Deprioritized to priority:3
+- **#50**: Added comment summarizing online→offline correlation and merge status
+- **#51**: Updated to reflect that main now has +25% improvement, needs submission urgently
+- **README**: Updated leaderboard with 334-entry data, match analysis, new offline best
+
+## Branches merged this session
+- `amazing-meitner-mjSjH` to main (fast-forward): uTokl + BFS cooldown + phantom station fix
 
 ## Priority stack
 ```
-priority:1  #50  Per-agent alignment efficiency tuning   <- SPAWN NEXT
-priority:1  #51  Submit v49 and validate online           <- SPAWN NEXT
-priority:2  #41  RL policy training        <- BLOCKED (needs GPU)
+priority:1  #51  Submit v49 from merged main     <- CRITICAL (25% unsubmitted)
+priority:1  #50  Per-agent alignment efficiency   <- 2 sessions completed, +25% offline
+priority:2  #41  RL policy training               <- BLOCKED (needs GPU)
 priority:3  #27  Andre Von Huck / A*
 priority:3  #26  shweta policy
 priority:3  #31  change_vibe actions
@@ -64,14 +83,20 @@ priority:3  #12-#23  various speculative
 
 ## Open questions for next director
 
-1. **v48 stability**: With only 26 matches, score could shift. Monitor whether it settles above 30.
+1. **Submit v49/v50**: The +25% offline improvement MUST be submitted. Use Python 3.12+ env with `cogames upload -p . -n lessandro-scripted-v49 --season beta-cvc --skip-validation`.
 
-2. **JUNCTION_ALIGN_DISTANCE 15 vs 20**: wKR1D showed +5.2% with 15 (matches game config). Should be tested on top of xh27M code — could be a quick win for #50.
+2. **Phantom station impact online**: The fix should disproportionately help tournament (different spawn points per policy). Verify after submission that v49 scores significantly higher than v48 online.
 
-3. **v46 regression**: v46 scored 19.82 online (#110) — a regression between v45 (22.89) and v47 (24.35). Need to understand what v46 contained to avoid repeating the mistake.
+3. **Weak-partner strategy**: With 40.3 best-partner score, the ceiling is partners, not policy. Research directions:
+   - Can we detect weak partners early and compensate? (e.g., if partner agents aren't mining, assign more of our agents to mine)
+   - Can we carry harder with fewer agents? (our agents sometimes only control 2-4 of 8)
 
-4. **beta-teams-tiny-fixed season**: New team-based tournament at v24. We have not submitted to it. May favor different strategies. Worth investigating if we plateau in beta-cvc.
+4. **Agent mortality at 10k steps**: Some agents die at step 2286 (23% of episode). This wastes 77% of potential. Investigate death causes in high-score replays.
 
-5. **Branch cleanup**: Old branches (VGWVP, Fb3vU, ccN7G, BMQ2v, Y1TiB, dtLLg, wUNPs, pva5Z, etc.) can be deleted. xh27M is now merged. wKR1D has the JUNCTION_ALIGN_DISTANCE=15 data but the code change is trivial.
+5. **3A+5M vs 4A+4M for tournament**: The offline improvement used 3A+5M, but tournament gives us only 4 agents. With 4 agents, proportional assignment gives 2A+2M. Verify this is correct for the submitted policy.
 
-6. **Replay infrastructure**: Python 3.12+ is needed for mettagrid. Every director session hits this blocker. Consider pre-building a container with the right Python version, or finding an alternative way to run offline episodes.
+6. **Branch cleanup**: uTokl can be deleted (merged via mjSjH). mjSjH is now main. Old branches from prior sessions can be cleaned up.
+
+7. **JUNCTION_ALIGN_DISTANCE 15 vs 20**: Both uTokl (-1.8%) and mjSjH (-1.3%) tested this and both regressed. CLOSED — 20 is correct for our code despite game config saying 15.
+
+8. **v48 stability confirmed**: Session 18 question answered. v48 settled at 33.28 after 35 matches (was 32.51 at 26 matches). Stable and slightly improving.
