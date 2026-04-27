@@ -152,9 +152,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, "acquired a heart")
         if state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions:
             self._event(state, f"friendly junction count increased from {state.last_friendly_junctions} to {friendly_count}")
+
         state.last_has_heart = has_heart
         state.last_friendly_junctions = friendly_count
-
         last_action_move = self._feature_value(obs, "last_action_move")
         made_progress = (
             (state.current_skill == "get_heart" and has_heart and not state.last_has_heart)

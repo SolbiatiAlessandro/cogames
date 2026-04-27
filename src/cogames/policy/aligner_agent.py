@@ -94,6 +94,7 @@ class AlignerState(StarterCogState):
     known_friendly_junctions: set[Coord] = field(default_factory=set)
     known_enemy_junctions: set[Coord] = field(default_factory=set)
     known_hazard_stations: set[Coord] = field(default_factory=set)
+    verified_aligner_stations: set[Coord] = field(default_factory=set)
     # Track last attempted move to detect impassable objects on move failure
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
@@ -668,30 +669,25 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         visible_target = self._starter._closest_tag_location(obs, self._aligner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
-            # Station is visible - navigate to an adjacent cell (station itself is blocked)
+            state.known_aligner_stations.add(target_abs)
+            state.verified_aligner_stations.add(target_abs)
             direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-            # All adjacents also blocked - fall back to greedy toward station
-            # but refuse to walk through known scout/scrambler/miner stations.
             action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
             return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.known_aligner_stations)
+        target_abs = self._nearest_known(current_abs, state.verified_aligner_stations) if state.verified_aligner_stations else None
         if target_abs is None:
             if state.known_hubs:
-                # Station not yet seen: navigate toward expected station position (hub_center+4 rows, -3 cols)
-                # Stations are placed 4 rows below hub center; aligner is leftmost (3 cols west of center).
                 hub_center = self._nearest_known(current_abs, state.known_hubs)
                 expected_station = (hub_center[0] + 4, hub_center[1] - 3)
                 direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=True)
                 if direction is not None:
                     return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             return self._explore(obs, state)
-        # Station known but not visible - navigate to approach cell
         direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # All adjacents blocked - greedy toward station, avoiding hazard stations.
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 
