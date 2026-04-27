@@ -597,7 +597,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         min_val = min(deposits.values())
         max_val = max(deposits.values())
-        # Only trigger when imbalance is significant (>= 5 resources difference)
         if max_val - min_val < 5:
             return None
         for elem, val in deposits.items():
@@ -739,6 +738,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return self._starter._action(f"move_{direction}"), state
         # Navigate to approach cell
         direction = self._bfs_first_direction(state, current_abs, approach)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), state
+        direction = self._bfs_without_cooldowns(state, current_abs, approach)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), state
         direction = self._bfs_optimistic_direction(state, current_abs, approach)
