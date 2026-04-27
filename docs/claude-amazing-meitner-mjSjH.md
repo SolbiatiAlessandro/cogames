@@ -19,3 +19,16 @@ I've integrated all 4 changes into the current branch. Next experiments to try:
 ## 2026-04-27T00:01: starting to run baseline
 
 Running 10-seed baseline (seeds 42-51) with integrated uTokl improvements at 1000 steps.
+
+### Baseline result: 10-seed avg = 200.09
+
+Seeds: 237.38/200.36/212.28/222.83/193.54/165.26/225.55/238.06/137.63/167.99
+- Matches uTokl (197.00) closely — 6 of 10 seeds identical
+- Secondary target (>190) already achieved
+- Worst seed: 50 (137.63), best: 49 (238.06)
+
+## 2026-04-27T01:00: starting new experiment loop
+
+In this experiment I want to try improving aligner navigation efficiency. Hypothesis: aligners spend too many steps traveling. If we can improve junction selection or reduce navigation overhead, we can align more junctions per episode.
+
+Looking at the data: seed 50 and 47 are weakest (137.63, 165.26). These are likely seeds with difficult map layouts where junctions are far from hub. Targeting these outliers could have the biggest impact on average.

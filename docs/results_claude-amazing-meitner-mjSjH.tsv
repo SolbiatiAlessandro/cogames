@@ -1,1 +1,6 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+0ba8850	200.09	10-seed: 237/200/212/223/194/165/226/238/138/168	1000	keep	baseline: uTokl integrated (hub_dist=0.2 max_hearts=4 safe_wander 3A5M-static)
+0ba8850	192.86	10-seed: 219/213/196/85/205/143/236/222/241/169	1000	discard	proportional 3/8 ratio: seed 45 collapsed 223→85 due to spawn positions
+0ba8850	200.09	10-seed: identical to baseline	1000	discard	enemy junction priority bonus (-8): no effect in self-play (no enemy junctions)
+0ba8850	180.91	10-seed: 229/185/197/223/158/136/226/167/120/168	1000	discard	adaptive hearts (2/3/4 by junction dist): -9.6% fewer hearts per trip wastes more travel
+0ba8850	202.01	10-seed: 237/196/212/223/222/145/226/238/138/183	1000	keep	aligner BFS cooldown bypass: +1.0% helps congested seeds (46 +14.8% 51 +9.0%)
