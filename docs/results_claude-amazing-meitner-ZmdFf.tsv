@@ -1,0 +1,3 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+db670a1	214.68	10-seed: 237/203/210/244/231/188/231/232/180/191	1000	keep	baseline: mjSjH integrated (phantom station fix + BFS cooldowns + 3A5M)
+eccf82a	240.38	10-seed: 198/226/240/252/224/218/257/255/269/265	1000	keep	verified_hubs: per-agent hub verification prevents phantom hub contamination (+12.0%)
