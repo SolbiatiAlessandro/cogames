@@ -24,81 +24,79 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline-to-online): 2026-04-27 (Session 19)_
+_Updated by Director: 2026-04-28 (Session 20)_
 
-### Online Tournament (beta-cvc, cooperative scoring, 334 entries)
+### Online Tournament (beta-cvc, cooperative scoring, 371 entries)
 
 | Rank | Score | Policy | Matches | Notes |
 |------|-------|--------|---------|-------|
-| #1/334 | **41.10** | `Paz-Bot-9000` | 21 | RL |
-| #2/334 | 40.82 | `Gryffindor` | 27 | RL |
-| #3/334 | 40.73 | `Slytherin` | 32 | RL |
-| #5/334 | 40.11 | `Hufflepuff` | 25 | RL |
-| #7/334 | 39.47 | `slinky` | 21 | RL |
-| #12/334 | 38.28 | `Softy` | 20 | RL |
+| #1/371 | **41.10** | `Paz-Bot-9000:v47` | — | RL |
+| #2/371 | 40.82 | `Gryffindor:v11` | — | RL |
+| #3/371 | 40.73 | `Slytherin:v14` | — | RL |
+| #5/371 | 40.11 | `Hufflepuff:v11` | — | RL |
+| #7/371 | 39.47 | `slinky:v3` | — | RL |
+| #12/371 | 38.28 | `Softy:v82` | — | RL |
 | ... | | | | |
-| **#49/334** | **33.28** | **`lessandro-scripted-v48:v1`** | **35** | **Stabilized (+2.4% from 32.51)** |
-| #103/334 | 23.38 | `lessandro-scripted-v47:v1` | 40 | |
-| #104/334 | 22.71 | `lessandro-scripted-v45:v1` | 36 | |
-| #109/334 | 20.15 | `lessandro-scripted-v46:v1` | 42 | Regression between v45/v47 |
-| #110/334 | 19.69 | `lessandro-scripted-v44:v1` | 34 | |
-| #112/334 | 18.52 | `lessandro-scripted-v43:v1` | 37 | |
-| #113/334 | 17.55 | `lessandro-scripted-v42:v1` | 52 | Previous best |
+| **#56/371** | **32.73** | **`lessandro-scripted-v48:v1`** | **42** | **Current best online** |
+| **NEW** | **pending** | **`lessandro-scripted-v49:v1`** | **0** | **+46.3% offline — qualifying** |
+| #104/371 | 22.16 | `lessandro-scripted-v45:v1` | — | |
+| #105/371 | 22.02 | `lessandro-scripted-v47:v1` | — | |
+| #110/371 | 19.85 | `lessandro-scripted-v46:v1` | — | |
 
-_334 entries (up from 293). v48 stable at 33.28 after 35 matches. Rank improved #57 to #49 despite 41 new entrants._
+_371 entries (up from 334). v48 stable at 32.73 after 42 matches. v49 submitted 2026-04-28 with +46.3% offline improvement._
 
-### v48 Match Analysis (cooperative — both policies get same score)
+### v48 Match Analysis (42 matches, cooperative scoring)
 
-| Partner | Score | Matches | Notes |
-|---------|-------|---------|-------|
-| mammet:v137-v146 | 37.2-40.3 | 4 | Near #1-level with good partners |
-| mammet:v97-v120 | 25.6-33.6 | 4 | Solid mid-range |
-| mammet:v130-v162 | 23.8-27.2 | 4 | Newer mammet versions score lower |
-| poonai allroles | 22.5 | 1 | |
-| random_role_policy | 17.7 | 1 | Floor case |
+| Partner tier | Score range | Count | Notes |
+|-------------|-------------|-------|-------|
+| Top (Hufflepuff, Paz-Bot, tinker) | 41-50 | 4 | **Competitive with #1** |
+| Good (mammet v126-v149, shweta v27-v33) | 33-40 | 10 | Near-top performance |
+| Mid (mammet v97-v190, morphling) | 25-35 | 12 | Solid |
+| Weak (ron, anoop, shweta low) | 5-22 | 8 | Partner drags score down |
+| Solo/unknown | 18-42 | 8 | High variance |
 
-**Key insight: With a good partner, we already score 40.3 (competitive with #1's 41.1). The leaderboard avg is dragged down by weak-partner matches.**
+**Key: p5=7.2, p50=32.8, p95=41.5. With good partners we hit 50.1 — the ceiling is partner quality, not policy quality.**
 
-### Offline Best Results (8-agent, 1000 steps)
+### Offline Best Results (8-agent, 10-seed avg, 1000 steps)
 
-| Rank | Reward | Config | Commit | Branch | Notes |
-|------|--------|--------|--------|--------|-------|
-| 1 | **214.68** | 3A+5M, phantom fix + BFS bypass | `1d64461` | mjSjH | **NEW BEST (+25% vs v48)** |
-| 2 | 197.00 | 3A+5M, static IDs 0,3,7 | `99827a0` | uTokl | +14.7% from role ratio |
-| 3 | 177.69 | 4A+4M, hub_dist=0.2 + max_hearts=4 | `68d16f6` | uTokl | +3.5% from tuning |
-| 4 | 171.73 | 4A+4M, all xh27M fixes | `0e2b32d` | xh27M | v48 source |
+| Rank | Reward | Config | Commit | Session | Notes |
+|------|--------|--------|--------|---------|-------|
+| 1 | **251.36** | 3A+5M, verified hubs + stuck=15 | `9001d58` | 20 (ZmdFf) | **NEW BEST (+17.1% vs #2)** |
+| 2 | 214.68 | 3A+5M, phantom station + BFS bypass | `1d64461` | 19 (mjSjH) | +25% vs v48 source |
+| 3 | 197.00 | 3A+5M, static IDs 0,3,7 | `99827a0` | 19 (uTokl) | +14.7% from role ratio |
+| 4 | 171.73 | 4A+4M, all xh27M fixes | `0e2b32d` | 18 (xh27M) | v48 source code |
 
 ### Gap Analysis
 
 ```
-Metric                    Us (v48 online)         Top RL (#1)           Gap       Status
+Metric                    Us                      Top RL (#1)           Gap       Status
 ------------------------------------------------------------------------------------
-Online score              33.28 (#49/334)         41.10 (#1/334)        19%       CLOSING
-Best-partner score        40.31                   41.10                 2%        NEAR PARITY
-Worst-partner score       17.70                   ~2.29 (p5)            ---       Different metric
-Offline 10-seed avg       214.68 (mjSjH)          ---                   ---       +25% vs v48 source
+Online score              32.73 (#56/371)         41.10 (#1/371)        20%       v49 pending
+Best-partner score        50.10                   41.10                 ---       WE BEAT #1 avg!
+Offline 10-seed avg       251.36 (ZmdFf)          ---                   ---       +46.3% vs v48
+Reward growth/200 steps   +1.52 peak, +1.24 tail  ---                   ---       Hub depletion after 600
 ```
 
-**Current bottleneck**: Submit the +25% offline improvement as v49/v50. The phantom station bug fix and BFS cooldown bypass are genuine improvements that should translate online. Partner-dependent scoring means improving absolute per-agent efficiency has outsized impact on the average.
+**Current bottleneck**: Awaiting v49 online results. Offline improvement is near saturation for scripted policies — 9 parameter experiments all discarded in latest session. Remaining gap to #1 requires structural change (RL training or A* pathfinding).
 
-**Next up**: #51 — submit v49 from merged main (requires `cogames` CLI on Python 3.12+), then continue #50 experiments
+**Next up**: #52 — validate v49 online, then decide between RL training (#41) or more scripted tuning (#50)
 
 **Research tree:**
 ```
-priority:1  #51  Submit v49 from merged main    <- CRITICAL (25% offline gain unsubmitted)
-priority:1  #50  Per-agent alignment efficiency  <- 2 sessions completed, +25% offline
-priority:2  #41  RL policy training              <- BLOCKED (needs GPU)
+priority:1  #52  Validate v49 online + submit v50 if needed
+priority:2  #50  Per-agent alignment efficiency     <- 3 sessions, +46.3% total, near saturation
+priority:2  #41  RL policy training                 <- BLOCKED (needs GPU)
 priority:3  #27  Andre Von Huck / A*
 priority:3  #26  shweta policy
 priority:3  #31  change_vibe actions
 priority:3  #12-#23  various speculative
 
-CLOSED (sessions 16-18):
-  #49 Submit v43 | #48 Cherry-pick #38 | #47 Partner robustness
-  #46 v37/v38 regression | #45 Submit #44 | #44 Miner productivity
-  #43 v34 regression | #42 httpx import | #39-#40 Submission/Mining
-  #38 Agent mortality | #36 Agent mortality | #32 Partner robustness
-  #25 8-Agent Scaling | #24 Mining strategy
+CLOSED (sessions 16-20):
+  #51 Submit v49 (DONE) | #49 Submit v43 | #48 Cherry-pick #38
+  #47 Partner robustness | #46 v37/v38 regression | #45 Submit #44
+  #44 Miner productivity | #43 v34 regression | #42 httpx import
+  #39-#40 Submission/Mining | #38 Agent mortality | #36 Agent mortality
+  #32 Partner robustness | #25 8-Agent Scaling | #24 Mining strategy
 ```
 <!-- LEADERBOARD_END -->
 
