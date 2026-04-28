@@ -622,13 +622,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     _EXTRACTOR_DEPLETION_THRESHOLD = 40
 
     def _active_extractors(self, state: MinerSkillState) -> set[Coord]:
-        extractors = state.verified_extractors if state.verified_extractors else state.known_extractors
-        return extractors - state.depleted_extractors
+        return state.known_extractors - state.depleted_extractors
 
     def _active_extractors_for_element(self, state: MinerSkillState, element: str) -> set[Coord]:
-        verified = state.verified_extractors_by_element.get(element, set())
-        base = verified if verified else state.extractors_by_element.get(element, set())
-        return base - state.depleted_extractors
+        return state.extractors_by_element.get(element, set()) - state.depleted_extractors
 
     def _check_extractor_depletion(self, obs: AgentObservation, state: MinerSkillState) -> None:
         """Mark nearest extractor as depleted if miner hasn't gained resources for too long."""
@@ -863,11 +860,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     def _nearest_extractor_to_hub(self, state: MinerSkillState) -> Coord | None:
         hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
         extractors = state.verified_extractors if state.verified_extractors else state.known_extractors
-        if not hub_set or not extractors:
+        if not hub_set or not state.known_extractors:
             return None
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1]))
         return min(
-            extractors,
+            state.known_extractors,
             key=lambda e: abs(e[0] - hub[0]) + abs(e[1] - hub[1]),
         )
 
