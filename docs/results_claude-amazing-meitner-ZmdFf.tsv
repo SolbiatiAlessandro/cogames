@@ -1,3 +1,5 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 db670a1	214.68	10-seed: 237/203/210/244/231/188/231/232/180/191	1000	keep	baseline: mjSjH integrated (phantom station fix + BFS cooldowns + 3A5M)
-eccf82a	240.38	10-seed: 198/226/240/252/224/218/257/255/269/265	1000	keep	verified_hubs: per-agent hub verification prevents phantom hub contamination (+12.0%)
+eccf82a	240.38	10-seed: 198/226/240/252/224/218/257/255/269/265	1000	keep	verified_hubs aligners: per-agent hub verification prevents phantom hub contamination (+12.0%)
+f97a384	247.89	10-seed: 255/231/288/226/240/290/270/266/197/215	1000	discard	+verified extractors for miners: too restrictive seeds 50/51 regressed to 197/215
+c4a11b4	247.22	10-seed: 254/241/270/282/209/229/264/254/244/225	1000	keep	verified_hubs for miners (hubs only no extractors): +2.8% over aligner-only

@@ -37,3 +37,19 @@ Per-seed analysis:
 Key insight: The phantom hub contamination was the DOMINANT factor on weak seeds. These seeds had spawn configurations where coordinate frame differences were largest, causing aligners to navigate to phantom hub positions and waste hundreds of steps.
 
 The seed 42 regression is acceptable given the massive overall improvement. The net effect is +25.7 reward per episode.
+
+## 2026-04-28T05:42: Experiment 2 — Verified hubs for miners
+
+Extended phantom hub fix to miners. Tried two variants:
+
+**Variant A: verified_hubs + verified_extractors** → 247.89 avg
+- Seeds 50/51 regressed badly (269→197, 265→215)
+- Miners benefit from shared extractor locations — verified extractors is too restrictive
+
+**Variant B: verified_hubs only (no extractors)** → 247.22 avg (+2.8% over aligner-only)
+- Seeds: 254/241/270/282/209/229/264/254/244/225
+- Seed 42 recovered: 198→254 (+28.3%)
+- Seeds 50/51 still regressed from aligner-only (269→244, 265→225) but less severely
+- Overall avg improved: 240.38→247.22
+
+**Keep**: variant B (verified_hubs only). Combined aligner+miner fix gives +15.2% over baseline.
