@@ -53,3 +53,44 @@ Extended phantom hub fix to miners. Tried two variants:
 - Overall avg improved: 240.38→247.22
 
 **Keep**: variant B (verified_hubs only). Combined aligner+miner fix gives +15.2% over baseline.
+
+## 2026-04-28T05:55: Experiment 3 — stuck_threshold 20→15
+
+**Hypothesis**: With verified hubs fixing phantom navigation, agents now reach their targets faster. The stuck_threshold (steps before abandoning a skill) can be tightened from 20 to 15 — agents should switch skills sooner when genuinely stuck rather than waiting due to phantom-hub-induced confusion.
+
+**Result: 251.36 avg (+1.7% over 247.22, +17.1% over baseline) — KEEP**
+Seeds: 256/254/265/284/216/234/274/265/238/228
+
+Per-seed analysis:
+- Seed 45: 282→284 (stable)
+- Seed 48: 254→265 (+4.3%) — faster skill switching helps
+- Seed 50: 244→238 (-2.5%) — slight regression
+- Seed 42: 254→256 (+0.8%) — stable
+- Overall variance reduced: agents abandon dead-end skills sooner
+
+## 2026-04-28T06:10: Experiment 4 — Parameter tuning (discarded)
+
+Tried three parameter variations on top of the 251.36 baseline:
+
+**4a: Alignment distances 25/20 → 30/25** → 245.54 avg — DISCARD
+- Wider alignment radius caused aligners to attempt junctions they couldn't efficiently reach
+- Net regression of -2.3%
+
+**4b: hub_dist 0.2 → 0.15** → 251.42 avg — DISCARD
+- Negligible change (+0.02%), within noise
+- Tighter hub proximity didn't help; 0.2 already appropriate
+
+**4c: stuck_threshold 15 → 12** → 244.90 avg — DISCARD
+- Too aggressive: agents abandon skills before completing them
+- -2.6% regression, especially on seeds needing longer navigation
+
+**Conclusion**: stuck_threshold=15 is the sweet spot. Parameter tuning shows diminishing returns — need structural improvements for further gains.
+
+## 2026-04-28T06:25: Seed analysis
+
+Investigated weak seed 47 (220.61) vs strong seed 42 (251.14):
+- Seed 47: 754 move failures, 44 junctions aligned
+- Seed 42: 452 move failures
+- High move failure count on seed 47 suggests map geometry creates bottlenecks
+
+## Current best: 251.36 avg (10-seed, 1000 steps) — +17.1% over baseline 214.68
