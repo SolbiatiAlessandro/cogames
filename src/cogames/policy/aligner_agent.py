@@ -95,6 +95,7 @@ class AlignerState(StarterCogState):
     known_enemy_junctions: set[Coord] = field(default_factory=set)
     known_hazard_stations: set[Coord] = field(default_factory=set)
     verified_aligner_stations: set[Coord] = field(default_factory=set)
+    verified_hubs: set[Coord] = field(default_factory=set)
     # Track last attempted move to detect impassable objects on move failure
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
@@ -532,6 +533,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         state.known_free_cells.add(current_abs)
 
         self._remember_static_objects(state.known_hubs, hubs_now)
+        if hubs_now:
+            state.verified_hubs.update(hubs_now)
         self._remember_static_objects(state.known_aligner_stations, stations_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         if self._shared_map is not None and extractors_now:
@@ -636,7 +639,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if not frontier:
             return frontier
 
-        aligned_network = set(state.known_hubs) | set(state.known_friendly_junctions)
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        aligned_network = set(hub_set) | set(state.known_friendly_junctions)
         if not aligned_network:
             return frontier
 
@@ -649,7 +653,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             for cell in frontier
             if any(
                 (
-                    anchor in state.known_hubs
+                    anchor in hub_set
                     and abs(cell[0] - anchor[0]) + abs(cell[1] - anchor[1]) <= hub_search_radius
                 )
                 or (
@@ -678,8 +682,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.verified_aligner_stations) if state.verified_aligner_stations else None
         if target_abs is None:
-            if state.known_hubs:
-                hub_center = self._nearest_known(current_abs, state.known_hubs)
+            hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+            if hub_set:
+                hub_center = self._nearest_known(current_abs, hub_set)
                 expected_station = (hub_center[0] + 4, hub_center[1] - 3)
                 direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=True)
                 if direction is not None:
@@ -704,7 +709,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
             return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.known_hubs)
+        hub_candidates = state.verified_hubs if state.verified_hubs else state.known_hubs
+        target_abs = self._nearest_known(current_abs, hub_candidates)
         if target_abs is None:
             return self._explore(obs, state)
         direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True, preferred_side=preferred_side)
@@ -718,7 +724,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _cascade_priority_target(self, current_abs: Coord, candidates: set[Coord], state: AlignerState) -> Coord | None:
         if not candidates:
             return None
-        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1])) if state.known_hubs else None
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
         if hub is None:
             return self._nearest_known(current_abs, candidates)
         def score(j: Coord) -> float:
@@ -728,7 +735,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
-        for hub in state.known_hubs:
+        hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
+        for hub in hubs:
             if abs(junction[0] - hub[0]) + abs(junction[1] - hub[1]) <= _HUB_ALIGN_DISTANCE:
                 return True
         for friendly in state.known_friendly_junctions:
@@ -769,9 +777,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         current_abs = self._update_map_memory(obs, state)
         heart_count = self._inventory_count(obs, "heart")
+        _vhubs = state.verified_hubs if state.verified_hubs else state.known_hubs
         near_hub = any(
             abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
-            for h in state.known_hubs
+            for h in _vhubs
         )
         want_more_hearts = heart_count > 0 and heart_count < 3 and near_hub
         if self._current_gear(obs) != "aligner":

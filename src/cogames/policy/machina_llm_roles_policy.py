@@ -163,9 +163,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         )
         # Hub cells are blocked objects — agents stand adjacent, never on the hub cell itself.
         # Use Manhattan distance ≤ 1 for get_heart so navigation-shake doesn't fire while waiting.
+        _hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
         near_hub = any(
             abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 1
-            for h in state.known_hubs
+            for h in _hubs
         )
         near_aligner_station = any(
             abs(current_abs[0] - s[0]) + abs(current_abs[1] - s[1]) <= 1
@@ -274,9 +275,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if skill == "get_heart":
                 heart_count = self._inventory_count(obs, "heart")
                 current_abs = self._spawn_offset(obs)
+                _vh = state.verified_hubs if state.verified_hubs else state.known_hubs
                 near_hub = any(
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
-                    for h in state.known_hubs
+                    for h in _vh
                 )
                 if heart_count < 4 and near_hub:
                     pass
@@ -295,9 +297,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if has_aligner and has_heart and skill == "get_heart":
             heart_count = self._inventory_count(obs, "heart")
             current_abs = self._spawn_offset(obs)
+            _vh2 = state.verified_hubs if state.verified_hubs else state.known_hubs
             near_hub = any(
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
-                for h in state.known_hubs
+                for h in _vh2
             )
             if heart_count < 4 and near_hub:
                 pass
@@ -357,9 +360,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill == "get_heart" and has_heart and state.skill_steps > 0:
             heart_count = self._inventory_count(obs, "heart")
             current_abs = self._spawn_offset(obs)
+            _vh3 = state.verified_hubs if state.verified_hubs else state.known_hubs
             near_hub = any(
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
-                for h in state.known_hubs
+                for h in _vh3
             )
             if heart_count < 4 and near_hub and state.no_progress_on_target_steps < 6:
                 pass
@@ -486,7 +490,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         # ── HP safety: retreat to hub/friendly territory if HP is low ──
         if self._check_hp(obs, state, current_abs):
             # Retreat to nearest hub or friendly junction
-            retreat_targets = state.known_hubs | state.known_friendly_junctions
+            _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
+            retreat_targets = _retreat_hubs | state.known_friendly_junctions
             if retreat_targets:
                 target = self._nearest_known(current_abs, retreat_targets)
                 direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
