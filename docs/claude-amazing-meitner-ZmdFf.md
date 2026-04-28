@@ -93,4 +93,44 @@ Investigated weak seed 47 (220.61) vs strong seed 42 (251.14):
 - Seed 42: 452 move failures
 - High move failure count on seed 47 suggests map geometry creates bottlenecks
 
-## Current best: 251.36 avg (10-seed, 1000 steps) — +17.1% over baseline 214.68
+## 2026-04-28T06:45: Experiment 5 — Structural improvements (all discarded)
+
+Investigated many structural changes targeting the 754 move failures on seed 47 (vs 366 on seed 49):
+
+**5a: Aligner cooldown-only (no shared move_blocked)** → 253.05 avg (+0.67%) — DISCARD (high variance)
+- Removed permanent shared move_blocked_cells, kept per-agent cooldowns only
+- Seeds 51/46 improved dramatically (+42/+19) but seeds 45/48 regressed (-36/-33)
+- Net improvement too small and inconsistent to keep
+
+**5b: Miner stuck threshold 150→80** → 251.36 avg (identical) — DISCARD
+- Miners never hit the stuck threshold in 1000-step episodes
+
+**5c: Get_heart timeout escape** → 251.36 avg (identical) — DISCARD
+- The defend override at threshold=1 already catches get_heart loops
+
+**5d: Aligner hub side distribution** → 239.86 avg (-4.6%) — DISCARD
+- Agents 3,7 both map to side 3 (west). Distributing evenly hurt — hub accessibility varies by side
+
+**5e: Role ratio 4A+4M** → 229.62 avg (-8.6%) — DISCARD
+- Aligner capacity NOT the bottleneck; navigation efficiency is
+
+**5f: Role ratio 2A+6M** → 231.25 avg (-8.0%) — DISCARD
+- Fewer aligners = fewer junctions aligned, even with more resources
+
+**5g: return_load=30** → 230.74 avg (-8.2%) — DISCARD
+- More frequent deposits but higher travel overhead
+
+**5h: return_load=50** → 73.44 avg (-71%) — DISCARD (catastrophic)
+- Miners can't fill to 50 from single extractors → never deposit
+
+**5i: Cooldown=10 + no move_blocked** → 242.91 avg (-3.4%) — DISCARD
+- Longer cooldowns over-restrict BFS paths, seed 43 crashed to 163
+
+**Conclusion**: The verified_hubs fix addressed the dominant issue (phantom coordinate contamination). Remaining bottlenecks are map-geometry-dependent: narrow corridors, hub accessibility patterns, and agent congestion — these vary too much across seeds for a single parameter change to help consistently.
+
+## Final: 251.36 avg (10-seed, 1000 steps) — +17.1% over baseline 214.68
+
+Key improvements:
+- `eccf82a`: verified_hubs for aligners (+12.0%)
+- `c4a11b4`: verified_hubs for miners (+2.8%)
+- `1472f43`: stuck_threshold 20→15 (+1.7%)

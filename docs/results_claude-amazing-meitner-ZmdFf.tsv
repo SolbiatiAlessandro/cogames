@@ -7,3 +7,10 @@ c4a11b4	247.22	10-seed: 254/241/270/282/209/229/264/254/244/225	1000	keep	verifi
 1472f43	245.54	10-seed param sweep	1000	discard	alignment distances 25/20→30/25: wider radius regression (-2.3%)
 1472f43	251.42	10-seed param sweep	1000	discard	hub_dist 0.2→0.15: negligible change, within noise
 1472f43	244.90	10-seed param sweep	1000	discard	stuck_threshold 15→12: too aggressive, agents abandon skills early (-2.6%)
+649946a	253.05	10-seed: 249/265/267/248/235/231/241/276/248/270	1000	discard	aligner cooldown-only (no move_blocked): +0.67% but high variance, seeds 45/48 regress
+649946a	239.86	10-seed: 228/241/231/265/231/245/232/246/237/241	1000	discard	aligner hub side distribution (index-based): -4.6%
+649946a	229.62	10-seed: 235/222/256/221/214/221/243/249/223/212	1000	discard	role ratio 4A+4M: -8.6%, more aligners compete for same hubs
+649946a	231.25	10-seed: 217/224/248/249/245/229/205/258/213/224	1000	discard	role ratio 2A+6M: -8.0%, fewer aligners = fewer junctions
+649946a	230.74	10-seed: 224/234/258/236/221/208/236/225/234/230	1000	discard	return_load=30: -8.2%, higher travel overhead
+649946a	73.44	10-seed: 46/61/53/150/54/75/53/46/121/76	1000	discard	return_load=50: -71% catastrophic, miners cant fill from single extractor
+649946a	242.91	10-seed: 251/164/289/231/258/233/270/262/244/228	1000	discard	cooldown=10+no move_blocked: -3.4%, longer cooldowns over-restrict BFS
