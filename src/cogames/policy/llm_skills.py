@@ -36,6 +36,9 @@ class MinerSkillState(StarterCogState):
     # Issue-16: per-element extractor locations for diverse mining
     extractors_by_element: dict[str, set[Coord]] = field(default_factory=lambda: {e: set() for e in ("carbon", "oxygen", "germanium", "silicon")})
     known_hazard_stations: set[Coord] = field(default_factory=set)
+    verified_hubs: set[Coord] = field(default_factory=set)
+    verified_extractors: set[Coord] = field(default_factory=set)
+    verified_extractors_by_element: dict[str, set[Coord]] = field(default_factory=lambda: {e: set() for e in ("carbon", "oxygen", "germanium", "silicon")})
     # Move-failure tracking (same mechanism as AlignerState)
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
@@ -185,9 +188,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         target_set.update(current_values)
 
     def _remember_visible_hub(self, obs: AgentObservation, state: MinerSkillState) -> None:
-        if not state.known_hubs:
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        if not hub_set:
             return
-        hub_row, hub_col = min(state.known_hubs, key=lambda coord: abs(coord[0]) + abs(coord[1]))
+        hub_row, hub_col = min(hub_set, key=lambda coord: abs(coord[0]) + abs(coord[1]))
         state.remembered_hub_row_from_spawn = hub_row
         state.remembered_hub_col_from_spawn = hub_col
 
@@ -293,8 +297,17 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         state.known_free_cells.add(current_abs)
 
         self._remember_static_objects(state.known_hubs, hubs_now)
+        if hubs_now:
+            state.verified_hubs.update(hubs_now)
         self._remember_static_objects(state.known_miner_stations, miner_stations_now)
         self._remember_static_objects(state.known_extractors, extractors_now)
+        if extractors_now:
+            state.verified_extractors.update(extractors_now)
+            for element, etags in self._extractor_tags_by_element.items():
+                for abs_cell in extractors_now:
+                    cell_tags = visible_tag_ids_by_cell.get(abs_cell, set())
+                    if cell_tags & etags:
+                        state.verified_extractors_by_element[element].add(abs_cell)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         self._remember_visible_hub(obs, state)
 
@@ -326,9 +339,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     def _nearest_extractor_hub_weighted(self, current_abs: Coord, candidates: set[Coord], state: MinerSkillState) -> Coord | None:
         if not candidates:
             return None
-        if not state.known_hubs:
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        if not hub_set:
             return self._nearest_known(current_abs, candidates)
-        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1]))
+        hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1]))
         return min(candidates, key=lambda c: (
             abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])
             + (abs(c[0] - hub[0]) + abs(c[1] - hub[1])) // 2,
@@ -359,7 +373,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     def _predicted_extractor_positions(self, state: MinerSkillState) -> set[Coord]:
         predicted: set[Coord] = set()
-        for hub_row, hub_col in state.known_hubs:
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        for hub_row, hub_col in hub_set:
             for d_row, d_col in _HUB_EXTRACTOR_OFFSETS:
                 predicted.add((hub_row + d_row, hub_col + d_col))
         return predicted
@@ -607,10 +622,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     _EXTRACTOR_DEPLETION_THRESHOLD = 40
 
     def _active_extractors(self, state: MinerSkillState) -> set[Coord]:
-        return state.known_extractors - state.depleted_extractors
+        extractors = state.verified_extractors if state.verified_extractors else state.known_extractors
+        return extractors - state.depleted_extractors
 
     def _active_extractors_for_element(self, state: MinerSkillState, element: str) -> set[Coord]:
-        return state.extractors_by_element.get(element, set()) - state.depleted_extractors
+        verified = state.verified_extractors_by_element.get(element, set())
+        base = verified if verified else state.extractors_by_element.get(element, set())
+        return base - state.depleted_extractors
 
     def _check_extractor_depletion(self, obs: AgentObservation, state: MinerSkillState) -> None:
         """Mark nearest extractor as depleted if miner hasn't gained resources for too long."""
@@ -785,7 +803,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 action, next_state = result
                 return action, replace(next_state, last_mode=state.last_mode)
             return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
-        target_abs = self._nearest_known(current_abs, state.known_hubs)
+        hub_candidates = state.verified_hubs if state.verified_hubs else state.known_hubs
+        target_abs = self._nearest_known(current_abs, hub_candidates)
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
             state.known_hubs.add(target_abs)
@@ -842,18 +861,21 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         return state.retreating_to_hub
 
     def _nearest_extractor_to_hub(self, state: MinerSkillState) -> Coord | None:
-        if not state.known_hubs or not state.known_extractors:
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        extractors = state.verified_extractors if state.verified_extractors else state.known_extractors
+        if not hub_set or not extractors:
             return None
-        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1]))
+        hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1]))
         return min(
-            state.known_extractors,
+            extractors,
             key=lambda e: abs(e[0] - hub[0]) + abs(e[1] - hub[1]),
         )
 
     def _nearest_scarce_extractor_to_hub(self, state: MinerSkillState, obs: AgentObservation) -> Coord | None:
-        if not state.known_hubs:
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        if not hub_set:
             return None
-        hub = min(state.known_hubs, key=lambda h: abs(h[0]) + abs(h[1]))
+        hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1]))
         scarce = self._team_scarce_element() or self._scarce_element(obs)
         if scarce:
             candidates = state.extractors_by_element.get(scarce, set())
