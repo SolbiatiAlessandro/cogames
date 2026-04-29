@@ -280,7 +280,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                     for h in _vh
                 )
-                if heart_count < 3 and near_hub:
+                if heart_count < 4 and near_hub:
                     pass
                 else:
                     reason = f"overrode get_heart to align_neutral ({heart_count} hearts, not near hub)"
@@ -302,7 +302,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh2
             )
-            if heart_count < 3 and near_hub:
+            if heart_count < 4 and near_hub:
                 pass
             elif known_alignable_junctions:
                 reason = f"overrode get_heart to align_neutral ({heart_count} hearts held)"
@@ -337,9 +337,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             sm = self._shared_map
             available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
-            if already_getting >= max(2, available_hearts):
-                skill = "explore"
-                reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
+            if already_getting >= max(3, available_hearts):
+                if state.known_friendly_junctions:
+                    skill = "defend"
+                    reason = f"heart queue: {already_getting} en route, ~{available_hearts} avail — defending junction"
+                else:
+                    skill = "explore"
+                    reason = f"heart queue: {already_getting} en route, ~{available_hearts} avail — exploring"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
         if skill == "explore":
@@ -365,7 +369,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 6:
+            if heart_count < 4 and near_hub and state.no_progress_on_target_steps < 6:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")

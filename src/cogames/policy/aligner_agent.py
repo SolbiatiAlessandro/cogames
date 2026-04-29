@@ -731,7 +731,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            return travel + hub_dist * 0.3
+            return travel + hub_dist * 0.2
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
