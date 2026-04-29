@@ -596,7 +596,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         num_scouts: int | str = "auto",
         scout_ids: str = "",
         return_load: int | str = 40,
-        stuck_threshold: int | str = 15,
+        stuck_threshold: int | str = 20,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
         llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
@@ -641,15 +641,14 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             self._aligner_fraction = 0.0  # unused when static
         else:
             na_str = str(num_aligners).lower()
-            if na_str == "auto" and n_agents == 8:
-                self._static_aligner_ids = frozenset({0, 3, 7})
-                self._aligner_fraction = 0.0
-            else:
-                self._static_aligner_ids = None
-                if na_str == "auto":
-                    self._aligner_fraction = 0.5
+            self._static_aligner_ids = None
+            if na_str == "auto":
+                if n_agents >= 6:
+                    self._aligner_fraction = (n_agents - 3) / n_agents
                 else:
-                    self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
+                    self._aligner_fraction = 0.5
+            else:
+                self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
         self._assigned_roles: dict[int, str] = {}
         self._n_aligners_assigned = 0
         self._n_miners_assigned = 0
