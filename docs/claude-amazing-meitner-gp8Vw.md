@@ -110,3 +110,34 @@ Offline: +0.4% — marginal. But these are v48's exact parameters, which are pro
 - Config: stuck_threshold=20, 4A+4M, hub_dist=0.3, heart_queue=max(2), max_hearts=4, all phantom fixes
 - This is v48's EXACT parameters + all improvements (phantom fixes, BFS cooldown bypass, verified_hubs, safe_wander, hub diversification)
 - Expected: score ≥ 33.0, potentially ≥ 35.0 (v48 params + all bug fixes)
+
+---
+
+## Experiment 4: v54 — Revert max_hearts < 4 to < 3
+
+2026-04-29 07:01: v52 early online results (10 matches, avg=31.14) — below v48's 33.17.
+Scores: 4.92, 10.03, 16.75, 23.74, 32.03, 40.73, 41.42, 43.36, 46.54, 51.86
+Very high variance. Low scores with weak partners (ron.whoops: 4.92, shweta.v39: 10.03).
+
+Root cause investigation: Compared v48 replay stats vs v52 for same partners:
+- v48 vs ron.whoops: 22.28, v52: 4.92 (78% worse!)
+- v48 vs shweta.v39: 25.64, v52: 10.03 (61% worse!)
+- v48 vs mammet: 32.85, v52: 41.42 (26% better!)
+
+v52 is better with strong partners but much worse with weak ones. The remaining diff from v48 is max_hearts < 4 (v48 used < 3). This makes aligners wait at hub for 4th heart, losing alignment time — especially harmful with weak partners who don't deposit resources fast enough for heart crafting.
+
+### Multi-seed comparison (3000 steps)
+| Config | Seed 42 | Seed 123 | Seed 7 | 3-seed avg |
+|--------|---------|----------|--------|------------|
+| v53 (max_hearts<4) | 1090.67 | 1084.00 | 1143.30 | **1105.99** |
+| v54 (max_hearts<3) | 983.81 | 1053.58 | 1111.32 | **1049.57** |
+
+Offline: -5.1%. But offline self-play doesn't predict CvC well. v48 (< 3) proved 33.17 online.
+
+2026-04-29 07:01: Submitted v54 to beta-cvc qualifying pool
+- Name: lessandro-scripted-v54:v1
+- Policy ID: d2cb1922-6654-41bb-8619-47e15d34e360
+- Commit: 13eb1e2
+- Config: EXACT v48 params + ALL improvements: stuck_threshold=20, 4A+4M, hub_dist=0.3, heart_queue=max(2), max_hearts<3, phantom fixes, BFS cooldown bypass, verified_hubs, safe_wander
+- This matches v48's every behavioral parameter while adding all bug fixes from sessions 17-20
+- Expected: score ≥ 33.0 (match v48 with bug fixes boosting it higher)
