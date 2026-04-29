@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import heapq
 import logging
 from collections import deque
 from dataclasses import dataclass, field, replace
@@ -226,23 +227,44 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return None
         return min(candidates, key=lambda coord: (abs(coord[0] - current_abs[0]) + abs(coord[1] - current_abs[1]), coord))
 
-    def _bfs_first_direction(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True) -> str | None:
+    @staticmethod
+    def _manhattan(a: Coord, b: Coord) -> int:
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    def _astar_first_direction(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True, allow_unknown: bool = False, max_cells: int = 0) -> str | None:
         if start == goal:
             return self._starter._fallback_action_name
-        if goal not in state.known_free_cells:
+        if not allow_unknown and goal not in state.known_free_cells:
             return None
         avoid = (state.known_hazard_stations - {goal}) if avoid_hazards else set()
-        frontier: deque[Coord] = deque([start])
+        counter = 0
+        heap: list[tuple[int, int, Coord]] = [(self._manhattan(start, goal), counter, start)]
+        g_score: dict[Coord, int] = {start: 0}
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
-        while frontier:
-            cell = frontier.popleft()
+        while heap:
+            if max_cells and len(g_score) >= max_cells:
+                break
+            _f, _c, cell = heapq.heappop(heap)
             if cell == goal:
                 break
-            for direction, neighbor in self._ordered_neighbors_toward(cell, goal):
-                if neighbor in parents or neighbor not in state.known_free_cells or neighbor in avoid:
+            g = g_score[cell]
+            if _f > g + self._manhattan(cell, goal):
+                continue
+            for direction, neighbor in self._neighbors(cell):
+                if neighbor in parents:
                     continue
-                parents[neighbor] = (cell, direction)
-                frontier.append(neighbor)
+                if allow_unknown:
+                    if neighbor in state.blocked_cells or neighbor in avoid:
+                        continue
+                else:
+                    if neighbor not in state.known_free_cells or neighbor in avoid:
+                        continue
+                ng = g + 1
+                if ng < g_score.get(neighbor, ng + 1):
+                    g_score[neighbor] = ng
+                    counter += 1
+                    heapq.heappush(heap, (ng + self._manhattan(neighbor, goal), counter, neighbor))
+                    parents[neighbor] = (cell, direction)
         if goal not in parents:
             return None
         step = goal
@@ -251,6 +273,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if parents[step] is None:
             return None
         return parents[step][1]
+
+    def _bfs_first_direction(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True) -> str | None:
+        return self._astar_first_direction(state, start, goal, avoid_hazards=avoid_hazards)
 
     def _bfs_without_cooldowns(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True) -> str | None:
         """BFS ignoring cooldown-blocked cells. Cooldowns are transient (agent collisions) and may
@@ -268,30 +293,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         return direction
 
     def _bfs_optimistic_direction(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True, max_cells: int = 20000) -> str | None:
-        """Optimistic BFS: treat unknown cells as traversable (only avoids known walls/hazards).
-        Useful when the path to goal goes through unexplored territory."""
-        if start == goal:
-            return self._starter._fallback_action_name
-        avoid = (state.known_hazard_stations - {goal}) if avoid_hazards else set()
-        frontier: deque[Coord] = deque([start])
-        parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
-        while frontier and len(parents) < max_cells:
-            cell = frontier.popleft()
-            if cell == goal:
-                break
-            for direction, neighbor in self._ordered_neighbors_toward(cell, goal):
-                if neighbor in parents or neighbor in state.blocked_cells or neighbor in avoid:
-                    continue
-                parents[neighbor] = (cell, direction)
-                frontier.append(neighbor)
-        if goal not in parents:
-            return None
-        step = goal
-        while parents[step] is not None and parents[step][0] != start:
-            step = parents[step][0]
-        if parents[step] is None:
-            return None
-        return parents[step][1]
+        """Optimistic A*: treat unknown cells as traversable (only avoids known walls/hazards)."""
+        return self._astar_first_direction(state, start, goal, avoid_hazards=avoid_hazards, allow_unknown=True, max_cells=max_cells)
 
     def _best_approach_cell(self, state: AlignerState, current_abs: Coord, blocked_target: Coord, preferred_side: int | None = None) -> Coord | None:
         """Find the best adjacent cell to a blocked target (e.g., a station object) to navigate toward.

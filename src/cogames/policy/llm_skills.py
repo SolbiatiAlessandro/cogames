@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import heapq
 import logging
 from collections import deque
 from dataclasses import dataclass, field, replace
@@ -379,23 +380,44 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 predicted.add((hub_row + d_row, hub_col + d_col))
         return predicted
 
-    def _bfs_first_direction(self, state: MinerSkillState, start: Coord, goal: Coord) -> str | None:
+    @staticmethod
+    def _manhattan(a: Coord, b: Coord) -> int:
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    def _astar_first_direction(self, state: MinerSkillState, start: Coord, goal: Coord, allow_unknown: bool = False, max_cells: int = 0) -> str | None:
         if start == goal:
             return self._starter._fallback_action_name
-        if goal not in state.known_free_cells:
+        if not allow_unknown and goal not in state.known_free_cells:
             return None
         avoid = state.known_hazard_stations - {goal}
-        frontier: deque[Coord] = deque([start])
+        counter = 0
+        heap: list[tuple[int, int, Coord]] = [(self._manhattan(start, goal), counter, start)]
+        g_score: dict[Coord, int] = {start: 0}
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
-        while frontier:
-            cell = frontier.popleft()
+        while heap:
+            if max_cells and len(g_score) >= max_cells:
+                break
+            _f, _c, cell = heapq.heappop(heap)
             if cell == goal:
                 break
+            g = g_score[cell]
+            if _f > g + self._manhattan(cell, goal):
+                continue
             for direction, neighbor in self._neighbors(cell):
-                if neighbor in parents or neighbor not in state.known_free_cells or neighbor in avoid:
+                if neighbor in parents:
                     continue
-                parents[neighbor] = (cell, direction)
-                frontier.append(neighbor)
+                if allow_unknown:
+                    if neighbor in state.blocked_cells:
+                        continue
+                else:
+                    if neighbor not in state.known_free_cells or neighbor in avoid:
+                        continue
+                ng = g + 1
+                if ng < g_score.get(neighbor, ng + 1):
+                    g_score[neighbor] = ng
+                    counter += 1
+                    heapq.heappush(heap, (ng + self._manhattan(neighbor, goal), counter, neighbor))
+                    parents[neighbor] = (cell, direction)
         if goal not in parents:
             return None
         step = goal
@@ -405,29 +427,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         return parents[step][1]
 
+    def _bfs_first_direction(self, state: MinerSkillState, start: Coord, goal: Coord) -> str | None:
+        return self._astar_first_direction(state, start, goal, allow_unknown=False)
+
     def _bfs_optimistic_direction(self, state: MinerSkillState, start: Coord, goal: Coord, max_cells: int = 20000) -> str | None:
-        """Optimistic BFS: treat unknown cells as traversable, only avoid known walls."""
-        if start == goal:
-            return self._starter._fallback_action_name
-        frontier: deque[Coord] = deque([start])
-        parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
-        while frontier and len(parents) < max_cells:
-            cell = frontier.popleft()
-            if cell == goal:
-                break
-            for direction, neighbor in self._neighbors(cell):
-                if neighbor in parents or neighbor in state.blocked_cells:
-                    continue
-                parents[neighbor] = (cell, direction)
-                frontier.append(neighbor)
-        if goal not in parents:
-            return None
-        step = goal
-        while parents[step] is not None and parents[step][0] != start:
-            step = parents[step][0]
-        if parents[step] is None:
-            return None
-        return parents[step][1]
+        """Optimistic A*: treat unknown cells as traversable, only avoid known walls."""
+        return self._astar_first_direction(state, start, goal, allow_unknown=True, max_cells=max_cells)
 
     def _bfs_without_cooldowns(self, state: MinerSkillState, start: Coord, goal: Coord) -> str | None:
         """Fallback BFS ignoring cooldown-blocked cells. Used when cooldowns block all paths."""
