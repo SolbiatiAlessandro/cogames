@@ -29,3 +29,34 @@ Keep from current branch: verified_hubs, verified_stations, BFS cooldown bypass,
 Restore from v48 era: stuck_threshold=20, 5A+3M role allocation
 
 2026-04-29 00:01: starting to run baseline on current code (before fixes)
+
+### Baseline Results (3A+5M, stuck_threshold=15) — current code
+| Seed | Total Reward | Hearts | Junctions |
+|------|-------------|--------|-----------|
+| 42 | 1083.15 | 58 | 51 |
+| 123 | 1037.33 | 56 | — |
+| 7 | 1064.03 | 70 | — |
+| **avg** | **1061.50** | | |
+
+2026-04-29 00:05: Applied fixes: stuck_threshold 15→20, 3A+5M→5A+3M (proportional dynamic assignment)
+
+### Experiment Results (5A+3M, stuck_threshold=20)
+| Seed | Total Reward | Hearts | Junctions |
+|------|-------------|--------|-----------|
+| 42 | 1072.46 | 59 | 53 |
+| 123 | 1045.42 | 62 | — |
+| 7 | 1064.84 | 69 | — |
+| **avg** | **1060.91** | | |
+
+Offline diff: -0.06% (neutral). Expected — in self-play both configs converge. The real signal is online where v48 (same params) scored 32.91 vs v49 (old params) 30.44.
+
+2026-04-29 00:10: Submitted v51 to beta-cvc qualifying pool
+- Name: lessandro-scripted-v51:v1
+- Policy ID: 04710429-c895-4377-bb5e-32ff9746c0fe
+- Commit: 2c0dcf7
+- Config: stuck_threshold=20, 5A+3M proportional, scripted_miners=True, scripted_aligners=True
+- Improvements over v48: verified_hubs, verified_stations, BFS cooldown bypass, multi-heart (4), cascade priority, hub diversification
+- Improvements over v49: stuck_threshold=20 (was 15), 5A+3M (was 3A+5M)
+- Expected: score ≥ 33.0 (beat v48) since v51 = v48 params + phantom fixes
+
+Next: monitor v51 qualifying matches, compare against v48/v49/v50. If v51 outperforms v48, the phantom fixes help online. If similar to v48, the params are what matter.

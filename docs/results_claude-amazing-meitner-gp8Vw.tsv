@@ -1,0 +1,3 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+1dafffd	1061.503906	hearts=61.3 junctions=51	3000	keep	baseline: 3A+5M stuck_threshold=15 (3-seed avg seeds 42/123/7)
+2c0dcf7	1060.906453	hearts=63.3 junctions=53	3000	keep	5A+3M stuck_threshold=20 proportional assignment (3-seed avg seeds 42/123/7)
