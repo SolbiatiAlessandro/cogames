@@ -60,3 +60,27 @@ Offline diff: -0.06% (neutral). Expected — in self-play both configs converge.
 - Expected: score ≥ 33.0 (beat v48) since v51 = v48 params + phantom fixes
 
 Next: monitor v51 qualifying matches, compare against v48/v49/v50. If v51 outperforms v48, the phantom fixes help online. If similar to v48, the params are what matter.
+
+---
+
+## Experiment 2: v52 — Restore 4A+4M allocation
+
+2026-04-29 06:15: starting new experiment. v51 early results show avg 26.52 (#87, 22 matches) — below v48's 32.91 (#54). Found critical error in my analysis: v48 used aligner_fraction=0.5 (4A+4M), NOT 5A+3M. The 5A+3M formula came from pzwh4 experiments that were merged to main but not to v48's branch.
+
+My hypothesis: v48's online success was due to 4A+4M balanced allocation, which provides better cooperative play in CvC (equal mining and aligning contribution).
+
+### Multi-seed comparison (3000 steps)
+| Config | Seed 42 | Seed 123 | Seed 7 | 3-seed avg |
+|--------|---------|----------|--------|------------|
+| 5A+3M (v51) | 1072.46 | 1045.42 | 1064.84 | **1060.91** |
+| 4A+4M (v52) | 1028.09 | 1096.04 | 1179.58 | **1101.24** |
+
+4A+4M is +3.8% better across seeds! Seed 42 was misleading (favored 5A+3M).
+
+2026-04-29 06:23: Submitted v52 to beta-cvc qualifying pool
+- Name: lessandro-scripted-v52:v1
+- Policy ID: fec629e2-6735-4f66-b862-bad70ed7e9b1
+- Commit: c9b386c
+- Config: stuck_threshold=20, 4A+4M proportional (0.5 fraction), max_hearts=4, all phantom fixes
+- This is v48's exact allocation + phantom fixes + max_hearts=4 + hub diversification
+- Expected: score ≥ 33.0 (beat v48 with phantom fixes while matching its allocation)
