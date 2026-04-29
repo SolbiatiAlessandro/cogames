@@ -216,6 +216,9 @@ gh issue close N --repo SolbiatiAlessandro/cogames --comment "Resolved by <commi
 
 # Step 5: Submit Best Policy If It's Better Than What's Live
 
+**IMPORTANT** you can submit policy with the same name, on softmax side they can manage the versioning. Don't submit 
+lessandro-scripted-v58:v1 and lessandro-scripted-v59:v1, if you submit lessandro-scripted-v58 twice they should increment the version from their end. Also don't call it lessandro-scripted. be more creative.. lessandro-ohm-mani-padme-hum for the scripted, lessandro-ohm-bekkenze-maha-bekkenze for the next type of policy.. 
+
 Check what's currently submitted vs. what the TSV says is the best offline result:
 
 ```bash
