@@ -84,3 +84,29 @@ My hypothesis: v48's online success was due to 4A+4M balanced allocation, which 
 - Config: stuck_threshold=20, 4A+4M proportional (0.5 fraction), max_hearts=4, all phantom fixes
 - This is v48's exact allocation + phantom fixes + max_hearts=4 + hub diversification
 - Expected: score ≥ 33.0 (beat v48 with phantom fixes while matching its allocation)
+
+---
+
+## Experiment 3: v53 — Restore hub_dist=0.3 and heart_queue=max(2)
+
+2026-04-29 06:44: Found two more parameter differences between v48 and current code:
+1. `hub_dist` weight in `_cascade_priority_target`: v48=0.3, current=0.2 (changed by uTokl)
+2. Heart queue limit: v48=max(2), current=max(3) (changed by ZmdFf)
+
+These affect how aligners prioritize junctions (hub_dist weight) and how many can queue for hearts simultaneously.
+
+### Multi-seed comparison (3000 steps)
+| Config | Seed 42 | Seed 123 | Seed 7 | 3-seed avg |
+|--------|---------|----------|--------|------------|
+| v52 (hub_dist=0.2, max(3)) | 1028.09 | 1096.04 | 1179.58 | **1101.24** |
+| v53 (hub_dist=0.3, max(2)) | 1090.67 | 1084.00 | 1143.30 | **1105.99** |
+
+Offline: +0.4% — marginal. But these are v48's exact parameters, which are proven online (33.17 score).
+
+2026-04-29 06:44: Submitted v53 to beta-cvc qualifying pool
+- Name: lessandro-scripted-v53:v1
+- Policy ID: 256a0091-1c7d-4021-a733-787e84fdf41e
+- Commit: 6662b5a
+- Config: stuck_threshold=20, 4A+4M, hub_dist=0.3, heart_queue=max(2), max_hearts=4, all phantom fixes
+- This is v48's EXACT parameters + all improvements (phantom fixes, BFS cooldown bypass, verified_hubs, safe_wander, hub diversification)
+- Expected: score ≥ 33.0, potentially ≥ 35.0 (v48 params + all bug fixes)
