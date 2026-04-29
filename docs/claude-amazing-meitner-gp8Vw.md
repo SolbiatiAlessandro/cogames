@@ -173,3 +173,42 @@ Offline: 1101.4 avg vs v52's 1101.2 (+0.02%, neutral) — expected, clips barely
 - Commit: ed45939
 - Config: v52 base + defend on heart queue full
 - Expected: score ≥ 35.0 (match v52 with junction defense bonus)
+
+### v55 Online Results
+- 17 completed matches, avg=32.88 — below v52's 34.30
+- Defend-on-queue-full hurt performance: reverted
+
+---
+
+## Experiment 6: v56 — Fix aligner transit stuck detection
+
+2026-04-29 08:20: Discovered critical bug in aligner stuck detection via online replay analysis.
+
+### Root Cause Analysis (from v52 online replays)
+- **WORST** match (4.92 vs ron.whoops): Only 2 agents assigned! [0,0,1,1,1,1,1,1]
+- **MEDIAN** match (37.25 vs v40): 27% move failure rate, aligners stuck for 171 steps, 25-38 deaths per aligner!
+- **BEST** match (53.08 vs dinky_chad): 1% move failure rate, max 19 steps stuck, 7-12 deaths
+
+The bug: existing stuck detection uses `no_move_steps` (counts non-move actions) and `no_progress_on_target_steps` (counts stale time at target). When an aligner issues move commands that all FAIL (blocked by other agents/objects), `last_action_move != 0`, so `no_move_steps` stays at 0. And the agent is NOT on a target, so `no_progress_on_target_steps` stays at 0. Both counters reset, stuck detection never fires, and the aligner stays stuck for 171 steps issuing failing moves until it dies.
+
+### Fix
+Added position-based stuck detection using `steps_since_last_move` (tracks actual position changes, already computed in `_update_map_memory`). Fires when:
+1. `steps_since_last_move >= stuck_threshold` (20 steps with no position change)
+2. Agent is NOT near a valid target (not at hub for get_heart, not at junction for align_neutral)
+
+This catches transit deadlocks while preserving legitimate waiting behavior at targets.
+
+### Multi-seed comparison (3000 steps)
+| Config | Seed 42 | Seed 123 | Seed 7 | 3-seed avg |
+|--------|---------|----------|--------|------------|
+| v52 (no fix) | 1028.09 | 1096.04 | 1179.58 | **1101.24** |
+| v56 (transit fix) | 1028.09 | 1096.04 | 1125.32 | **1083.15** |
+
+Offline: -1.6% — expected neutral since self-play doesn't reproduce CvC congestion. Seed 7 variance.
+
+2026-04-29 08:20: Submitted v56 to beta-cvc qualifying pool
+- Name: lessandro-scripted-v56:v1
+- Policy ID: 1c1a97c0-0752-42d5-a8b9-1dc124b514b8
+- Commit: 23e806b
+- Config: v52 base + transit stuck detection via steps_since_last_move + reverted v55 defend change
+- Expected: better than v52 online due to fewer aligner deaths from transit deadlocks
