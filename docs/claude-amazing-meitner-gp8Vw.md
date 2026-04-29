@@ -141,3 +141,35 @@ Offline: -5.1%. But offline self-play doesn't predict CvC well. v48 (< 3) proved
 - Config: EXACT v48 params + ALL improvements: stuck_threshold=20, 4A+4M, hub_dist=0.3, heart_queue=max(2), max_hearts<3, phantom fixes, BFS cooldown bypass, verified_hubs, safe_wander
 - This matches v48's every behavioral parameter while adding all bug fixes from sessions 17-20
 - Expected: score ≥ 33.0 (match v48 with bug fixes boosting it higher)
+
+---
+
+## Online Results Update (2026-04-29 07:22)
+
+| Version | Rank | Score | Matches | Config |
+|---------|------|-------|---------|--------|
+| v52 | #30 | 35.53 | 22 | hub_dist=0.2, max(3), max_hearts<4 |
+| v48 | #51 | 33.17 | 50 | v48 original (baseline) |
+| v53 | #355 | 6.74 | 10 | hub_dist=0.3, max(2), max_hearts<4 |
+| v54 | qualifying | ~25.75 | 3 | hub_dist=0.3, max(2), max_hearts<3 |
+
+Key finding: v52's parameters (hub_dist=0.2, max(3)) outperform v48's (0.3, max(2)) when combined with phantom fixes. The uTokl/ZmdFf parameter changes were NOT regressions — they were improvements! v53 underperformance confirms: reverting to v48 params hurts.
+
+Top #1 is Paz-Bot-9000 at 41.10. Gap from v52: 5.57 points.
+
+---
+
+## Experiment 5: v55 — Defend junctions when heart queue full
+
+2026-04-29 07:22: Based on v52 (our best online), added junction defense for idle aligners. When heart queue is full (too many aligners en route to hub), excess aligners now defend friendly junctions instead of exploring aimlessly.
+
+Hypothesis: In CvC, clips constantly recapture undefended junctions. Standing on a junction prevents recapture, increasing junction-held time and therefore score.
+
+Offline: 1101.4 avg vs v52's 1101.2 (+0.02%, neutral) — expected, clips barely matter in self-play.
+
+2026-04-29 07:22: Submitted v55 to beta-cvc qualifying pool
+- Name: lessandro-scripted-v55:v1
+- Policy ID: 2182d9a6-eddb-4ffa-bf42-788b0acdb35e
+- Commit: ed45939
+- Config: v52 base + defend on heart queue full
+- Expected: score ≥ 35.0 (match v52 with junction defense bonus)

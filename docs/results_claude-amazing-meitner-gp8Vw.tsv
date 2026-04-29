@@ -4,3 +4,4 @@ commit	mission_reward	secondary_rewards	steps	status	description
 c9b386c	1101.235596	hearts=63 junctions=53	3000	keep	4A+4M stuck_threshold=20 proportional (v48 allocation + phantom fixes) (3-seed avg seeds 42/123/7)
 6662b5a	1105.991211	hearts=65.3 junctions=55	3000	keep	4A+4M hub_dist=0.3 heart_queue=max(2) — exact v48 params + phantom fixes (3-seed avg seeds 42/123/7)
 13eb1e2	1049.570190	hearts=63.3 junctions=54.3	3000	keep	4A+4M hub_dist=0.3 heart_queue=max(2) max_hearts<3 — exact v48 behavior (3-seed avg seeds 42/123/7)
+ed45939	1101.427043	hearts=67.3 junctions=55	3000	keep	v52 base + defend on queue full (3-seed avg seeds 42/123/7)
