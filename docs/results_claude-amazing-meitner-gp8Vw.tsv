@@ -7,3 +7,4 @@ c9b386c	1101.235596	hearts=63 junctions=53	3000	keep	4A+4M stuck_threshold=20 pr
 ed45939	1101.427043	hearts=67.3 junctions=55	3000	keep	v52 base + defend on queue full (3-seed avg seeds 42/123/7)
 23e806b	1083.149625	hearts=63 junctions=52	3000	keep	v52 base + transit stuck detection via steps_since_last_move (3-seed avg seeds 42/123/7)
 75ac71a	1083.149625	hearts=63 junctions=52	3000	keep	v56 + HP retreat at 40% — neutral offline no HP drain in self-play (3-seed avg seeds 42/123/7)
+f546080	1083.149625	hearts=63 junctions=52	3000	keep	v57 + enemy junction priority (-8 bonus) — neutral offline (3-seed avg seeds 42/123/7)

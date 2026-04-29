@@ -233,3 +233,26 @@ Completely neutral in self-play (no HP drain on 36x36 maps at 3000 steps — age
 - Commit: 75ac71a
 - Config: v56 + HP retreat at 40%, resume at 60%
 - Expected: fewer aligner deaths → more alignment time → higher junction-held score
+
+---
+
+## Experiment 8: v58 — Enemy junction priority + all v57 changes
+
+2026-04-29 08:40: Added enemy junction priority bonus on top of v57 (HP retreat + transit stuck fix).
+
+### Changes (cumulative)
+1. Transit stuck detection (v56): Use `steps_since_last_move` for stuck detection
+2. HP retreat at 40% (v57): Aligner retreats when HP < 40% outside friendly territory
+3. Enemy junction priority (v58): `-8` score bonus in `_cascade_priority_target` for enemy junctions, favoring recapture over neutral alignment
+
+### Offline Results
+All three changes are neutral in self-play (identical scores to v52). This is expected since:
+- Transit stuck only manifests with multi-policy agent congestion
+- HP drain doesn't occur on small maps at 3000 steps
+- Enemy junctions from clips are rare in self-play
+
+2026-04-29 08:40: Submitted v58 to beta-cvc qualifying pool
+- Name: lessandro-scripted-v58:v1
+- Policy ID: 5a6024bd-67c5-487a-8c55-23b0f82a1b53
+- Commit: f546080
+- Config: v52 + transit stuck fix + HP retreat (40%) + enemy junction priority (-8)
