@@ -212,3 +212,24 @@ Offline: -1.6% — expected neutral since self-play doesn't reproduce CvC conges
 - Commit: 23e806b
 - Config: v52 base + transit stuck detection via steps_since_last_move + reverted v55 defend change
 - Expected: better than v52 online due to fewer aligner deaths from transit deadlocks
+
+---
+
+## Experiment 7: v57 — Enable HP retreat for aligners
+
+2026-04-29 08:29: Added HP retreat on top of v56's transit stuck fix. Online data shows 25-38 deaths per aligner in median matches. Each death costs ~100-200 steps (respawn + re-gear + get hearts). Current code deliberately disables HP retreat for aligners.
+
+### Changes
+- Override `_read_hp` in LLMAlignerPolicyImpl to read `inv:hp` from observations
+- Use 40% HP threshold (vs miner's 25%, old aligner constant 70%)
+- Resume at 60% HP or when entering friendly territory
+
+### Offline Results
+Completely neutral in self-play (no HP drain on 36x36 maps at 3000 steps — agents never leave friendly territory).
+
+2026-04-29 08:29: Submitted v57 to beta-cvc qualifying pool
+- Name: lessandro-scripted-v57:v1
+- Policy ID: cbc373a1-f02e-4a85-8a6a-acd1fa25327d
+- Commit: 75ac71a
+- Config: v56 + HP retreat at 40%, resume at 60%
+- Expected: fewer aligner deaths → more alignment time → higher junction-held score
