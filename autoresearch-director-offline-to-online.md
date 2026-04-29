@@ -271,6 +271,8 @@ Also update existing issues with online performance data — add comments showin
 
 # Step 5: Submit Best Policy If It Will Score Higher Online
 
+IMPORTANT you can submit policy with the same name, on softmax side they can manage the versioning. Don't submit lessandro-scripted-v58:v1 and lessandro-scripted-v59:v1, if you submit lessandro-scripted-v58 twice they should increment the version from their end. Also don't call it lessandro-scripted. be more creative.. lessandro-ohm-mani-padme-hum for the scripted, lessandro-ohm-bekkenze-maha-bekkenze for the next type of policy..
+
 This is where your offline→online analysis pays off: don't just look at TSV reward, think about whether a new submission would actually improve your online score.
 
 ```bash
