@@ -24,75 +24,87 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-04-28 (Session 20)_
+_Updated by Director (offline→online): 2026-04-29 (Session 21)_
 
-### Online Tournament (beta-cvc, cooperative scoring, 371 entries)
+### Online Tournament (beta-cvc, cooperative scoring, 436 entries)
 
 | Rank | Score | Policy | Matches | Notes |
 |------|-------|--------|---------|-------|
-| #1/371 | **41.10** | `Paz-Bot-9000:v47` | — | RL |
-| #2/371 | 40.82 | `Gryffindor:v11` | — | RL |
-| #3/371 | 40.73 | `Slytherin:v14` | — | RL |
-| #5/371 | 40.11 | `Hufflepuff:v11` | — | RL |
-| #7/371 | 39.47 | `slinky:v3` | — | RL |
-| #12/371 | 38.28 | `Softy:v82` | — | RL |
+| #1/436 | **41.10** | `Paz-Bot-9000:v47` | 21 | RL |
+| #2/436 | 40.82 | `Gryffindor:v11` | 27 | RL |
+| #3/436 | 40.73 | `Slytherin:v14` | 32 | RL |
+| #5/436 | 40.11 | `Hufflepuff:v11` | 25 | RL |
+| #7/436 | 39.47 | `slinky:v3` | 21 | RL |
+| #12/436 | 38.28 | `Softy:v82` | 20 | RL |
 | ... | | | | |
-| **#56/371** | **32.73** | **`lessandro-scripted-v48:v1`** | **42** | **Current best online** |
-| **NEW** | **pending** | **`lessandro-scripted-v49:v1`** | **0** | **+46.3% offline — qualifying** |
-| #104/371 | 22.16 | `lessandro-scripted-v45:v1` | — | |
-| #105/371 | 22.02 | `lessandro-scripted-v47:v1` | — | |
-| #110/371 | 19.85 | `lessandro-scripted-v46:v1` | — | |
+| **#23/436** | **36.35** | **`lessandro-scripted-v52:v1`** | **23** | **NEW BEST (+8.2% vs v48)** |
+| #41/436 | 34.31 | `lessandro-scripted-v55:v1` | 20 | v52 + defend queue |
+| #48/436 | 33.61 | `lessandro-scripted-v48:v1` | 55 | Previous best |
+| #53/436 | 33.26 | `lessandro-scripted-v54:v1` | 21 | v52 + max_hearts=3 |
+| #66/436 | 32.16 | `lessandro-scripted-v49:v1` | 31 | 3A+5M — **regressed** |
+| #123/436 | 19.03 | `lessandro-scripted-v50:v1` | 25 | Old main — catastrophic |
 
-_371 entries (up from 334). v48 stable at 32.73 after 42 matches. v49 submitted 2026-04-28 with +46.3% offline improvement._
+_436 entries (up from 371). v52 is our new best at #23. v49's +46.3% offline did NOT translate — allocation mismatch._
 
-### v48 Match Analysis (42 matches, cooperative scoring)
+### v52 Match Analysis (23 matches, cooperative scoring)
 
 | Partner tier | Score range | Count | Notes |
 |-------------|-------------|-------|-------|
-| Top (Hufflepuff, Paz-Bot, tinker) | 41-50 | 4 | **Competitive with #1** |
-| Good (mammet v126-v149, shweta v27-v33) | 33-40 | 10 | Near-top performance |
-| Mid (mammet v97-v190, morphling) | 25-35 | 12 | Solid |
-| Weak (ron, anoop, shweta low) | 5-22 | 8 | Partner drags score down |
-| Solo/unknown | 18-42 | 8 | High variance |
+| Top (dinky_chad, dinky_fido, v55 self) | 47-53 | 3 | **Exceeds #1 average** |
+| Good (mammet v238-v244, id_assigned) | 37-43 | 6 | Strong cooperative play |
+| Mid (shweta v23-v32, anoop, v40-v43) | 23-38 | 8 | Solid performance |
+| Weak (ron.whoops, shweta.v39, anoop.antimage) | 5-17 | 3 | Partner drags score |
+| Self-play (v24, v31, v39, v49) | 22-40 | 3 | High variance |
 
-**Key: p5=7.2, p50=32.8, p95=41.5. With good partners we hit 50.1 — the ceiling is partner quality, not policy quality.**
+**Key: p5=16.7, p50=37.6, p95=51.9. Floor improved significantly vs v48 (p5: 7.2→16.7). Ceiling at 53.1 with dinky_chad.**
 
-### Offline Best Results (8-agent, 10-seed avg, 1000 steps)
+### Offline Best Results (8-agent, 3-seed avg, 3000 steps)
 
 | Rank | Reward | Config | Commit | Session | Notes |
 |------|--------|--------|--------|---------|-------|
-| 1 | **251.36** | 3A+5M, verified hubs + stuck=15 | `9001d58` | 20 (ZmdFf) | **NEW BEST (+17.1% vs #2)** |
-| 2 | 214.68 | 3A+5M, phantom station + BFS bypass | `1d64461` | 19 (mjSjH) | +25% vs v48 source |
-| 3 | 197.00 | 3A+5M, static IDs 0,3,7 | `99827a0` | 19 (uTokl) | +14.7% from role ratio |
-| 4 | 171.73 | 4A+4M, all xh27M fixes | `0e2b32d` | 18 (xh27M) | v48 source code |
+| 1 | **1101.24** | 4A+4M + phantom fixes | `c9b386c` | 21 (gp8Vw) | **v52 source — ONLINE BEST** |
+| 2 | 1061.50 | 3A+5M, stuck=15 | `1dafffd` | 20 (ZmdFf) | v49 source — regressed online |
+| 3 | 1060.91 | 5A+3M, stuck=20 | `2c0dcf7` | 21 (gp8Vw) | v51 — wrong allocation |
+
+### Offline 10-seed (1000 steps) for reference
+
+| Rank | Reward | Config | Session | Notes |
+|------|--------|--------|---------|-------|
+| 1 | 251.36 | 3A+5M, verified hubs + stuck=15 | 20 (ZmdFf) | Best 1k-step offline |
+| 2 | 214.68 | 3A+5M, phantom station + BFS bypass | 19 (mjSjH) | |
+| 3 | 171.73 | 4A+4M, all xh27M fixes | 18 (xh27M) | v48 source |
 
 ### Gap Analysis
 
 ```
 Metric                    Us                      Top RL (#1)           Gap       Status
 ------------------------------------------------------------------------------------
-Online score              32.73 (#56/371)         41.10 (#1/371)        20%       v49 pending
-Best-partner score        50.10                   41.10                 ---       WE BEAT #1 avg!
-Offline 10-seed avg       251.36 (ZmdFf)          ---                   ---       +46.3% vs v48
-Reward growth/200 steps   +1.52 peak, +1.24 tail  ---                   ---       Hub depletion after 600
+Online score              36.35 (#23/436)         41.10 (#1/436)        11.6%     ↓ from 20%
+Best-partner score        53.10                   41.10                 ---       WE BEAT #1 avg!
+Offline 3-seed 3k         1101.24 (gp8Vw)        ---                   ---       v52 source
+v52 p5/p50/p95            16.7/37.6/51.9          ---                   ---       Floor +132% vs v48
 ```
 
-**Current bottleneck**: Awaiting v49 online results. Offline improvement is near saturation for scripted policies — 9 parameter experiments all discarded in latest session. Remaining gap to #1 requires structural change (RL training or A* pathfinding).
+**Current bottleneck**: Scripted policy ceiling reached. gp8Vw exhaustively tested v51-v58: no behavioral tweak improves on v52. The remaining 11.6% gap requires structural change — A* pathfinding (#54) or RL training (#41).
 
-**Next up**: #52 — validate v49 online, then decide between RL training (#41) or more scripted tuning (#50)
+**Critical finding (session 21)**: Offline→online gap is **allocation-driven**. 3A+5M was +46.3% better offline but WORSE online. 4A+4M wins in cooperative CvC. Always validate allocation changes online.
+
+**Next up**: #54 — A* pathfinding to improve navigation efficiency (scripted path). #41 — RL training (if GPU available).
 
 **Research tree:**
 ```
-priority:1  #52  Validate v49 online + submit v50 if needed
-priority:2  #50  Per-agent alignment efficiency     <- 3 sessions, +46.3% total, near saturation
-priority:2  #41  RL policy training                 <- BLOCKED (needs GPU)
+priority:1  #54  A* pathfinding / navigation efficiency  <- NEW, structural improvement
+priority:2  #41  RL policy training                      <- BLOCKED (needs GPU)
+priority:3  #53  Multi-agent cooperation paper
+priority:3  #50  Per-agent alignment efficiency           <- saturated, target met
 priority:3  #27  Andre Von Huck / A*
 priority:3  #26  shweta policy
 priority:3  #31  change_vibe actions
 priority:3  #12-#23  various speculative
 
-CLOSED (sessions 16-20):
-  #51 Submit v49 (DONE) | #49 Submit v43 | #48 Cherry-pick #38
+CLOSED (sessions 16-21):
+  #52 Validate v49 (v49 regressed, v52 new best) | #51 Submit v49
+  #49 Submit v43 | #48 Cherry-pick #38
   #47 Partner robustness | #46 v37/v38 regression | #45 Submit #44
   #44 Miner productivity | #43 v34 regression | #42 httpx import
   #39-#40 Submission/Mining | #38 Agent mortality | #36 Agent mortality
