@@ -724,6 +724,32 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    def _astar_path_cost(self, state: AlignerState, start: Coord, goal: Coord, max_cells: int = 300) -> int | None:
+        """Quick A* to estimate actual path cost. Returns None if path not found within budget."""
+        if start == goal:
+            return 0
+        if goal not in state.known_free_cells:
+            return None
+        counter = 0
+        heap: list[tuple[int, int, Coord]] = [(self._manhattan(start, goal), counter, start)]
+        g_score: dict[Coord, int] = {start: 0}
+        while heap and len(g_score) < max_cells:
+            _f, _c, cell = heapq.heappop(heap)
+            if cell == goal:
+                return g_score[goal]
+            g = g_score[cell]
+            if _f > g + self._manhattan(cell, goal):
+                continue
+            for _, neighbor in self._neighbors(cell):
+                if neighbor not in state.known_free_cells:
+                    continue
+                ng = g + 1
+                if ng < g_score.get(neighbor, ng + 1):
+                    g_score[neighbor] = ng
+                    counter += 1
+                    heapq.heappush(heap, (ng + self._manhattan(neighbor, goal), counter, neighbor))
+        return g_score.get(goal)
+
     def _cascade_priority_target(self, current_abs: Coord, candidates: set[Coord], state: AlignerState) -> Coord | None:
         if not candidates:
             return None
@@ -732,7 +758,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if hub is None:
             return self._nearest_known(current_abs, candidates)
         def score(j: Coord) -> float:
-            travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
+            path_cost = self._astar_path_cost(state, current_abs, j)
+            travel = path_cost if path_cost is not None else self._manhattan(current_abs, j) * 2
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
             return travel + hub_dist * 0.2
         return min(candidates, key=score)

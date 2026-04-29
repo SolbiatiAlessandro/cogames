@@ -1,0 +1,7 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+e7be1f0	1101.235596	hearts=66 junctions=52	3000	keep	baseline: 4A+4M v52 config (3-seed avg seeds 42/123/7)
+e7be1f0	1118.273397	hearts=67.3 junctions=53	3000	keep	A* v1: pure A* replacement of BFS in miner and aligner (3-seed avg seeds 42/123/7)
+e7be1f0	1087.134531	hearts=66 junctions=-	3000	discard	A* v2: congestion-aware A* +3 cost for occupied cells (3-seed avg seeds 42/123/7)
+e7be1f0	1092.823364	hearts=64.3 junctions=-	3000	discard	A* v3: congestion-aware A* +1 cost (3-seed avg seeds 42/123/7)
+e7be1f0	1047.313944	hearts=62.3 junctions=-	3000	discard	weighted A* 1.5x heuristic (3-seed avg seeds 42/123/7)
+e7be1f0	1074.890462	hearts=65.3 junctions=-	3000	discard	A* + cooldown 6→3 (3-seed avg seeds 42/123/7)
