@@ -150,8 +150,24 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
     def _hub_visible(self, obs: AgentObservation) -> bool:
         return self._starter._closest_tag_location(obs, self._hub_tags) is not None
 
+    def _cascade_priority_target(self, current_abs, candidates, state):
+        if not candidates:
+            return None
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
+        if hub is None:
+            return self._nearest_known(current_abs, candidates)
+        enemy = state.known_enemy_junctions
+        def score(j):
+            travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
+            hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
+            base = travel + hub_dist * 0.2
+            if j in enemy:
+                base -= 8
+            return base
+        return min(candidates, key=score)
+
     def _known_alignable_junctions(self, state: LLMAlignerState) -> set[tuple[int, int]]:
-        # Combine neutral and enemy junctions — recapturing enemy is a +2 swing
         return {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
                 if self._is_alignable(j, state) and j not in state.blacklisted_junctions}
 
