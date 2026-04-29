@@ -338,12 +338,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
             if already_getting >= max(3, available_hearts):
-                if state.known_friendly_junctions:
-                    skill = "defend"
-                    reason = f"heart queue: {already_getting} en route, ~{available_hearts} avail — defending junction"
-                else:
-                    skill = "explore"
-                    reason = f"heart queue: {already_getting} en route, ~{available_hearts} avail — exploring"
+                skill = "explore"
+                reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
         if skill == "explore":
@@ -440,6 +436,16 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
+        elif state.current_skill not in {None, "gear_up", "defend"} and state.steps_since_last_move >= self._stuck_threshold:
+            current_abs = self._spawn_offset(obs)
+            _vh = state.verified_hubs if state.verified_hubs else state.known_hubs
+            near_hub = any(abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2 for h in _vh)
+            near_junction = current_abs in self._known_alignable_junctions(state)
+            near_valid = (state.current_skill == "get_heart" and near_hub) or \
+                         (state.current_skill == "align_neutral" and near_junction)
+            if not near_valid:
+                self._event(state, f"{state.current_skill} exited: no position change for {state.steps_since_last_move} steps (stuck in transit)")
+                state.current_skill = None
 
     def _unstuck(self, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         state.last_mode = "unstuck"
