@@ -78,3 +78,40 @@ Replaced all BFS with A* using Manhattan distance heuristic. No other changes.
 **Key insight**: The biggest gains come from smarter *target selection* (picking the right junction) rather than faster pathfinding to the same target. When aligners use actual path cost instead of Manhattan distance, they avoid junctions that look close but require a long detour, and instead target junctions they can reach efficiently.
 
 Next researcher should try: further improve junction selection (e.g., penalize junctions behind walls more, consider return path to hub for heart refill).
+
+### 2026-04-29T10:00: Additional experiments (all identical or worse than v4)
+
+After v4, systematically tried many variations. None improved over v4 (avg 1138.42):
+
+**Experiments that produced identical results to v4 (no effect):**
+- Aligner stuck recovery (blacklist junction after 40 stuck steps, wander after 60): never triggered — our aligners don't get stuck long enough with A*
+- Per-junction hub distance (min hub_dist per junction instead of fixed hub): only one hub on map, no effect
+- Path cost budget 300→1000: 300 cells is already sufficient for all A* path cost queries
+- Miner stuck threshold 150→100: never triggers with A* navigation
+- Improved approach cell selection (try all sides, pick reachable): first side always reachable
+
+**Experiments that made things worse:**
+- Hub distance weight=0.0 (pure travel cost): 1078 on seed 42 (-3.6%) — hub proximity matters
+- Hub distance weight=0.5: 1100 (-1.7%) — too much weight on hub proximity
+- Hub distance weight=0.3: 1059 (-5.3%)
+- Hub distance weight=0.15: 1059 (-5.3%)
+- return_load=50: 166 (-85%) — miners can't fill inventory to 50, never return to hub
+- Team composition 3A+5M: 1041 (-6.9%) — fewer aligners = fewer junctions
+- Team composition 5A+3M: 1055 (-5.7%) — fewer miners = less heart throughput
+- Move cooldown 4 (from 6): 1026 (-8.3%) — move failures doubled (2674 vs 1109)
+
+**Key insight**: v4 is at a strong local optimum for navigation improvements. The current algorithm:
+1. A* efficiently routes agents (replacing BFS)
+2. Path-cost junction selection picks the right targets
+3. 4A+4M composition is optimal
+4. Cooldown=6 and return_load=40 are well-calibrated
+5. Hub_dist weight=0.2 is the sweet spot
+
+Further improvements would need to come from:
+- Agent coordination (miner extractor claiming, multi-agent path planning)
+- Game-level strategy (when to explore vs exploit, heart pipeline management)
+- Online-specific tuning (different opponent behaviors)
+
+### 2026-04-29T10:30: Submitted to online tournament
+
+Uploaded `lessandro-scripted-v54-astar:v1` to beta-cvc qualifying pool. Current online rank #25 (36.18). With +3.4% offline improvement, targeting rank ~#20 (>37.0).
