@@ -114,4 +114,41 @@ Further improvements would need to come from:
 
 ### 2026-04-29T10:30: Submitted to online tournament
 
-Uploaded `lessandro-scripted-v54-astar:v1` to beta-cvc qualifying pool. Current online rank #25 (36.18). With +3.4% offline improvement, targeting rank ~#20 (>37.0).
+Uploaded `lessandro-scripted-v54-astar:v2` to beta-cvc competition pool (v1 had 0KB bundle, v2 is 272KB with source files).
+
+### 2026-04-29T20:00: Online results — offline-online gap discovered
+
+**v54-astar:v2 online: rank #58, score 32.95 (20 matches)**. This is WORSE than v52's #25 (36.18). Despite +3.4% offline improvement, online performance dropped -8.9%.
+
+Online score distribution (from recent 20 matches):
+- Best: 53.21 (vs dinky_abe:v13)
+- Worst: 0.00 (vs ron.massive:v1, only 2 agents allocated)
+- Partner-dependent variance is extreme (0-53 range)
+
+v52 remains our online best at 36.18. The A* changes helped offline but not online. Possible reasons:
+1. Online games use 10k steps vs our 3k offline evaluation
+2. Variable agent allocation (2-4 agents per player)
+3. Opponent interactions disrupting A* planned paths
+4. Statistical noise with only 20 matches
+
+### 2026-04-29T20:10: Phase 3 — Exhaustive tuning beyond v4
+
+Tested 11 additional variations on top of v4, all on seed 42 (v4 seed 42 = 1118):
+
+**All discarded (worse than v4):**
+- L2 distance + JUNCTION_ALIGN_DISTANCE=15: 1037 (-7.2%) — too restrictive
+- Network expansion scoring (weight 5/2/1): 1081/1102/1118 — no gain at any weight
+- Manhattan JUNCTION_ALIGN_DISTANCE=15: 1111 (-0.6%) — slightly restrictive
+- Heart stocking threshold 2: 1076 (-3.8%) — too many hub trips
+- Heart stocking threshold 5: 1025 (-8.3%) — delays first alignment
+- Move cooldown 5: 1053 (-5.8%) — more collisions
+- hub_dist weight 0.1: 1059 (-5.3%) — too little hub preference
+- 2-step lookahead junction scoring: 966 (-13.5%) — distorts priorities
+- Miner extractor coordination: 1120 (seed 42) / 1005 (seed 123) — spreading miners is worse
+
+**Key finding**: Game uses L2 distance (`dr²+dc²≤r²`) for alignment, while our policy uses Manhattan distance. The mismatch at `_JUNCTION_ALIGN_DISTANCE = 20` (Manhattan) vs game's 15 (L2) is actually a beneficial over-approximation — tightening it hurts performance.
+
+**Conclusion**: v4 is at a robust local optimum. All 25+ variants tested across sessions 2 and 3 are identical or worse. The remaining optimization space is likely in:
+1. Closing the offline-online gap (biggest opportunity)
+2. Fundamentally different strategies (RL training, adaptive behavior)
+3. Online-specific tuning (handling variable agent counts, opponent types)
