@@ -1,0 +1,3 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+cbbc1e9	838.140000	hearts=avg50 junctions=avg46	3000	keep	pre-NiskB baseline 5-seed avg (42/123/456/789/1024)
+258e052	1078.690000	hearts=avg66 junctions=n/a	3000	keep	post-NiskB 5-seed avg (+28.7% vs baseline)
