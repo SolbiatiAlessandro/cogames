@@ -178,3 +178,21 @@ Seed 456 shows one HP retreat event (agent 6 drops to 39% HP, retreats, recovers
 The -0.6% offline trade-off is acceptable for potentially large online gains (agents survive 7-8k steps instead of 5k → ~40% more junction-held reward).
 
 Submitting as `lessandro-ohm-mani-padme-hum:v2`.
+
+**2026-04-30 13:30**: v2 online results (20 CvC matches completed):
+
+**v2: #46, score=33.66 ±? (20 matches)** — improved from v1's #52, 33.32
+
+| Metric | v1 | v2 | Delta |
+|--------|----|----|-------|
+| Rank | #52 | **#46** | +6 |
+| Score | 33.32 | **33.66** | +0.34 |
+| 2-agent avg | 9.16 | **16.1** | **+75%** |
+| 4-agent avg | 34.57 | 32.7 | -5.4% |
+| 6-agent avg | 40.65 | 40.0 | -1.6% |
+
+**Key finding**: The aligner HP retreat at 0.40 threshold is working! The 2-agent average jumped from 9.16 to 16.1, confirming that aligner survival is a major factor. The 4/6-agent slight decreases may be partner composition noise.
+
+Now implementing additional survival improvements for v3:
+1. Miner HP retreat threshold: 0.25 → 0.35 (more survival margin)
+2. Late-game patrol: miners switch to explore_hub after 3 extractor depletion resets
