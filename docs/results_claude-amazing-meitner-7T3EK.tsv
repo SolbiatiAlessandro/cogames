@@ -1,3 +1,4 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 cbbc1e9	838.140000	hearts=avg50 junctions=avg46	3000	keep	pre-NiskB baseline 5-seed avg (42/123/456/789/1024)
 258e052	1078.690000	hearts=avg66 junctions=n/a	3000	keep	post-NiskB 5-seed avg (+28.7% vs baseline)
+258e052	32.420000	online_rank=#64 agents6_avg=39.64 agents4_avg=34.57 agents2_avg=6.43	18matches	investigate	online CvC score below 37.0 target (v52=#25 at 36.18)

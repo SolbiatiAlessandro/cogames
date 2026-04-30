@@ -64,4 +64,55 @@ Key insight: No deaths in offline self-play. Deaths are an online-only problem (
 
 **2026-04-30 10:55**: Online qualifying completed — policy passed qualifying (2 self-play matches). 20 main pool matches scheduled (12 scheduled, 8 running).
 
-**2026-04-30 11:00**: starting new experiment loop. While waiting for online results, I want to try improving late-game agent survival. My hypothesis is that agents who stay near aligned junctions after resource depletion will hold junctions longer and avoid wandering into enemy territory where they take combat damage.
+**2026-04-30 11:00**: First online results arriving (9 completed CvC matches + 2 qualifying):
+- Best: 41.32 (vs slinky:v10) — exceeds most v52 matches!
+- Good: 38.83 (vs shweta.v40)
+- Decent: 31.92 (vs ahmet starter)
+- Weak partners: 0.81-18.87 (starter policies / old versions drag score)
+- Qualifying self-play: 44-46
+
+Leaderboard: #113, score=24.16 (9 matches). Score is depressed by starter-policy matches. Need 11 more matches to settle.
+
+**2026-04-30 11:05**: 11 more matches running including Softy:v94, Paz-Bot-9000:v73 (top-tier). These should pull the average up significantly.
+
+**2026-04-30 12:00**: Online results (18/20 CvC matches completed, 2 still running):
+
+| Score | Agents | Partner |
+|-------|--------|---------|
+| 36.63 | 4 | shweta.v35:v1 |
+|  1.02 | 2 | ahmet.play-md-starter-policy:v1 |
+| 40.36 | 6 | Paz-Bot-9000:v73 |
+| 42.83 | 4 | lessandro-scripted-v44:v1 |
+|  0.87 | 2 | shwetakatyal.play-md-starter-policy:v2 |
+| 45.86 | 6 | lessandro-scripted-v30:v1 |
+| 35.84 | 4 | lessandro-scripted-v38:v1 |
+|  6.15 | 2 | shweta.v29:v1 |
+| 49.39 | 6 | Softy:v94 |
+| 31.92 | 4 | ahmet.play-md-starter-policy:v1 |
+| 15.34 | 2 | lessandro-scripted-v37:v1 |
+| 29.05 | 6 | anoop.spectre:v1 |
+| 18.87 | 4 | lessandro-scripted-v36:v1 |
+|  0.81 | 2 | luskira.play-md-starter-policy:v1 |
+| 41.32 | 4 | slinky:v10 |
+| 14.38 | 2 | ron.massive:v3 |
+| 38.83 | 6 | shweta.v40:v1 |
+| 34.37 | 6 | shweta.v35:v1 |
+
+**Agent count breakdown:**
+- 2 agents (n=6): avg=6.43 — catastrophic, paired mostly with starter policies
+- 4 agents (n=6): avg=34.57 — close to v52 baseline (36.18)
+- 6 agents (n=6): avg=39.64 — **exceeds v52 baseline and close to top-10 policies**
+
+**Leaderboard**: #64, score=32.42 ±13.80 (18 matches)
+**v52 baseline**: #25, score=36.18 ±9.47 (26 matches)
+
+**VERDICT: BELOW TARGET** (32.42 < 37.0)
+
+**Root cause analysis**: The NiskB changes clearly work — with 4+ agents we average 37.1, beating v52's 36.18. The problem is the 2-agent case: with `aligner_fraction=0.5`, 2 agents split into 1 miner + 1 aligner. When paired with a useless starter policy that controls 6 agents, the team fails. v52's lower stddev (9.47 vs 13.80) suggests it handles 2-agent allocation better, possibly because the pure scripted policy is more efficient with limited resources.
+
+**Key insight**: Top-10 policies also have stddev ~16-19, even higher than ours. The difference between #1 (Paz-Bot: 41.10 ±16.79) and us (#64: 32.42 ±13.80) isn't variance — it's that they score higher with 4+ agents. Our 6-agent avg (39.64) is competitive, but our 4-agent avg (34.57) has room for improvement.
+
+**Next steps**:
+1. Fix 2-agent handling: when n_agents ≤ 2, make all agents miners (skip alignment)
+2. Improve 4-agent performance: NiskB mine depletion + approach diversification should already help
+3. Re-submit as v2 after adaptive role assignment fix
