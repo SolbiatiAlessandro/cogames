@@ -42,3 +42,13 @@ Massive improvement across all seeds. The NiskB changes include:
 The +28.7% is much larger than NiskB's original +3.6% because our baseline is pre-all the intermediate fixes (sessions 17-22), whereas NiskB measured delta against v52 which already had many improvements.
 
 **Decision**: Confirmed improvement. Proceeding with online submission as `lessandro-ohm-mani-padme-hum`.
+
+**2026-04-30 10:36**: Submitted `lessandro-ohm-mani-padme-hum:v1` to beta-cvc qualifying pool.
+- Policy version ID: 986b6089-50ab-4a96-9267-a5e215dac17c
+- Bundle: 80 KB (src/cogames/policy/*.py)
+- Config: scripted_miners=True, scripted_aligners=True
+- Season: beta-cvc (compat 0.25)
+- Pool: qualifying
+- Expected: score > 37.0 (current v52 baseline: 36.18 at #25)
+
+Now monitoring qualifying matches...
