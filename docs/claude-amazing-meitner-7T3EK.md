@@ -196,3 +196,31 @@ Submitting as `lessandro-ohm-mani-padme-hum:v2`.
 Now implementing additional survival improvements for v3:
 1. Miner HP retreat threshold: 0.25 → 0.35 (more survival margin)
 2. Late-game patrol: miners switch to explore_hub after 3 extractor depletion resets
+
+**2026-04-30 20:00**: v3 online results (19 completed competition matches + 1 running):
+
+**v3: #85, score=30.50 ±12.88 (19 matches)** — REGRESSION from v2's #46, 33.66
+
+| Metric | v1 | v2 | v3 | Delta v3-v2 |
+|--------|----|----|----| ------------|
+| Rank | #54 | **#46** | #85 | -39 |
+| Score | 33.32 | **33.66** | 30.50 | -3.16 |
+| 2-agent avg | 9.16 | 16.1 | 8.3 | -7.8 |
+| 4-agent avg | 34.57 | 32.7 | 30.8 | -1.9 |
+| 6-agent avg | 40.65 | 40.0 | 36.7 | -3.3 |
+
+**Root cause**: Miner HP retreat at 0.35 is too aggressive online. Miners retreat when they still have 35% HP, losing precious mining time. In self-play (0 combat), the threshold never fires — so offline tests showed no regression. Online with clips combat damage, miners spend more time retreating and less time depositing resources, reducing heart production and junction alignment.
+
+The explore_hub code was dead (extractors never fully deplete) but added unnecessary code complexity.
+
+**Decision**: Revert miner HP to 0.25, remove dead explore_hub code. Keep aligner HP retreat at 0.40 (which demonstrably helps). Submit as v4.
+
+**2026-04-30 20:20**: v4 changes:
+1. Revert miner HP retreat threshold 0.35 → 0.25
+2. Remove dead explore_hub code path and depletion_reset_count
+3. Keep aligner HP retreat at 0.40/0.55 (proven beneficial in v2)
+
+5-seed offline validation (identical to v3 — changes don't affect self-play):
+- Average: 1071.72 (unchanged)
+
+Submitting as `lessandro-ohm-mani-padme-hum:v4`.

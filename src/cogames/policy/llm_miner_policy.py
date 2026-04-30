@@ -35,7 +35,6 @@ class LLMMinerState(MinerSkillState):
     explore_start_extractors: int = 0
     recent_events: list[str] = field(default_factory=list)
     consecutive_stuck_exits: int = 0
-    depletion_reset_count: int = 0
 
 
 class LLMMinerPlannerClient:
@@ -348,10 +347,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         if state.known_extractors and not active_extractors:
             if state.depleted_extractors:
                 state.depleted_extractors.clear()
-                state.depletion_reset_count += 1
-                logger.info("agent=%s RESET_DEPLETED: all extractors depleted (reset #%d)", obs.agent_id, state.depletion_reset_count)
-            if state.depletion_reset_count >= 3:
-                return "explore_hub", f"scripted: extractors exhausted ({state.depletion_reset_count} resets), patrolling near hub"
             return "explore", "scripted: all extractors depleted, exploring for fresh ones"
         return "explore", "scripted: no extractors known"
 
@@ -443,9 +438,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 3:
             self._event(state, f"explore timed out after {state.skill_steps} steps")
-            state.current_skill = None
-        elif state.current_skill == "explore_hub" and state.skill_steps >= self._stuck_threshold * 5:
-            self._event(state, f"explore_hub timed out after {state.skill_steps} steps")
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
@@ -539,12 +531,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
             action, base_state = self._explore(obs, state)
-            state = self._copy_with(state, base_state)
-        elif state.current_skill == "explore_hub":
-            if state.known_hubs:
-                action, base_state = self._explore_near_hub(obs, state)
-            else:
-                action, base_state = self._explore(obs, state)
             state = self._copy_with(state, base_state)
         else:
             action, state = self._unstuck(state)

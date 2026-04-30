@@ -813,7 +813,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return action, replace(next_state, last_mode=state.last_mode)
         return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
 
-    _MINER_HP_RETREAT_THRESHOLD = 0.35
+    _MINER_HP_RETREAT_THRESHOLD = 0.25
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
         center = self._starter._center
