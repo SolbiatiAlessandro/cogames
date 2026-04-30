@@ -469,14 +469,15 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             self._event(state, f"deposit_to_hub exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
-        elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
+        elif state.current_skill == "mine_until_full" and state.no_progress_on_target_steps >= 8:
             current_abs = self._current_abs(obs)
-            if state.current_skill == "mine_until_full":
-                nearby = [e for e in state.known_extractors
-                          if abs(e[0] - current_abs[0]) + abs(e[1] - current_abs[1]) <= 2]
-                for ext in nearby:
-                    state.depleted_extractors.add(ext)
-                    self._event(state, f"marked extractor at {ext} as depleted ({len(state.depleted_extractors)}/{len(state.known_extractors)})")
+            nearby = [e for e in state.known_extractors
+                      if abs(e[0] - current_abs[0]) + abs(e[1] - current_abs[1]) <= 2]
+            for ext in nearby:
+                state.depleted_extractors.add(ext)
+            self._event(state, f"mine_until_full fast-depleted after {state.no_progress_on_target_steps} steps, marked {len(nearby)} extractors")
+            state.current_skill = None
+        elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 

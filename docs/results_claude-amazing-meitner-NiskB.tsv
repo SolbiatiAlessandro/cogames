@@ -1,0 +1,3 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+d36d1e7	1079.65	hearts=63.3 junctions=52	3000	baseline	v52 baseline: 4A+4M BFS (5-seed avg seeds 42/123/7/99/256)
+pending	1118.60	hearts=64.4 junctions=52	3000	keep	approach side diversification + fast mine depletion (5-seed avg, +3.6%)
