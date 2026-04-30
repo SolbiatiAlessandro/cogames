@@ -24,87 +24,88 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline→online): 2026-04-29 (Session 21)_
+_Updated by Director: 2026-04-30 (Session 22)_
 
-### Online Tournament (beta-cvc, cooperative scoring, 436 entries)
+### Online Tournament (beta-cvc, cooperative scoring, 453 entries)
 
 | Rank | Score | Policy | Matches | Notes |
 |------|-------|--------|---------|-------|
-| #1/436 | **41.10** | `Paz-Bot-9000:v47` | 21 | RL |
-| #2/436 | 40.82 | `Gryffindor:v11` | 27 | RL |
-| #3/436 | 40.73 | `Slytherin:v14` | 32 | RL |
-| #5/436 | 40.11 | `Hufflepuff:v11` | 25 | RL |
-| #7/436 | 39.47 | `slinky:v3` | 21 | RL |
-| #12/436 | 38.28 | `Softy:v82` | 20 | RL |
+| #1/453 | **41.10** | `Paz-Bot-9000:v47` | 21 | RL |
+| #2/453 | 40.82 | `Gryffindor:v11` | 27 | RL |
+| #3/453 | 40.73 | `Slytherin:v14` | 32 | RL |
+| #5/453 | 40.11 | `Hufflepuff:v11` | 25 | RL |
+| #7/453 | 39.47 | `slinky:v3` | 21 | RL |
+| #12/453 | 38.28 | `Softy:v82` | 20 | RL |
 | ... | | | | |
-| **#23/436** | **36.35** | **`lessandro-scripted-v52:v1`** | **23** | **NEW BEST (+8.2% vs v48)** |
-| #41/436 | 34.31 | `lessandro-scripted-v55:v1` | 20 | v52 + defend queue |
-| #48/436 | 33.61 | `lessandro-scripted-v48:v1` | 55 | Previous best |
-| #53/436 | 33.26 | `lessandro-scripted-v54:v1` | 21 | v52 + max_hearts=3 |
-| #66/436 | 32.16 | `lessandro-scripted-v49:v1` | 31 | 3A+5M — **regressed** |
-| #123/436 | 19.03 | `lessandro-scripted-v50:v1` | 25 | Old main — catastrophic |
+| **#25/453** | **36.18** | **`lessandro-scripted-v52:v1`** | **26** | **OUR BEST (stable)** |
+| #38/453 | 34.73 | `lessandro-scripted-v55:v1` | 25 | v52 + defend queue |
+| #47/453 | 33.55 | `lessandro-scripted-v48:v1` | 57 | Previous best |
+| #57/453 | 32.95 | `lessandro-scripted-v54-astar:v2` | 20 | **A* REGRESSED -8.9%** |
+| #64/453 | 32.39 | `lessandro-scripted-v49:v1` | 37 | 3A+5M — regressed |
+| #125/453 | 18.67 | `lessandro-scripted-v50:v1` | 26 | Old main — catastrophic |
 
-_436 entries (up from 371). v52 is our new best at #23. v49's +46.3% offline did NOT translate — allocation mismatch._
+_453 entries (up from 436). v52 stable at #25. A* (v54-astar) confirmed regression. NiskB efficiency fixes merged, pending online submission._
 
-### v52 Match Analysis (23 matches, cooperative scoring)
+### v52 Match Analysis (26 matches, cooperative scoring)
 
 | Partner tier | Score range | Count | Notes |
 |-------------|-------------|-------|-------|
 | Top (dinky_chad, dinky_fido, v55 self) | 47-53 | 3 | **Exceeds #1 average** |
-| Good (mammet v238-v244, id_assigned) | 37-43 | 6 | Strong cooperative play |
-| Mid (shweta v23-v32, anoop, v40-v43) | 23-38 | 8 | Solid performance |
-| Weak (ron.whoops, shweta.v39, anoop.antimage) | 5-17 | 3 | Partner drags score |
-| Self-play (v24, v31, v39, v49) | 22-40 | 3 | High variance |
+| Good (mammet, id_assigned, shweta.v25) | 36-44 | 8 | Strong cooperative play |
+| Mid (anoop, shweta, self-play v31/v40/v49) | 23-41 | 10 | Solid performance |
+| Weak (ron.whoops, shweta.v39, anoop.antimage) | 5-17 | 5 | Partner drags score |
 
-**Key: p5=16.7, p50=37.6, p95=51.9. Floor improved significantly vs v48 (p5: 7.2→16.7). Ceiling at 53.1 with dinky_chad.**
+**Key: p5=10.0, p25=28.5, p50=36.85, p75=42.2, p95=51.9. Mean=34.40. Ceiling at 53.1 with dinky_chad.**
 
-### Offline Best Results (8-agent, 3-seed avg, 3000 steps)
+### Offline Best Results (8-agent, 5-seed avg, 3000 steps)
 
 | Rank | Reward | Config | Commit | Session | Notes |
 |------|--------|--------|--------|---------|-------|
-| 1 | **1101.24** | 4A+4M + phantom fixes | `c9b386c` | 21 (gp8Vw) | **v52 source — ONLINE BEST** |
-| 2 | 1061.50 | 3A+5M, stuck=15 | `1dafffd` | 20 (ZmdFf) | v49 source — regressed online |
-| 3 | 1060.91 | 5A+3M, stuck=20 | `2c0dcf7` | 21 (gp8Vw) | v51 — wrong allocation |
+| 1 | **1118.60** | 4A+4M + approach diversification + fast depletion | `19d4b8b` | 22 (NiskB) | **+3.6% vs v52, pending online** |
+| 2 | 1138.42 | 4A+4M + A* + path-cost junctions | `3a1b256` | 22 (EYYU7) | +3.4% offline, REGRESSED online |
+| 3 | 1101.24 | 4A+4M + phantom fixes | `c9b386c` | 21 (gp8Vw) | v52 source — current online best |
 
-### Offline 10-seed (1000 steps) for reference
+### Critical Finding: A* Regresses Online
 
-| Rank | Reward | Config | Session | Notes |
-|------|--------|--------|---------|-------|
-| 1 | 251.36 | 3A+5M, verified hubs + stuck=15 | 20 (ZmdFf) | Best 1k-step offline |
-| 2 | 214.68 | 3A+5M, phantom station + BFS bypass | 19 (mjSjH) | |
-| 3 | 171.73 | 4A+4M, all xh27M fixes | 18 (xh27M) | v48 source |
+| Config | Offline 3k-step | Online rank | Online score | Delta vs v52 |
+|--------|----------------|-------------|-------------|-------------|
+| v52 (BFS) | 1101.24 | **#25** | **36.18** | baseline |
+| v54-astar (A*) | 1138.42 | #57 | 32.95 | **-8.9%** |
+| NiskB (BFS + efficiency) | 1118.60 | pending | pending | +3.6% offline |
+
+**Lesson: BFS's broad exploration pattern discovers more junctions online than A*'s focused search. Offline improvement does NOT predict online improvement for navigation changes.**
 
 ### Gap Analysis
 
 ```
 Metric                    Us                      Top RL (#1)           Gap       Status
 ------------------------------------------------------------------------------------
-Online score              36.35 (#23/436)         41.10 (#1/436)        11.6%     ↓ from 20%
+Online score              36.18 (#25/453)         41.10 (#1/453)        12.0%     Stable
 Best-partner score        53.10                   41.10                 ---       WE BEAT #1 avg!
-Offline 3-seed 3k         1101.24 (gp8Vw)        ---                   ---       v52 source
-v52 p5/p50/p95            16.7/37.6/51.9          ---                   ---       Floor +132% vs v48
+Agent survival            ~5200 steps/10k         ???                   ???       NEW BOTTLENECK
+10k utilization           Active 0-3k only        Full 10k (RL)        70% idle  NEW BOTTLENECK
 ```
 
-**Current bottleneck**: Scripted policy ceiling reached. gp8Vw exhaustively tested v51-v58: no behavioral tweak improves on v52. The remaining 11.6% gap requires structural change — A* pathfinding (#54) or RL training (#41).
+**Current bottleneck**: Two newly identified levers: (1) Agent survival — 7.5/8 agents die by step ~5200, losing 50% of junction-holding time. (2) 10k utilization — all alignment happens in 0-3k steps, 70% of game is idle.
 
-**Critical finding (session 21)**: Offline→online gap is **allocation-driven**. 3A+5M was +46.3% better offline but WORSE online. 4A+4M wins in cooperative CvC. Always validate allocation changes online.
-
-**Next up**: #54 — A* pathfinding to improve navigation efficiency (scripted path). #41 — RL training (if GPU available).
+**Next up**: #55 — Submit NiskB efficiency fixes online (priority:1). #56 — Agent survival (priority:2). #57 — 10k utilization (priority:2). #41 — RL training (priority:2, blocked on GPU).
 
 **Research tree:**
 ```
-priority:1  #54  A* pathfinding / navigation efficiency  <- NEW, structural improvement
-priority:2  #41  RL policy training                      <- BLOCKED (needs GPU)
+priority:1  #55  Submit NiskB efficiency fixes online     <- NEXT (code merged to main)
+priority:2  #56  Agent survival optimization              <- NEW (agents die at ~5200/10k)
+priority:2  #57  10k-step utilization                     <- NEW (70% of game idle)
+priority:2  #41  RL policy training                       <- BLOCKED (needs GPU)
 priority:3  #53  Multi-agent cooperation paper
 priority:3  #50  Per-agent alignment efficiency           <- saturated, target met
-priority:3  #27  Andre Von Huck / A*
+priority:3  #27  Andre Von Huck / A*                      <- A* tested, not helpful
 priority:3  #26  shweta policy
 priority:3  #31  change_vibe actions
 priority:3  #12-#23  various speculative
 
-CLOSED (sessions 16-21):
-  #52 Validate v49 (v49 regressed, v52 new best) | #51 Submit v49
-  #49 Submit v43 | #48 Cherry-pick #38
+CLOSED (sessions 16-22):
+  #54 A* pathfinding (regressed online) | #52 Validate v49
+  #51 Submit v49 | #49 Submit v43 | #48 Cherry-pick #38
   #47 Partner robustness | #46 v37/v38 regression | #45 Submit #44
   #44 Miner productivity | #43 v34 regression | #42 httpx import
   #39-#40 Submission/Mining | #38 Agent mortality | #36 Agent mortality

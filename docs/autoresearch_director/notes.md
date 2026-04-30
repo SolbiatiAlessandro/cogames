@@ -1,119 +1,83 @@
 # Director Notes
-_Written: 2026-04-29 (Session 21 — offline-to-online)_
+_Written: 2026-04-30 (Session 22)_
 
-## Offline observations
+## What I observed
 
-### gp8Vw researcher (v51-v58 sweep)
-Systematic online validation sweep after v49's regression:
-- v51 (5A+3M + phantom fixes): 3-seed avg 1060.91 at 3000 steps → online #94, 28.12
-- **v52 (4A+4M + phantom fixes): 3-seed avg 1101.24 → online #23, 36.35 (NEW BEST)**
-- v53 (exact v48 params): 1105.99 → online #73, 31.48 (worse!)
-- v54 (max_hearts<3): 1049.57 → online #53, 33.26
-- v55 (defend queue): 1101.43 → online #41, 34.31
-- v56 (transit stuck fix): 1083.15 → online #67, 32.12
-- v57 (HP retreat): 1083.15 → online #79, 30.98
-- v58 (enemy priority): 1083.15 → online #72, 31.67
+### Online performance (v52 at 26 matches)
+- v52 stable at #25 (36.18), down marginally from #23 (36.35) at 23 matches. Mean score 34.40, median 36.85.
+- v54-astar:v2 at #57 (32.95) — A* confirmed regression (-8.9% vs v52). EYYU7 tested 25+ variants, all at or worse than A* v4.
+- Leaderboard grew to 453 entries (from 436). #1 unchanged: Paz-Bot-9000:v47 at 41.10.
 
-Key: v52 wins online despite v53 having marginally better offline reward (1105.99 vs 1101.24). Offline reward is a weak predictor of online rank.
+### Online replay analysis (v52 best match, score 43.48 with mammet)
+- **Agent mortality**: 7.5/8 agents die. Our agents survive ~5000-5500 steps out of 10k. This is 50% of potential junction-holding time lost.
+- **HP churn**: 8774 HP gained and 8766 HP lost per agent on average. Agents take massive ongoing damage.
+- **Move failure rate**: 5.3% (508.6 failed moves per agent). Not great, but not the primary bottleneck.
+- **max_steps_without_motion**: 1256 — agents still get stuck for long periods.
+- **Resource depletion**: Only 5 hearts withdrawn from hub. heart.gained=63 and junction.aligned=52 are identical at 3k and 10k steps — all productive work happens in first 3k steps.
 
-### b3onP researcher
-Investigated v49 regression. Found v50 (submitted from old main) was catastrophic (#123, 19.03). Good diagnostic work.
-
-## Online observations
-
-### Leaderboard (2026-04-29)
-- 436 entries (up from 371 in session 20)
-- #1: Paz-Bot-9000:v47 at 41.10 (unchanged)
-- **#23: lessandro-scripted-v52:v1 at 36.35** (NEW — up from #56)
-- #41: lessandro-scripted-v55:v1 at 34.31
-- #48: lessandro-scripted-v48:v1 at 33.61 (was #56)
-- Top 22 are all RL-based policies
-
-### v52 match analysis (23 matches)
-- p5=16.7, p50=37.6, p95=51.9
-- Best: 53.1 with dinky_chad (cooperative RL policy)
-- Worst: 4.9 with ron.whoops
-- Floor improved significantly: p5 went from 7.2 (v48) to 16.7 (v52)
-- With good partners (mammet, dinky, id_assigned), consistently scores 37-53
-
-### Online replay analysis (v52 + mammet:v244, score 43.0 each)
-- 8 agents, 10,000 steps, all survived (0 deaths)
-- cogs junction held: 430,419 vs clips: 436,367 (nearly even!)
-- 98 junctions gained total
-- Our agents (4-7): ~97% move efficiency, very few noops (78-131 out of 5000+ steps)
-- mammet agents (0-3): ~78% move efficiency, many noops (1064-1972)
-- Both policies: zero change_vibe actions (roles assigned via gear stations, confirmed)
-- Average 1019 unique cells visited per agent — good exploration
-
-## Offline→Online gap
-
-### The allocation insight (CRITICAL)
-This is the most important finding of session 21:
-
-| Allocation | Offline 1k-step 10-seed | Offline 3k-step 3-seed | Online rank | Online score |
-|------------|------------------------|----------------------|-------------|-------------|
-| 3A+5M (v49) | 251.36 (**best**) | 1061.50 | #66 | 32.16 |
-| 5A+3M (v51) | — | 1060.91 | #94 | 28.12 |
-| 4A+4M (v52) | — | 1101.24 | **#23** | **36.35** |
-
-**4A+4M is 13% better online than 3A+5M despite being offline-equivalent or slightly worse at 1k steps.** The cooperative CvC format rewards balanced teams because:
-1. Partners provide the other half of agents — if we're miner-heavy and partner is also miner-heavy, nobody aligns
-2. 4 aligners cover more junction area than 3, reducing junction downtime
-3. 4 miners are sufficient when max_hearts=4 allows efficient heart collection
-
-### Why v53 (exact v48 params) was WORSE than v52
-v52 uses hub_dist=0.2 (current code) and max_hearts=4. v53 restored v48's hub_dist=0.3 and max_hearts=max(2). Online showed v52 > v53 (36.35 vs 31.48), meaning the newer param values are genuinely better — it was only the ALLOCATION that v48 got right.
-
-### Gap quantification
-- v48 → v52: +8.2% (phantom fixes + correct params with same 4A+4M allocation)
-- v52 → #1: 11.6% gap remaining
-- v52's p95 (51.9) exceeds #1's average (41.1) — with the right partner we're already competitive
+### Branch activity
+- **EYYU7** (A* research): Exhaustive. 25+ variants. Best: +3.4% offline, but regressed -8.9% online. Key insight: BFS exploration > A* focused search in cooperative play.
+- **NiskB** (miner efficiency): Approach side diversification + fast mine depletion. +3.6% offline (5-seed). Reverts A* back to BFS. Clean code changes.
+- No other branches had new significant work since session 21.
 
 ## Current bottleneck
 
-**Scripted policy ceiling reached.** The gp8Vw researcher tested 8 variants and found no improvement beyond v52. All behavioral additions (defend queue, transit stuck, HP retreat, enemy priority) regressed online. The remaining options are:
+**Two newly identified levers, both related to the 10k-step online game format:**
 
-1. **A* pathfinding** (#54, priority:1): Replace BFS with A* using Manhattan heuristic and wall memory. Should reduce the 1255-step average stuck time. Accessible without GPU.
-2. **RL training** (#41, priority:2): Still blocked on GPU. Top 22 policies are all RL.
-3. **Navigation efficiency tuning** within current BFS: diminishing returns after cooldown bypass fix.
+1. **Agent survival** (NEW — issue #56): 7.5/8 agents die at ~5200 steps. An agent surviving 8000 steps earns ~54% more held-junction reward than at 5200. This is the biggest unexploited opportunity. v57 (HP retreat) tried this and regressed — but the implementation may have been too aggressive.
+
+2. **10k-step utilization** (NEW — issue #57): All mining and alignment happens in 0-3k steps. From 3k-10k, agents wander pointlessly. If agents could defend junctions or find new alignment targets in late game, the reward would grow faster.
+
+**The scripted navigation ceiling is confirmed**: A* was the last structural navigation improvement to try, and it failed online. Further BFS tuning has diminishing returns. The remaining gap to #1 (12%) must come from either (a) agent survival / game-length optimization, (b) RL training, or (c) a fundamentally different strategic approach.
+
+## What I expected to happen vs. what I found
+
+### Expected (from session 21 notes):
+- v52 stability: Expected stable. **Confirmed** — 36.18 vs 36.35, within noise.
+- A* implementation: Expected to help. **WRONG** — A* regressed online despite +3.4% offline. The offline-online gap for navigation changes is inverted.
+- NiskB efficiency fixes: Not predicted — new researcher took initiative. **Good result** — +3.6% offline with BFS-preserving changes.
+
+### Surprise findings:
+- **Agent mortality as bottleneck**: I had not previously analyzed agent step counts from online replays. 7.5/8 dying is severe. This was masked by our offline testing at 1000-3000 steps where death is rare.
+- **Heart supply = 5, period**: Confirmed in online replay. No hearts are produced from mining deposits. The hub's initial 5 hearts are all that exist.
 
 ## Issues updated this session
-- **#52**: CLOSED — v49 validated (regressed), v52 new best via gp8Vw sweep
-- **#50**: Downgraded to priority:3 — primary metric achieved (36.35 > 36.0)
-- **#41**: Updated with online context — RL is the clear path past #23
-- **#53**: Commented — requires RL infrastructure, priority:3
-- **#54**: CREATED (priority:1) — A* pathfinding to close remaining gap
+- **#54**: CLOSED — A* thoroughly tested, regressed online. NiskB efficiency fixes merged instead.
+- **#55**: CREATED (priority:1) — Submit NiskB efficiency fixes online, target > 37.0
+- **#56**: CREATED (priority:2) — Agent survival optimization (agents die at ~5200/10k steps)
+- **#57**: CREATED (priority:2) — 10k-step utilization (70% of game idle)
+- **#41**: Updated comment — RL remains blocked on GPU, still priority:2
 
 ## Branches merged this session
-- `amazing-meitner-gp8Vw` to main (up to commit 0c947d7): v52 4A+4M allocation fix + TSV data
+- `amazing-meitner-NiskB` to main (commit 19d4b8b): approach diversification + fast mine depletion (+3.6% offline)
 
 ## Priority stack
 ```
-priority:1  #54  A* pathfinding / navigation efficiency  <- NEW
-priority:2  #41  RL policy training                      <- BLOCKED (needs GPU)
+priority:1  #55  Submit NiskB efficiency fixes online     <- NEXT
+priority:2  #56  Agent survival optimization              <- NEW, potentially huge lever
+priority:2  #57  10k-step utilization                     <- NEW, complementary to #56
+priority:2  #41  RL policy training                       <- BLOCKED (needs GPU)
 priority:3  #53  Multi-agent cooperation paper
-priority:3  #50  Per-agent alignment efficiency           <- target met
-priority:3  #27  Andre Von Huck / A*
-priority:3  #26  shweta policy
-priority:3  #31  change_vibe actions
-priority:3  #12-#23  various speculative
+priority:3  #50  Per-agent alignment efficiency
+priority:3  #27-#31 various speculative
 ```
 
 ## Open questions for next director
 
-1. **v52 stability**: With only 23 matches, the score may shift. Monitor — if it drops below 34, investigate whether the match quality was lucky.
+1. **NiskB online validation**: Will the +3.6% offline translate? The changes are BFS-preserving (unlike A*), so they SHOULD translate. But the v53-v58 experience (all regressed) makes me cautious. If it translates, we move to ~#20.
 
-2. **A* implementation**: Issue #54 is the next high-leverage experiment. The current BFS is O(V+E) per call with no heuristic — A* with Manhattan distance would focus search toward the goal and reduce wasted exploration. Key files: `aligner_agent.py:_bfs_first_direction`, `llm_skills.py:_bfs_first_direction`.
+2. **Agent mortality root cause**: What kills agents? Is it combat damage from clips agents? Environmental damage? Or HP depletion from some game mechanic? Downloading and analyzing replays at the agent-level to track HP over time would answer this.
 
-3. **Allocation lesson for future submissions**: NEVER submit with a different allocation than 4A+4M without online validation first. The offline→online correlation for allocation is INVERTED — what's best offline (3A+5M) is worst online.
+3. **v57 HP retreat re-evaluation**: v57 (HP retreat) at #76 (31.23) tried HP-aware behavior and regressed. Was the implementation wrong (threshold too aggressive, retreat too far from junctions?) or is the concept wrong (retreating gives up junction-holding which costs more than it gains)?
 
-4. **Branch cleanup candidates**:
-   - `amazing-meitner-gp8Vw` (partially merged — code from v52 only)
-   - `amazing-meitner-b3onP` (diagnostic work, subsumed by gp8Vw)
-   - `amazing-meitner-ZmdFf` (merged in session 20)
-   - All `autoresearch/*` branches (ancient, sessions 1-8)
+4. **Heart mechanics deep-dive**: The hub has 5 hearts initially. Are there other ways to produce hearts? Does depositing resources eventually create hearts? The `cogs/heart.withdrawn: 5` in the replay says we only ever got 5 total. Understanding heart mechanics fully is critical for late-game strategy.
+
+5. **Top policy survival comparison**: Do Paz-Bot-9000 agents survive longer than ours? If #1 has agents surviving 8000+ steps vs our 5200, that alone explains the 12% gap. Downloading a top-1 replay and comparing agent lifetimes would be extremely informative.
+
+6. **Branch cleanup**: 70+ remote branches. Most are ancient (sessions 1-16). After this session's merge of NiskB, candidates for deletion:
+   - All `autoresearch/*` branches (sessions 1-8, all subsumed)
+   - `amazing-meitner-EYYU7` (A* work, subsumed by NiskB merge)
+   - `amazing-meitner-gp8Vw` (merged in session 21)
+   - `amazing-meitner-b3onP` (diagnostic, subsumed)
    - All `pr/*` and `revert/*` branches (stale)
-
-5. **v55 defend queue**: Second best at 34.31. The idea has merit but the implementation may be too aggressive. A future researcher could try a softer version — defend only when ALL nearby junctions are aligned AND heart queue is full, rather than any one condition.
-
-6. **Submit cadence**: v52 was submitted 2026-04-29 06:23. Give it at least 40-50 matches before deciding on a new submission. No point submitting v53-v58 — they all regressed.
+   - Various `claude/affectionate-hopper-*` and `claude/vigilant-feynman-*` (old sessions)
