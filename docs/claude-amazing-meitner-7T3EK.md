@@ -52,3 +52,16 @@ The +28.7% is much larger than NiskB's original +3.6% because our baseline is pr
 - Expected: score > 37.0 (current v52 baseline: 36.18 at #25)
 
 Now monitoring qualifying matches...
+
+**2026-04-30 10:50**: 10k step offline analysis (seed 42, post-NiskB):
+- Total reward: 4144.70 (3.70x the 3k result of 1121.22 for 3.33x steps — slightly super-linear)
+- Hearts gained: 64 at 10k = same as at 3k → all hearts captured by ~3k steps
+- Junctions aligned: 53 at 10k = same as at 3k → all alignment done by ~3k steps
+- HP: gained=80400, lost=80000, remaining=800/800 → **0 deaths in self-play**
+- max_steps_without_motion: 87 (good, no major stuck)
+
+Key insight: No deaths in offline self-play. Deaths are an online-only problem (combat damage from enemy clips). This confirms issue #56's hypothesis.
+
+**2026-04-30 10:55**: Online qualifying completed — policy passed qualifying (2 self-play matches). 20 main pool matches scheduled (12 scheduled, 8 running).
+
+**2026-04-30 11:00**: starting new experiment loop. While waiting for online results, I want to try improving late-game agent survival. My hypothesis is that agents who stay near aligned junctions after resource depletion will hold junctions longer and avoid wandering into enemy territory where they take combat damage.
