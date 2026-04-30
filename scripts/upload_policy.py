@@ -43,26 +43,36 @@ def main():
 
     print(f"Bundle: {zip_path} ({zip_path.stat().st_size / 1024:.0f} KB)")
 
-    client = TournamentServerClient.from_login(
-        server_url=DEFAULT_SUBMIT_SERVER,
-        login_server=DEFAULT_COGAMES_SERVER,
-    )
-    if not client:
-        print("ERROR: Not authenticated")
+    from cogames.cli.login import CoGamesAuthenticator
+    authenticator = CoGamesAuthenticator()
+    token = authenticator.load_token(DEFAULT_COGAMES_SERVER)
+    if not token:
+        print("ERROR: Not authenticated. Run: cogames login")
         sys.exit(1)
 
-    with client:
-        presigned = client.get_presigned_upload_url()
-        upload_url = presigned["upload_url"]
-        upload_id = presigned["upload_id"]
+    headers = {"Authorization": f"Bearer {token}"}
 
-        print("Uploading to S3...")
-        with open(zip_path, "rb") as f:
-            resp = httpx.put(upload_url, content=f, headers={"Content-Type": "application/zip"}, timeout=600.0)
-        resp.raise_for_status()
+    print("Getting presigned URL...")
+    resp = httpx.post(f"{DEFAULT_SUBMIT_SERVER}/stats/policies/submit/presigned-url", headers=headers, timeout=60.0)
+    resp.raise_for_status()
+    presigned = resp.json()
+    upload_url = presigned["upload_url"]
+    upload_id = presigned["upload_id"]
 
-        print(f"Completing upload (name={name}, season={season})...")
-        result = client.complete_policy_upload(upload_id, name, season=season)
+    print("Uploading to S3...")
+    with open(zip_path, "rb") as f:
+        resp = httpx.put(upload_url, content=f, headers={"Content-Type": "application/zip"}, timeout=600.0)
+    resp.raise_for_status()
+
+    print(f"Completing upload (name={name}, season={season})...")
+    resp = httpx.post(
+        f"{DEFAULT_SUBMIT_SERVER}/stats/policies/submit/complete",
+        headers=headers,
+        json={"upload_id": upload_id, "name": name, "season": season},
+        timeout=120.0,
+    )
+    resp.raise_for_status()
+    result = resp.json()
 
     print(f"\nUpload successful!")
     print(f"  Name: {result.get('name')}:v{result.get('version')}")
