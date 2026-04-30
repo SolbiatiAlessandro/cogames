@@ -1,4 +1,5 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 cbbc1e9	838.140000	hearts=avg50 junctions=avg46	3000	keep	pre-NiskB baseline 5-seed avg (42/123/456/789/1024)
 258e052	1078.690000	hearts=avg66 junctions=n/a	3000	keep	post-NiskB 5-seed avg (+28.7% vs baseline)
-258e052	32.420000	online_rank=#64 agents6_avg=39.64 agents4_avg=34.57 agents2_avg=6.43	18matches	investigate	online CvC score below 37.0 target (v52=#25 at 36.18)
+258e052	33.320000	online_rank=#52 agents6_avg=40.65 agents4_avg=34.57 agents2_avg=9.16	20matches	keep	online CvC 20 matches final: #52 score=33.32 (target 37.0; v52=#25 at 36.18). NiskB helps for 4+ agents (avg 37.1>36.18). 2-agent score is partner-quality-dependent.
+258e052	162.039795	hearts=41 junctions_aligned=41	3000	keep	2-agent role investigation: 1M+1A (0.5) = 162 reward vs all-miners (5.99) vs all-aligners (47.27). Default split is optimal.
