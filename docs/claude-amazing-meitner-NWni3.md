@@ -68,6 +68,10 @@ Changes in this version:
 
 2026-05-01T05:37: Submitting as ohm-mani-padme-hum v5 to validate online. Target: beat v52 baseline (35.97).
 
+### Experiment 4: Fast heartless defend (heart queue overflow → defend)
+2026-05-01T05:41: When heart queue overflows (too many aligners en route to hub), heartless aligners were redirected to `explore`. Changed to redirect to `defend` when friendly junctions exist, making them productive by holding captured territory instead of wandering. Falls back to `explore` when no friendly junctions are known.
+
+Hypothesis: In games where hearts are scarce, aligners waiting for hearts waste time exploring. Defending friendly junctions prevents territory loss and may increase junction.held reward.
+
 ### Next experiment ideas
-- **Fast heartless defend**: When heart queue overflows (line 341), redirect from `explore` to `defend` when friendly junctions exist. Makes heartless aligners productive by holding captured junctions instead of wandering.
 - **Stale threshold tuning for online**: Try stale=12 as compromise between 8 (too aggressive) and 20 (too conservative)
