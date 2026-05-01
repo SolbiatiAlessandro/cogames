@@ -39,6 +39,8 @@ def main():
     parser.add_argument("--total-cogs", type=int, default=8)
     parser.add_argument("--our-cogs", type=int, default=2)
     parser.add_argument("--our-aligners", type=str, default="auto")
+    parser.add_argument("--aligner-ids", type=str, default="",
+                        help="Comma-separated agent IDs to force as aligners (e.g. '0,1')")
     parser.add_argument("--partner", type=str, default="starter",
                         choices=["starter", "noop", "cross_role", "machina"])
     parser.add_argument("--our-positions", type=str, default="first",
@@ -65,7 +67,9 @@ def main():
         )
 
     our_kwargs = {"scripted_miners": True, "scripted_aligners": True}
-    if args.our_aligners != "auto":
+    if args.aligner_ids:
+        our_kwargs["aligner_ids"] = args.aligner_ids
+    elif args.our_aligners != "auto":
         our_kwargs["num_aligners"] = int(args.our_aligners)
 
     our_policy = PolicySpec(

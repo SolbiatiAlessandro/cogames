@@ -145,3 +145,60 @@ No regression. Seed 7 8-agent even improved slightly.
 - CvC seed 256 (3.00) has fundamental station blocking that requires structural changes
 - CvC with strong partner (machina): 10k steps yields 511-566 avg/agent — huge upside
 - Consider: improving extractor depletion handling, all-aligner 2-agent CvC config, or aligner efficiency
+
+## 2026-05-01T04:00: Experiment 4 — Fast get_heart re-selection after stale exit
+
+**Root cause analysis for CvC seed 42 (19.57)**:
+1. Aligner NEVER gets a heart in 3000 steps — always `has_heart=False`
+2. Cycles: get_heart (20 stale steps near hub) → explore (40-60 steps) → get_heart → ...
+3. Hearts crafted by miner/starters are grabbed by 6 starters before our aligner returns
+4. The 20-step stale exit + 40-60 step explore = aligner is away from hub ~70% of the time
+
+**Failed approach — hub camping patience**:
+- Tried increasing get_heart patience to 60-300 steps near hub
+- Result: seed 42 improved BUT seeds 123/7/99 catastrophically regressed (avg 33.45 → 18.66)
+- Root cause: aligner blocking hub approach cells prevents starters from depositing/picking up hearts
+- Even 60 steps of continuous hub adjacency causes cascading congestion for all 8 agents
+
+**Successful approach — fast get_heart re-selection**:
+- After get_heart exits as stale (near hub, no heart), skip explore → immediately re-select get_heart
+- Aligner still exits after 20 steps (doesn't block hub) but comes right back from a different approach side
+- This maximizes time near hub WITHOUT continuous blocking
+
+**Change**: `machina_llm_roles_policy.py` `_plan_skill()`: After get_heart stale exit, if aligner has gear, no heart, and knows hubs, override explore → get_heart
+
+### Results — CvC (2 our + 6 starter)
+| Seed | Exp 2 Baseline | Exp 4 | Delta |
+|------|----------|-------|-------|
+| 42   | 19.57    | 46.14 | +136% |
+| 123  | 36.06    | 54.84 | +52%  |
+| 7    | 58.20    | 54.20 | -7%   |
+| 99   | 50.40    | 60.09 | +19%  |
+| 256  | 3.00     | 3.00  | 0%    |
+| **avg** | **33.45** | **43.65** | **+30.5%** |
+
+### Results — 2-Agent Self-Play
+| Seed | Exp 2 | Exp 4 | Delta |
+|------|-------|-------|-------|
+| 42   | 162.04 | 166.37 | +2.7% |
+| 123  | 163.16 | 164.14 | +0.6% |
+| 7    | 126.03 | 153.58 | +21.9% |
+| 99   | 135.63 | 137.49 | +1.4% |
+| 256  | 156.03 | 155.41 | -0.4% |
+| **avg** | **148.58** | **155.40** | **+4.6%** |
+
+### Results — 8-Agent Self-Play (regression check)
+| Seed | Exp 2 | Exp 4 |
+|------|-------|-------|
+| 42   | 1121.22 | 1105.43 |
+| 123  | 1006.65 | 1090.25 |
+| 7    | 1240.14 | 1177.15 |
+
+No significant regression.
+
+**Decision**: KEEP. +30.5% CvC improvement, +4.6% self-play improvement, no 8-agent regression. The fast re-selection fixes seed 42's aligner starvation by maximizing hub presence time without causing congestion.
+
+**Next steps**:
+- CvC seed 256 (3.00) remains unsolved: fundamental station congestion with 8 agents
+- All-aligner CvC tested and rejected: avg 4.17 (catastrophic — miner contribution to heart production is essential)
+- Consider: miner scarce-element explore optimization (seed 42 miner spends many cycles exploring for oxygen/carbon)

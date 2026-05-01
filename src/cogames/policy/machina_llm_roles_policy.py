@@ -390,6 +390,14 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             skill = "explore"
             reason = f"overrode unstuck to explore after {state.consecutive_unstuck} consecutive unstuck calls"
             state.consecutive_unstuck = 0
+        # After get_heart stale exit near hub: re-select get_heart immediately (skip explore).
+        # Stale means aligner is adjacent to hub but no heart appeared — cycling faster
+        # maximizes the chance of catching the next crafted heart without blocking the hub.
+        if has_aligner and not has_heart and skill == "explore" and state.known_hubs:
+            last_ev = state.recent_events[-1] if state.recent_events else ""
+            if "get_heart exited as stale" in last_ev:
+                skill = "get_heart"
+                reason = "re-selected get_heart after stale exit (maximize hub presence)"
         # Heart queue management: avoid too many aligners rushing to hub when few hearts available
         # Allow at least 2 aligners simultaneously to reduce idle time
         if skill == "get_heart" and self._shared_map is not None:
