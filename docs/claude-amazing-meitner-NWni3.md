@@ -170,7 +170,52 @@ v4 match scores by agent count:
 - 4 agents: avg ~31 (moderate)
 - 2 agents: avg ~18 (bad, huge variance 3.3-46.9 depending on partner quality)
 
+### Experiment 11: Aligner junction targeting weight tuning
+- travel-only (hub_dist*0.0): **-7.5%** — lost 3 junctions, broken cascade
+- hub_dist*0.5: **-3.1%** — too restrictive, ignores nearby non-hub junctions
+- Conclusion: baseline 0.2 weight is optimal for junction targeting
+
+### Experiment 12: Heart batching / carry limit changes
+- Disable heart batching (want_more_hearts=False): **0.00% delta** — neutral
+- Heart carry limit 5 (vs 3): **0.00% delta** — neutral
+- In self-play, heart supply is saturated; these changes only matter online
+
+### Experiment 13: Hub-distance weight for extractor selection — IMPROVEMENT
+Changed `_nearest_extractor_hub_weighted` scoring from `travel + hub_dist//2` to `travel + hub_dist` (full weight). Makes miners strongly prefer extractors closer to the hub, reducing deposit round-trip time.
+
+**Result: +2.62% average improvement across 5 seeds**
+
+| Seed | Baseline | Hub-Weight | Delta |
+|------|----------|-----------|-------|
+| 42 | 1121.22 | 1132.27 | +0.98% |
+| 123 | 1073.88 | 1112.63 | +3.61% |
+| 456 | 1090.76 | 1085.77 | -0.46% |
+| 789 | 1103.41 | 1160.64 | +5.19% |
+| 101 | 1032.01 | 1072.08 | +3.88% |
+| **Avg** | **1084.26** | **1112.68** | **+2.62%** |
+
+Mechanism: closer extractors → shorter round trips → more deposits → more hearts → earlier junction alignment → more junction.held ticks.
+
+### Experiment 14: Aligner junction target coordination
+Added SharedMap.aligner_targets to avoid multiple aligners targeting the same junction. **0.00% delta** — perfectly neutral. Junctions are abundant in self-play (53 junctions / 4 aligners). May help online with contested junctions.
+
+### Experiment 15: Shared depletion tracking — REGRESSION (-4.3%)
+Sharing depleted extractor lists across miners via SharedMap. Extractors have per-agent or regenerating resources, so global depletion marking is too aggressive. Reverted.
+
+### Experiment 16: Additional tuning attempts (all reverted)
+- stuck_threshold 15 (vs 20): **-10.1%** — miners abandon productive mining too early
+- mine stale=6 (vs 8): **-3.5%** — marks extractors depleted too aggressively
+- hub_dist*2: **-5.7%** — too much clustering, miners fight for same extractors
+- Crowding avoidance (penalty for nearby miners): **-3.9%** — sends miners to farther extractors
+- return_load=30 with new hub weight: **-5.1%** — still too much travel overhead
+
+### Current state
+- **New offline baseline: 1112.68 avg (+2.62% vs pre-hub-weight 1095.29)**
+- Committed changes: hub-distance weight, aligner target coordination
+- Online submissions v5-v8 all failing (compat-v0.25 Docker image broken on server)
+- Best online score: v52 at #29/35.97 (pre-NiskB, compat-v0.17)
+
 ### Next experiment ideas
-- **Aligner explore efficiency**: Prefer directions toward unexplored map regions
-- **Mining with awareness of partner agents**: Avoid extractors that other visible cogs are using
-- **2-agent optimization**: Tune return_load and role allocation for 2-agent scenario specifically
+- **Deposit shortcut**: When a miner fills up near the hub, deposit immediately without waiting
+- **Element-weighted extractor selection**: Mine scarce elements first even from slightly farther extractors
+- **Adaptive aligner fraction for online**: More miners when team has few agents

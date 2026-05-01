@@ -4,3 +4,5 @@ ae0f026	1052.54	heart.gained=63	3000	discard	stale=15 + aligner HP retreat 0.40/
 5fa5b40	1070.20	heart.gained=64	3000	discard	heartless defend — redirect heart queue overflow to defend instead of explore (-2.3%)
 65b132f	1085.33	heart.gained=65	3000	discard	stale=12 compromise — slight regression -0.91% avg but 100% junction capture
 edc509d	1095.29	heart.gained=63	3000	keep	online depletion reset (n_miners<=2) — perfectly offline-neutral 0.00% delta
+db568de	1112.68	heart.gained=67	3000	keep	hub-distance full weight for extractor selection — +2.62% avg across 5 seeds
+2c5e5d5	1112.68	heart.gained=67	3000	keep	aligner junction target coordination — perfectly offline-neutral 0.00% delta
