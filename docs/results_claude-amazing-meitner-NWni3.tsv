@@ -2,3 +2,4 @@ commit	mission_reward	secondary_rewards	steps	status	description
 ae0f026	1052.54	heart.gained=63	3000	discard	stale=15 + aligner HP retreat 0.40/0.60 — regression from stale increase
 3f25dc4	1095.29	heart.gained=63	3000	keep	aligner HP retreat 0.25/0.50 + stale=8 — offline-neutral across 3 seeds
 5fa5b40	1070.20	heart.gained=64	3000	discard	heartless defend — redirect heart queue overflow to defend instead of explore (-2.3%)
+65b132f	1085.33	heart.gained=65	3000	discard	stale=12 compromise — slight regression -0.91% avg but 100% junction capture

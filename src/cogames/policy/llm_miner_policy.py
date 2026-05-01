@@ -469,7 +469,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             self._event(state, f"deposit_to_hub exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
-        elif state.current_skill == "mine_until_full" and state.no_progress_on_target_steps >= 12:
+        elif state.current_skill == "mine_until_full" and state.no_progress_on_target_steps >= 8:
             current_abs = self._current_abs(obs)
             nearby = [e for e in state.known_extractors
                       if abs(e[0] - current_abs[0]) + abs(e[1] - current_abs[1]) <= 2]

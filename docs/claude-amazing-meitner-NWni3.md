@@ -100,8 +100,20 @@ Actual junction performance (500-step test, seed 42): **35 junctions aligned** o
 - Issue: compat version changed to 0.25, bundle file paths may not match server expectations
 
 ### Experiment 5: Stale threshold tuning (stale=12)
-2026-05-01T05:57: Changed mine_until_full stale threshold from 8 to 12. This is a compromise between NiskB's aggressive 8 (good offline, bad online) and the pre-NiskB 20 (slow offline). The hypothesis is that 12 gives enough time for contested extractors to become available while still detecting truly depleted extractors faster than 20.
+2026-05-01T05:57: Changed mine_until_full stale threshold from 8 to 12.
+
+**Result: SLIGHT REGRESSION (-0.91%)**
+
+| Seed | Baseline | Stale=12 | Delta | Junction.held | Junctions |
+|------|----------|----------|-------|---------------|-----------|
+| 42 | 1121.22 | 1120.84 | -0.03% | 137103 | 53/53 |
+| 123 | 1073.88 | 1079.85 | +0.56% | 131982 | 55/55 |
+| 456 | 1090.76 | 1055.29 | -3.25% | 128912 | 54/54 |
+| **Avg** | **1095.29** | **1085.33** | **-0.91%** | | |
+
+Key finding: 100% junction capture rate in all seeds (53-55 out of 53-55 total). Junction capture is NOT our bottleneck — mining efficiency is. The extra 4 steps per stale check wastes time at genuinely depleted extractors. Reverted to stale=8.
 
 ### Next experiment ideas
-- **Aligner explore efficiency**: When exploring, prefer directions toward unexplored map regions rather than random wandering
-- **Dynamic role rebalancing**: Reduce aligner fraction when few junctions are known, increase when many are available
+- **Soft depletion**: Keep stale=8 but don't mark extractors as depleted — just reset skill and pick a different extractor. In online play, extractors are contested (not depleted), so this avoids permanent blacklisting.
+- **Aligner explore efficiency**: Prefer directions toward unexplored map regions
+- **Dynamic role rebalancing**: Adjust aligner fraction based on game state
