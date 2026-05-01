@@ -35,6 +35,7 @@ class LLMMinerState(MinerSkillState):
     explore_start_extractors: int = 0
     recent_events: list[str] = field(default_factory=list)
     consecutive_stuck_exits: int = 0
+    gear_approach_rotation: int = 0
 
 
 class LLMMinerPlannerClient:
@@ -454,15 +455,22 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             else:
                 self._event(state, f"deposit_to_hub timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
-        elif state.current_skill in {"gear_up", "mine_until_full"} and state.skill_steps >= self._stuck_threshold * 5:
-            if state.current_skill == "gear_up" and self._shared_map is not None and hasattr(self._shared_map, 'move_blocked_cells'):
+        elif state.current_skill == "gear_up" and state.skill_steps >= self._stuck_threshold * 2:
+            state.gear_approach_rotation = (state.gear_approach_rotation + 1) % 4
+            state.move_cooldowns.clear()
+            if self._shared_map is not None and hasattr(self._shared_map, 'move_blocked_cells'):
                 state.blocked_cells.difference_update(self._shared_map.move_blocked_cells)
                 self._shared_map.move_blocked_cells.clear()
+            self._event(state, f"gear_up timed out after {state.skill_steps} steps without completion")
+            state.current_skill = None
+        elif state.current_skill in {"gear_up", "mine_until_full"} and state.skill_steps >= self._stuck_threshold * 5:
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
             if state.current_skill == "deposit_to_hub":
                 state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
+            elif state.current_skill == "gear_up":
+                state.gear_approach_rotation = (state.gear_approach_rotation + 1) % 4
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and state.no_progress_on_target_steps >= max(6, self._stuck_threshold // 3):

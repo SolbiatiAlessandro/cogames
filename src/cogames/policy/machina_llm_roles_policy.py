@@ -20,6 +20,65 @@ from mettagrid.simulator.interface import AgentObservation
 
 logger = logging.getLogger("cogames.policy.machina_llm_roles")
 
+_GEAR_FAILURE_THRESHOLD = 5
+
+
+@dataclass
+class SwitchableMinerState:
+    miner_state: LLMMinerState | None = None
+    aligner_state: LLMAlignerState | None = None
+    is_aligner_mode: bool = False
+    gear_check_step: int = 0
+
+
+class SwitchableMinerImpl(StatefulPolicyImpl["SwitchableMinerState"]):
+    """Wraps a miner that auto-switches to aligner after repeated gear failures."""
+
+    def __init__(
+        self,
+        miner_impl: LLMMinerPolicyImpl,
+        aligner_impl: LLMAlignerPolicyImpl,
+        threshold: int = _GEAR_FAILURE_THRESHOLD,
+    ) -> None:
+        self._miner = miner_impl
+        self._aligner = aligner_impl
+        self._threshold = threshold
+
+    def reset(self) -> None:
+        self._miner.reset()
+        self._aligner.reset()
+
+    def initial_agent_state(self) -> SwitchableMinerState:
+        return SwitchableMinerState(
+            miner_state=self._miner.initial_agent_state(),
+        )
+
+    def step_with_state(
+        self, obs: AgentObservation, state: SwitchableMinerState
+    ) -> tuple[Action, SwitchableMinerState]:
+        if state.is_aligner_mode:
+            if state.aligner_state is None:
+                state.aligner_state = self._aligner.initial_agent_state()
+            action, state.aligner_state = self._aligner.step_with_state(obs, state.aligner_state)
+            return action, state
+
+        action, state.miner_state = self._miner.step_with_state(obs, state.miner_state)
+        state.gear_check_step += 1
+
+        if state.gear_check_step % 50 == 0 and state.miner_state is not None:
+            has_miner = self._miner._starter._current_gear(
+                self._miner._starter._inventory_items(obs)
+            ) == "miner"
+            if not has_miner and state.miner_state.consecutive_stuck_exits >= self._threshold:
+                state.is_aligner_mode = True
+                state.aligner_state = self._aligner.initial_agent_state()
+                logger.info(
+                    "ROLE_SWITCH agent=%d miner->aligner after %d consecutive gear failures",
+                    obs.agent_id, state.miner_state.consecutive_stuck_exits,
+                )
+
+        return action, state
+
 
 def _parse_role_skill_choice(text: str, valid_skills: set[str]) -> tuple[str | None, str]:
     text = text.strip()
@@ -696,7 +755,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         self._assigned_roles[agent_id] = role
         return role
 
-    def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]:
+    def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState | SwitchableMinerState]:
         if agent_id not in self._agent_policies:
             role = self._assign_role(agent_id)
             logger.info("ROLE_ASSIGNMENT agent=%d role=%s scripted_miners=%s", agent_id, role, self._scripted_miners)
@@ -723,7 +782,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     shared_map=self._shared_map,
                 )
             else:
-                impl = LLMMinerPolicyImpl(
+                miner_impl = LLMMinerPolicyImpl(
                     self._policy_env_info,
                     agent_id,
                     planner=None if self._scripted_miners else self._planner,
@@ -732,6 +791,16 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     unstuck_horizon=self._unstuck_horizon,
                     shared_map=self._shared_map,
                 )
+                aligner_fallback = LLMAlignerPolicyImpl(
+                    self._policy_env_info,
+                    agent_id,
+                    planner=self._planner,
+                    stuck_threshold=self._stuck_threshold,
+                    unstuck_horizon=self._unstuck_horizon,
+                    shared_map=self._shared_map,
+                    scripted=self._scripted_aligners,
+                )
+                impl = SwitchableMinerImpl(miner_impl, aligner_fallback)
             self._agent_policies[agent_id] = StatefulAgentPolicy(
                 impl,
                 self._policy_env_info,

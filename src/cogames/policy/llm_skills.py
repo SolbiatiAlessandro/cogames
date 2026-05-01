@@ -552,7 +552,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s mode=gear_up", obs.agent_id)
             state.last_mode = "gear_up"
         current_abs = self._current_abs(obs)
-        preferred_side = obs.agent_id % 4
+        rotation = getattr(state, "gear_approach_rotation", 0)
+        preferred_side = (obs.agent_id + rotation) % 4
         visible_target = self._closest_visible_location(obs, self._miner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
@@ -565,6 +566,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         target_abs = self._nearest_known(current_abs, state.known_miner_stations)
         if target_abs is None:
             if state.known_hubs:
+                hub_target = self._nearest_known(current_abs, state.known_hubs)
+                if hub_target is not None:
+                    dist = abs(current_abs[0] - hub_target[0]) + abs(current_abs[1] - hub_target[1])
+                    if dist > 3:
+                        action, next_state = self._move_to(state, current_abs, hub_target)
+                        return action, replace(next_state, last_mode="gear_up")
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
         result = self._navigate_to_blocked_target(state, current_abs, target_abs, preferred_side=preferred_side)
