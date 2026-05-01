@@ -122,7 +122,26 @@ No regression. Seed 7 8-agent even improved slightly.
 
 **Decision**: KEEP. +10.6% improvement (cumulative +31.3% over baseline). The predicted station offset directly fixes the miner station discovery failure.
 
+**CvC Results (2 our + 6 starter, predicted station offset)**:
+| Seed | CvC Baseline | CvC New | Delta |
+|------|-------------|---------|-------|
+| 42   | 19.57       | 19.57   | 0% |
+| 123  | 5.93        | 36.06   | +508% |
+| 7    | 3.00        | 58.20   | +1840% |
+| 99   | N/A         | 50.40   | — |
+| 256  | N/A         | 3.00    | — (station blocked) |
+| **avg** | **9.50** | **33.45** | **+252%** |
+
+## 2026-05-01T03:00: Experiment 3 — Gear-up approach patience
+
+**Hypothesis**: When gear_up is near the station but congested, rotate approach side and retry within the same skill instead of exiting to explore. Patience: up to `stuck_threshold * 4` (80 steps) vs `stuck_threshold` (20 steps) before.
+
+**Change**: `llm_miner_policy.py`: gear_up-specific stale handler that rotates approach and resets no_progress counter, only exiting after trying for 80 steps total.
+
+**Results**: Self-play unchanged (148.58 avg). CvC seed 256 still at floor (fundamental station blocking). Change is neutral — kept as defensive improvement.
+
 **Next steps**:
-- Seed 99 (135.63) is now the weakest — investigate why it underperforms vs seeds 42/123 (~162)
-- CvC with strong partner (machina): 10k steps yields 511-566 avg/agent for our 2 agents — huge upside with competent partners
-- Consider: improving seed 99 performance, aligner efficiency, or targeting CvC congestion
+- Seed 99 (135.63) is now the weakest self-play — miner depletes extractors mid-game and stalls
+- CvC seed 256 (3.00) has fundamental station blocking that requires structural changes
+- CvC with strong partner (machina): 10k steps yields 511-566 avg/agent — huge upside
+- Consider: improving extractor depletion handling, all-aligner 2-agent CvC config, or aligner efficiency
