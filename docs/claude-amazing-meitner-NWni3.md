@@ -73,5 +73,20 @@ Changes in this version:
 
 Hypothesis: In games where hearts are scarce, aligners waiting for hearts waste time exploring. Defending friendly junctions prevents territory loss and may increase junction.held reward.
 
+**Result: REGRESSION (-2.3%)**
+
+| Seed | Baseline | Exp 4 | Delta | Hearts |
+|------|----------|-------|-------|--------|
+| 42 | 1121.22 | 1074.71 | -4.1% | 64→64 |
+| 123 | 1073.88 | 1028.88 | -4.2% | 61→60 |
+| 456 | 1090.76 | 1107.02 | +1.5% | 63→68 |
+| **Avg** | **1095.29** | **1070.20** | **-2.3%** | |
+
+Analysis: Defending junctions sounds productive but actually hurts. When aligners sit on friendly junctions, they stop exploring for new neutral junctions to align. In self-play, there are no enemy clips contesting territory, so "defending" is just idle waiting. The explore fallback was better because it discovers new junctions, expanding the alignment frontier.
+
+Reverted change. The defend redirect might only help in online play (where enemy clips contest territory), but the offline regression is too large to accept.
+
 ### Next experiment ideas
 - **Stale threshold tuning for online**: Try stale=12 as compromise between 8 (too aggressive) and 20 (too conservative)
+- **Aligner explore efficiency**: When exploring, prefer directions toward unexplored map regions rather than random wandering
+- **Dynamic role rebalancing**: Reduce aligner fraction when few junctions are known, increase when many are available
