@@ -101,6 +101,21 @@ def main():
         for key, value in agent.items():
             totals[key] = totals.get(key, 0) + value
 
+    # Also check game-level / team-level stats (junction.held is a team stat)
+    for stat_key in ("game", "team", "derived"):
+        level_data = results.stats.get(stat_key)
+        if level_data is not None:
+            if isinstance(level_data, dict):
+                for k, v in level_data.items():
+                    if k not in totals:
+                        totals[k] = v
+            elif isinstance(level_data, list):
+                for item in level_data:
+                    if isinstance(item, dict):
+                        for k, v in item.items():
+                            if k not in totals:
+                                totals[k] = totals.get(k, 0) + v
+
     log.info("Episode finished in %.1fs", elapsed)
     log.info("RESULT steps=%d total_reward=%.6f avg_reward_per_agent=%.6f", results.steps, total_reward, avg_reward)
     log.info("RESULT rewards_per_agent=%s", [f"{r:.4f}" for r in results.rewards])
@@ -111,14 +126,18 @@ def main():
 
     print(f"\n=== EXPERIMENT RESULT ===")
     print(f"seed={args.seed} steps={results.steps} total_reward={total_reward:.6f} avg_per_agent={avg_reward:.6f}")
-    print(f"junction.held={totals.get('aligned.junction.held', 0):.0f}")
-    print(f"junction.gained={totals.get('aligned.junction.gained', 0):.0f}")
+    junction_held = totals.get('aligned.junction.held', 0) or totals.get('cogs/aligned.junction.held', 0)
+    junction_gained = totals.get('aligned.junction.gained', 0) or totals.get('cogs/aligned.junction.gained', 0)
+    print(f"junction.held={junction_held:.0f}")
+    print(f"junction.gained={junction_gained:.0f}")
     print(f"heart.gained={totals.get('heart.gained', 0):.0f}")
-    print(f"heart.withdrawn={totals.get('heart.withdrawn', 0):.0f}")
+    print(f"heart.withdrawn={totals.get('cogs/heart.withdrawn', 0):.0f}")
     print(f"carbon.deposited={totals.get('cogs/carbon.deposited', 0):.0f}")
     print(f"oxygen.deposited={totals.get('cogs/oxygen.deposited', 0):.0f}")
     print(f"germanium.deposited={totals.get('cogs/germanium.deposited', 0):.0f}")
     print(f"silicon.deposited={totals.get('cogs/silicon.deposited', 0):.0f}")
+    print(f"junctions.total={totals.get('objects.junction', 0):.0f}")
+    print(f"junction.aligned_by_agent={totals.get('junction.aligned_by_agent', 0):.0f}")
 
 
 if __name__ == "__main__":
