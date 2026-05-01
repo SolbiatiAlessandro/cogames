@@ -513,6 +513,13 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         if inv is not None:
             logger.info("agent=%s step=%d inv=%s skill=%s", aid, step_num, inv, state.current_skill)
 
+        sm = self._shared_map
+        n_miners = len(sm.active_miner_ids) if sm and hasattr(sm, 'active_miner_ids') else 4
+        if n_miners <= 2 and step_num % 150 == 75 and state.depleted_extractors:
+            logger.info("agent=%s ONLINE_DEPLETION_RESET clearing %d depleted (n_miners=%d, step=%d)",
+                        aid, len(state.depleted_extractors), n_miners, step_num)
+            state.depleted_extractors.clear()
+
         if self._check_miner_hp(obs, state):
             action, base_state = self._deposit_to_hub(obs, state)
             return action, self._copy_with(state, base_state)
