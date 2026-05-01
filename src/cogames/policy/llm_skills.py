@@ -568,10 +568,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if state.known_hubs:
                 hub_target = self._nearest_known(current_abs, state.known_hubs)
                 if hub_target is not None:
-                    dist = abs(current_abs[0] - hub_target[0]) + abs(current_abs[1] - hub_target[1])
-                    if dist > 3:
-                        action, next_state = self._move_to(state, current_abs, hub_target)
-                        return action, replace(next_state, last_mode="gear_up")
+                    predicted_station = (hub_target[0] + 4, hub_target[1] + 1)
+                    result = self._navigate_to_blocked_target(state, current_abs, predicted_station, preferred_side=preferred_side)
+                    if result is not None:
+                        action, next_state = result
+                        return action, replace(next_state, last_mode=state.last_mode)
+                    action, next_state = self._move_toward_target(state, current_abs, predicted_station)
+                    return action, replace(next_state, last_mode=state.last_mode)
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
         result = self._navigate_to_blocked_target(state, current_abs, target_abs, preferred_side=preferred_side)

@@ -83,3 +83,46 @@ CvC unchanged: seeds 123/7/99/256 still hit 3.0-5.93 floor. Root cause is statio
 - The 2-agent CvC problem is fundamentally about station congestion with 6 partner agents
 - The SwitchableMiner provides a floor; the real upside comes from making gear_up succeed more consistently
 - Consider: (a) more aggressive station approach with waiting/retrying, (b) using the aligner's known station locations in shared map, (c) timing gear_up to avoid peak congestion periods
+
+## 2026-05-01T02:00: Experiment 2 — Predicted Miner Station Offset + Fix SwitchableMiner Trigger
+
+**Root cause analysis for seed 7 (52.66)**:
+1. Miner oscillates between gear_up and explore for entire 3000 steps — never finds miner station
+2. Bug: `consecutive_stuck_exits` counter resets to 0 when explore completes (even without miner gear), preventing SwitchableMiner from ever triggering
+3. Even after fixing the counter, switched aligner can't find aligner gear either — wasted
+
+**Key discovery**: Station layout analysis (mettagrid/mapgen/scenes/base_hub.py) reveals stations are placed in a predictable row at `cy+4` from hub center:
+- aligner: `(hub_row + 4, hub_col - 3)` — already used by aligner's gear_up
+- scrambler: `(hub_row + 4, hub_col - 1)`
+- **miner: `(hub_row + 4, hub_col + 1)`**
+- scout: `(hub_row + 4, hub_col + 3)`
+
+**Changes**:
+1. `llm_miner_policy.py`: Fix `consecutive_stuck_exits` — only reset when `has_miner=True` (productive), not on every non-stuck event
+2. `llm_skills.py`: Replace hub-directed navigation with predicted station offset `(hub_row + 4, hub_col + 1)` in gear_up
+
+### Results — 2-Agent Self-Play
+| Seed | Exp 1 | Exp 2 | Delta |
+|------|-------|-------|-------|
+| 42   | 162.04 | 162.04 | 0% |
+| 123  | 163.16 | 163.16 | 0% |
+| 7    | 52.66 | **126.03** | **+139%** |
+| 99   | 135.63 | 135.63 | 0% |
+| 256  | 158.02 | 156.03 | -1.3% |
+| **avg** | **134.30** | **148.58** | **+10.6%** |
+
+### Results — 8-Agent Self-Play (regression check)
+| Seed | Exp 1 | Exp 2 |
+|------|-------|-------|
+| 42   | 1121.22 | 1121.22 |
+| 123  | 1011.49 | 1006.65 |
+| 7    | 1195.96 | 1240.14 |
+
+No regression. Seed 7 8-agent even improved slightly.
+
+**Decision**: KEEP. +10.6% improvement (cumulative +31.3% over baseline). The predicted station offset directly fixes the miner station discovery failure.
+
+**Next steps**:
+- Seed 99 (135.63) is now the weakest — investigate why it underperforms vs seeds 42/123 (~162)
+- CvC with strong partner (machina): 10k steps yields 511-566 avg/agent for our 2 agents — huge upside with competent partners
+- Consider: improving seed 99 performance, aligner efficiency, or targeting CvC congestion

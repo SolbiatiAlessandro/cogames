@@ -320,7 +320,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         was_stale = "exited as stale" in last_ev
         if was_stuck or was_stale:
             state.consecutive_stuck_exits += 1
-        else:
+        elif has_miner:
             state.consecutive_stuck_exits = 0
         if not has_miner:
             if was_stuck or was_stale:
