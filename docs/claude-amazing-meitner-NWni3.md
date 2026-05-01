@@ -86,7 +86,22 @@ Analysis: Defending junctions sounds productive but actually hurts. When aligner
 
 Reverted change. The defend redirect might only help in online play (where enemy clips contest territory), but the offline regression is too large to accept.
 
+### Key finding: stat collection was broken
+The experiment script was using wrong stat keys for junction.held (missing `cogs/` prefix) and only collecting per-agent stats (missing team-level derived stats). Fixed in commit a911e48.
+
+Actual junction performance (500-step test, seed 42): **35 junctions aligned** out of 53 total, junction.held=7468 cumulative ticks. Aligners ARE working correctly — the zero junction.held in earlier results was a reporting bug.
+
+2-agent test (3000 steps): 41 junctions aligned, total_reward=162.04, avg=81.02/agent. Even with just 1 miner + 1 aligner, the policy captures most junctions.
+
+### Online submission status
+- v5 (0KB bundle, no files): 4 crashes — "received 1011 (internal error)"
+- v6 (271KB, src/cogames/policy): 1 crash — "BackoffLimitExceeded" (wrong path: src/ prefix)
+- v7-v10: Various approaches, waiting for results
+- Issue: compat version changed to 0.25, bundle file paths may not match server expectations
+
+### Experiment 5: Stale threshold tuning (stale=12)
+2026-05-01T05:57: Changed mine_until_full stale threshold from 8 to 12. This is a compromise between NiskB's aggressive 8 (good offline, bad online) and the pre-NiskB 20 (slow offline). The hypothesis is that 12 gives enough time for contested extractors to become available while still detecting truly depleted extractors faster than 20.
+
 ### Next experiment ideas
-- **Stale threshold tuning for online**: Try stale=12 as compromise between 8 (too aggressive) and 20 (too conservative)
 - **Aligner explore efficiency**: When exploring, prefer directions toward unexplored map regions rather than random wandering
 - **Dynamic role rebalancing**: Reduce aligner fraction when few junctions are known, increase when many are available
