@@ -443,8 +443,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._starter._action(f"move_{direction}"), state
 
-    _ALIGNER_HP_RETREAT = 0.40
-    _ALIGNER_HP_RESUME = 0.60
+    _ALIGNER_HP_RETREAT = 0.25
+    _ALIGNER_HP_RESUME = 0.50
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
         center = self._starter._center
