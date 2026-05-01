@@ -1,83 +1,112 @@
 # Director Notes
-_Written: 2026-04-30 (Session 22)_
+_Written: 2026-05-01 (Session 23, offline-to-online)_
 
-## What I observed
+## What happened since Session 22
 
-### Online performance (v52 at 26 matches)
-- v52 stable at #25 (36.18), down marginally from #23 (36.35) at 23 matches. Mean score 34.40, median 36.85.
-- v54-astar:v2 at #57 (32.95) — A* confirmed regression (-8.9% vs v52). EYYU7 tested 25+ variants, all at or worse than A* v4.
-- Leaderboard grew to 453 entries (from 436). #1 unchanged: Paz-Bot-9000:v47 at 41.10.
+An autoresearcher (session 7T3EK) submitted the NiskB efficiency fixes as `lessandro-ohm-mani-padme-hum:v1` and iterated through v4. A second session (NWni3) continued experimentation and tried v5-v10. Key results:
 
-### Online replay analysis (v52 best match, score 43.48 with mammet)
-- **Agent mortality**: 7.5/8 agents die. Our agents survive ~5000-5500 steps out of 10k. This is 50% of potential junction-holding time lost.
-- **HP churn**: 8774 HP gained and 8766 HP lost per agent on average. Agents take massive ongoing damage.
-- **Move failure rate**: 5.3% (508.6 failed moves per agent). Not great, but not the primary bottleneck.
-- **max_steps_without_motion**: 1256 — agents still get stuck for long periods.
-- **Resource depletion**: Only 5 hearts withdrawn from hub. heart.gained=63 and junction.aligned=52 are identical at 3k and 10k steps — all productive work happens in first 3k steps.
+### ohm-mani-padme-hum Online Results
 
-### Branch activity
-- **EYYU7** (A* research): Exhaustive. 25+ variants. Best: +3.4% offline, but regressed -8.9% online. Key insight: BFS exploration > A* focused search in cooperative play.
-- **NiskB** (miner efficiency): Approach side diversification + fast mine depletion. +3.6% offline (5-seed). Reverts A* back to BFS. Clean code changes.
-- No other branches had new significant work since session 21.
+| Version | Rank | Score | Matches | Key Change |
+|---------|------|-------|---------|-----------|
+| v1 | #58 | 33.32 | 20 | NiskB baseline |
+| v2 | #49 | 33.66 | 8 | + aligner HP retreat 0.40/0.55 |
+| v3 | #91 | 30.01 | 22 | + miner HP retreat 0.35 (REGRESSED) |
+| v4 | #45 | 34.17 | 23 | Reverted miner HP, kept aligner retreat |
+| v5-v10 | — | BROKEN | 0 | Server: `No module named 'cogames.games'` |
+
+ALL ohm versions scored BELOW v52 (#29, 35.97) overall.
+
+### The 2-Agent Problem (NEW — most important finding)
+
+Autoresearcher 7T3EK discovered that NiskB beats v52 for 4+ agents (37.61 avg vs ~36) but catastrophically fails with 2 agents (9.16 avg). With `aligner_fraction=0.5`, 2 agents = 1 miner + 1 aligner. When paired with a weak partner controlling 6 agents, the team fails. ~35% of CvC matches assign only 2 agents — this drags the score from 37+ down to 33-34.
+
+### Server-Side Breakage (NEW — BLOCKS everything)
+
+ALL submissions after ~Apr 30 20:22 UTC fail with `No module named 'cogames.games'`. This is in the tournament server's Docker image, not our code. The autoresearcher tried setup_script shims, namespace packages, etc. — nothing works. We cannot submit ANY new policies until Softmax fixes this.
+
+## Offline observations
+
+- Best offline: 1118.60 (NiskB, commit 19d4b8b) — +3.6% vs v52's 1101.24
+- NWni3 branch has additional experiments: hub-distance weight (+2.62%), aligner junction coordination. Not merged — can't validate online.
+- Offline reward trajectory is flat. Multiple approaches tested (A*, NiskB, behavioral changes) — all produce 1-4% offline gains that don't translate online.
+
+## Online observations
+
+- Leaderboard: 463 entries (up from 453)
+- #1: Paz-Bot-9000:v47 at 41.10 (unchanged)
+- New entrant: slinky:v12 at #4 (40.67)
+- v52: dropped #25 to #29 (35.97, was 36.18) — 29 matches, avg 34.42
+- ohm v4 (our best new submission): #45 (34.17) — below v52
+
+### Replay Analysis: ohm v4 Best Match (score 48.5, self-play with v57)
+
+Agent survival is bimodal:
+- Agents 0,3,4: survived 6115-7475 steps (good)
+- Agents 1,2,5: survived 2322-2744 steps (died early)
+- Pattern: half die early (2000-3000 steps), other half survive 6000-7500
+
+This is different from session 22's analysis where most agents clustered around 5000-5500. The bimodal pattern suggests specific hazard encounters kill some agents early rather than gradual attrition.
+
+### v52 Best Match (score 51.86 with dinky_fido)
+
+- Agent 0: 3958 steps, 1.4% failure rate
+- Agent 1: 8197 steps, 0.3% failure rate
+- Both are v52 agents (2-agent match, partner=dinky_fido with 6 agents)
+- When v52 gets 2 agents + a strong partner, it scores 51.86 — exceeding #1 average
+
+## Offline-to-Online Gap Analysis
+
+1. **Offline best**: 1118.60 (NiskB, commit 19d4b8b). Online best: #29, 35.97 (v52).
+2. **Gap is NOT closing**: 4th consecutive offline improvement (NiskB) that fails to beat v52 online.
+3. **Root cause identified**: The 2-agent match problem. NiskB is genuinely better for 4+ agents (37.61 vs ~36) but the 35% of 2-agent matches destroy the average.
+4. **Server breakage blocks validation**: Can't even test fixes online.
+5. **Bottleneck is now clearly online**, not offline. The online game has two factors we don't optimize for: (a) variable agent count (2 vs 4 vs 6), (b) partner quality.
 
 ## Current bottleneck
 
-**Two newly identified levers, both related to the 10k-step online game format:**
+**Three stacked blockers:**
+1. Server submission failure (#59) — EXTERNAL, blocks everything
+2. 2-agent match handling (#58) — once server works, this is the biggest lever
+3. Agent survival + 10k utilization (#56, #57) — secondary but significant
 
-1. **Agent survival** (NEW — issue #56): 7.5/8 agents die at ~5200 steps. An agent surviving 8000 steps earns ~54% more held-junction reward than at 5200. This is the biggest unexploited opportunity. v57 (HP retreat) tried this and regressed — but the implementation may have been too aggressive.
-
-2. **10k-step utilization** (NEW — issue #57): All mining and alignment happens in 0-3k steps. From 3k-10k, agents wander pointlessly. If agents could defend junctions or find new alignment targets in late game, the reward would grow faster.
-
-**The scripted navigation ceiling is confirmed**: A* was the last structural navigation improvement to try, and it failed online. Further BFS tuning has diminishing returns. The remaining gap to #1 (12%) must come from either (a) agent survival / game-length optimization, (b) RL training, or (c) a fundamentally different strategic approach.
-
-## What I expected to happen vs. what I found
-
-### Expected (from session 21 notes):
-- v52 stability: Expected stable. **Confirmed** — 36.18 vs 36.35, within noise.
-- A* implementation: Expected to help. **WRONG** — A* regressed online despite +3.4% offline. The offline-online gap for navigation changes is inverted.
-- NiskB efficiency fixes: Not predicted — new researcher took initiative. **Good result** — +3.6% offline with BFS-preserving changes.
-
-### Surprise findings:
-- **Agent mortality as bottleneck**: I had not previously analyzed agent step counts from online replays. 7.5/8 dying is severe. This was masked by our offline testing at 1000-3000 steps where death is rare.
-- **Heart supply = 5, period**: Confirmed in online replay. No hearts are produced from mining deposits. The hub's initial 5 hearts are all that exist.
+The scripted policy has hit its ceiling for "one-size-fits-all" approaches. The remaining gains require:
+- Adaptive behavior based on agent count (2 vs 4 vs 6)
+- Better late-game strategy (3k-10k steps)
+- OR fundamentally: RL training (#41)
 
 ## Issues updated this session
-- **#54**: CLOSED — A* thoroughly tested, regressed online. NiskB efficiency fixes merged instead.
-- **#55**: CREATED (priority:1) — Submit NiskB efficiency fixes online, target > 37.0
-- **#56**: CREATED (priority:2) — Agent survival optimization (agents die at ~5200/10k steps)
-- **#57**: CREATED (priority:2) — 10k-step utilization (70% of game idle)
-- **#41**: Updated comment — RL remains blocked on GPU, still priority:2
+- **#55**: Added director comment, downgraded to priority:2 + blocked (NiskB doesn't beat v52 overall, server broken)
+- **#56**: Added replay analysis showing bimodal agent survival
+- **#58**: CREATED (priority:1) — 2-agent match adaptive role assignment
+- **#59**: CREATED (priority:1, blocked) — Server-side submission failure
+- **#41**: Updated with current gap analysis
 
-## Branches merged this session
-- `amazing-meitner-NiskB` to main (commit 19d4b8b): approach diversification + fast mine depletion (+3.6% offline)
+## Branches NOT merged (and why)
+- **7T3EK**: Has aligner HP retreat, v4 revert. Results: ohm v4 at #45 — worse than v52 overall. Don't merge until 2-agent problem is solved.
+- **NWni3**: Has online depletion reset, hub-distance weight, junction coordination. Can't validate online (server broken). Don't merge.
 
 ## Priority stack
 ```
-priority:1  #55  Submit NiskB efficiency fixes online     <- NEXT
-priority:2  #56  Agent survival optimization              <- NEW, potentially huge lever
-priority:2  #57  10k-step utilization                     <- NEW, complementary to #56
-priority:2  #41  RL policy training                       <- BLOCKED (needs GPU)
-priority:3  #53  Multi-agent cooperation paper
-priority:3  #50  Per-agent alignment efficiency
-priority:3  #27-#31 various speculative
+priority:1  #59  Server submission failure (cogames.games)  <- BLOCKER
+priority:1  #58  2-agent match handling                     <- BIGGEST ONLINE LEVER
+priority:2  #55  NiskB online validation                    <- blocked by #59
+priority:2  #56  Agent survival optimization
+priority:2  #57  10k-step utilization
+priority:2  #41  RL policy training                         <- blocked (GPU)
+priority:3  #53, #50, #27-#31, #12-#23                     <- speculative/saturated
 ```
 
 ## Open questions for next director
 
-1. **NiskB online validation**: Will the +3.6% offline translate? The changes are BFS-preserving (unlike A*), so they SHOULD translate. But the v53-v58 experience (all regressed) makes me cautious. If it translates, we move to ~#20.
+1. **Server fix timeline**: Has the `cogames.games` module issue been reported to Softmax? Check Discord. If not fixed, we're stuck.
 
-2. **Agent mortality root cause**: What kills agents? Is it combat damage from clips agents? Environmental damage? Or HP depletion from some game mechanic? Downloading and analyzing replays at the agent-level to track HP over time would answer this.
+2. **2-agent adaptive strategy**: The autoresearcher tested all-miners (5.99), 1M+1A (162.04), all-aligners (47.27) for 2 agents. 1M+1A is optimal in self-play. But online the problem is partner quality, not our role split. Can we detect partner quality in-game and adapt?
 
-3. **v57 HP retreat re-evaluation**: v57 (HP retreat) at #76 (31.23) tried HP-aware behavior and regressed. Was the implementation wrong (threshold too aggressive, retreat too far from junctions?) or is the concept wrong (retreating gives up junction-holding which costs more than it gains)?
+3. **Should we merge HP retreat?**: ohm v2 (aligner HP retreat 0.40/0.55) improved 2-agent scores from 9.16 to 16.1 (+75%) with minimal 4/6-agent regression. This change might be worth merging to main as a defensive improvement.
 
-4. **Heart mechanics deep-dive**: The hub has 5 hearts initially. Are there other ways to produce hearts? Does depositing resources eventually create hearts? The `cogs/heart.withdrawn: 5` in the replay says we only ever got 5 total. Understanding heart mechanics fully is critical for late-game strategy.
+4. **NWni3 experiments**: Hub-distance weight +2.62% and junction coordination are interesting but untested online. After server fix, consider cherry-picking these individually.
 
-5. **Top policy survival comparison**: Do Paz-Bot-9000 agents survive longer than ours? If #1 has agents surviving 8000+ steps vs our 5200, that alone explains the 12% gap. Downloading a top-1 replay and comparing agent lifetimes would be extremely informative.
+5. **Bimodal agent death**: Half of agents die at 2000-3000 steps, the other half survive 6000+. What specific event kills them? Combat damage from clips ships? Walking into a hazardous area?
 
-6. **Branch cleanup**: 70+ remote branches. Most are ancient (sessions 1-16). After this session's merge of NiskB, candidates for deletion:
-   - All `autoresearch/*` branches (sessions 1-8, all subsumed)
-   - `amazing-meitner-EYYU7` (A* work, subsumed by NiskB merge)
-   - `amazing-meitner-gp8Vw` (merged in session 21)
-   - `amazing-meitner-b3onP` (diagnostic, subsumed)
-   - All `pr/*` and `revert/*` branches (stale)
-   - Various `claude/affectionate-hopper-*` and `claude/vigilant-feynman-*` (old sessions)
+6. **Leaderboard score decay**: v52 dropped from 36.18 to 35.97 (29 matches). Is this noise from new partner matchups, or is competition getting stronger?
