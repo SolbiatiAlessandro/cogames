@@ -113,7 +113,64 @@ Actual junction performance (500-step test, seed 42): **35 junctions aligned** o
 
 Key finding: 100% junction capture rate in all seeds (53-55 out of 53-55 total). Junction capture is NOT our bottleneck — mining efficiency is. The extra 4 steps per stale check wastes time at genuinely depleted extractors. Reverted to stale=8.
 
+### Experiment 6: Soft depletion (no depletion marking)
+2026-05-01T06:05: Removed depletion marking from the planner's stale check. When mine_until_full stalls for 8 steps, just reset the skill without marking extractors as depleted.
+
+**Result: CATASTROPHIC REGRESSION (-50.3%)**
+
+| Seed | Baseline | Soft Depl | Delta |
+|------|----------|-----------|-------|
+| 42 | 1121.22 | 557.35 | -50.3% |
+
+1379 soft resets, 0 depletion markings. Miners loop endlessly on the same empty extractors. Depletion marking is essential to prevent tight loops.
+
+### Experiment 7: Role ratio tuning (3 aligners / 5 miners)
+**Result: REGRESSION (-3.7%)**
+- Total reward: 1079.90 (baseline 1121.22)
+- More elements deposited (carbon +28%, silicon +51%) but oxygen flat at 600
+- Oxygen is the limiting element for heart crafting
+- Fewer aligners → 52/53 junctions (missed 1) → lower junction.held
+
+### Experiment 8: Return load tuning
+- return_load=30: **-3.2%** (more deposits but more travel time)
+- return_load=50: **-79%** (catastrophic, miners can't fill up)
+- Baseline return_load=40 is optimal
+
+### Experiment 9: Periodic depletion reset (global, every 200 steps)
+**Result: REGRESSION (-9.3%)**
+- 1017.32 total reward. Miners waste time revisiting genuinely depleted extractors every 200 steps.
+- 30-60 extractors cleared per reset cycle — too aggressive for self-play where extractors ARE depleted.
+
+### Experiment 10: Online depletion reset (conditional) — VALIDATED
+2026-05-01T06:35: Only apply periodic depletion reset when `n_miners <= 2` (online competition scenario). In self-play with 4 miners, the condition never triggers.
+
+**Result: PERFECTLY OFFLINE-NEUTRAL (0.00% delta all 3 seeds)**
+
+| Seed | Baseline | Exp 10 | Delta |
+|------|----------|--------|-------|
+| 42 | 1121.22 | 1121.22 | 0.0% |
+| 123 | 1073.88 | 1073.88 | 0.0% |
+| 456 | 1090.76 | 1090.76 | 0.0% |
+
+In 2-agent self-play, the reset only triggers 2x per game (steps 825 and 1275), clearing 1 extractor each time. Impact is -0.44% in 2-agent self-play, which is acceptable.
+
+### Online submission fix
+The compat-v0.25 Docker image fails with "No module named 'cogames.games'" — a server-side issue. Created a proper bundle with:
+1. `cogames/policy/` files at correct import path (no `src/` prefix)
+2. `cogames/games/__init__.py` shim that aliases `cogames.cogs_vs_clips`
+3. `setup_games_shim.py` that patches `sys.modules`
+
+Uploaded as ohm-mani-padme-hum v3 (82KB zip) and v4 (80KB dir). Both currently running qualifying matches.
+
+### Match analysis: cooperative game insight
+All agents are cogs on the SAME team. The "opponent" in a match is another player controlling some cogs. Scores are shared between both players. 2-agent matches (1 miner + 1 aligner) drag the average down.
+
+v4 match scores by agent count:
+- 6 agents: avg ~40 (good)
+- 4 agents: avg ~31 (moderate)
+- 2 agents: avg ~18 (bad, huge variance 3.3-46.9 depending on partner quality)
+
 ### Next experiment ideas
-- **Soft depletion**: Keep stale=8 but don't mark extractors as depleted — just reset skill and pick a different extractor. In online play, extractors are contested (not depleted), so this avoids permanent blacklisting.
 - **Aligner explore efficiency**: Prefer directions toward unexplored map regions
-- **Dynamic role rebalancing**: Adjust aligner fraction based on game state
+- **Mining with awareness of partner agents**: Avoid extractors that other visible cogs are using
+- **2-agent optimization**: Tune return_load and role allocation for 2-agent scenario specifically
