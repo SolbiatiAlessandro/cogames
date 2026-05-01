@@ -748,7 +748,16 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         bl = state.blacklisted_junctions
         alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
                      if self._is_alignable(j, state) and j not in bl}
+        sm = self._shared_map
+        if sm is not None and alignable:
+            other_targets = {t for aid, t in sm.aligner_targets.items()
+                            if t is not None and aid != self._agent_id}
+            unclaimed = alignable - other_targets
+            if unclaimed:
+                alignable = unclaimed
         target_abs = self._cascade_priority_target(current_abs, alignable, state)
+        if sm is not None:
+            sm.aligner_targets[self._agent_id] = target_abs
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
@@ -784,8 +793,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         )
         want_more_hearts = heart_count > 0 and heart_count < 3 and near_hub
         if self._current_gear(obs) != "aligner":
+            if self._shared_map is not None:
+                self._shared_map.aligner_targets[self._agent_id] = None
             action, state = self._gear_up(obs, state, current_abs)
         elif heart_count <= 0 or want_more_hearts:
+            if self._shared_map is not None:
+                self._shared_map.aligner_targets[self._agent_id] = None
             action, state = self._get_heart(obs, state, current_abs)
         else:
             action, state = self._align_neutral(obs, state, current_abs)
