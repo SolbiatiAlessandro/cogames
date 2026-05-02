@@ -28,4 +28,19 @@ No regression detected. All seeds perform well. Seed 123 is +6.7% vs xfD6y.
 
 Decision: Proceed with merge to main and online submission.
 
-2026-05-02T10:51: Merging aSOVe to main
+2026-05-02T10:51: Merging aSOVe to main — SUCCESS. Merged aSOVe to main, pushed.
+
+2026-05-02T11:00: Submitted policy online
+- Name: `lessandro-ohm-bekkenze-maha-bekkenze:v1`
+- Season: beta-cvc
+- Pool: qualifying
+- Bundle size: 273 KB (23 policy files)
+- Policy class: MachinaLLMRolesPolicy (scripted miners + scripted aligners)
+- cogames version: 0.25.6
+
+Waiting for qualifying matches to complete. Key metrics to monitor:
+- 2-agent match scores (target: >20.0 avg, vs old 9.16)
+- Overall score (target: >36.0, vs v52's 35.62)
+- Match completion (no failures/crashes)
+
+2026-05-02T11:05: Monitoring online results
