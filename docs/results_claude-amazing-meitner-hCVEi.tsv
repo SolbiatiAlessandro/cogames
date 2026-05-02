@@ -1,0 +1,4 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+merged	1126.102173	seed42_8agent_selfplay	3000	keep	aSOVe 8-agent validation seed 42
+merged	1074.419922	seed123_8agent_selfplay	3000	keep	aSOVe 8-agent validation seed 123
+merged	1222.991577	seed7_8agent_selfplay	3000	keep	aSOVe 8-agent validation seed 7
