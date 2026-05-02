@@ -81,3 +81,42 @@ activates in scrambler scenarios. Advancing branch.
 9+ competition matches running against other policies (Cedric:v8, anoop, ron.scouts, etc.)
 
 2026-05-02T17:43: Next experiment — looking for next bottleneck to address.
+
+2026-05-03T17:30: Online match analysis — policy at rank #54, score 33.73 (18 matches)
+
+| Agents | Matches | Avg Score |
+|--------|---------|-----------|
+| 2      | 7       | **18.57** |
+| 4      | 6       | **34.00** |
+| 6      | 5       | **40.59** |
+
+6-agent performance (40.59) is competitive. 2-agent (18.57) is the clear bottleneck.
+Downloaded and analyzed match logs for worst matches.
+
+Found two bugs:
+
+1. **Miner fast-depletion spin loop**: In 2.09 match (vs ron.scouts), miner enters infinite
+   `mine_until_full → fast-depleted → mine_until_full` loop from step 400 to 10000 (96% of
+   game wasted). 218 fast-depletions. Root cause: fast-depleted events don't trigger was_stuck
+   or was_stale, so planner always selects mine_until_full when active extractors exist.
+   Fix: track consecutive_fast_depletions, force explore after 5 to find fresh area.
+
+2. **Gear-up explore-loop**: In 21.10 4-agent match, both miners lost gear (scrambler) and
+   entered infinite `explore timeout → explore` loop because explore timeouts match the
+   "timed out after" pattern that triggers was_stuck=True in the no-miner path. Miner
+   never retries gear_up, so consecutive_gear_failures never reaches SwitchableMiner
+   threshold. Fix: only return explore after actual gear_up failure, not after explore timeout.
+
+Both fixes are safety nets — no change in 3000-step offline tests (8-agent or CvC).
+Online validation needed. Submitting as v2.
+
+2026-05-03T18:15: 8-agent validation (fast-depletion + gear-loop fixes)
+
+| Seed | Current | Baseline | Change |
+|------|---------|----------|--------|
+| 42   | 1126.10 | 1126.10  | 0%     |
+| 123  | 1096.15 | 1090.81  | +0.5%  |
+| 7    | 1229.40 | 1222.99  | +0.5%  |
+| Avg  | 1150.55 | 1146.63  | +0.3%  |
+
+No regression. Advancing to online submission.
