@@ -37,6 +37,7 @@ class LLMMinerState(MinerSkillState):
     consecutive_stuck_exits: int = 0
     consecutive_gear_failures: int = 0
     switched_to_aligner: bool = False
+    consecutive_fast_depletions: int = 0
 
 
 class LLMMinerPlannerClient:
@@ -323,10 +324,20 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.consecutive_stuck_exits += 1
         else:
             state.consecutive_stuck_exits = 0
+        was_fast_depleted = "fast-depleted" in last_ev
+        if was_fast_depleted:
+            state.consecutive_fast_depletions += 1
+        elif "mine_until_full completed" in last_ev:
+            state.consecutive_fast_depletions = 0
         if not has_miner:
             if was_stuck or was_stale:
                 return "explore", "scripted: gear_up stuck/stale, exploring for station"
             return "gear_up", "scripted: no miner gear"
+        if state.consecutive_fast_depletions >= 5:
+            state.consecutive_fast_depletions = 0
+            state.depleted_extractors.clear()
+            self._event(state, f"breaking fast-depletion loop after {5} cycles, cleared depleted list")
+            return "explore", "scripted: extractors repeatedly depleted, exploring for fresh area"
         was_explore_exit = (was_stuck or was_stale) and last_ev.startswith("explore ")
         if carried_total >= self._effective_return_load:
             if (was_stuck or was_stale) and not was_explore_exit:
