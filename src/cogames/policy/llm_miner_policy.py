@@ -427,6 +427,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         has_miner = self._starter._current_gear(self._starter._inventory_items(obs)) == "miner"
         if state.current_skill == "gear_up" and has_miner:
             self._event(state, "gear_up completed after acquiring miner gear")
+            state.gear_up_stale_exits = 0
+            state.blacklisted_miner_stations.clear()
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried_total >= self._effective_return_load:
             self._event(state, f"mine_until_full completed at load={carried_total}")
@@ -455,14 +457,34 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 self._event(state, f"deposit_to_hub timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill in {"gear_up", "mine_until_full"} and state.skill_steps >= self._stuck_threshold * 5:
-            if state.current_skill == "gear_up" and self._shared_map is not None and hasattr(self._shared_map, 'move_blocked_cells'):
-                state.blocked_cells.difference_update(self._shared_map.move_blocked_cells)
-                self._shared_map.move_blocked_cells.clear()
+            if state.current_skill == "gear_up":
+                if self._shared_map is not None and hasattr(self._shared_map, 'move_blocked_cells'):
+                    state.blocked_cells.difference_update(self._shared_map.move_blocked_cells)
+                    self._shared_map.move_blocked_cells.clear()
+                state.gear_up_stale_exits += 1
+                if state.gear_up_stale_exits >= 4:
+                    current_abs = self._current_abs(obs)
+                    available = state.known_miner_stations - state.blacklisted_miner_stations
+                    nearest = self._nearest_known(current_abs, available) if available else None
+                    if nearest is not None:
+                        state.blacklisted_miner_stations.add(nearest)
+                        self._event(state, f"blacklisted miner station at {nearest} after {state.gear_up_stale_exits} gear_up failures")
+                        state.gear_up_stale_exits = 0
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill is not None and state.no_move_steps >= self._stuck_threshold:
             if state.current_skill == "deposit_to_hub":
                 state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
+            elif state.current_skill == "gear_up":
+                state.gear_up_stale_exits += 1
+                if state.gear_up_stale_exits >= 4:
+                    current_abs = self._current_abs(obs)
+                    available = state.known_miner_stations - state.blacklisted_miner_stations
+                    nearest = self._nearest_known(current_abs, available) if available else None
+                    if nearest is not None:
+                        state.blacklisted_miner_stations.add(nearest)
+                        self._event(state, f"blacklisted miner station at {nearest} after {state.gear_up_stale_exits} gear_up failures")
+                        state.gear_up_stale_exits = 0
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and state.no_progress_on_target_steps >= max(6, self._stuck_threshold // 3):
@@ -478,6 +500,16 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             self._event(state, f"mine_until_full fast-depleted after {state.no_progress_on_target_steps} steps, marked {len(nearby)} extractors")
             state.current_skill = None
         elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
+            if state.current_skill == "gear_up":
+                state.gear_up_stale_exits += 1
+                if state.gear_up_stale_exits >= 4:
+                    current_abs = self._current_abs(obs)
+                    available = state.known_miner_stations - state.blacklisted_miner_stations
+                    nearest = self._nearest_known(current_abs, available) if available else None
+                    if nearest is not None:
+                        state.blacklisted_miner_stations.add(nearest)
+                        self._event(state, f"blacklisted miner station at {nearest} after {state.gear_up_stale_exits} gear_up failures")
+                        state.gear_up_stale_exits = 0
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
