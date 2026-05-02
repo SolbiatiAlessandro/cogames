@@ -408,7 +408,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, "defend ended: acquired heart while defending")
             state.get_heart_timeouts = 0
             state.current_skill = None
-        elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 50:
+        elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 25:
             self._event(state, "defend ended: trying get_heart again")
             state.get_heart_timeouts = 0  # reset to allow another get_heart attempt
             state.current_skill = None
