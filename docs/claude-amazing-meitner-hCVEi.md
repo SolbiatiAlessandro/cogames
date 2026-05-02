@@ -60,3 +60,24 @@ All 4 known miner stations were blacklisted (4, -2), (4, -1), (8, -3), (0, 5).
 Agent spent ~1200 steps (40% of episode) in useless gear_up→explore→gear_up cycle.
 Hypothesis: SwitchableMiner (auto-switch to aligner after 5+ consecutive gear failures) will
 recover these wasted steps by letting stuck miners contribute as aligners instead.
+
+2026-05-02T17:42: SwitchableMiner 8-agent self-play results (3000 steps)
+
+| Seed | SwitchableMiner | Baseline (aSOVe) | Change |
+|------|----------------|-------------------|--------|
+| 42   | 1126.10        | 1126.10           | 0%     |
+| 123  | 1090.81        | 1074.42           | +1.5%  |
+| 7    | 1222.99        | 1222.99           | 0%     |
+| **Avg** | **1146.63**  | **1141.17**       | **+0.5%** |
+
+Result: Marginal improvement (+0.5% avg). SwitchableMiner only activates on seed 123 where
+a scrambler was picked up (scrambler.gained=1). Seeds 42/7 had no scrambler events so
+the feature never triggered → identical results. No regression detected.
+
+Decision: KEEP — small improvement, no regression. The feature is a safety net that only
+activates in scrambler scenarios. Advancing branch.
+
+2026-05-02T17:42: Online matches — passed qualifying, now in competition pool.
+9+ competition matches running against other policies (Cedric:v8, anoop, ron.scouts, etc.)
+
+2026-05-02T17:43: Next experiment — looking for next bottleneck to address.
