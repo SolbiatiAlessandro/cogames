@@ -330,8 +330,9 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif "mine_until_full completed" in last_ev:
             state.consecutive_fast_depletions = 0
         if not has_miner:
-            if was_stuck or was_stale:
-                return "explore", "scripted: gear_up stuck/stale, exploring for station"
+            gear_up_failed = (was_stuck or was_stale) and "gear_up" in last_ev
+            if gear_up_failed:
+                return "explore", "scripted: gear_up failed, exploring for station"
             return "gear_up", "scripted: no miner gear"
         if state.consecutive_fast_depletions >= 5:
             state.consecutive_fast_depletions = 0
