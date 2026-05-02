@@ -62,6 +62,9 @@ class MinerSkillState(StarterCogState):
     last_carried_total: int = 0
     # Hub approach diversification: each miner prefers a different side
     hub_approach_rotation: int = 0
+    # Gear-up: blacklist stations that are permanently contended
+    gear_up_stale_exits: int = 0
+    blacklisted_miner_stations: set[Coord] = field(default_factory=set)
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -558,28 +561,38 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     def _gear_up(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "gear_up":
-            logger.info("agent=%s mode=gear_up", obs.agent_id)
+            logger.info("agent=%s mode=gear_up blacklisted=%s", obs.agent_id, sorted(state.blacklisted_miner_stations))
             state.last_mode = "gear_up"
         current_abs = self._current_abs(obs)
         preferred_side = obs.agent_id % 4
         visible_target = self._closest_visible_location(obs, self._miner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
-            result = self._navigate_to_blocked_target(state, current_abs, target_abs, preferred_side=preferred_side)
-            if result is not None:
-                action, next_state = result
+            if target_abs not in state.blacklisted_miner_stations:
+                result = self._navigate_to_blocked_target(state, current_abs, target_abs, preferred_side=preferred_side)
+                if result is not None:
+                    action, next_state = result
+                    return action, replace(next_state, last_mode=state.last_mode)
+                action, next_state = self._move_toward_target(state, current_abs, target_abs)
                 return action, replace(next_state, last_mode=state.last_mode)
-            action, next_state = self._move_toward_target(state, current_abs, target_abs)
-            return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.known_miner_stations)
+        available_stations = state.known_miner_stations - state.blacklisted_miner_stations
+        target_abs = self._nearest_known(current_abs, available_stations) if available_stations else None
         if target_abs is None:
             predicted = self._predicted_station_position(state, _MINER_STATION_OFFSET)
-            if predicted is not None:
+            alt_predicted = self._predicted_station_position(state, (-_MINER_STATION_OFFSET[0], -_MINER_STATION_OFFSET[1]))
+            if predicted is not None and predicted not in state.blacklisted_miner_stations:
                 result = self._navigate_to_blocked_target(state, current_abs, predicted, preferred_side=preferred_side)
                 if result is not None:
                     action, next_state = result
                     return action, replace(next_state, last_mode=state.last_mode)
                 action, next_state = self._move_toward_target(state, current_abs, predicted)
+                return action, replace(next_state, last_mode=state.last_mode)
+            if alt_predicted is not None and alt_predicted not in state.blacklisted_miner_stations:
+                result = self._navigate_to_blocked_target(state, current_abs, alt_predicted, preferred_side=preferred_side)
+                if result is not None:
+                    action, next_state = result
+                    return action, replace(next_state, last_mode=state.last_mode)
+                action, next_state = self._move_toward_target(state, current_abs, alt_predicted)
                 return action, replace(next_state, last_mode=state.last_mode)
             if state.known_hubs:
                 return self._explore_near_hub(obs, state)
