@@ -18,3 +18,6 @@ b842e4f	58.798130	depletion-fix_cvc_seed123	3000	keep	fast-depletion+gear-loop f
 b842e4f	60.406483	depletion-fix_cvc_seed7	3000	keep	fast-depletion+gear-loop fix CvC seed 7 (no change)
 b842e4f	65.663918	depletion-fix_cvc_seed99	3000	keep	fast-depletion+gear-loop fix CvC seed 99 (no change)
 b842e4f	2.999965	depletion-fix_cvc_seed256	3000	keep	fast-depletion+gear-loop fix CvC seed 256 (floor)
+0e69ea2	1126.102173	ext-explore_seed42_8agent	3000	keep	extended-explore+drought 8-agent seed 42 (no change)
+0e69ea2	1095.661133	ext-explore_seed123_8agent	3000	keep	extended-explore+drought 8-agent seed 123 (no change)
+0e69ea2	1227.765747	ext-explore_seed7_8agent	3000	keep	extended-explore+drought 8-agent seed 7 (no change)
