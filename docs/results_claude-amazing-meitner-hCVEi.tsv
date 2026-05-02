@@ -1,0 +1,20 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+merged	1126.102173	seed42_8agent_selfplay	3000	keep	aSOVe 8-agent validation seed 42
+merged	1074.419922	seed123_8agent_selfplay	3000	keep	aSOVe 8-agent validation seed 123
+merged	1222.991577	seed7_8agent_selfplay	3000	keep	aSOVe 8-agent validation seed 7
+merged	60.523438	cvc_2agent_seed42	3000	keep	CvC 2-agent validation seed 42 (baseline 19.57)
+merged	58.798130	cvc_2agent_seed123	3000	keep	CvC 2-agent validation seed 123 (baseline 49.87)
+merged	60.406483	cvc_2agent_seed7	3000	keep	CvC 2-agent validation seed 7 (baseline 60.38)
+merged	65.720886	cvc_2agent_seed99	3000	keep	CvC 2-agent validation seed 99 (baseline 65.72)
+merged	2.999965	cvc_2agent_seed256	3000	keep	CvC 2-agent validation seed 256 (floor - station congestion)
+e1986c4	1126.102173	switchminer_seed42_8agent	3000	keep	SwitchableMiner 8-agent seed 42 (baseline 1126.10, +0%)
+e1986c4	1090.808105	switchminer_seed123_8agent	3000	keep	SwitchableMiner 8-agent seed 123 (baseline 1074.42, +1.5%)
+e1986c4	1222.991577	switchminer_seed7_8agent	3000	keep	SwitchableMiner 8-agent seed 7 (baseline 1222.99, +0%)
+b842e4f	1126.102173	depletion-fix_seed42_8agent	3000	keep	fast-depletion+gear-loop fix 8-agent seed 42 (no change)
+b842e4f	1096.148560	depletion-fix_seed123_8agent	3000	keep	fast-depletion+gear-loop fix 8-agent seed 123 (no change)
+b842e4f	1229.395264	depletion-fix_seed7_8agent	3000	keep	fast-depletion+gear-loop fix 8-agent seed 7 (no change)
+b842e4f	60.523438	depletion-fix_cvc_seed42	3000	keep	fast-depletion+gear-loop fix CvC seed 42 (no change)
+b842e4f	58.798130	depletion-fix_cvc_seed123	3000	keep	fast-depletion+gear-loop fix CvC seed 123 (no change)
+b842e4f	60.406483	depletion-fix_cvc_seed7	3000	keep	fast-depletion+gear-loop fix CvC seed 7 (no change)
+b842e4f	65.663918	depletion-fix_cvc_seed99	3000	keep	fast-depletion+gear-loop fix CvC seed 99 (no change)
+b842e4f	2.999965	depletion-fix_cvc_seed256	3000	keep	fast-depletion+gear-loop fix CvC seed 256 (floor)
