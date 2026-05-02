@@ -15,6 +15,8 @@ logger = logging.getLogger("cogames.policy.llm_skills")
 Coord = tuple[int, int]
 _HUB_SEARCH_DISTANCE = 20
 _HUB_EXTRACTOR_OFFSETS: tuple[Coord, ...] = ((-8, -8), (-8, 8), (8, -8), (8, 8))
+_MINER_STATION_OFFSET: Coord = (4, 1)
+_ALIGNER_STATION_OFFSET: Coord = (4, -3)
 _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
     ("north", (-1, 0)),
     ("east", (0, 1)),
@@ -379,6 +381,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 predicted.add((hub_row + d_row, hub_col + d_col))
         return predicted
 
+    def _predicted_station_position(self, state: MinerSkillState, offset: Coord) -> Coord | None:
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        if not hub_set:
+            return None
+        hub_row, hub_col = min(hub_set, key=lambda c: abs(c[0]) + abs(c[1]))
+        return (hub_row + offset[0], hub_col + offset[1])
+
     def _bfs_first_direction(self, state: MinerSkillState, start: Coord, goal: Coord) -> str | None:
         if start == goal:
             return self._starter._fallback_action_name
@@ -564,6 +573,14 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return action, replace(next_state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, state.known_miner_stations)
         if target_abs is None:
+            predicted = self._predicted_station_position(state, _MINER_STATION_OFFSET)
+            if predicted is not None:
+                result = self._navigate_to_blocked_target(state, current_abs, predicted, preferred_side=preferred_side)
+                if result is not None:
+                    action, next_state = result
+                    return action, replace(next_state, last_mode=state.last_mode)
+                action, next_state = self._move_toward_target(state, current_abs, predicted)
+                return action, replace(next_state, last_mode=state.last_mode)
             if state.known_hubs:
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
