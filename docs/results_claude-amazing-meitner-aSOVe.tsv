@@ -3,3 +3,4 @@ commit	mission_reward	secondary_rewards	steps	status	description
 e45c5fc	45.64	junction.held=0 heart.gained=avg	3000	improvement	hub approach rotation: aligner rotates hub side every 2 failed get_heart attempts (+5.93 avg)
 2f9eab8	45.64	junction.held=0 heart.gained=avg	3000	neutral	miner station blacklisting: blacklist contended stations after 4 failures (neutral on 5 seeds)
 8205c2d	46.50	junction.held=0 heart.gained=avg	3000	improvement	hub rotation reset: reset approach rotation on success, fixes seed 7 regression (+6.79 avg)
+5afd996	49.69	junction.held=0 heart.gained=avg	3000	improvement	defend duration 1000→500: faster return to get_heart after defend mode (+9.98 avg)
