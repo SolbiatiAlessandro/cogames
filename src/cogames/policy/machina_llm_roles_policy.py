@@ -398,6 +398,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")
                 state.get_heart_timeouts = 0
                 state.get_heart_stale_exits = 0
+                state.hub_approach_rotation = 0
                 sm = self._shared_map
                 if sm is not None:
                     sm.hub_hearts_withdrawn += heart_count
