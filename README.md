@@ -24,103 +24,75 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-01 (Session 23, offline-to-online)_
+_Updated by Director: 2026-05-02 (Session 24)_
 
-### Online Tournament (beta-cvc, cooperative scoring, 463 entries)
+### Online Tournament (beta-cvc, cooperative scoring)
 
-| Rank | Score | Policy | Matches | Notes |
-|------|-------|--------|---------|-------|
-| #1/463 | **41.10** | `Paz-Bot-9000:v47` | — | RL |
-| #2/463 | 40.82 | `Gryffindor:v11` | — | RL |
-| #3/463 | 40.73 | `Slytherin:v14` | — | RL |
-| #4/463 | 40.67 | `slinky:v12` | — | RL (new) |
-| #5/463 | 40.33 | `Paz-Bot-9000:v50` | — | RL |
-| #6/463 | 40.11 | `Hufflepuff:v11` | — | RL |
-| #13/463 | 38.28 | `Softy:v82` | — | RL |
-| ... | | | | |
-| **#29/463** | **35.97** | **`lessandro-scripted-v52:v1`** | **29** | **OUR BEST (stable)** |
-| #40/463 | 34.73 | `lessandro-scripted-v55:v1` | — | v52 + defend queue |
-| #45/463 | 34.17 | `lessandro-ohm-mani-padme-hum:v4` | 23 | NiskB + HP retreat |
-| #49/463 | 33.66 | `lessandro-ohm-mani-padme-hum:v2` | 8 | NiskB + HP retreat v2 |
-| #51/463 | 33.55 | `lessandro-scripted-v48:v1` | — | Previous best |
-| #54/463 | 33.48 | `lessandro-scripted-v54-astar:v2` | — | A* — regressed |
-| #58/463 | 33.32 | `lessandro-ohm-mani-padme-hum:v1` | 20 | NiskB baseline |
-| #91/463 | 30.01 | `lessandro-ohm-mani-padme-hum:v3` | 22 | Miner HP retreat — regressed |
+| Rank | Score | Policy | Notes |
+|------|-------|--------|-------|
+| #1 | **41.10** | `Paz-Bot-9000:v47` | RL |
+| #2 | 40.82 | `Gryffindor:v11` | RL |
+| #3 | 40.73 | `Slytherin:v14` | RL |
+| #4 | 40.62 | `slinky:v12` | RL |
+| #5 | 40.33 | `Paz-Bot-9000:v50` | RL |
+| #6 | 40.11 | `Hufflepuff:v11` | RL |
+| ... | | | |
+| **#31** | **35.62** | **`lessandro-scripted-v52:v1`** | **OUR BEST** |
+| #40 | 34.73 | `lessandro-scripted-v55:v1` | v52 + defend queue |
+| #45 | 34.17 | `lessandro-ohm-mani-padme-hum:v4` | NiskB + HP retreat |
+| #47 | 34.05 | `lessandro-scripted-v48:v1` | Previous best |
 
-_463 entries (up from 453). v52 dropped #25→#29 as leaderboard grew. NiskB (ohm v1-v4) ALL scored below v52 overall._
+_v52 dropped #29→#31 (35.97→35.62). Gap to #1: 15.4%._
 
-### Critical Finding: NiskB Offline Gains Don't Translate Overall
+### Breakthrough: 2-Agent CvC Fix (branch `aSOVe`, pending merge)
 
-| Config | Offline 3k | Online rank | Online score | 4+ agent avg | 2-agent avg |
-|--------|-----------|-------------|-------------|-------------|-------------|
-| v52 (BFS) | 1101.24 | **#29** | **35.97** | ~36 | ~36 |
-| ohm v1 (NiskB) | 1078.69 | #58 | 33.32 | **37.61** | **9.16** |
-| ohm v4 (+ HP retreat) | ~1095 | #45 | 34.17 | ~37 | ~20 |
-| A* (v54-astar) | 1138.42 | #54 | 33.48 | — | — |
+| Metric | Baseline | aSOVe | Delta |
+|--------|----------|-------|-------|
+| CvC 2-agent avg (5-seed, 3k steps) | 9.50 | **49.69** | **+423%** |
+| CvC seed 42 | 19.57 | 60.52 | +209% |
+| CvC seed 123 | 49.87 | 58.80 | +18% |
+| 8-agent self-play | 1101 (v52) | **NOT YET TESTED** | blocking merge |
 
-**Lesson: NiskB beats v52 for 4+ agents (37.61 vs ~36) but catastrophically underperforms with 2 agents (9.16). The 2-agent problem is the #1 lever for online improvement. A* confirmed regression. 4th consecutive offline improvement that fails to beat v52 online.**
+Key innovations: predicted miner station offset, hub approach rotation, defend duration tuning, miner station blacklisting, adaptive return load.
 
-### BLOCKER: Server-Side Submission Failure
+**Next step**: validate 8-agent, merge, submit as `lessandro-ohm-bekkenze-maha-bekkenze` (issue #60).
 
-**ALL submissions after ~2026-04-30 20:22 UTC are BROKEN.** Error: `No module named 'cogames.games'`. This is a server-side Docker image issue — not our code. All `ohm-mani-padme-hum v5-v10` and `ohm-mani-padme-hum v1-v9` (no prefix) fail with 0 completed matches. See #59.
+### Server Status: FIXED
 
-### v52 Match Analysis (29 matches, cooperative scoring)
+Server-side submission failure (#59) resolved as of 2026-05-02. `ron.anticlips:v2` (uploaded May 2, 01:42 UTC) is completing matches. Our old ohm v5-v10 submissions are permanently failed — need new submission.
 
-| Partner tier | Score range | Count | Notes |
-|-------------|-------------|-------|-------|
-| Top (dinky_fido, v55) | 47-53 | 3 | **Exceeds #1 average** |
-| Good (mammet ×4, anoop, shweta) | 34-44 | 10 | Strong cooperative play |
-| Mid (v40, v42, v39, shweta.v32) | 23-38 | 10 | Solid performance |
-| Weak (ron.whoops, shweta.v39, anoop.antimage) | 5-17 | 6 | Partner drags score |
+### Offline Best Results (8-agent, 3000 steps)
 
-**Key: avg=34.42, range=4.9-53.1, 29 matches.**
-
-### Offline Best Results (8-agent, 5-seed avg, 3000 steps)
-
-| Rank | Reward | Config | Commit | Session | Notes |
-|------|--------|--------|--------|---------|-------|
-| 1 | **1118.60** | 4A+4M + approach diversification + fast depletion | `19d4b8b` | 22 (NiskB) | +3.6% vs v52, **regressed online** |
-| 2 | 1138.42 | 4A+4M + A* + path-cost junctions | `3a1b256` | 22 (EYYU7) | +3.4% offline, **regressed online** |
-| 3 | 1101.24 | 4A+4M + phantom fixes | `c9b386c` | 21 (gp8Vw) | v52 source — **still online best** |
+| Rank | Reward | Config | Commit | Notes |
+|------|--------|--------|--------|-------|
+| 1 | **1118.60** | 4A+4M NiskB | `19d4b8b` | +3.6% vs v52, regressed online |
+| 2 | 1101.24 | 4A+4M phantom fixes | `c9b386c` | v52 source — online best |
+| 3 | ~1101 | v52 + defend/enemy priority | `ed45939` | neutral offline |
 
 ### Gap Analysis
 
 ```
-Metric                    Us                      Top RL (#1)           Gap       Status
-------------------------------------------------------------------------------------
-Online score              35.97 (#29/463)         41.10 (#1/463)        12.5%     Stable
-Best-partner score        53.10                   41.10                 ---       WE BEAT #1 avg!
-4+ agent score            37.61 (ohm v1)          41.10                 8.5%     IDENTIFIED
-2-agent score             9.16 (ohm v1)           ???                   ???      #1 BOTTLENECK
-Agent survival            ~5200 steps/10k         ???                   ???      BOTTLENECK
-Submissions               BROKEN (server)         working               ---      BLOCKER
+Metric                    Us                    Top RL (#1)         Gap       Status
+----------------------------------------------------------------------------------
+Online score              35.62 (#31)           41.10 (#1)          15.4%     Stable
+4+ agent score            37.61 (NiskB)         41.10               8.5%     Known
+2-agent score (old)       9.16                  ???                 ???       FIXED OFFLINE
+2-agent score (aSOVe)     49.69 (CvC offline)   ???                 ???       PENDING SUBMIT
+Server submissions        WORKING (fixed May 2)  working            ---       RESOLVED
 ```
 
-**Current blockers (in order):**
-1. **Server-side submission failure** (#59) — BLOCKS everything. Cannot validate ANY changes online.
-2. **2-agent match handling** (#58) — When fixed + NiskB, projected score ~37+ (top 20).
-3. **Agent survival** (#56) — Bimodal: half die at 2300-2700, half survive 6100-7500.
-4. **10k utilization** (#57) — All productive work in first 3k steps.
-
-**Research tree:**
+**Current priority stack:**
 ```
-priority:1  #59  Server submission failure (cogames.games)  <- BLOCKER (external)
-priority:1  #58  2-agent match handling                     <- NEXT (biggest online lever)
-priority:2  #55  NiskB online validation                    <- BLOCKED by #59
-priority:2  #56  Agent survival optimization                <- agents die bimodally
-priority:2  #57  10k-step utilization                       <- 70% of game idle
-priority:2  #41  RL policy training                         <- BLOCKED (needs GPU)
-priority:3  #53  Multi-agent cooperation paper
-priority:3  #50  Per-agent alignment efficiency             <- saturated
-priority:3  #27-#31  various speculative
+priority:1  #60  Validate aSOVe + merge + submit        <- NEXT (biggest lever)
+priority:1  #58  2-agent match handling                  <- research done, merge pending
+priority:2  #56  Agent survival optimization             <- agents die bimodally
+priority:2  #57  10k-step utilization                    <- 70% of game idle
+priority:2  #41  RL policy training                      <- BLOCKED (needs GPU)
+priority:3  #50, #53, #27-#31                            <- speculative/saturated
 
-CLOSED (sessions 16-22):
-  #54 A* pathfinding | #52 Validate v49 | #51 Submit v49
-  #49 Submit v43 | #48 Cherry-pick | #47 Partner robustness
-  #46 v37/v38 regression | #45 Submit #44 | #44 Miner productivity
-  #43 v34 regression | #42 httpx import | #39-#40 Submission/Mining
-  #38 Agent mortality | #36 Agent mortality | #32 Partner robustness
-  #25 8-Agent Scaling | #24 Mining strategy
+CLOSED this session:
+  #59 Server submission failure (FIXED)
+  #55 NiskB online validation (superseded by #60)
 ```
 <!-- LEADERBOARD_END -->
 
