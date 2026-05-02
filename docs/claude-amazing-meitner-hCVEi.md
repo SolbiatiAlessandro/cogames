@@ -44,3 +44,19 @@ Waiting for qualifying matches to complete. Key metrics to monitor:
 - Match completion (no failures/crashes)
 
 2026-05-02T11:05: Monitoring online results
+
+2026-05-02T11:10: CvC 2-agent validation (5 seeds, 3000 steps) — all match aSOVe exactly:
+- Seed 42: 60.52 (baseline 19.57, +209%)
+- Seed 123: 58.80 (baseline 49.87, +18%)
+- Seed 7: 60.41 (baseline 60.38, +0.05%)
+- Seed 99: 65.72 (baseline 65.72, 0%)
+- Seed 256: 3.00 (floor, station congestion)
+- Avg: 49.69 (+25% vs baseline 39.71)
+
+2026-05-02T11:15: Starting new experiment loop — SwitchableMiner
+
+Found bottleneck in 8-agent logs: agent 4 at step ~1800 picked up a scrambler, lost miner gear.
+All 4 known miner stations were blacklisted (4, -2), (4, -1), (8, -3), (0, 5).
+Agent spent ~1200 steps (40% of episode) in useless gear_up→explore→gear_up cycle.
+Hypothesis: SwitchableMiner (auto-switch to aligner after 5+ consecutive gear failures) will
+recover these wasted steps by letting stuck miners contribute as aligners instead.

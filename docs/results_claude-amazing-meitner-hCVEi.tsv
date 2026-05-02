@@ -2,3 +2,8 @@ commit	mission_reward	secondary_rewards	steps	status	description
 merged	1126.102173	seed42_8agent_selfplay	3000	keep	aSOVe 8-agent validation seed 42
 merged	1074.419922	seed123_8agent_selfplay	3000	keep	aSOVe 8-agent validation seed 123
 merged	1222.991577	seed7_8agent_selfplay	3000	keep	aSOVe 8-agent validation seed 7
+merged	60.523438	cvc_2agent_seed42	3000	keep	CvC 2-agent validation seed 42 (baseline 19.57)
+merged	58.798130	cvc_2agent_seed123	3000	keep	CvC 2-agent validation seed 123 (baseline 49.87)
+merged	60.406483	cvc_2agent_seed7	3000	keep	CvC 2-agent validation seed 7 (baseline 60.38)
+merged	65.720886	cvc_2agent_seed99	3000	keep	CvC 2-agent validation seed 99 (baseline 65.72)
+merged	2.999965	cvc_2agent_seed256	3000	keep	CvC 2-agent validation seed 256 (floor - station congestion)

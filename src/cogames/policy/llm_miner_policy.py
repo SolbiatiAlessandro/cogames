@@ -35,6 +35,8 @@ class LLMMinerState(MinerSkillState):
     explore_start_extractors: int = 0
     recent_events: list[str] = field(default_factory=list)
     consecutive_stuck_exits: int = 0
+    consecutive_gear_failures: int = 0
+    switched_to_aligner: bool = False
 
 
 class LLMMinerPlannerClient:
@@ -393,7 +395,24 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 skill = "explore"
             reason = f"fallback after invalid planner response: {reason}"
         was_stuck = bool(state.recent_events and ("exited as stuck" in state.recent_events[-1] or "exited as stale" in state.recent_events[-1] or "timed out after" in state.recent_events[-1]))
-        if not has_miner and skill not in {"gear_up", "unstuck", "explore"}:
+        if state.switched_to_aligner:
+            skill = "explore"
+            reason = f"switchable miner: exploring as scout (gear failures={state.consecutive_gear_failures})"
+        elif not has_miner and state.consecutive_gear_failures >= 5:
+            if state.consecutive_gear_failures == 5:
+                state.blacklisted_miner_stations.clear()
+                self._event(state, "cleared miner station blacklist after 5 consecutive gear failures")
+                skill = "gear_up"
+                reason = "cleared blacklist, retrying gear_up"
+            elif state.consecutive_gear_failures >= 8:
+                state.switched_to_aligner = True
+                self._event(state, f"switching to aligner after {state.consecutive_gear_failures} gear failures")
+                skill = "explore"
+                reason = f"switchable miner: switched to aligner after {state.consecutive_gear_failures} gear failures"
+            else:
+                skill = "gear_up"
+                reason = f"retrying gear_up (failure {state.consecutive_gear_failures})"
+        elif not has_miner and skill not in {"gear_up", "unstuck", "explore"}:
             if was_stuck:
                 reason = f"overrode {skill} to explore after stuck exit (seeking new path to miner station)"
                 skill = "explore"
@@ -429,6 +448,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             self._event(state, "gear_up completed after acquiring miner gear")
             state.gear_up_stale_exits = 0
             state.blacklisted_miner_stations.clear()
+            state.consecutive_gear_failures = 0
+            state.switched_to_aligner = False
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried_total >= self._effective_return_load:
             self._event(state, f"mine_until_full completed at load={carried_total}")
@@ -436,10 +457,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill == "deposit_to_hub" and carried_total == 0:
             self._event(state, "deposit_to_hub completed after deposit")
             state.current_skill = None
-        elif state.current_skill == "explore" and len(state.known_extractors) > state.explore_start_extractors:
+        elif state.current_skill == "explore" and not state.switched_to_aligner and len(state.known_extractors) > state.explore_start_extractors:
             self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
             state.current_skill = None
-        elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 3:
+        elif state.current_skill == "explore" and state.skill_steps >= (self._stuck_threshold * 10 if state.switched_to_aligner else self._stuck_threshold * 3):
             self._event(state, f"explore timed out after {state.skill_steps} steps")
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
@@ -462,6 +483,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                     state.blocked_cells.difference_update(self._shared_map.move_blocked_cells)
                     self._shared_map.move_blocked_cells.clear()
                 state.gear_up_stale_exits += 1
+                state.consecutive_gear_failures += 1
                 if state.gear_up_stale_exits >= 4:
                     current_abs = self._current_abs(obs)
                     available = state.known_miner_stations - state.blacklisted_miner_stations
@@ -477,6 +499,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 state.hub_approach_rotation = (state.hub_approach_rotation + 1) % 4
             elif state.current_skill == "gear_up":
                 state.gear_up_stale_exits += 1
+                state.consecutive_gear_failures += 1
                 if state.gear_up_stale_exits >= 4:
                     current_abs = self._current_abs(obs)
                     available = state.known_miner_stations - state.blacklisted_miner_stations
@@ -502,6 +525,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif state.current_skill is not None and state.no_progress_on_target_steps >= self._stuck_threshold:
             if state.current_skill == "gear_up":
                 state.gear_up_stale_exits += 1
+                state.consecutive_gear_failures += 1
                 if state.gear_up_stale_exits >= 4:
                     current_abs = self._current_abs(obs)
                     available = state.known_miner_stations - state.blacklisted_miner_stations
