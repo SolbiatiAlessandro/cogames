@@ -38,6 +38,8 @@ class LLMMinerState(MinerSkillState):
     consecutive_gear_failures: int = 0
     switched_to_aligner: bool = False
     consecutive_fast_depletions: int = 0
+    extended_explore: bool = False
+    steps_since_last_deposit: int = 0
 
 
 class LLMMinerPlannerClient:
@@ -337,8 +339,14 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         if state.consecutive_fast_depletions >= 5:
             state.consecutive_fast_depletions = 0
             state.depleted_extractors.clear()
-            self._event(state, f"breaking fast-depletion loop after {5} cycles, cleared depleted list")
+            state.extended_explore = True
+            self._event(state, "breaking fast-depletion loop after 5 cycles, cleared depleted list, extended explore")
             return "explore", "scripted: extractors repeatedly depleted, exploring for fresh area"
+        if state.steps_since_last_deposit >= 1000 and carried_total == 0 and not state.extended_explore:
+            state.depleted_extractors.clear()
+            state.extended_explore = True
+            self._event(state, f"resource depletion reset after {state.steps_since_last_deposit} steps without deposit")
+            return "explore", "scripted: long drought, clearing depleted list and exploring fresh"
         was_explore_exit = (was_stuck or was_stale) and last_ev.startswith("explore ")
         if carried_total >= self._effective_return_load:
             if (was_stuck or was_stale) and not was_explore_exit:
@@ -468,11 +476,14 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried_total == 0:
             self._event(state, "deposit_to_hub completed after deposit")
+            state.steps_since_last_deposit = 0
             state.current_skill = None
-        elif state.current_skill == "explore" and not state.switched_to_aligner and len(state.known_extractors) > state.explore_start_extractors:
+        elif state.current_skill == "explore" and not state.switched_to_aligner and not state.extended_explore and len(state.known_extractors) > state.explore_start_extractors:
             self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
             state.current_skill = None
-        elif state.current_skill == "explore" and state.skill_steps >= (self._stuck_threshold * 10 if state.switched_to_aligner else self._stuck_threshold * 3):
+        elif state.current_skill == "explore" and state.skill_steps >= (self._stuck_threshold * 10 if (state.switched_to_aligner or state.extended_explore) else self._stuck_threshold * 3):
+            if state.extended_explore:
+                state.extended_explore = False
             self._event(state, f"explore timed out after {state.skill_steps} steps")
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
@@ -605,6 +616,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             action, state = self._unstuck(state)
 
         state.skill_steps += 1
+        state.steps_since_last_deposit += 1
         # Track last move target for move-failure feedback
         action_name = action.name if hasattr(action, "name") else ""
         if action_name.startswith("move_"):
