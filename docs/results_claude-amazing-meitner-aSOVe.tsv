@@ -1,1 +1,3 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+85b36e6	39.71	junction.held=0 heart.gained=avg	3000	baseline	predicted miner station offset (no effect on CvC 2-agent avg)
+e45c5fc	45.64	junction.held=0 heart.gained=avg	3000	improvement	hub approach rotation: aligner rotates hub side every 2 failed get_heart attempts (+5.93 avg)
