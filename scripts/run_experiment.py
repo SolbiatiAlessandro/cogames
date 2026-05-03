@@ -42,13 +42,16 @@ def main():
     parser.add_argument("--return-load", type=int, default=None)
     args = parser.parse_args()
 
-    from cogames.cogs_vs_clips.missions import get_core_missions
-    from cogames.play import play
+    try:
+        from cogames.cogs_vs_clips.missions import get_core_missions
+        missions = {m.name: m for m in get_core_missions()}
+        mission = missions[args.mission]
+    except (ModuleNotFoundError, ImportError):
+        from cogames.games.cogs_vs_clips.missions.machina_1 import make_machina1_mission
+        mission = make_machina1_mission()
     from mettagrid.policy.policy import PolicySpec
     from rich.console import Console
 
-    missions = {m.name: m for m in get_core_missions()}
-    mission = missions[args.mission]
     env_cfg = mission.make_env()
 
     if args.cogs != mission.num_agents:

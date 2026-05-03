@@ -880,7 +880,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) inv=%s retreating to hub",
                         obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, inv)
             state.retreating_to_hub = True
-        elif state.retreating_to_hub and hp_fraction >= 0.85:
+        elif state.retreating_to_hub and hp_fraction >= 0.70:
             logger.info("agent=%s MINER_HP_OK hp=%d/%d resuming mining",
                         obs.agent_id, hp, state.max_hp_seen)
             state.retreating_to_hub = False

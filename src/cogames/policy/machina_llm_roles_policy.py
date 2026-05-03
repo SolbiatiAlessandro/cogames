@@ -483,8 +483,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._starter._action(f"move_{direction}"), state
 
-    _HP_RETREAT_ENTER = 0.50
-    _HP_RETREAT_EXIT = 0.85
+    _HP_RETREAT_ENTER = 0.40
+    _HP_RETREAT_EXIT = 0.70
 
     def _check_hp(self, obs: AgentObservation, state: LLMAlignerState, current_abs) -> bool:
         """Check HP and update retreat state. Returns True if agent should retreat.
