@@ -731,11 +731,15 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if hub is None:
             return self._nearest_known(current_abs, candidates)
         enemy_junctions = state.known_enemy_junctions
+        sm = self._shared_map
+        n_team = len(sm.all_agent_ids) if sm and hasattr(sm, 'all_agent_ids') and sm.all_agent_ids else 8
+        _enemy_weight = -5 if n_team <= 2 else -2
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            enemy_bonus = -5 if j in enemy_junctions else 0
-            return travel + hub_dist * 0.2 + enemy_bonus
+            enemy_bonus = _enemy_weight if j in enemy_junctions else 0
+            _hub_weight = 0.4 if n_team <= 4 else 0.2
+            return travel + hub_dist * _hub_weight + enemy_bonus
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:

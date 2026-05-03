@@ -289,7 +289,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                     for h in _vh
                 )
-                if heart_count < 4 and near_hub:
+                _heart_thresh = 2 if self._n_team_agents <= 2 else 4
+                if heart_count < _heart_thresh and near_hub:
                     pass
                 else:
                     reason = f"overrode get_heart to align_neutral ({heart_count} hearts, not near hub)"
@@ -311,7 +312,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh2
             )
-            if heart_count < 4 and near_hub:
+            _heart_thresh2 = 2 if self._n_team_agents <= 2 else 4
+            if heart_count < _heart_thresh2 and near_hub:
                 pass
             elif known_alignable_junctions:
                 reason = f"overrode get_heart to align_neutral ({heart_count} hearts held)"
@@ -400,7 +402,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 4 and near_hub and state.no_progress_on_target_steps < 6:
+            _heart_thresh3 = 2 if self._n_team_agents <= 2 else 4
+            if heart_count < _heart_thresh3 and near_hub and state.no_progress_on_target_steps < 6:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")
@@ -691,7 +694,12 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             na_str = str(num_aligners).lower()
             self._static_aligner_ids = None
             if na_str == "auto":
-                self._aligner_fraction = 0.5
+                if n_agents >= 6 and n_agents < 8:
+                    self._aligner_fraction = 0.67
+                elif n_agents == 4:
+                    self._aligner_fraction = 0.75
+                else:
+                    self._aligner_fraction = 0.5
             else:
                 self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
         self._assigned_roles: dict[int, str] = {}
