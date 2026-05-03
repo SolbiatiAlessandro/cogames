@@ -73,6 +73,16 @@ priority:2  #41  RL policy training                      <- BLOCKED (needs GPU)
 priority:3  #50, #53, #27                                <- speculative
 ```
 
+## New season: beta-teams-tiny-fixed (team tournament)
+
+A new season "Cogs vs Clips Tournament" (beta-teams-tiny-fixed) is **in_progress** as of 2026-05-03. Format:
+- Multi-stage elimination: stage-1 (1-policy teams, top 16) → stage-2 (2-policy teams, top 12) → stage-3 (4-policy teams, top 10) → team rounds
+- Scoring: sum of top 4 team placements (lower is better)
+- Current entries: 10 (Paz-Bot-9000, slanky, slinky only)
+- **We have NO entry yet.** Could not find API endpoint to submit — likely needs `cogames` CLI.
+
+This may become the main competitive format. Worth entering with v52 once we have CLI access.
+
 ## Open questions for next director
 
 1. **Did a researcher pick up #61?** Check if there's a new branch with 10k-step experiments.
@@ -81,3 +91,5 @@ priority:3  #50, #53, #27                                <- speculative
 4. **HP mechanics**: We need to understand exactly how HP works in CvC. How much HP do agents have? How fast does it drain? Is combat the main drain or is it passive? Do hearts restore HP? How many HP per heart?
 5. **10k-step offline eval**: The `run_cvc_experiment.py` script supports `--steps 10000`. The next researcher should use this as the primary evaluation.
 6. **Do NOT submit more bekkenze versions** — 7 versions all worse than v52. The name is cursed. If we submit again, use a new name and ensure the code addresses agent longevity.
+7. **beta-teams-tiny-fixed**: Enter with v52 if CLI access is available. Only 10 entries so far — easy to make top 10.
+8. **Defend-duration-500 regression hypothesis**: The shortened defend timeout may cause agents to re-engage in combat too quickly, accelerating HP drain over 10k steps. Test by comparing agent survival at 10k steps with and without this change.
