@@ -1,1 +1,2 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+2016949	1152.19	junction.aligned=56 avg 5-seed	3000	keep	enable aligner HP retreat with hysteresis (50%/85%) + raise miner HP retreat 25%->40%
