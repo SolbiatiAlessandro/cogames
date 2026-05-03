@@ -1,2 +1,3 @@
 commit	mission_reward	secondary_rewards	steps	status	description
-2016949	1152.19	junction.aligned=56 avg 5-seed	3000	keep	enable aligner HP retreat with hysteresis (50%/85%) + raise miner HP retreat 25%->40%
+2016949	71.57	deaths=16.0 aligned=78.2 avg 5-seed (release engine)	3000	keep	enable aligner HP retreat with hysteresis (50%/85%) + raise miner HP retreat 25%->40% | baseline: reward=74.35 deaths=32.0 — deaths -50% but reward -3.7%
+31252b0	74.52	deaths=20.6 aligned=81.2 avg 5-seed (release engine)	3000	advance	tighten HP retreat 40%/70% — reward matches baseline (74.35) while deaths -35%

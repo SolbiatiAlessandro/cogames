@@ -40,5 +40,36 @@ HP retreat confirmed firing: "agent=5 HP_LOW hp=49/100 (49%) retreating to hub"
 
 Uploaded as lessandro-ohm-bekkenze-maha-bekkenze:v8 to beta-cvc.
 
+### Baseline comparison (release engine, cogames 0.25.6):
+
+| Metric | Baseline | Improved | Delta |
+|--------|----------|----------|-------|
+| Reward (5-seed avg) | 74.35 | 71.57 | -3.7% |
+| Deaths (5-seed avg) | 32.0 | 16.0 | -50.0% |
+| Aligned (5-seed avg) | 83.4 | 78.2 | -5.2 |
+
+Decision: **KEEP** — deaths halved is the primary goal of issue #61. Reward penalty is small and expected (time spent retreating). In 10k online matches, surviving longer should produce more total reward.
+
 **2026-05-03T09:10: starting new experiment loop**
-Want to try: late-game defensive mode + heart conservation for 10k survival.
+Goal: reduce the retreat penalty — make agents more productive while surviving.
+
+### Online analysis (v8, HP retreat 50%/85%):
+- Leaderboard: #88, score=31.53 (v1 was #39, score=35.00) — WORSE
+- Best match (49.28): 104 junctions aligned, 1281 carbon deposited, 11.25 avg deaths
+- Worst match (0.80): 6 junctions aligned, 40 carbon deposited, 0.5 avg deaths, 41.5% move failures
+- Key insight: low scores correlate with low exploration (199 unique cells) and stuck agents, NOT with deaths
+- The HP retreat penalty is real in online 10k matches — agents spend too much time retreating
+
+### Experiment 2: Tighten HP hysteresis (commit 31252b0)
+
+Changes:
+- Aligner HP retreat: 50%/85% → 40%/70% (retreat later, resume sooner)
+- Miner HP retreat exit: 85% → 70% (resume mining sooner)
+
+| Metric | Baseline | Exp1 (50/85) | Exp2 (40/70) |
+|--------|----------|-------------|-------------|
+| Reward | 74.35 | 71.57 (-3.7%) | 74.52 (+0.2%) |
+| Deaths | 32.0 | 16.0 (-50%) | 20.6 (-35%) |
+| Aligned | 83.4 | 78.2 (-5.2) | 81.2 (-2.2) |
+
+Decision: **ADVANCE** — reward matches baseline while still cutting deaths 35%. Best tradeoff found.
