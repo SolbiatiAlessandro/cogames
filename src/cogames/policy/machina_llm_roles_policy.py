@@ -595,46 +595,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state = self._copy_with(state, base_state)
         elif state.current_skill == "defend":
             current_abs = self._spawn_offset(obs)
-            _def_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
-            hub_junctions = set()
-            if _def_hubs:
-                hub_pos = self._nearest_known(current_abs, _def_hubs)
-                hub_junctions = {
-                    j for j in state.known_friendly_junctions
-                    if abs(j[0] - hub_pos[0]) + abs(j[1] - hub_pos[1]) <= 30
-                }
-            defend_targets = hub_junctions or state.known_friendly_junctions
-            if current_abs in defend_targets:
-                action = self._starter._action("noop")
-            elif defend_targets:
-                target = self._nearest_known(current_abs, defend_targets)
-                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
-                if direction:
-                    action = self._starter._action(f"move_{direction}")
-                    state.last_move_target = self._move_target(current_abs, direction)
-                elif _def_hubs:
-                    hub_target = self._nearest_known(current_abs, _def_hubs)
-                    direction = self._navigate_to_station(state, current_abs, hub_target, avoid_hazards=False)
-                    if direction:
-                        action = self._starter._action(f"move_{direction}")
-                        state.last_move_target = self._move_target(current_abs, direction)
-                    else:
-                        action, base_state = self._explore(obs, state)
-                        state = self._copy_with(state, base_state)
-                else:
-                    action, base_state = self._explore(obs, state)
-                    state = self._copy_with(state, base_state)
-            elif _def_hubs:
-                hub_target = self._nearest_known(current_abs, _def_hubs)
-                direction = self._navigate_to_station(state, current_abs, hub_target, avoid_hazards=False)
-                if direction:
-                    action = self._starter._action(f"move_{direction}")
-                    state.last_move_target = self._move_target(current_abs, direction)
-                else:
-                    action, base_state = self._explore(obs, state)
-                    state = self._copy_with(state, base_state)
+            has_heart = self._inventory_count(obs, "heart") > 0
+            alignable = self._known_alignable_junctions(state)
+            if has_heart and alignable:
+                action, base_state = self._align_neutral(obs, state, current_abs)
+                state = self._copy_with(state, base_state)
             else:
-                action, base_state = self._explore(obs, state)
+                action, base_state = self._explore_for_alignment(obs, state)
                 state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
             if self._inventory_count(obs, "heart") > 0:
