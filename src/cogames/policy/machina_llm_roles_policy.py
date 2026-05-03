@@ -83,6 +83,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         self._unstuck_horizon = unstuck_horizon
         self._scripted = scripted
 
+    @property
+    def _n_team_agents(self) -> int:
+        sm = self._shared_map
+        if sm is not None and hasattr(sm, 'all_agent_ids'):
+            return len(sm.all_agent_ids) or 8
+        return 8
+
     def initial_agent_state(self) -> LLMAlignerState:
         base = super().initial_agent_state()
         state = LLMAlignerState(
@@ -651,6 +658,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
     ):
         super().__init__(policy_env_info, device=device)
         n_agents = policy_env_info.num_agents
+        self._n_agents = n_agents
 
         # Resolve scripted_miners: "auto" means always True (LLM API unavailable on tournament server)
         sm_str = str(scripted_miners).lower()
@@ -738,8 +746,9 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
 
     def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]:
         if agent_id not in self._agent_policies:
+            self._shared_map.all_agent_ids.add(agent_id)
             role = self._assign_role(agent_id)
-            logger.info("ROLE_ASSIGNMENT agent=%d role=%s scripted_miners=%s", agent_id, role, self._scripted_miners)
+            logger.info("ROLE_ASSIGNMENT agent=%d role=%s scripted_miners=%s n_team=%d", agent_id, role, self._scripted_miners, len(self._shared_map.all_agent_ids))
             if role == "aligner":
                 impl = LLMAlignerPolicyImpl(
                     self._policy_env_info,

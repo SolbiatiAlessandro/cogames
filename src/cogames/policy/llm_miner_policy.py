@@ -198,6 +198,13 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             shared_map.active_miner_ids.add(agent_id)
 
     @property
+    def _n_team_agents(self) -> int:
+        sm = self._shared_map
+        if sm is not None and hasattr(sm, 'all_agent_ids'):
+            return len(sm.all_agent_ids) or 8
+        return 8
+
+    @property
     def _effective_return_load(self) -> int:
         sm = self._shared_map
         if sm is None or not hasattr(sm, 'active_miner_ids'):
@@ -336,13 +343,15 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             if gear_up_failed:
                 return "explore", "scripted: gear_up failed, exploring for station"
             return "gear_up", "scripted: no miner gear"
-        if state.consecutive_fast_depletions >= 5:
+        fast_depletion_threshold = 3 if self._n_team_agents <= 2 else 5
+        if state.consecutive_fast_depletions >= fast_depletion_threshold:
             state.consecutive_fast_depletions = 0
             state.depleted_extractors.clear()
             state.extended_explore = True
-            self._event(state, "breaking fast-depletion loop after 5 cycles, cleared depleted list, extended explore")
+            self._event(state, f"breaking fast-depletion loop after {fast_depletion_threshold} cycles, cleared depleted list, extended explore")
             return "explore", "scripted: extractors repeatedly depleted, exploring for fresh area"
-        if state.steps_since_last_deposit >= 1000 and carried_total == 0 and not state.extended_explore:
+        drought_threshold = 500 if self._n_team_agents <= 2 else 1000
+        if state.steps_since_last_deposit >= drought_threshold and carried_total == 0 and not state.extended_explore:
             state.depleted_extractors.clear()
             state.extended_explore = True
             self._event(state, f"resource depletion reset after {state.steps_since_last_deposit} steps without deposit")
@@ -415,16 +424,18 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 skill = "explore"
             reason = f"fallback after invalid planner response: {reason}"
         was_stuck = bool(state.recent_events and ("exited as stuck" in state.recent_events[-1] or "exited as stale" in state.recent_events[-1] or "timed out after" in state.recent_events[-1]))
+        switchable_clear_threshold = 3 if self._n_team_agents <= 2 else 5
+        switchable_switch_threshold = 5 if self._n_team_agents <= 2 else 8
         if state.switched_to_aligner:
             skill = "explore"
             reason = f"switchable miner: exploring as scout (gear failures={state.consecutive_gear_failures})"
-        elif not has_miner and state.consecutive_gear_failures >= 5:
-            if state.consecutive_gear_failures == 5:
+        elif not has_miner and state.consecutive_gear_failures >= switchable_clear_threshold:
+            if state.consecutive_gear_failures == switchable_clear_threshold:
                 state.blacklisted_miner_stations.clear()
-                self._event(state, "cleared miner station blacklist after 5 consecutive gear failures")
+                self._event(state, f"cleared miner station blacklist after {switchable_clear_threshold} consecutive gear failures")
                 skill = "gear_up"
                 reason = "cleared blacklist, retrying gear_up"
-            elif state.consecutive_gear_failures >= 8:
+            elif state.consecutive_gear_failures >= switchable_switch_threshold:
                 state.switched_to_aligner = True
                 self._event(state, f"switching to aligner after {state.consecutive_gear_failures} gear failures")
                 skill = "explore"

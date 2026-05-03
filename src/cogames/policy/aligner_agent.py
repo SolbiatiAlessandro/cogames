@@ -74,6 +74,8 @@ class SharedMap:
         self.hub_deposits_total: int = 0
         # Issue-47: track active miner IDs for adaptive return_load
         self.active_miner_ids: set[int] = set()
+        # Track all agent IDs registered to this policy for team size detection
+        self.all_agent_ids: set[int] = set()
         # Issue-36 v20: shared per-element extractor locations. When one miner discovers
         # a silicon extractor, all miners immediately know where it is. Critical for
         # team_scarce_element (V15) — without shared data, a miner told to mine silicon
