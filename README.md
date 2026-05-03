@@ -24,7 +24,7 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-02 (Session 24)_
+_Updated by Director (offline→online): 2026-05-03 (Session 25)_
 
 ### Online Tournament (beta-cvc, cooperative scoring)
 
@@ -34,65 +34,61 @@ _Updated by Director: 2026-05-02 (Session 24)_
 | #2 | 40.82 | `Gryffindor:v11` | RL |
 | #3 | 40.73 | `Slytherin:v14` | RL |
 | #4 | 40.62 | `slinky:v12` | RL |
-| #5 | 40.33 | `Paz-Bot-9000:v50` | RL |
-| #6 | 40.11 | `Hufflepuff:v11` | RL |
+| #5 | 40.55 | `slanky:v165` | RL |
+| #6 | 40.33 | `Paz-Bot-9000:v50` | RL |
 | ... | | | |
-| **#31** | **35.62** | **`lessandro-scripted-v52:v1`** | **OUR BEST** |
-| #40 | 34.73 | `lessandro-scripted-v55:v1` | v52 + defend queue |
-| #45 | 34.17 | `lessandro-ohm-mani-padme-hum:v4` | NiskB + HP retreat |
-| #47 | 34.05 | `lessandro-scripted-v48:v1` | Previous best |
+| **#33** | **35.62** | **`lessandro-scripted-v52:v1`** | **OUR BEST** |
+| #39 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe merged |
+| #46 | 34.57 | `lessandro-ohm-mani-padme-hum:v4` | NiskB + HP retreat |
+| #47 | 34.52 | `lessandro-scripted-v55:v1` | v52 + defend queue |
 
-_v52 dropped #29→#31 (35.97→35.62). Gap to #1: 15.4%._
+_v52 stable at #33 (35.62). bekkenze:v1 at #39 (35.00) — offline +423% CvC did NOT translate. Gap to #1: 15.4%._
 
-### Breakthrough: 2-Agent CvC Fix (branch `aSOVe`, pending merge)
+### Key Finding: Agent Mortality is the #1 Online Bottleneck
 
-| Metric | Baseline | aSOVe | Delta |
-|--------|----------|-------|-------|
-| CvC 2-agent avg (5-seed, 3k steps) | 9.50 | **49.69** | **+423%** |
-| CvC seed 42 | 19.57 | 60.52 | +209% |
-| CvC seed 123 | 49.87 | 58.80 | +18% |
-| 8-agent self-play | 1101 (v52) | **NOT YET TESTED** | blocking merge |
+Online replay analysis (5+ matches) reveals agents die at 3000-5500 / 10000 steps:
 
-Key innovations: predicted miner station offset, hub approach rotation, defend duration tuning, miner station blacklisting, adaptive return load.
+| Match | Our Agents | Avg Steps Alive | Utilization | Score |
+|-------|-----------|-----------------|-------------|-------|
+| 4v4 vs Ron:v8 | 4 | 4367 | 44% | 50.8 |
+| 6v2 vs Cedric:v8 | 6 | 3770 | 38% | 40.0 |
+| 2v6 vs ron.scouts | 2 | 8867 | 89% | 2.1 |
 
-**Next step**: validate 8-agent, merge, submit as `lessandro-ohm-bekkenze-maha-bekkenze` (issue #60).
-
-### Server Status: FIXED
-
-Server-side submission failure (#59) resolved as of 2026-05-02. `ron.anticlips:v2` (uploaded May 2, 01:42 UTC) is completing matches. Our old ohm v5-v10 submissions are permanently failed — need new submission.
+Agents survive longer when they do nothing (low-score matches). Active play depletes HP → death at ~40% through the game. **This is the primary offline→online gap.**
 
 ### Offline Best Results (8-agent, 3000 steps)
 
 | Rank | Reward | Config | Commit | Notes |
 |------|--------|--------|--------|-------|
-| 1 | **1118.60** | 4A+4M NiskB | `19d4b8b` | +3.6% vs v52, regressed online |
-| 2 | 1101.24 | 4A+4M phantom fixes | `c9b386c` | v52 source — online best |
-| 3 | ~1101 | v52 + defend/enemy priority | `ed45939` | neutral offline |
+| 1 | **1150.55** | aSOVe+hCVEi fixes | `a868308` | +4.5% vs v52, latest main |
+| 2 | 1141.17 | aSOVe merged | `0241111` | +3.6% vs v52 |
+| 3 | 1101.24 | 4A+4M phantom fixes | `c9b386c` | v52 source — still online best |
 
 ### Gap Analysis
 
 ```
-Metric                    Us                    Top RL (#1)         Gap       Status
-----------------------------------------------------------------------------------
-Online score              35.62 (#31)           41.10 (#1)          15.4%     Stable
-4+ agent score            37.61 (NiskB)         41.10               8.5%     Known
-2-agent score (old)       9.16                  ???                 ???       FIXED OFFLINE
-2-agent score (aSOVe)     49.69 (CvC offline)   ???                 ???       PENDING SUBMIT
-Server submissions        WORKING (fixed May 2)  working            ---       RESOLVED
+Metric                    Us                    Top RL (#1)         Gap       Root Cause
+------------------------------------------------------------------------------------------
+Online score              35.62 (#33)           41.10 (#1)          15.4%     Agent mortality
+Agent survival            ~4000 steps           ~7000+ steps (est)  ~43%      HP depletion
+Offline reward (3k)       1150.55               N/A                 N/A       Doesn't capture mortality
+2-agent online            ~18 avg               ~38+ (est)          53%       Partner quality (uncontrollable)
 ```
+
+**Critical insight**: Offline eval at 3000 steps CANNOT predict online performance because agents don't die in 3000 steps. The offline→online gap is an **evaluation horizon mismatch**.
 
 **Current priority stack:**
 ```
-priority:1  #60  Validate aSOVe + merge + submit        <- NEXT (biggest lever)
-priority:1  #58  2-agent match handling                  <- research done, merge pending
-priority:2  #56  Agent survival optimization             <- agents die bimodally
-priority:2  #57  10k-step utilization                    <- 70% of game idle
+priority:1  #61  Agent longevity (survive 8000+ steps)   <- NEW, BIGGEST LEVER
+priority:1  #56  Agent survival optimization             <- merged into #61
+priority:1  #57  10k-step utilization                    <- merged into #61
 priority:2  #41  RL policy training                      <- BLOCKED (needs GPU)
-priority:3  #50, #53, #27-#31                            <- speculative/saturated
+priority:3  #50, #53, #27                                <- speculative/saturated
 
 CLOSED this session:
-  #59 Server submission failure (FIXED)
-  #55 NiskB online validation (superseded by #60)
+  #60 aSOVe merge+submit (done, results disappointing)
+  #58 2-agent handling (done, partner quality dominates)
+  #31 Zero vibe actions (resolved — game uses gear stations, not vibe actions)
 ```
 <!-- LEADERBOARD_END -->
 
