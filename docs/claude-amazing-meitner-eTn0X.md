@@ -73,3 +73,37 @@ Changes:
 | Aligned | 83.4 | 78.2 (-5.2) | 81.2 (-2.2) |
 
 Decision: **ADVANCE** — reward matches baseline while still cutting deaths 35%. Best tradeoff found.
+
+### Experiment 3: Productive defend mode (commit f246cea)
+When hearts depleted and agent enters defend mode, explore alignment frontier instead of sitting idle.
+No-op in 3k eval (defend never triggers). Online-only improvement.
+
+### Parameter scan: aligner ratio
+| Aligners | Reward (3-seed avg) |
+|----------|-------------------|
+| 3 | 72.01 |
+| 4 (default) | 72.73 |
+| 5 | 80.99 → 74.85 (5-seed: seed 45 crashes) |
+| 6 | 57.46 |
+
+5 aligners helps on 3 seeds but high variance with seed 45. Staying with 4 (default).
+
+### Parameter scan: stuck_threshold
+| Value | Reward (3-seed avg) |
+|-------|-------------------|
+| 10 | 60.11 |
+| 15 | 64.68 |
+| 20 (default) | 72.73 |
+| 30 | 77.25 → 79.20 (5-seed) |
+
+### Experiment 6: stuck_threshold=30 (commit b643798)
+Raising stuck_threshold from 20 to 30 gives agents more patience before declaring navigation deadlocks. Fewer premature unstuck/explore cycles.
+
+| Metric | Baseline | Exp2 (HP 40/70) | Exp6 (HP + ST=30) |
+|--------|----------|-----------------|-------------------|
+| Reward | 74.35 | 74.52 (+0.2%) | 79.20 (+6.5%) |
+| Deaths | 32.0 | 20.6 (-35%) | 19.0 (-41%) |
+| Aligned | 83.4 | 81.2 (-2.6%) | 86.2 (+3.4%) |
+
+Decision: **ADVANCE** — best result yet. +6.5% reward, -41% deaths, +3% aligned vs baseline.
+Uploaded as v11 to beta-cvc.

@@ -1,3 +1,5 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 2016949	71.57	deaths=16.0 aligned=78.2 avg 5-seed (release engine)	3000	keep	enable aligner HP retreat with hysteresis (50%/85%) + raise miner HP retreat 25%->40% | baseline: reward=74.35 deaths=32.0 — deaths -50% but reward -3.7%
 31252b0	74.52	deaths=20.6 aligned=81.2 avg 5-seed (release engine)	3000	advance	tighten HP retreat 40%/70% — reward matches baseline (74.35) while deaths -35%
+f246cea	74.52	same as exp2 (defend doesn't trigger at 3k)	3000	keep	productive defend: explore for junctions instead of nooping (online-only benefit)
+b643798	79.20	deaths=19.0 aligned=86.2 avg 5-seed (release engine)	3000	advance	stuck_threshold 20->30: reward +6.5% vs baseline, deaths -41%, aligned +3%
