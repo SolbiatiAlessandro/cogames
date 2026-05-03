@@ -8,7 +8,7 @@ from dataclasses import dataclass, field, replace
 from typing import Callable
 
 from cogames.policy.aligner_agent import (
-    AlignerPolicyImpl, AlignerState, Coord, SharedMap, _FRIENDLY_TERRITORY_DISTANCE, _HP_RETREAT_THRESHOLD,
+    AlignerPolicyImpl, AlignerState, Coord, SharedMap,
 )
 from cogames.policy.llm_aligner_prompt import ALIGNER_SKILL_DESCRIPTIONS, build_llm_aligner_prompt
 from cogames.policy.llm_miner_policy import LLMMinerPlannerClient, LLMMinerPolicyImpl, LLMMinerState
@@ -483,8 +483,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._starter._action(f"move_{direction}"), state
 
+    _HP_RETREAT_ENTER = 0.50
+    _HP_RETREAT_EXIT = 0.85
+
     def _check_hp(self, obs: AgentObservation, state: LLMAlignerState, current_abs) -> bool:
-        """Check HP and update retreat state. Returns True if agent should retreat."""
+        """Check HP and update retreat state. Returns True if agent should retreat.
+
+        Uses hysteresis (enter at 50%, exit at 85%) to avoid oscillation at
+        territory boundaries that caused the original aligner HP retreat to be
+        disabled."""
         hp = self._read_hp(obs)
         if hp is None:
             return False
@@ -493,19 +500,16 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if state.max_hp_seen <= 0:
             return False
         hp_fraction = hp / state.max_hp_seen
-        in_friendly = self._in_friendly_territory(current_abs, state)
-        if hp_fraction < _HP_RETREAT_THRESHOLD and not in_friendly:
-            if not state.retreating:
-                logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) retreating to friendly territory",
-                            obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
-                self._event(state, f"HP low ({hp}/{state.max_hp_seen}), retreating")
-                state.retreating = True
-            return True
-        if state.retreating and (in_friendly or hp_fraction > 0.7):
-            logger.info("agent=%s HP_OK hp=%d/%d in_friendly=%s resuming",
-                        obs.agent_id, hp, state.max_hp_seen, in_friendly)
+        if not state.retreating and hp_fraction < self._HP_RETREAT_ENTER:
+            logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) retreating to hub",
+                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
+            self._event(state, f"HP low ({hp}/{state.max_hp_seen}), retreating to hub")
+            state.retreating = True
+        elif state.retreating and hp_fraction >= self._HP_RETREAT_EXIT:
+            logger.info("agent=%s HP_OK hp=%d/%d (%.0f%%) resuming",
+                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
             state.retreating = False
-        return False
+        return state.retreating
 
     def step_with_state(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         try:
@@ -527,20 +531,25 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if state.current_skill != "get_heart":
                 sm.agents_getting_hearts.discard(obs.agent_id)
 
-        # ── HP safety: retreat to hub/friendly territory if HP is low ──
+        # ── HP safety: retreat to hub when HP is low ──
         if self._check_hp(obs, state, current_abs):
-            # Retreat to nearest hub or friendly junction
             _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
-            retreat_targets = _retreat_hubs | state.known_friendly_junctions
-            if retreat_targets:
-                target = self._nearest_known(current_abs, retreat_targets)
+            if _retreat_hubs:
+                target = self._nearest_known(current_abs, _retreat_hubs)
                 direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                 if direction:
                     action = self._starter._action(f"move_{direction}")
                     state.last_move_target = self._move_target(current_abs, direction)
                     state.skill_steps += 1
                     return action, state
-            # No known retreat target: wander safely
+            if state.known_friendly_junctions:
+                target = self._nearest_known(current_abs, state.known_friendly_junctions)
+                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                if direction:
+                    action = self._starter._action(f"move_{direction}")
+                    state.last_move_target = self._move_target(current_abs, direction)
+                    state.skill_steps += 1
+                    return action, state
             action, state = self._safe_wander(state, current_abs)
             return action, state
 
