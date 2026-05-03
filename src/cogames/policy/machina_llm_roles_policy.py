@@ -487,11 +487,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
     _HP_RETREAT_EXIT = 0.70
 
     def _check_hp(self, obs: AgentObservation, state: LLMAlignerState, current_abs) -> bool:
-        """Check HP and update retreat state. Returns True if agent should retreat.
-
-        Uses hysteresis (enter at 50%, exit at 85%) to avoid oscillation at
-        territory boundaries that caused the original aligner HP retreat to be
-        disabled."""
+        """Check HP and update retreat state. Returns True if agent should retreat."""
         hp = self._read_hp(obs)
         if hp is None:
             return False
@@ -637,7 +633,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         num_scouts: int | str = "auto",
         scout_ids: str = "",
         return_load: int | str = 40,
-        stuck_threshold: int | str = 20,
+        stuck_threshold: int | str = 30,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
         llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
