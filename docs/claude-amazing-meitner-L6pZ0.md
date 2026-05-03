@@ -55,3 +55,40 @@ scenarios (contested extractors, blocked stations) that don't occur vs starters.
 
 2026-05-03T03:30: Current commit: 3c8d1e3 — miner-only adaptive thresholds
 Next: submit online and test against real opponents in 2-agent matches.
+
+2026-05-03T04:00: Submitted as lessandro-ohm-bekkenze-maha-bekkenze:v5 to beta-cvc
+
+2026-05-03T05:00: Deep analysis of online match data:
+- In "2-agent" matches, we actually control 2 of 8 agents (partner controls 6)
+- Both policies get SAME score (shared team)
+- Low scores (7.8) happen when paired with weak partners whose 6 agents are broken
+- We CAN'T fix partner quality — our score is determined by team total output
+- Agent analysis: our aligner (28 junctions, 91 hearts) performs well individually
+- Gap vs top policy: ~5 points in best matches (53 vs 54.6)
+
+2026-05-03T06:00: 10000-step self-play analysis:
+- cogs/aligned.junction.held = 505,805 → matches online 50.6 score
+- Discovered miner drought issue: agent 7 deposits only 140 vs 280-310 others
+- Root cause: SharedMap shares extractor knowledge between miners → all miners
+  compete for same extractors → chronic fast-depletion cycles in late game
+- This is primarily a self-play artifact (4 miners sharing same extractors)
+- In online play with 2 miners per team, contention is much less severe
+
+2026-05-03T06:30: Tried and REVERTED miner coordination changes:
+- Drought fix (mine_until_full after reset): worse — creates tight mine→deplete loops
+- Extractor claiming (SharedMap.miner_targets): -3% to -8% regression
+- Root cause: coordination penalty forces miners to less optimal (far-from-hub) extractors
+  in CvC where extractors are plentiful and not contested
+
+2026-05-03T07:00: Kept: enemy junction recapture priority
+- _cascade_priority_target now adds -5 bonus for enemy junctions
+- Recapturing enemy junction = +2 swing (from -1 to +1 in junction.held)
+- Zero-cost offline (no enemy junctions in CvC)
+- Should help online where clips scramble junctions
+
+LEARNINGS for next researcher:
+1. CvC offline test doesn't capture online dynamics (no clips, no HP damage from territory)
+2. SharedMap miner coordination HURTS in simple maps — miners waste time going to suboptimal extractors
+3. The 2-agent "problem" is mostly about partner quality, not our agent behavior
+4. True improvement lever: faster early-game alignment (time-integral accumulates)
+5. Consider testing against actual clips (not just CvC) for online-relevant metrics
