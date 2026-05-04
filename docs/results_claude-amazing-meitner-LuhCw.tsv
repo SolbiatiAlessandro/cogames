@@ -1,0 +1,4 @@
+experiment	commit	seeds	steps	avg_reward	delta_pct	notes
+baseline	4796135~1	42,123,7,44,99	3000	145.07	0.0%	8-agent self-play, no deaths
+exp1_aligner_hp_retreat	4796135	42,123,7,44,99	3000	145.07	0.0%	25%/70% hysteresis, productive defend mode
+exp2_miner_hp_retreat	ca71bee	42,123,7,44,99	3000	145.21	+0.1%	40%/70% threshold, base HP cap 100
