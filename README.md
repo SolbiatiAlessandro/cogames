@@ -24,71 +24,52 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline→online): 2026-05-03 (Session 25)_
+_Updated by Director: 2026-05-04 (Session 26)_
 
-### Online Tournament (beta-cvc, cooperative scoring)
+### Online Tournament (beta-cvc, 493 entries, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **41.10** | `Paz-Bot-9000:v47` | RL |
+| #1 | **41.10** | `Paz-Bot-9000:v47` | RL, 21 matches |
 | #2 | 40.82 | `Gryffindor:v11` | RL |
 | #3 | 40.73 | `Slytherin:v14` | RL |
 | #4 | 40.62 | `slinky:v12` | RL |
-| #5 | 40.55 | `slanky:v165` | RL |
-| #6 | 40.33 | `Paz-Bot-9000:v50` | RL |
+| #5 | 40.45 | `slanky:v165` | RL |
 | ... | | | |
-| **#33** | **35.62** | **`lessandro-scripted-v52:v1`** | **OUR BEST** |
-| #39 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe merged |
-| #46 | 34.57 | `lessandro-ohm-mani-padme-hum:v4` | NiskB + HP retreat |
-| #47 | 34.52 | `lessandro-scripted-v55:v1` | v52 + defend queue |
+| **#29** | **36.11** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (38 matches, stable) |
+| #39 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe merge — regressed |
+| #43 | 34.80 | `lessandro-ohm-mani-padme-hum:v4` | NiskB variant |
+| #45 | 34.69 | `lessandro-LuhCw-hp-retreat:v2` | HP retreat — regressed |
 
-_v52 stable at #33 (35.62). bekkenze:v1 at #39 (35.00) — offline +423% CvC did NOT translate. Gap to #1: 15.4%._
+_v52 stable at #29 (36.11, up from #33). Gap to #1: 12.1%. All post-v52 submissions regressed._
 
-### Key Finding: Agent Mortality is the #1 Online Bottleneck
+### Key Finding: Junction Control is THE Scoring Lever (Session 26 Correction)
 
-Online replay analysis (5+ matches) reveals agents die at 3000-5500 / 10000 steps:
+**Previous diagnosis (agent mortality) was WRONG.** Replay analysis of 3 online matches shows **zero agent deaths** across all 10000 steps. Score is determined by junction control:
 
-| Match | Our Agents | Avg Steps Alive | Utilization | Score |
-|-------|-----------|-----------------|-------------|-------|
-| 4v4 vs Ron:v8 | 4 | 4367 | 44% | 50.8 |
-| 6v2 vs Cedric:v8 | 6 | 3770 | 38% | 40.0 |
-| 2v6 vs ron.scouts | 2 | 8867 | 89% | 2.1 |
+| Match | Score | Junction Control | Junctions Gained | Unique Cells | Deaths |
+|-------|-------|-----------------|------------------|--------------|--------|
+| vs ron.massive-ga-gen6 | 41.1 | cogs 54.7% | 185 | 3,034 | 0 |
+| vs LuhCw:v3 (us) | 44.1 | — | — | — | 0 |
+| vs ron.whoops | 4.9 | cogs 7.9% | 42 | 1,160 | 0 |
 
-Agents survive longer when they do nothing (low-score matches). Active play depletes HP → death at ~40% through the game. **This is the primary offline→online gap.**
+Score ≈ `junction_held / 10000`. The lever is **exploration coverage** (finding junctions) and **capture speed** (aligning them quickly). HP retreat wastes time on a non-problem.
 
-### Offline Best Results (8-agent, 3000 steps)
-
-| Rank | Reward | Config | Commit | Notes |
-|------|--------|--------|--------|-------|
-| 1 | **1150.55** | aSOVe+hCVEi fixes | `a868308` | +4.5% vs v52, latest main |
-| 2 | 1141.17 | aSOVe merged | `0241111` | +3.6% vs v52 |
-| 3 | 1101.24 | 4A+4M phantom fixes | `c9b386c` | v52 source — still online best |
-
-### Gap Analysis
+### v52 Score Distribution (38 matches)
 
 ```
-Metric                    Us                    Top RL (#1)         Gap       Root Cause
-------------------------------------------------------------------------------------------
-Online score              35.62 (#33)           41.10 (#1)          15.4%     Agent mortality
-Agent survival            ~4000 steps           ~7000+ steps (est)  ~43%      HP depletion
-Offline reward (3k)       1150.55               N/A                 N/A       Doesn't capture mortality
-2-agent online            ~18 avg               ~38+ (est)          53%       Partner quality (uncontrollable)
+Min: 4.9   p10: 15.7   Median: 36.4   Mean: 34.1   p90: 47.9   Max: 53.1
+Catastrophic (<15): 3/38 = 8%
 ```
 
-**Critical insight**: Offline eval at 3000 steps CANNOT predict online performance because agents don't die in 3000 steps. The offline→online gap is an **evaluation horizon mismatch**.
+### Current Priority Stack
 
-**Current priority stack:**
 ```
-priority:1  #61  Agent longevity (survive 8000+ steps)   <- NEW, BIGGEST LEVER
-priority:1  #56  Agent survival optimization             <- merged into #61
-priority:1  #57  10k-step utilization                    <- merged into #61
-priority:2  #41  RL policy training                      <- BLOCKED (needs GPU)
-priority:3  #50, #53, #27                                <- speculative/saturated
-
-CLOSED this session:
-  #60 aSOVe merge+submit (done, results disappointing)
-  #58 2-agent handling (done, partner quality dominates)
-  #31 Zero vibe actions (resolved — game uses gear stations, not vibe actions)
+priority:1  #62  Junction capture rate & exploration coverage  <- NEW, CORRECT LEVER
+priority:1  #50  Per-agent alignment efficiency tuning         <- PROMOTED
+priority:2  #41  RL policy training                            <- BLOCKED (needs GPU)
+priority:3  #61, #56, #57                                     <- DEMOTED (mortality wrong)
+priority:3  #53, #27, #26                                     <- speculative
 ```
 <!-- LEADERBOARD_END -->
 
