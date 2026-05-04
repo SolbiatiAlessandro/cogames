@@ -58,3 +58,19 @@ The aSOVe changes actually slightly IMPROVED 8-agent performance.
 **Decision: PASS — proceed to merge and submit online.**
 
 ## 2026-05-04T00:30: merging to main and submitting online
+
+Uploaded as `lessandro-scripted-v59:v1` to beta-cvc tournament.
+- Policy version ID: c758167d-8b56-463d-80c4-db54d94bcc9e
+- Added to pools: qualifying
+- Server issue #59 appears fixed (upload succeeded)
+
+Current online state:
+- Our best: v52 at #29, score 36.11
+- Target: >36.0 online score
+- v59 includes all v52 improvements + aSOVe 2-agent fixes
+
+## 2026-05-04T00:35: monitoring and next steps
+
+v59 is now qualifying. The 2-agent improvements should boost our overall score since ~35% of matches are 2-agent.
+
+**Next experiment:** While waiting for v59 results, let me look for additional improvements. The aSOVe branch also showed that the 8-agent performance was slightly improved (+0.7%), suggesting the hub rotation and station blacklisting help even in 8-agent scenarios. Let me look for further gains.
