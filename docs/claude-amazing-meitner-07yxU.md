@@ -74,3 +74,9 @@ Current online state:
 v59 is now qualifying. The 2-agent improvements should boost our overall score since ~35% of matches are 2-agent.
 
 **Next experiment:** While waiting for v59 results, let me look for additional improvements. The aSOVe branch also showed that the 8-agent performance was slightly improved (+0.7%), suggesting the hub rotation and station blacklisting help even in 8-agent scenarios. Let me look for further gains.
+
+## 2026-05-04T00:45: starting new experiment loop — junction blacklist TTL + nav shake threshold
+
+**Hypothesis:** Two independent improvements that should reduce wasted time:
+1. **Junction blacklist TTL (200 steps)** — Currently junctions are blacklisted permanently when an aligner times out near them. This shrinks the pool of alignment targets over time, especially in long games. Adding a TTL lets agents retry after congestion clears.
+2. **Navigation shake threshold 5→10** — The current threshold of 5 blocked steps before random unstuck moves is too aggressive. Agents near hubs naturally cluster briefly. Raising to 10 should reduce wasted random movements.

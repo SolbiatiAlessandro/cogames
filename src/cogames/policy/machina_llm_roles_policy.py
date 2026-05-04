@@ -438,7 +438,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill in {"get_heart", "align_neutral"} and state.skill_steps >= self._stuck_threshold * 5:
             if state.current_skill == "align_neutral":
                 state.align_neutral_timeouts += 1
-                # After 1+ timeout, forget the nearest stuck junction to try a different target
+                _JUNCTION_BLACKLIST_TTL = 200
                 if state.align_neutral_timeouts >= 1:
                     current_abs = self._spawn_offset(obs)
                     non_blacklisted_neutral = state.known_neutral_junctions - state.blacklisted_junctions
@@ -447,16 +447,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_neutral)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
-                            state.known_neutral_junctions.discard(stuck_junction)
-                            self._event(state, f"blacklisted stuck neutral junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
+                            state.blacklisted_junction_ttls[stuck_junction] = _JUNCTION_BLACKLIST_TTL
+                            self._event(state, f"blacklisted neutral junction at {stuck_junction} for {_JUNCTION_BLACKLIST_TTL} steps")
                             state.align_neutral_timeouts = 0
                     elif non_blacklisted_enemy:
-                        # Also blacklist stuck enemy junctions
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_enemy)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
-                            state.known_enemy_junctions.discard(stuck_junction)
-                            self._event(state, f"blacklisted stuck enemy junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
+                            state.blacklisted_junction_ttls[stuck_junction] = _JUNCTION_BLACKLIST_TTL
+                            self._event(state, f"blacklisted enemy junction at {stuck_junction} for {_JUNCTION_BLACKLIST_TTL} steps")
                             state.align_neutral_timeouts = 0
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
@@ -548,9 +547,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
-        # Navigation shake: after 5 consecutive blocked moves, every 3rd step try a random direction
-        # This breaks BFS deadlocks caused by agent-occupied cells
-        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
+        # Navigation shake: after 10 consecutive blocked moves, every 3rd step try a random direction
+        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 10 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck(state)
             state.skill_steps += 1
             return action, state

@@ -104,8 +104,9 @@ class AlignerState(StarterCogState):
     # Issue-44: per-agent move cooldown to break congestion deadlocks
     move_cooldowns: dict[Coord, int] = field(default_factory=dict)
     steps_since_last_move: int = 0
-    # Junctions permanently skipped after repeated navigation failures
+    # Junctions temporarily skipped after repeated navigation failures (coord -> TTL steps)
     blacklisted_junctions: set[Coord] = field(default_factory=set)
+    blacklisted_junction_ttls: dict[Coord, int] = field(default_factory=dict)
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -475,6 +476,14 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             del state.move_cooldowns[cell]
         for cell in list(state.move_cooldowns):
             state.move_cooldowns[cell] -= 1
+
+        # Tick down junction blacklist TTLs
+        bl_expired = [c for c, ttl in state.blacklisted_junction_ttls.items() if ttl <= 1]
+        for c in bl_expired:
+            del state.blacklisted_junction_ttls[c]
+            state.blacklisted_junctions.discard(c)
+        for c in list(state.blacklisted_junction_ttls):
+            state.blacklisted_junction_ttls[c] -= 1
 
         visible_cells = self._visible_abs_cells(current_abs)
         visible_tag_ids_by_cell: dict[Coord, set[int]] = {}
