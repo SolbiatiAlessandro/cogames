@@ -56,3 +56,27 @@ but the alignment time lost is negligible.
 the 25% threshold will trigger retreat to hub/friendly territory, keeping agents alive longer.
 The productive defend mode ensures agents discover new junction targets when hub hearts deplete
 (online hub depletes much faster due to competition).
+
+**Uploaded**: lessandro-LuhCw-hp-retreat:v1 to beta-cvc qualifying pool.
+
+## Experiment 2: Miner HP retreat threshold + base HP cap
+
+**Hypothesis**: Raising miner HP retreat from 25% to 40% and capping max_hp_seen at 100
+will save miners from death online (where they take damage from enemy RL policies) without
+regressing offline (since miner HP never drops below 25% in self-play).
+
+**Changes**:
+1. Miner HP retreat threshold: 25% → 40% (triggers earlier when HP drops)
+2. Miner recovery threshold: 85% → 70% (resumes mining sooner, less idle time at hub)
+3. Cap max_hp_seen at 100 (base HP) — prevents unreachable thresholds when hub heals above base
+
+**Results**: 5-seed validation shows zero regression (all seeds identical or +0.7%).
+Miner retreat never triggers in self-play (HP stays at 100), so changes are purely online-focused.
+
+| Seed | Baseline | With Changes | Delta |
+|------|----------|-------------|-------|
+| 42 | 1126.10 | 1126.10 | 0.0% |
+| 123 | 1095.66 | 1095.66 | 0.0% |
+| 7 | 1227.77 | 1227.77 | 0.0% |
+| 44 | 1266.05 | 1274.97 | +0.7% |
+| 99 | 1087.16 | 1087.16 | 0.0% |

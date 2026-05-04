@@ -843,7 +843,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return action, replace(next_state, last_mode=state.last_mode)
         return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
 
-    _MINER_HP_RETREAT_THRESHOLD = 0.25
+    _MINER_HP_RETREAT_THRESHOLD = 0.40
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
         center = self._starter._center
@@ -866,12 +866,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         return inv
 
     def _check_miner_hp(self, obs: AgentObservation, state: MinerSkillState) -> bool:
+        _BASE_HP = 100
         hp = self._read_hp(obs)
         if hp is None:
             state.retreating_to_hub = False
             return False
         if hp > state.max_hp_seen:
-            state.max_hp_seen = hp
+            state.max_hp_seen = min(hp, _BASE_HP)
         if state.max_hp_seen <= 0:
             return False
         hp_fraction = hp / state.max_hp_seen
@@ -880,7 +881,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) inv=%s retreating to hub",
                         obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, inv)
             state.retreating_to_hub = True
-        elif state.retreating_to_hub and hp_fraction >= 0.85:
+        elif state.retreating_to_hub and hp_fraction >= 0.70:
             logger.info("agent=%s MINER_HP_OK hp=%d/%d resuming mining",
                         obs.agent_id, hp, state.max_hp_seen)
             state.retreating_to_hub = False
