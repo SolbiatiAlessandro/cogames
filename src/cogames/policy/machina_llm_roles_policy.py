@@ -426,7 +426,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"explore completed after discovering {new_total} new alignable junction(s)")
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
-            # Cap explore duration to prevent long idle periods when no junctions nearby
             self._event(state, f"explore capped after {state.skill_steps} steps without finding junctions")
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
@@ -545,6 +544,14 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if retreat_targets:
                 target = self._nearest_known(current_abs, retreat_targets)
                 direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                if not direction:
+                    # Greedy fallback when BFS fails — move toward target ignoring obstacles
+                    dr = target[0] - current_abs[0]
+                    dc = target[1] - current_abs[1]
+                    if abs(dr) >= abs(dc):
+                        direction = "south" if dr > 0 else "north"
+                    else:
+                        direction = "east" if dc > 0 else "west"
                 if direction:
                     action = self._starter._action(f"move_{direction}")
                     state.last_move_target = self._move_target(current_abs, direction)
