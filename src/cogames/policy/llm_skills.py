@@ -929,8 +929,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         hp = self._read_hp(obs)
         if hp is not None:
+            _BASE_HP = 100
             if hp > state.max_hp_seen:
-                state.max_hp_seen = hp
+                state.max_hp_seen = min(hp, _BASE_HP)
             if state.max_hp_seen > 0 and hp < state.max_hp_seen * self._MINER_HP_RETREAT_THRESHOLD:
                 if not state.retreating_to_hub:
                     logger.info("agent=%s MINER_HP_LOW hp=%d/%d retreating",
@@ -939,7 +940,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 action, state = self._deposit_to_hub(obs, state)
                 self._record_move_target(action, obs, state)
                 return action, state
-            elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.5:
+            elif state.retreating_to_hub and hp >= state.max_hp_seen * 0.70:
                 state.retreating_to_hub = False
 
         gear = self._starter._current_gear(self._starter._inventory_items(obs))
