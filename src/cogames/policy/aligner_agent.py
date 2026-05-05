@@ -22,7 +22,7 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
 _HUB_SEARCH_DISTANCE = 20
 _HUB_ALIGN_DISTANCE = 25
-_JUNCTION_ALIGN_DISTANCE = 20
+_JUNCTION_ALIGN_DISTANCE = 15
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
 # Issue-36 v4: increased from 0.50 to 0.70 — at 50%, agents only have 49 steps
@@ -667,6 +667,29 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _explore_for_alignment(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         return self._explore_frontier(obs, state, self._alignment_frontier_cells(state))
+
+    def _explore_beyond_aligned(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
+        """Explore beyond the aligned network to discover new junctions."""
+        frontier = self._frontier_cells(state)
+        if not frontier:
+            return self._explore_frontier(obs, state, frontier)
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        aligned_network = set(hub_set) | set(state.known_friendly_junctions)
+        if not aligned_network:
+            return self._explore_frontier(obs, state, frontier)
+        current_abs = self._spawn_offset(obs)
+        center_r = sum(a[0] for a in aligned_network) / len(aligned_network)
+        center_c = sum(a[1] for a in aligned_network) / len(aligned_network)
+        target_abs = max(
+            frontier,
+            key=lambda cell: (
+                abs(cell[0] - center_r) + abs(cell[1] - center_c)
+                - 0.3 * (abs(cell[0] - current_abs[0]) + abs(cell[1] - current_abs[1])),
+            ),
+        )
+        self._log_mode(obs, state, "explore")
+        action, next_state = self._move_to(state, current_abs, target_abs)
+        return action, replace(next_state, last_mode=state.last_mode)
 
     def _gear_up(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         self._log_mode(obs, state, "gear_up")
