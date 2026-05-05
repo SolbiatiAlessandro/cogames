@@ -24,49 +24,53 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-04 (Session 26)_
+_Updated by Director: 2026-05-05 (Session 27 — offline-to-online)_
 
-### Online Tournament (beta-cvc, 493 entries, cooperative scoring)
+### Online Tournament (beta-cvc, 565 entries, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **41.10** | `Paz-Bot-9000:v47` | RL, 21 matches |
-| #2 | 40.82 | `Gryffindor:v11` | RL |
-| #3 | 40.73 | `Slytherin:v14` | RL |
-| #4 | 40.62 | `slinky:v12` | RL |
-| #5 | 40.45 | `slanky:v165` | RL |
+| #1 | **41.28** | `slanky:v171` | RL, 20 matches |
+| #2 | 41.10 | `Paz-Bot-9000:v47` | RL, 21 matches |
+| #3 | 40.82 | `Gryffindor:v11` | RL, 27 matches |
+| #4 | 40.76 | `slanky:v165` | RL |
+| #5 | 40.73 | `Slytherin:v14` | RL, 32 matches |
 | ... | | | |
-| **#29** | **36.11** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (38 matches, stable) |
-| #39 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe merge — regressed |
-| #43 | 34.80 | `lessandro-ohm-mani-padme-hum:v4` | NiskB variant |
-| #45 | 34.69 | `lessandro-LuhCw-hp-retreat:v2` | HP retreat — regressed |
+| **#33** | **36.11** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (50 matches, stable) |
+| #41 | 35.28 | `lessandro-scripted-v54-astar:v2` | A* variant |
+| #44 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe merge — regressed |
+| **#48** | **34.91** | **`lessandro-scripted-v59:v1`** | **hCVEi merge — REGRESSED** |
+| #52 | 34.69 | `lessandro-LuhCw-hp-retreat:v2` | HP retreat — regressed |
 
-_v52 stable at #29 (36.11, up from #33). Gap to #1: 12.1%. All post-v52 submissions regressed._
+_v52 still our best (#33, 36.11). Gap to #1: 14.3% (5.17 pts). v59 confirmed 10% worse (avg 31.15 vs 34.61). **Main branch needs revert to v52 (#63).**_
 
-### Key Finding: Junction Control is THE Scoring Lever (Session 26 Correction)
+### Critical Finding: hCVEi Merge Regressed Online (Session 27)
 
-**Previous diagnosis (agent mortality) was WRONG.** Replay analysis of 3 online matches shows **zero agent deaths** across all 10000 steps. Score is determined by junction control:
+v59 (current main code) vs v52 after 26+ matches each:
 
-| Match | Score | Junction Control | Junctions Gained | Unique Cells | Deaths |
-|-------|-------|-----------------|------------------|--------------|--------|
-| vs ron.massive-ga-gen6 | 41.1 | cogs 54.7% | 185 | 3,034 | 0 |
-| vs LuhCw:v3 (us) | 44.1 | — | — | — | 0 |
-| vs ron.whoops | 4.9 | cogs 7.9% | 42 | 1,160 | 0 |
+| Metric | v52 | v59 | Delta |
+|--------|-----|-----|-------|
+| Avg score | 34.61 | 31.15 | **-10%** |
+| Rank | #33 | #48 | -15 positions |
+| Best agent steps | 9,653 | 5,500 | -43% |
+| Junction gained (high match) | 241 | 103 | -57% |
+| Junction held (high match) | 524,300 | 444,091 | -15% |
 
-Score ≈ `junction_held / 10000`. The lever is **exploration coverage** (finding junctions) and **capture speed** (aligning them quickly). HP retreat wastes time on a non-problem.
+The hCVEi changes (station blacklisting, switchable miner, extended explore, fast depletion breaker, hub rotation) make agents less efficient at junction capture.
 
-### v52 Score Distribution (38 matches)
+### v52 Score Distribution (50 matches)
 
 ```
-Min: 4.9   p10: 15.7   Median: 36.4   Mean: 34.1   p90: 47.9   Max: 53.1
-Catastrophic (<15): 3/38 = 8%
+Min: 4.9   Avg: 34.61   Max: 53.1   Rank: #33/565
+Partner-dependent variance: 10x (4.9 with bad partner, 53.1 with slanky)
 ```
 
 ### Current Priority Stack
 
 ```
-priority:1  #62  Junction capture rate & exploration coverage  <- NEW, CORRECT LEVER
-priority:1  #50  Per-agent alignment efficiency tuning         <- PROMOTED
+priority:1  #63  REVERT main to v52 policy code               <- BLOCKING ALL WORK
+priority:1  #62  Junction capture rate & exploration coverage  <- after revert
+priority:1  #50  Per-agent alignment efficiency tuning         <- after revert
 priority:2  #41  RL policy training                            <- BLOCKED (needs GPU)
 priority:3  #61, #56, #57                                     <- DEMOTED (mortality wrong)
 priority:3  #53, #27, #26                                     <- speculative
