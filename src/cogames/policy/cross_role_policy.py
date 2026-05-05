@@ -1396,7 +1396,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # Issue-36 v6: miner hub tethering — prevent miners from wandering too far from hub.
         # Miners that explore beyond MAX_HUB_DISTANCE can't retreat in time when HP drops.
         # At 70% HP threshold, agents have ~30 steps to reach hub. Keep miners within range.
-        _MAX_HUB_DISTANCE = 40
+        _MAX_HUB_DISTANCE = 50
         gear = self._current_gear(obs)
         if (
             not state.retreating
@@ -1442,7 +1442,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         # from hub during explore. _is_alignable limits junction targets to 25 cells from
         # hub, so aligners should stay within ~35 cells. Beyond that, retreat at 70% HP
         # may not reach hub in time (~30 steps to navigate back).
-        _MAX_ALIGNER_HUB_DISTANCE = 35
+        _MAX_ALIGNER_HUB_DISTANCE = 55
         if (
             not state.retreating
             and gear == "aligner"
