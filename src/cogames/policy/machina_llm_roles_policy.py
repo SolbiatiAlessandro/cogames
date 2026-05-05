@@ -314,10 +314,14 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if has_aligner and not has_heart and skill == "get_heart" and was_stuck and state.known_hubs:
             reason = "overrode get_heart to unstuck after stuck exit (escape navigation deadlock near hub)"
             skill = "unstuck"
-        # Hub likely depleted: after 1+ get_heart timeout, defend friendly junctions instead
-        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1 and state.known_friendly_junctions:
-            reason = f"overrode get_heart to defend after {state.get_heart_timeouts} timeouts (hub likely empty)"
-            skill = "defend"
+        # Hub likely depleted: after 5+ consecutive stale get_hearts, stop futile hub trips
+        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 5:
+            if state.known_friendly_junctions:
+                reason = f"overrode get_heart to defend after {state.get_heart_timeouts} stales (hub depleted)"
+                skill = "defend"
+            else:
+                reason = f"overrode get_heart to explore after {state.get_heart_timeouts} stales (hub depleted)"
+                skill = "explore"
         # Break explore→stuck loop when agent has gear+heart but no known junctions: try unstuck
         if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and was_stuck:
             reason = "overrode explore to unstuck after stuck exit (try escape moves to find junctions)"
@@ -387,6 +391,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, "align_neutral completed after spending heart")
             state.current_skill = None
             state.align_neutral_timeouts = 0
+            state.get_heart_timeouts = 0
         elif state.current_skill == "explore" and (
             len(state.known_neutral_junctions) + len(state.known_enemy_junctions) > state.explore_start_junctions
         ):
@@ -432,6 +437,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
+            state.current_skill = None
+        elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= self._stuck_threshold:
+            state.get_heart_timeouts += 1
+            self._event(state, f"get_heart exited as stale on target after {state.no_progress_on_target_steps} steps without progress (timeouts={state.get_heart_timeouts})")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")

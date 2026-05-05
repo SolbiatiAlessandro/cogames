@@ -1,0 +1,13 @@
+experiment	commit	seed	steps	total_reward	avg_reward	junction_aligned	heart_gained	heart_used	move_failed	notes
+baseline-v52	c7453c7	42	5000	1875.985474	234.498184	52	63	52	1846	v52 baseline (_JUNCTION_ALIGN_DISTANCE=20)
+baseline-v52	c7453c7	1	5000	2101.235352	262.654419	58	71	58	1976	v52 baseline
+baseline-v52	c7453c7	7	5000	2140.728760	267.591095	60	68	60	1434	v52 baseline
+fix-align-dist-beyond-explore	11a8e48	42	5000	1970.322998	246.290375	53	61	53	1327	_JUNCTION_ALIGN_DISTANCE=15 + _explore_beyond_aligned
+fix-align-dist-beyond-explore	11a8e48	1	5000	2101.067383	262.633423	59	70	59	-	_JUNCTION_ALIGN_DISTANCE=15 + _explore_beyond_aligned
+fix-align-dist-beyond-explore	11a8e48	7	5000	2141.444092	267.680511	60	67	60	-	_JUNCTION_ALIGN_DISTANCE=15 + _explore_beyond_aligned
+get-heart-stale-counting	-	42	5000	1970.32	246.29	53	-	-	-	self-play: threshold=5 stale counting (no change from exp4)
+get-heart-stale-counting	-	1	5000	2141.56	267.70	-	-	-	-	self-play: +1.9% vs exp4
+get-heart-stale-counting	-	7	5000	2141.44	267.68	60	-	-	-	self-play: identical to exp4
+get-heart-stale-counting-cvc	-	42	5000	96.50	48.25	-	-	-	-	CvC: +87% vs baseline (51.60)
+get-heart-stale-counting-cvc	-	1	5000	5.00	2.50	-	-	-	-	CvC: no change
+get-heart-stale-counting-cvc	-	7	5000	5.00	2.50	-	-	-	-	CvC: no change
