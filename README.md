@@ -24,9 +24,9 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-05 (Session 27 — offline-to-online)_
+_Updated by Director: 2026-05-06 (Session 28)_
 
-### Online Tournament (beta-cvc, 565 entries, cooperative scoring)
+### Online Tournament (beta-cvc, 633 entries, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
@@ -36,44 +36,38 @@ _Updated by Director: 2026-05-05 (Session 27 — offline-to-online)_
 | #4 | 40.76 | `slanky:v165` | RL |
 | #5 | 40.73 | `Slytherin:v14` | RL, 32 matches |
 | ... | | | |
-| **#33** | **36.11** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (50 matches, stable) |
-| #41 | 35.28 | `lessandro-scripted-v54-astar:v2` | A* variant |
-| #44 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe merge — regressed |
-| **#48** | **34.91** | **`lessandro-scripted-v59:v1`** | **hCVEi merge — REGRESSED** |
-| #52 | 34.69 | `lessandro-LuhCw-hp-retreat:v2` | HP retreat — regressed |
+| **#36** | **35.89** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (54 matches, stable) |
+| #38 | 35.60 | `lessandro-scripted-v54-astar:v2` | A* variant, close to v52 |
+| #43 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe — regressed |
+| #56 | 34.12 | `lessandro-scripted-v59:v1` | hCVEi — REGRESSED (reverted) |
 
-_v52 still our best (#33, 36.11). Gap to #1: 14.3% (5.17 pts). v59 confirmed 10% worse (avg 31.15 vs 34.61). **Main branch needs revert to v52 (#63).**_
+_v52 still our best (#36, 35.89). Gap to #1: 15.0% (5.39 pts). Main reverted to v52 (session 27). No new submissions since._
 
-### Critical Finding: hCVEi Merge Regressed Online (Session 27)
-
-v59 (current main code) vs v52 after 26+ matches each:
-
-| Metric | v52 | v59 | Delta |
-|--------|-----|-----|-------|
-| Avg score | 34.61 | 31.15 | **-10%** |
-| Rank | #33 | #48 | -15 positions |
-| Best agent steps | 9,653 | 5,500 | -43% |
-| Junction gained (high match) | 241 | 103 | -57% |
-| Junction held (high match) | 524,300 | 444,091 | -15% |
-
-The hCVEi changes (station blacklisting, switchable miner, extended explore, fast depletion breaker, hub rotation) make agents less efficient at junction capture.
-
-### v52 Score Distribution (50 matches)
+### v52 Score Distribution (54 matches, 30 recent analyzed)
 
 ```
-Min: 4.9   Avg: 34.61   Max: 53.1   Rank: #33/565
-Partner-dependent variance: 10x (4.9 with bad partner, 53.1 with slanky)
+Min: 6.3   p25: 28.3   Median: 34.3   p75: 43.5   Max: 52.4
+Partner-dependent variance: 8x (6.3 with bad partner, 52.4 with slanky)
 ```
+
+### Replay-Identified Bottlenecks (Session 28)
+
+| Problem | Best match | Worst match | Lever |
+|---------|-----------|-------------|-------|
+| Gear contamination | 0.5 changes/agent | 5.5 changes/agent | **#64** |
+| Stuck time | 14 steps max | 410 steps max | BFS fix |
+| Junction discovery | 241 gained | 26 gained | explore_beyond |
+| Move failures | 178/agent | 742/agent | Station avoidance |
 
 ### Current Priority Stack
 
 ```
-priority:1  #63  REVERT main to v52 policy code               <- BLOCKING ALL WORK
-priority:1  #62  Junction capture rate & exploration coverage  <- after revert
-priority:1  #50  Per-agent alignment efficiency tuning         <- after revert
+priority:1  #64  Gear contamination prevention                 <- NEW, highest leverage
+priority:1  #62  Junction capture rate & exploration coverage  <- JUNCTION_ALIGN_DISTANCE=15 + explore_beyond
+priority:2  #50  Per-agent alignment efficiency tuning         <- DEMOTED, low-hanging fruit exhausted
 priority:2  #41  RL policy training                            <- BLOCKED (needs GPU)
-priority:3  #61, #56, #57                                     <- DEMOTED (mortality wrong)
-priority:3  #53, #27, #26                                     <- speculative
+priority:3  #61, #56, #57                                     <- mortality is partner-dependent
+priority:3  #53, #27, #26, #12, #11, #10                      <- speculative / researched
 ```
 <!-- LEADERBOARD_END -->
 
