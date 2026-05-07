@@ -668,6 +668,41 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _explore_for_alignment(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         return self._explore_frontier(obs, state, self._alignment_frontier_cells(state))
 
+    def _beyond_aligned_frontier_cells(self, state: AlignerState) -> set[Coord]:
+        frontier = self._frontier_cells(state)
+        if not frontier:
+            return frontier
+
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        aligned_network = set(hub_set) | set(state.known_friendly_junctions)
+        if not aligned_network:
+            return frontier
+
+        vision_margin = max(self._obs_radius_row, self._obs_radius_col)
+        hub_search_radius = _HUB_ALIGN_DISTANCE + vision_margin
+        junction_search_radius = _JUNCTION_ALIGN_DISTANCE + vision_margin
+
+        beyond_frontier: set[Coord] = set()
+        for cell in frontier:
+            near_aligned = False
+            for anchor in aligned_network:
+                dist = abs(cell[0] - anchor[0]) + abs(cell[1] - anchor[1])
+                if anchor in hub_set and dist <= hub_search_radius:
+                    near_aligned = True
+                    break
+                if anchor in state.known_friendly_junctions and dist <= junction_search_radius:
+                    near_aligned = True
+                    break
+            if not near_aligned:
+                beyond_frontier.add(cell)
+        return beyond_frontier or frontier
+
+    def _explore_beyond_aligned(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
+        beyond = self._beyond_aligned_frontier_cells(state)
+        if not beyond:
+            return self._explore(obs, state)
+        return self._explore_frontier(obs, state, beyond)
+
     def _gear_up(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         self._log_mode(obs, state, "gear_up")
         visible_target = self._starter._closest_tag_location(obs, self._aligner_station_tags)

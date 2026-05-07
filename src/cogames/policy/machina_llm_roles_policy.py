@@ -564,10 +564,12 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
             if self._inventory_count(obs, "heart") > 0:
-                action, base_state = self._explore_for_alignment(obs, state)
+                alignable = self._known_alignable_junctions(state)
+                if not alignable and state.known_friendly_junctions:
+                    action, base_state = self._explore_beyond_aligned(obs, state)
+                else:
+                    action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_friendly_junctions:
-                # Heartless aligner with friendly junctions: explore alignment frontier
-                # to discover new junctions for when hearts become available
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_hubs:
                 action, base_state = self._explore_near_hub(obs, state)
