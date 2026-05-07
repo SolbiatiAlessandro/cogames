@@ -1,3 +1,4 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 baseline	2029.05	seed42=1985.24,seed123=1921.78,seed7=2180.13	5000	baseline	3-seed average, no changes
-fast-recovery	2050.67	seed42=1985.24,seed123=1986.64,seed7=2180.13	5000	keep	fast gear contamination recovery mid-skill (+1.1% avg, +3.4% on contam-prone seed 123)
+fast-recovery	2080.44	seed42=1985.24,seed123=1986.64,seed7=2180.13,seed99=2042.96,seed555=2207.24	5000	keep	fast gear contamination recovery mid-skill (+0.6% 5-seed avg, +3.4% on contam-prone seed 123)
+contam-rotation	2083.03	seed42=1985.24,seed123=1999.56,seed7=2180.13,seed99=2042.96,seed555=2207.24	5000	keep	gear_up approach rotation on contamination + nth-nearest station skip (+0.75% 5-seed avg, +4.1% on seed 123, 0% regression on clean seeds)

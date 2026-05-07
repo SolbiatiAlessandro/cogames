@@ -435,6 +435,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         carried_total = self._carried_total(obs)
         has_miner = self._starter._current_gear(self._starter._inventory_items(obs)) == "miner"
         if state.current_skill == "gear_up" and has_miner:
+            state.gear_up_approach_rotation = 0
             self._event(state, "gear_up completed after acquiring miner gear")
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried_total >= self._effective_return_load:
@@ -532,7 +533,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
 
         has_miner = self._starter._current_gear(self._starter._inventory_items(obs)) == "miner"
         if not has_miner and state.current_skill not in ("gear_up", "explore", None):
-            self._event(state, f"gear contamination detected mid-{state.current_skill}: switching to gear_up")
+            state.gear_up_approach_rotation += 1
+            self._event(state, f"gear contamination detected mid-{state.current_skill}: switching to gear_up (approach rot={state.gear_up_approach_rotation})")
             state.current_skill = "gear_up"
             state.skill_steps = 0
 

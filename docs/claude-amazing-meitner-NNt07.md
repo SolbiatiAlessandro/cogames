@@ -68,3 +68,73 @@ reward impact is positive because the miner spends less time stuck with wrong ge
 
 KEEPING: Layer 2 (fast recovery) only. DISCARDING: all llm_skills.py changes + buffer zone.
 Waiting for seeds 99 and 555 to complete the validation.
+
+2026-05-07 19:20: 5-seed validation complete for fast recovery:
+| Seed | Baseline | Layer 2 | Delta |
+|------|----------|---------|-------|
+| 42   | 1985.24  | 1985.24 | 0.0%  |
+| 123  | 1921.78  | 1986.64 | +3.4% |
+| 7    | 2180.13  | 2180.13 | 0.0%  |
+| 99   | 2042.96  | 2042.96 | 0.0%  |
+| 555  | 2207.24  | 2207.24 | 0.0%  |
+5-seed avg: 2080.44 vs 2067.47 baseline (+0.6%)
+
+2026-05-07 19:25: starting experiment 3 — gear_up approach rotation
+Hypothesis: diagnostic on seed 123 shows agents 4 and 7 stuck in contamination cycle
+because gear_up always approaches miner station from same side (obs.agent_id % 4).
+If that side routes through a scrambler station, the miner gets contaminated every time.
+Adding approach rotation (like hub_approach_rotation for deposit) when gear_up fails.
+
+Changes:
+- llm_skills.py: added gear_up_approach_rotation field to MinerSkillState,
+  used in _gear_up preferred_side calculation
+- llm_miner_policy.py: rotate gear_up_approach_rotation on:
+  1. gear_up timeout (stuck_threshold * 5)
+  2. gear_up stuck exit (no_move_steps >= stuck_threshold)
+  3. gear_up stale exit (no_progress_on_target >= stuck_threshold)
+  4. gear contamination detected mid-skill (fast recovery trigger)
+
+2026-05-07 19:44: experiment 3 results on seed 123:
+- reward = 1995.00 (baseline: 1921.78, fast-recovery: 1986.64)
+- contamination events: 1 (down from 38 with fast recovery, 1 with baseline)
+- miner.gained=5, miner.lost=1, scrambler.gained=1
+- Agent 4 fixed: only 1 contamination (was 38), rotation successfully avoids hazard path
+- Agent 7 still stuck: never gets miner gear, cycles gear_up→explore→gear_up indefinitely
+  All 4 approach sides fail (stale after 20 steps each). Needs different miner station.
+- Validating on seeds 42, 7, 99, 555 (expect no change — no contamination on those)
+
+2026-05-07 20:19: experiment 3 — 5-seed validation PASSED
+Conservative gear_up approach rotation (trigger only on contamination detection):
+| Seed | Baseline | Contam-Rotation | Delta |
+|------|----------|----------------|-------|
+| 42   | 1985.24  | 1985.24        | 0.0%  |
+| 123  | 1921.78  | 1999.56        | +4.1% |
+| 7    | 2180.13  | 2180.13        | 0.0%  |
+| 99   | 2042.96  | 2042.96        | 0.0%  |
+| 555  | 2207.24  | 2207.24        | 0.0%  |
+5-seed avg: 2083.03 vs 2067.47 baseline (+0.75%)
+
+KEEPING experiment 3. Changes:
+- llm_skills.py: gear_up_approach_rotation field, _nth_nearest helper, preferred_side rotation,
+  skip to nth-nearest miner station after 4+ contaminations
+- llm_miner_policy.py: increment rotation on contamination detection, reset on gear_up success
+
+Key learnings:
+1. Aggressive rotation (on all gear_up failures) regresses clean seeds by -3%. Conservative
+   (contamination-only) is a true no-op on clean seeds — deterministic simulations confirm.
+2. The _nth_nearest station skip activates after rotation >= 4, trying farther miner stations.
+3. Combined with fast recovery (experiment 2), this is a layered defense:
+   - Fast recovery catches contamination immediately
+   - Approach rotation avoids the hazardous path on next attempt
+   - Station skip finds alternative stations if all approaches to nearest station fail
+
+Cumulative improvement over baseline: +0.75% (5-seed avg)
+Best single-seed improvement: +4.1% on seed 123
+
+2026-05-07 20:20: next experiment directions to explore:
+- Agent 7 on seed 123 still can't get miner gear (gear=None, not contaminated — rotation
+  doesn't trigger). Could try: gear_up timeout-based station skip, or smarter station selection
+  that considers path safety
+- Explore improvements: better frontier selection, smarter hub-relative exploration
+- Mining efficiency: optimal route planning between resource clusters
+- Deposit optimization: better hub approach timing to reduce congestion

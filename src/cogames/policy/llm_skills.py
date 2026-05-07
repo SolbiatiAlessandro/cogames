@@ -60,6 +60,7 @@ class MinerSkillState(StarterCogState):
     last_carried_total: int = 0
     # Hub approach diversification: each miner prefers a different side
     hub_approach_rotation: int = 0
+    gear_up_approach_rotation: int = 0
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -336,6 +337,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         return min(candidates, key=lambda coord: (abs(coord[0] - current_abs[0]) + abs(coord[1] - current_abs[1]), coord))
 
+    def _nth_nearest(self, current_abs: Coord, candidates: set[Coord], skip: int) -> Coord | None:
+        if not candidates:
+            return None
+        ordered = sorted(candidates, key=lambda c: (abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]), c))
+        idx = min(skip, len(ordered) - 1)
+        return ordered[idx]
+
     def _nearest_extractor_hub_weighted(self, current_abs: Coord, candidates: set[Coord], state: MinerSkillState) -> Coord | None:
         if not candidates:
             return None
@@ -552,7 +560,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s mode=gear_up", obs.agent_id)
             state.last_mode = "gear_up"
         current_abs = self._current_abs(obs)
-        preferred_side = obs.agent_id % 4
+        preferred_side = (obs.agent_id + state.gear_up_approach_rotation) % 4
         visible_target = self._closest_visible_location(obs, self._miner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
@@ -562,7 +570,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.known_miner_stations)
+        stations = state.known_miner_stations
+        skip_count = state.gear_up_approach_rotation // 4
+        target_abs = self._nth_nearest(current_abs, stations, skip_count)
         if target_abs is None:
             if state.known_hubs:
                 return self._explore_near_hub(obs, state)
