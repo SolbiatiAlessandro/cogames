@@ -1,0 +1,7 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+5bcdbc8	1875.985474	junction.held=0	5000	baseline	baseline v52 code seed=42
+5bcdbc8	2101.235352	junction.held=0	5000	baseline	baseline v52 code seed=1
+5bcdbc8	2140.728760	junction.held=0	5000	baseline	baseline v52 code seed=7
+5bcdbc8	1807.692017	junction.held=0	5000	discard	JUNCTION_ALIGN_DISTANCE 20->15 seed=42 (-3.6%)
+5bcdbc8	1966.871338	junction.held=0	5000	discard	JUNCTION_ALIGN_DISTANCE 20->15 seed=1 (-6.4%)
+5bcdbc8	2129.693848	junction.held=0	5000	discard	JUNCTION_ALIGN_DISTANCE 20->15 seed=7 (-0.5%)
