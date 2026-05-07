@@ -101,7 +101,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             # With shared map: preserve shared references; without: copy sets
             known_free_cells=sm.known_free_cells if sm else set(base.known_free_cells),
             blocked_cells=sm.blocked_cells if sm else set(base.blocked_cells),
-            move_blocked_cells=sm.move_blocked_cells if sm else set(base.move_blocked_cells),
+            move_blocked_cells=set(base.move_blocked_cells),
             known_hubs=sm.known_hubs if sm else set(base.known_hubs),
             known_aligner_stations=sm.known_aligner_stations if sm else set(base.known_aligner_stations),
             known_neutral_junctions=sm.known_neutral_junctions if sm else set(base.known_neutral_junctions),

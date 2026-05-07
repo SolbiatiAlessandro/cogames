@@ -108,15 +108,11 @@ class AlignerState(StarterCogState):
     blacklisted_junctions: set[Coord] = field(default_factory=set)
 
 
-_QUADRANT_DIRS: tuple[tuple[int, int], ...] = ((-1, -1), (-1, 1), (1, -1), (1, 1))
-
-
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def __init__(self, policy_env_info: PolicyEnvInterface, agent_id: int, shared_map: SharedMap | None = None):
         self._starter = StarterCogPolicyImpl(policy_env_info, agent_id, preferred_gear="aligner")
         self._agent_id = agent_id
         self._shared_map = shared_map
-        self._quadrant = _QUADRANT_DIRS[agent_id % 4]
         self._team_tag = self._tag_id("team:cogs")
         self._net_tag = self._tag_id("net:cogs")
         self._enemy_team_tag = self._tag_id("team:clips")
@@ -164,7 +160,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return
         state.known_free_cells = sm.known_free_cells
         state.blocked_cells = sm.blocked_cells
-        state.move_blocked_cells = sm.move_blocked_cells
+        # move_blocked_cells stays per-agent (not shared) because agent collisions
+        # are transient and agent-specific — sharing them causes stale blocks to
+        # accumulate across the team, progressively restricting BFS for everyone.
         state.known_hubs = sm.known_hubs
         state.known_aligner_stations = sm.known_aligner_stations
         state.known_neutral_junctions = sm.known_neutral_junctions
@@ -464,12 +462,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         else:
             state.steps_since_last_move += 1
 
-        # Issue-44: per-agent move cooldown to break congestion deadlocks.
+        # Per-agent move cooldown to break congestion deadlocks.
+        # Use temporary cooldowns instead of permanent move_blocked_cells
+        # to prevent stale blocks from accumulating and restricting BFS.
         if state.last_pos is not None and state.last_move_target is not None:
             if current_abs == state.last_pos:
-                if state.steps_since_last_move <= 12:
-                    state.move_cooldowns[state.last_move_target] = self._MOVE_COOLDOWN
-                state.move_blocked_cells.add(state.last_move_target)
+                state.move_cooldowns[state.last_move_target] = self._MOVE_COOLDOWN
         state.last_pos = current_abs
         state.last_move_target = None
 
@@ -526,11 +524,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Issue-44: use per-agent cooldowns + legacy move_blocked_cells
         visually_free = visible_cells - blocked_now
-        state.move_blocked_cells.difference_update(visually_free)
         cooldown_cells = set(state.move_cooldowns.keys())
-        state.blocked_cells.update(state.move_blocked_cells)
         state.blocked_cells.update(cooldown_cells)
         state.known_free_cells.update(visually_free - cooldown_cells)
         state.known_free_cells.difference_update(state.blocked_cells)
@@ -614,19 +609,6 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return self._safe_wander(state, current_abs)
         return self._move_to(state, current_abs, best_frontier)
 
-    def _quadrant_biased_target(self, current_abs: Coord, candidates: set[Coord], state: AlignerState) -> Coord | None:
-        if not candidates:
-            return None
-        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
-        if not hub_set:
-            return self._nearest_known(current_abs, candidates)
-        hub = min(hub_set, key=lambda h: abs(h[0] - current_abs[0]) + abs(h[1] - current_abs[1]))
-        qr, qc = self._quadrant
-        in_quadrant = {c for c in candidates
-                       if (c[0] - hub[0]) * qr >= 0 and (c[1] - hub[1]) * qc >= 0}
-        pool = in_quadrant if in_quadrant else candidates
-        return self._nearest_known(current_abs, pool)
-
     def _explore_frontier(
         self,
         obs: AgentObservation,
@@ -640,7 +622,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        target_abs = self._quadrant_biased_target(current_abs, frontier_cells, state)
+        target_abs = self._nearest_known(current_abs, frontier_cells)
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
