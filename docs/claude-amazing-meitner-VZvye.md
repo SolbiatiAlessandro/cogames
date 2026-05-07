@@ -44,3 +44,20 @@ Running baseline with current code on seeds 42, 1, 7 (8 agents, 5000 steps).
 ## 2026-05-07T05:50: Starting Experiment 2 — explore_beyond_aligned
 
 **Hypothesis:** When an aligner has a heart but no known unaligned junctions within range, instead of generic exploration, explore AWAY from the aligned network to discover new junctions. Currently aligners explore near hubs/friendly junctions, which re-traverses already-explored territory.
+
+**Result: NEUTRAL (+0.6%)**
+
+| Seed | Baseline | Exp2 | Delta |
+|------|----------|------|-------|
+| 42 | 1875.99 | 1875.99 | 0.0% |
+| 1 | 2101.24 | 2140.56 | +1.9% |
+| 7 | 2140.73 | 2137.24 | -0.2% |
+| **Avg** | **2039.32** | **2051.26** | **+0.6%** |
+
+**Analysis:** The code path rarely triggers in self-play because 8 agents explore quickly and find junctions before the "beyond" exploration is needed. junction.aligned_by_agent=52 is identical to baseline. No regression, keeping the code.
+
+**Decision: KEEP (no regression, good insurance for sparse maps)**
+
+## 2026-05-07T06:30: Starting Experiment 3 — Quadrant-based exploration dispersion
+
+**Hypothesis:** Assigning each aligner a preferred quadrant (NW/NE/SW/SE relative to hub) will spread exploration coverage. Currently all aligners pick the nearest frontier cell, causing them to cluster. With quadrant bias, each aligner gravitates toward a different map section, discovering more junctions faster.
