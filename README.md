@@ -24,51 +24,66 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-06 (Session 28)_
+_Updated by Director (offline→online): 2026-05-07 (Session 29)_
 
-### Online Tournament (beta-cvc, 633 entries, cooperative scoring)
+### Online Tournament (beta-cvc, 658 entries, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **41.28** | `slanky:v171` | RL, 20 matches |
-| #2 | 41.10 | `Paz-Bot-9000:v47` | RL, 21 matches |
-| #3 | 40.82 | `Gryffindor:v11` | RL, 27 matches |
+| #1 | **41.28** | `slanky:v171` | RL |
+| #2 | 41.10 | `Paz-Bot-9000:v47` | RL |
+| #3 | 40.82 | `Gryffindor:v11` | RL |
 | #4 | 40.76 | `slanky:v165` | RL |
-| #5 | 40.73 | `Slytherin:v14` | RL, 32 matches |
+| #5 | 40.73 | `Slytherin:v14` | RL |
 | ... | | | |
-| **#36** | **35.89** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (54 matches, stable) |
-| #38 | 35.60 | `lessandro-scripted-v54-astar:v2` | A* variant, close to v52 |
-| #43 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe — regressed |
-| #56 | 34.12 | `lessandro-scripted-v59:v1` | hCVEi — REGRESSED (reverted) |
+| **#38** | **35.87** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (drift from #36, 25 more entries) |
+| #42 | 35.36 | `lessandro-scripted-v54-astar:v2` | A* variant |
+| #46 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v11` | aSOVe variant |
+| #62 | 33.97 | `lessandro-scripted-v59:v1` | hCVEi — REGRESSED (reverted) |
 
-_v52 still our best (#36, 35.89). Gap to #1: 15.0% (5.39 pts). Main reverted to v52 (session 27). No new submissions since._
+_v52 still our best (#38, 35.87). Gap to #1: 13.1% (5.40 pts). No new submission — VZvye experiments produced <1% gains._
 
-### v52 Score Distribution (54 matches, 30 recent analyzed)
+### v52 Recent Match Scores (15 matches, 2026-05-04 to 2026-05-06)
 
 ```
-Min: 6.3   p25: 28.3   Median: 34.3   p75: 43.5   Max: 52.4
-Partner-dependent variance: 8x (6.3 with bad partner, 52.4 with slanky)
+Best:  52.4 (slanky:v171)      Worst: 23.7 (ron.anticlips.runbest.g)
+Range: 23.7 — 52.4 (2.2x partner-dependent variance)
+Recent scores: 23.7, 24.4, 27.3, 28.3, 29.4, 32.0, 32.2, 34.3, 35.3, 38.6, 39.5, 46.1, 48.2, 51.3, 52.4
 ```
 
-### Replay-Identified Bottlenecks (Session 28)
+### Replay Analysis — Session 29 Deep Dive
 
-| Problem | Best match | Worst match | Lever |
-|---------|-----------|-------------|-------|
-| Gear contamination | 0.5 changes/agent | 5.5 changes/agent | **#64** |
-| Stuck time | 14 steps max | 410 steps max | BFS fix |
-| Junction discovery | 241 gained | 26 gained | explore_beyond |
-| Move failures | 178/agent | 742/agent | Station avoidance |
+| Metric | Best (52.4, slanky) | Worst (23.7, ron.anticlips) | Ratio |
+|--------|--------------------|-----------------------------|-------|
+| Our agent max survival | 9653/10000 | 4526/10000 | 2.1x |
+| Our total failures | 20 | 1346 | **67x** |
+| Junctions gained | 241 | 64 | 3.8x |
+| Cogs junction.held | 524,300 | 237,039 | 2.2x |
+| Clips junction.held | 79,589 | 504,365 | 0.16x |
+
+### Key Findings (Session 29)
+
+1. **Junction count is saturated** — VZvye proved v52 captures ~52 junctions in self-play regardless of changes. The lever is alignment SPEED, not count (#65).
+2. **JUNCTION_ALIGN_DISTANCE=15 is dead** — Contradicts C4lUC (+5%); VZvye showed -3.5% on v52 baseline.
+3. **67x failure differential** drives score variance — best vs worst matches differ most in agent failures (20 vs 1346). Gear contamination (#64) remains the top lever.
+4. **Scripted ceiling is real** — 6 experiments yielded <1% gains. 13% gap to RL policies can't close incrementally.
 
 ### Current Priority Stack
 
 ```
-priority:1  #64  Gear contamination prevention                 <- NEW, highest leverage
-priority:1  #62  Junction capture rate & exploration coverage  <- JUNCTION_ALIGN_DISTANCE=15 + explore_beyond
-priority:2  #50  Per-agent alignment efficiency tuning         <- DEMOTED, low-hanging fruit exhausted
-priority:2  #41  RL policy training                            <- BLOCKED (needs GPU)
+priority:1  #64  Gear contamination prevention                 <- UNCHANGED, still highest leverage
+priority:1  #66  Submit v52 to beta-teams-tiny-fixed           <- NEW, free ranking (only 10 entries)
+priority:2  #65  Alignment speed (align junctions earlier)     <- NEW, from VZvye insight
+priority:2  #62  Junction capture rate & exploration coverage  <- DEMOTED, 6 experiments exhausted
+priority:2  #50  Per-agent alignment efficiency tuning         <- low-hanging fruit exhausted
+priority:2  #41  RL policy training                            <- BLOCKED (needs GPU), ceiling-breaker
 priority:3  #61, #56, #57                                     <- mortality is partner-dependent
 priority:3  #53, #27, #26, #12, #11, #10                      <- speculative / researched
 ```
+
+### beta-teams-tiny-fixed Season
+
+No entries submitted yet. Only 10 entries exist (scores 10-29). See #66.
 <!-- LEADERBOARD_END -->
 
 ### Autoresearch Progress
