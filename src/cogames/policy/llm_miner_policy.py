@@ -322,6 +322,15 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         else:
             state.consecutive_stuck_exits = 0
         if not has_miner:
+            current_abs = self._current_abs(obs)
+            gear = self._starter._current_gear(self._starter._inventory_items(obs))
+            logger.warning(
+                "agent=%s GEAR_CONTAMINATION step=%d gear=%s pos=%s last_mode=%s near_hazards=%s last_event='%s'",
+                obs.agent_id, self._miner_step_counts.get(obs.agent_id, 0), gear, current_abs,
+                state.last_mode,
+                [h for h in state.known_hazard_stations if abs(h[0]-current_abs[0]) + abs(h[1]-current_abs[1]) <= 3],
+                last_ev[:80],
+            )
             if was_stuck or was_stale:
                 return "explore", "scripted: gear_up stuck/stale, exploring for station"
             return "gear_up", "scripted: no miner gear"
@@ -520,6 +529,12 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:
             self._plan_skill(obs, state)
+
+        has_miner = self._starter._current_gear(self._starter._inventory_items(obs)) == "miner"
+        if not has_miner and state.current_skill not in ("gear_up", "explore", None):
+            self._event(state, f"gear contamination detected mid-{state.current_skill}: switching to gear_up")
+            state.current_skill = "gear_up"
+            state.skill_steps = 0
 
         if state.current_skill == "gear_up":
             action, base_state = self._gear_up(obs, state)
