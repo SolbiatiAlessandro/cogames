@@ -5,3 +5,14 @@ commit	mission_reward	secondary_rewards	steps	status	description
 5bcdbc8	1807.692017	junction.held=0	5000	discard	JUNCTION_ALIGN_DISTANCE 20->15 seed=42 (-3.6%)
 5bcdbc8	1966.871338	junction.held=0	5000	discard	JUNCTION_ALIGN_DISTANCE 20->15 seed=1 (-6.4%)
 5bcdbc8	2129.693848	junction.held=0	5000	discard	JUNCTION_ALIGN_DISTANCE 20->15 seed=7 (-0.5%)
+3a29738	1875.985474	junction.held=0	5000	keep	explore_beyond_aligned seed=42 (0.0%)
+3a29738	2140.560000	junction.held=0	5000	keep	explore_beyond_aligned seed=1 (+1.9%)
+3a29738	2137.240000	junction.held=0	5000	keep	explore_beyond_aligned seed=7 (-0.2%)
+1785a27	1875.985474	junction.held=0	5000	discard	quadrant-explore seed=42 (-5.2% avg, fixed quadrants harmful)
+804357e	1875.985474	junction.held=0	5000	keep	per-agent-move-blocks seed=42 (~0%, cleaner architecture)
+9b31771	1875.985474	junction.held=0	5000	discard	remove hub_dist bias seed=42 (-3.8%)
+0617a95	1875.985474	junction.held=0	5000	keep	combined: explore_beyond+per-agent-blocks+faster-blacklist seed=42 (0.0%)
+0617a95	2140.560000	junction.held=0	5000	keep	combined: explore_beyond+per-agent-blocks+faster-blacklist seed=1 (+1.9%)
+0617a95	2147.220000	junction.held=0	5000	keep	combined: explore_beyond+per-agent-blocks+faster-blacklist seed=7 (+0.3%)
+0617a95	1837.860000	junction.held=0	5000	keep	combined: explore_beyond+per-agent-blocks+faster-blacklist seed=5
+0617a95	2059.500000	junction.held=0	5000	keep	combined: explore_beyond+per-agent-blocks+faster-blacklist seed=13
