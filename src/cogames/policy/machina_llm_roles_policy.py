@@ -431,9 +431,31 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
+            if state.current_skill == "align_neutral":
+                state.align_neutral_timeouts += 1
+                if state.align_neutral_timeouts >= 1:
+                    current_abs = self._spawn_offset(obs)
+                    non_bl = (state.known_neutral_junctions | state.known_enemy_junctions) - state.blacklisted_junctions
+                    stuck_j = self._nearest_known(current_abs, non_bl) if non_bl else None
+                    if stuck_j is not None:
+                        state.blacklisted_junctions.add(stuck_j)
+                        self._event(state, f"blacklisted stuck junction {stuck_j}")
+                        state.align_neutral_timeouts = 0
+            elif state.current_skill == "get_heart":
+                state.get_heart_timeouts += 1
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+            if state.current_skill == "align_neutral":
+                state.align_neutral_timeouts += 1
+                if state.align_neutral_timeouts >= 1:
+                    current_abs = self._spawn_offset(obs)
+                    non_bl = (state.known_neutral_junctions | state.known_enemy_junctions) - state.blacklisted_junctions
+                    stuck_j = self._nearest_known(current_abs, non_bl) if non_bl else None
+                    if stuck_j is not None:
+                        state.blacklisted_junctions.add(stuck_j)
+                        self._event(state, f"blacklisted stale junction {stuck_j}")
+                        state.align_neutral_timeouts = 0
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
