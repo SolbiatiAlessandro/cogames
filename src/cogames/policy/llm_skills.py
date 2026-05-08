@@ -496,11 +496,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             ),
         )
         if current_abs == best_frontier:
+            _contam = getattr(state, 'contamination_avoid_cells', set())
             for direction_name, neighbor in sorted(
                 self._neighbors(current_abs),
                 key=lambda item: (
                     item[1] in state.blocked_cells,
                     item[1] in state.known_free_cells,
+                    item[1] in _contam,
                     abs(item[1][0] - target_abs[0]) + abs(item[1][1] - target_abs[1]),
                 ),
             ):
@@ -516,12 +518,21 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.last_mode = "explore"
         current_abs = self._current_abs(obs)
         frontier_cells = self._frontier_cells(state)
+        contam_avoid = getattr(state, 'contamination_avoid_cells', set())
         if current_abs in frontier_cells:
+            safe_dir = None
+            any_dir = None
             for direction, neighbor in self._neighbors(current_abs):
                 if neighbor in state.blocked_cells:
                     continue
                 if neighbor not in state.known_free_cells:
-                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+                    if any_dir is None:
+                        any_dir = direction
+                    if neighbor not in contam_avoid and safe_dir is None:
+                        safe_dir = direction
+            pick = safe_dir if safe_dir is not None else any_dir
+            if pick is not None:
+                return self._starter._action(f"move_{pick}"), replace(state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, frontier_cells)
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
