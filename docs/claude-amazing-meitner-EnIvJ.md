@@ -56,3 +56,46 @@ My hypothesis is that these combined will reduce gear churn especially on seed 1
 This is a strong result. Seed 123 improved dramatically (+19.6%). Seeds without contamination are unchanged or slightly improved. No regressions. Key insight: miner.gained on seed 123 went from 1.2 to 2.2 — the fast recovery is working, agents are re-equipping faster after contamination.
 
 Next experiment should try: explore with hazard avoidance (stepping into unknown cells near hazard stations), or further refining the approach rotation
+
+## Experiment 2-4: Exploration and approach cell variants (DISCARD)
+
+Tried: safe explore (avoid hazard-adjacent unknown cells), safe approach cells (prefer non-hazard-adjacent approach cells in _navigate_to_blocked_target). Both either had zero effect or regressed (approach cells -2.6% avg, -23% on seed 42). Confirms prior researcher's finding: BFS-level spatial avoidance is too aggressive.
+
+## Experiment 5: Faster gear_up timeout on repeat failures (KEEP)
+
+When gear_contamination_count is high, reduce the gear_up timeout so agents try alternative stations faster. Combined with exp1.
+
+| Seed | Exp1 | Exp5 | Delta |
+|------|------|------|-------|
+| 42 | 3.424 | 3.423 | 0.0% |
+| 123 | 2.165 | 2.210 | +2.1% |
+| 7 | 2.590 | 2.599 | +0.2% |
+| 99 | 3.015 | 3.017 | +0.1% |
+| 555 | 3.708 | 3.703 | -0.1% |
+| **Avg** | **2.980** | **2.991** | **+0.4%** |
+
+Modest reward gain, but deposits improved significantly on seeds 7/123.
+
+## Experiment 6: Fix contamination count bug (KEEP)
+
+Fixed bug where gear_contamination_count was being reset to 0 on gear_up completion instead of on successful mine_until_full completion. Now the count accumulates across contamination events, enabling station skip logic.
+
+## Experiment 7: Contamination avoidance cells (KEEP - BIG WIN)
+
+**Key insight**: When contamination is detected, remember the exact cell position where it happened and add it to a per-agent BFS avoid set. This is much more targeted than a 1-cell buffer around ALL hazard stations — it only avoids cells where contamination ACTUALLY occurred.
+
+| Seed | Baseline | Exp7 | Delta |
+|------|----------|------|-------|
+| 42 | 3.183 | 3.639 | **+14.3%** |
+| 123 | 1.810 | 3.486 | **+92.6%** |
+| 7 | 2.530 | 2.565 | +1.4% |
+| 99 | 3.015 | 3.015 | 0.0% |
+| 555 | 3.707 | 3.705 | 0.0% |
+| **Avg** | **2.849** | **3.282** | **+15.2%** |
+
+Seed 123 nearly doubled (+92.6%). Miner gear churn dropped from gained/lost=2.2/2.1 to 1.0/0.9.
+Junction.held on seed 123: 15104 → 31862 (+111%).
+
+This is the single biggest improvement found in gear contamination research. The key was: don't try to predict WHERE contamination might happen (buffer zones), but react to WHERE it DID happen (remember and avoid).
+
+2026-05-08T01:30: exp7 is a major win. Next experiment should try to further improve seeds 7 and 99 which didn't benefit from contamination avoidance (no contamination events on those seeds).

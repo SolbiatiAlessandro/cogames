@@ -63,6 +63,7 @@ class MinerSkillState(StarterCogState):
     # Gear contamination tracking: rotation for approaching miner stations
     gear_up_approach_rotation: int = 0
     gear_contamination_count: int = 0
+    contamination_avoid_cells: set[Coord] = field(default_factory=set)
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -387,7 +388,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return self._starter._fallback_action_name
         if goal not in state.known_free_cells:
             return None
-        avoid = state.known_hazard_stations - {goal}
+        avoid = (state.known_hazard_stations | getattr(state, 'contamination_avoid_cells', set())) - {goal, start}
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier:

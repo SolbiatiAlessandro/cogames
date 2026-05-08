@@ -428,23 +428,28 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         if not has_miner and state.current_skill in ("mine_until_full", "deposit_to_hub"):
             state.gear_contamination_count += 1
             state.gear_up_approach_rotation = (state.gear_up_approach_rotation + 1) % 4
-            self._event(state, f"gear contamination detected during {state.current_skill} (count={state.gear_contamination_count})")
-            logger.info("agent=%s GEAR_CONTAMINATION skill=%s count=%d rotation=%d",
+            current_abs = self._current_abs(obs)
+            state.contamination_avoid_cells.add(current_abs)
+            self._event(state, f"gear contamination at {current_abs} during {state.current_skill} (count={state.gear_contamination_count})")
+            logger.info("agent=%s GEAR_CONTAMINATION skill=%s count=%d rotation=%d pos=%s avoid_cells=%d",
                         obs.agent_id, state.current_skill, state.gear_contamination_count,
-                        state.gear_up_approach_rotation)
+                        state.gear_up_approach_rotation, current_abs, len(state.contamination_avoid_cells))
             state.current_skill = "gear_up"
             state.skill_steps = 0
             state.no_move_steps = 0
             state.no_progress_on_target_steps = 0
             return
         if state.current_skill == "gear_up" and has_miner:
-            state.gear_contamination_count = 0
             self._event(state, "gear_up completed after acquiring miner gear")
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried_total >= self._effective_return_load:
+            state.gear_contamination_count = 0
+            state.contamination_avoid_cells.clear()
             self._event(state, f"mine_until_full completed at load={carried_total}")
             state.current_skill = None
         elif state.current_skill == "deposit_to_hub" and carried_total == 0:
+            state.gear_contamination_count = 0
+            state.contamination_avoid_cells.clear()
             self._event(state, "deposit_to_hub completed after deposit")
             state.current_skill = None
         elif state.current_skill == "explore" and len(state.known_extractors) > state.explore_start_extractors:

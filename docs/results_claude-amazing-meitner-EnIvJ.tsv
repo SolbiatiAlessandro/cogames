@@ -1,0 +1,5 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+e9288ec	2.849251	deposits=1863 hearts=24 junctions=25493	3000	baseline	v52 baseline: 8-agent self-play (5-seed avg seeds 42/123/7/99/555)
+857ede2	2.980432	deposits=2021 hearts=25 junctions=26805	3000	keep	exp1: fast recovery + BFS hazard avoidance + approach rotation (+4.6%)
+3d2924e	2.990616	deposits=2142 hearts=26 junctions=26907	3000	keep	exp5: faster gear_up timeout on repeat failures (+5.0% vs baseline)
+pending	3.282241	deposits=2142 hearts=25 junctions=29823	3000	keep	exp7: contamination avoidance cells (+15.2% vs baseline)
