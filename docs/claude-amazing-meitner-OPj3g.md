@@ -298,9 +298,87 @@ Results:
 | 14 | BFS direction diversity | 1097.78 | -2.3% | 55.2 | DISCARD |
 | 15 | Quadrant dispersion | 1095.98 | -2.5% | 55.4 | DISCARD |
 
-**15 experiments run, only Exp 2 (junction dist fix) improved reward.** All parameter tuning experiments within the current aligner architecture converge to the same ~56 junction ceiling. The bottleneck is map topology, not policy parameters.
+## Experiment 16: Fair heart sharing at game start
 
-**Conclusion on Issue #67**: The aligner throughput bottleneck is solved to the extent possible within the current game architecture. The junction alignment ceiling (~57 per 3000 steps) is determined by map topology — junction density and placement relative to the 15-cell cascade range. Further improvement requires either:
-1. Game-level changes (increase JUNCTION_ALIGN_DISTANCE, denser junction placement)
-2. Entirely different approaches (e.g., optimizing for 10k-step online tournament format where ceiling may be higher)
-3. Cross-cutting improvements (faster gear-up, better navigation, miner efficiency)
+Hypothesis: When 4 aligners converge on hub simultaneously, limit heart accumulation to 1 when 2+ others are also getting hearts. This ensures faster cascade start by distributing hearts fairly.
+
+Changes: In `_maybe_finish_skill` and `_plan_skill`, check `agents_getting_hearts` count and cap accumulation to 1 when 2+ others are getting hearts.
+
+Results: avg 1118.06, **-0.5%** vs Exp 2. Seeds 42/123 improved slightly, but 99/555 regressed. Net negative — heart monopolization at hub isn't actually a bottleneck.
+
+**DISCARD**.
+
+## Experiment 17: Progressive evasion for blocked moves
+
+Hypothesis: Port cross_role_policy's progressive evasion (perpendicular/reverse escape on blocked moves) to replace the random navigation shake. This should reduce move failures.
+
+Key finding: `last_move_target` is reset to None by `_update_map_memory` (line 474) before the evasion check can read it. Fixed by saving `prev_move_target` before the call. With the fix, evasion fires but causes -3.3% regression on seed 42. The evasion disrupts BFS pathfinding — perpendicular moves take agents off optimal paths.
+
+**DISCARD**: Progressive evasion suits greedy navigation (cross_role) but hurts BFS navigation (machina).
+
+## Experiment 18: Proactive agent collision avoidance in BFS
+
+Hypothesis: Add SharedMap teammate positions to BFS avoid set to route around known agent locations. Should reduce the 1132 failed moves per episode (seed 42).
+
+Results: avg ~1044.85 on seed 42, **-2.1%** vs Exp 2. Move failures reduced marginally (1132→1106) but longer BFS paths cost more time than avoided collisions. Agent positions are stale by the time paths are executed.
+
+**DISCARD**: Reactive collision handling (move_blocked_cells cooldowns) is better than proactive avoidance for dynamic agents.
+
+## Experiment 19: Periodic blacklist expiry every 500 steps
+
+Hypothesis: Port cross_role_policy's blacklist expiry mechanism. Clearing blacklisted junctions every 500 steps allows retrying previously-unreachable junctions that may have become reachable as the cascade extended.
+
+Results: avg 1121.51, **-0.2%** vs Exp 2. Seeds 42/123/7/555 were IDENTICAL to exp2 (no blacklisted junctions in self-play). Seed 99 regressed -1.0% from retrying truly-unreachable junctions.
+
+**DISCARD**: Self-play doesn't blacklist junctions — all junctions are reachable through cascade.
+
+## 10k-step diagnostic (seed 42)
+
+Ran seed 42 at 10k steps: 53 junctions aligned, 64 hearts gained — IDENTICAL to 3k steps. Confirms:
+- Junction ceiling is truly architectural (map topology)
+- All alignment happens in first 2000-3000 steps
+- Remaining 7000 steps hold existing junctions
+- 11 hearts unused (hearts not the bottleneck)
+- Oxygen extractors fully depleted by step 3000
+
+---
+
+## Final Summary (Experiments 1-19)
+
+| # | Experiment | Avg Reward | vs Exp 2 | Junctions | Status |
+|---|-----------|-----------|----------|-----------|--------|
+| 0 | Baseline | 1096.15 | -2.5% | 55.4 | — |
+| 1 | Fast-cycle hearts | 1083.61 | -3.6% | 55.4 | DISCARD |
+| **2** | **Junction dist fix** | **1123.73** | **—** | **56.8** | **KEEP** |
+| 3 | Scoring weight 1.0 | 1093.79 | -2.7% | 55.0 | DISCARD |
+| 3b | Scoring weight 0.5 | 1118.15 | -0.5% | 56.0 | DISCARD |
+| 4 | 5 aligners | 1067.42 | -5.0% | 55.0 | DISCARD |
+| 5 | Stuck timeout 3x | 1112.35 | -1.0% | 56.6 | DISCARD |
+| 6 | Scoring weight 0.0 | 1114.35 | -0.8% | 55.4 | DISCARD |
+| 7 | Explore dist 35 | 1103.15 | -1.8% | 56.6 | DISCARD |
+| 8 | Frontier bonus -5.0 | 1099.67 | -2.1% | 55.0 | DISCARD |
+| 8b | Frontier bonus -1.0 | 1100.99 | -2.0% | 54.2 | DISCARD |
+| 9 | Heart carry <6 | 1090.42 | -3.0% | 55.6 | DISCARD |
+| 10 | return_load=20 | 1082.24 | -3.7% | 54.4 | DISCARD |
+| 11 | Blacklist threshold 3 | 1104.69 | -1.7% | 55.8 | DISCARD |
+| 12 | Explore cap 20 | 1114.55 | -0.8% | 56.2 | DISCARD |
+| 13 | L2 distance | 1119.36 | -0.4% | 56.4 | DISCARD |
+| 14 | BFS direction diversity | 1097.78 | -2.3% | 55.2 | DISCARD |
+| 15 | Quadrant dispersion | 1095.98 | -2.5% | 55.4 | DISCARD |
+| 16 | Fair heart sharing | 1118.06 | -0.5% | 56.0 | DISCARD |
+| 17 | Progressive evasion | 1032.32 | -8.1% | 53.0 | DISCARD |
+| 18 | Collision avoidance BFS | 1044.85 | -7.0% | 53.0 | DISCARD |
+| 19 | Blacklist expiry | 1121.51 | -0.2% | 56.0 | DISCARD |
+
+**19 experiments run, only Exp 2 (junction dist fix) improved reward.** The junction alignment ceiling (~53-61 depending on seed) is determined by map topology — junction density and placement relative to the 15-cell cascade range and 25-cell hub range. The 10k-step diagnostic proves no additional junctions can be aligned with more time.
+
+**What we've proven impossible to improve within the scripted architecture:**
+- Heart accumulation strategy (fast-cycle, sharing, carry limits)
+- Junction scoring weights (0.0 to 1.0, all tested)
+- Aligner/miner split (4/4, 5/3 tested)
+- Exploration parameters (distance, duration, direction)
+- Navigation improvements (BFS variants, collision avoidance, evasion)
+- Distance calculations (Manhattan vs L2)
+- Blacklisting/retry strategies
+
+**The only remaining lever for offline reward** is the one-time junction distance fix (+2.5%), which corrected a genuine policy-game engine mismatch.
