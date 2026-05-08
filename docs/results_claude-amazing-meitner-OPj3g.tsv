@@ -1,0 +1,3 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+97df98c	1096.153	hearts_used=55.4 junctions_aligned=55.4 hearts_gained=66.2	3000	baseline	v52+contam baseline: 8-agent self-play (5-seed avg seeds 42/123/7/99/555)
+1c94b09	1083.606	hearts_used=55.4 junctions_aligned=55.4 hearts_gained=63.2	3000	discard	exp1: fast-cycle hearts (reduce accumulation <4→<2, patience <6→<2). -1.1% regression

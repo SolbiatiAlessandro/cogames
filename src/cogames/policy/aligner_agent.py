@@ -22,7 +22,8 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
 _HUB_SEARCH_DISTANCE = 20
 _HUB_ALIGN_DISTANCE = 25
-_JUNCTION_ALIGN_DISTANCE = 25
+_JUNCTION_ALIGN_DISTANCE = 15
+_JUNCTION_EXPLORE_DISTANCE = 25
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
 # Issue-36 v4: increased from 0.50 to 0.70 — at 50%, agents only have 49 steps
@@ -649,7 +650,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         vision_margin = max(self._obs_radius_row, self._obs_radius_col)
         hub_search_radius = _HUB_ALIGN_DISTANCE + vision_margin
-        junction_search_radius = _JUNCTION_ALIGN_DISTANCE + vision_margin
+        junction_search_radius = _JUNCTION_EXPLORE_DISTANCE + vision_margin
 
         preferred_frontier = {
             cell
