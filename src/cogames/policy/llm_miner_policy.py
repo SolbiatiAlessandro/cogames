@@ -425,7 +425,20 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
     def _maybe_finish_skill(self, obs: AgentObservation, state: LLMMinerState) -> None:
         carried_total = self._carried_total(obs)
         has_miner = self._starter._current_gear(self._starter._inventory_items(obs)) == "miner"
+        if not has_miner and state.current_skill in ("mine_until_full", "deposit_to_hub"):
+            state.gear_contamination_count += 1
+            state.gear_up_approach_rotation = (state.gear_up_approach_rotation + 1) % 4
+            self._event(state, f"gear contamination detected during {state.current_skill} (count={state.gear_contamination_count})")
+            logger.info("agent=%s GEAR_CONTAMINATION skill=%s count=%d rotation=%d",
+                        obs.agent_id, state.current_skill, state.gear_contamination_count,
+                        state.gear_up_approach_rotation)
+            state.current_skill = "gear_up"
+            state.skill_steps = 0
+            state.no_move_steps = 0
+            state.no_progress_on_target_steps = 0
+            return
         if state.current_skill == "gear_up" and has_miner:
+            state.gear_contamination_count = 0
             self._event(state, "gear_up completed after acquiring miner gear")
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried_total >= self._effective_return_load:

@@ -60,6 +60,9 @@ class MinerSkillState(StarterCogState):
     last_carried_total: int = 0
     # Hub approach diversification: each miner prefers a different side
     hub_approach_rotation: int = 0
+    # Gear contamination tracking: rotation for approaching miner stations
+    gear_up_approach_rotation: int = 0
+    gear_contamination_count: int = 0
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -406,9 +409,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         return parents[step][1]
 
     def _bfs_optimistic_direction(self, state: MinerSkillState, start: Coord, goal: Coord, max_cells: int = 20000) -> str | None:
-        """Optimistic BFS: treat unknown cells as traversable, only avoid known walls."""
+        """Optimistic BFS: treat unknown cells as traversable, avoid known walls and hazard stations."""
         if start == goal:
             return self._starter._fallback_action_name
+        avoid = state.known_hazard_stations - {goal}
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier and len(parents) < max_cells:
@@ -416,7 +420,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if cell == goal:
                 break
             for direction, neighbor in self._neighbors(cell):
-                if neighbor in parents or neighbor in state.blocked_cells:
+                if neighbor in parents or neighbor in state.blocked_cells or neighbor in avoid:
                     continue
                 parents[neighbor] = (cell, direction)
                 frontier.append(neighbor)
@@ -547,28 +551,37 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
+    def _select_miner_station(self, current_abs: Coord, state: MinerSkillState) -> Coord | None:
+        stations = state.known_miner_stations
+        if not stations:
+            return None
+        if state.gear_contamination_count >= 4 and len(stations) > 1:
+            skip = (state.gear_contamination_count - 4) % len(stations)
+            sorted_stations = sorted(stations, key=lambda s: abs(s[0] - current_abs[0]) + abs(s[1] - current_abs[1]))
+            return sorted_stations[min(skip, len(sorted_stations) - 1)]
+        return self._nearest_known(current_abs, stations)
+
     def _gear_up(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "gear_up":
             logger.info("agent=%s mode=gear_up", obs.agent_id)
             state.last_mode = "gear_up"
         current_abs = self._current_abs(obs)
+        preferred_side = state.gear_up_approach_rotation % 4 if state.gear_contamination_count > 0 else None
         visible_target = self._closest_visible_location(obs, self._miner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
-            # Issue-36 v8: stations are blocked objects — use approach-cell navigation
-            result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+            result = self._navigate_to_blocked_target(state, current_abs, target_abs, preferred_side=preferred_side)
             if result is not None:
                 action, next_state = result
                 return action, replace(next_state, last_mode=state.last_mode)
             action, next_state = self._move_toward_target(state, current_abs, target_abs)
             return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.known_miner_stations)
+        target_abs = self._select_miner_station(current_abs, state)
         if target_abs is None:
             if state.known_hubs:
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
-        # Issue-36 v8: stations are blocked objects — use approach-cell navigation
-        result = self._navigate_to_blocked_target(state, current_abs, target_abs)
+        result = self._navigate_to_blocked_target(state, current_abs, target_abs, preferred_side=preferred_side)
         if result is not None:
             action, next_state = result
             return action, replace(next_state, last_mode=state.last_mode)
