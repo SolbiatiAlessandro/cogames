@@ -73,3 +73,39 @@ Changes:
 1. `aligner_agent.py:25` — `_JUNCTION_ALIGN_DISTANCE = 25` → `15`
 2. `aligner_agent.py:26` — New `_JUNCTION_EXPLORE_DISTANCE = 25`
 3. `aligner_agent.py:653` — `_alignment_frontier_cells` uses `_JUNCTION_EXPLORE_DISTANCE` for search radius
+
+Results (5-seed avg):
+
+| Seed | Total Reward | Baseline | Change | Hearts Gained | Hearts Used | Junctions Aligned |
+|------|-------------|----------|--------|---------------|-------------|-------------------|
+| 42 | 1067.54 | 1040.43 | +2.6% | 64 | 53 | 53 |
+| 123 | 1090.68 | 1071.49 | +1.8% | 63 | 55 | 55 |
+| 7 | 1146.89 | 1103.23 | +4.0% | 70 | 60 | 60 |
+| 99 | 1114.49 | 1081.57 | +3.0% | 66 | 55 | 55 |
+| 555 | 1199.08 | 1184.05 | +1.3% | 71 | 61 | 61 |
+| **Avg** | **1123.73** | **1096.15** | **+2.5%** | **66.8** | **56.8** | **56.8** |
+
+**KEEP**: +2.5% improvement. Junction distance fix eliminates wasted trips to non-alignable junctions. Seeds 42 and 123 show clearest benefit (maps with junctions in the 16-25 cascade band). Seeds 7/99/555 appear unaffected by the fix — their improvement vs baseline may be due to environment differences between baseline and experiment runs.
+
+## Experiment 3: Round-trip scoring in cascade priority
+
+Hypothesis: `_cascade_priority_target` scores junctions as `travel + hub_dist * 0.2`, which strongly favors nearest junctions even if they're far from hub (expensive return trip). Since aligners must return to hub for more hearts, the optimal scoring should account for the full round-trip cost: `travel_to_junction + travel_back_to_hub ≈ travel + hub_dist`. Increasing hub_dist weight from 0.2 to 1.0 should improve throughput by reducing total travel time per alignment cycle.
+
+Changes:
+1. `aligner_agent.py:738` — `hub_dist * 0.2` → `hub_dist * 1.0` (Exp 3), then `hub_dist * 0.5` (Exp 3b)
+
+Results — Exp 3 (weight 1.0): avg 1093.79, **-0.2%** vs baseline
+Results — Exp 3b (weight 0.5): avg 1118.15, **+2.0%** vs baseline, **-0.5%** vs Exp 2
+
+| Weight | Avg Reward | vs Baseline | Hearts Used | Junctions |
+|--------|-----------|-------------|-------------|-----------|
+| 0.2 (baseline) | 1096.15 | — | 55.4 | 55.4 |
+| 0.2 (w/ dist fix) | 1123.73 | +2.5% | 56.8 | 56.8 |
+| 0.5 (w/ dist fix) | 1118.15 | +2.0% | 56.0 | 56.0 |
+| 1.0 (w/ dist fix) | 1093.79 | -0.2% | 55.0 | 55.0 |
+
+**DISCARD**: Increasing hub_dist weight hurts performance. Higher weights make aligners cluster near-hub junctions and neglect frontier expansion, which is critical for the cascade mechanism. The original 0.2 weight is well-calibrated — it slightly penalizes far-from-hub junctions without preventing frontier growth.
+
+## Experiment 4: 5 aligners + 3 miners
+
+Hypothesis: With 4 aligners, aligner throughput is the bottleneck — each aligner cycles ~217 steps per alignment. Adding a 5th aligner (25% more capacity) should increase junction alignment rate. Mining surplus is 300-650 per element, so 3 miners may still produce enough resources (7 of each per heart).

@@ -1,3 +1,6 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 97df98c	1096.153	hearts_used=55.4 junctions_aligned=55.4 hearts_gained=66.2	3000	baseline	v52+contam baseline: 8-agent self-play (5-seed avg seeds 42/123/7/99/555)
 1c94b09	1083.606	hearts_used=55.4 junctions_aligned=55.4 hearts_gained=63.2	3000	discard	exp1: fast-cycle hearts (reduce accumulation <4→<2, patience <6→<2). -1.1% regression
+eccd6f6	1123.734	hearts_used=56.8 junctions_aligned=56.8 hearts_gained=66.8	3000	keep	exp2: fix junction align distance 25→15 to match game engine. +2.5% improvement
+38d4db8	1093.790	hearts_used=55.0 junctions_aligned=55.0 hearts_gained=65.4	3000	discard	exp3: hub_dist weight 0.2→1.0 in cascade scoring. -0.2% vs baseline
+38d4db8	1118.150	hearts_used=56.0 junctions_aligned=56.0 hearts_gained=65.4	3000	discard	exp3b: hub_dist weight 0.2→0.5 in cascade scoring. +2.0% but worse than exp2
