@@ -321,7 +321,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.last_pos if state.last_pos is not None
             else (state.remembered_hub_row_from_spawn or 0, state.remembered_hub_col_from_spawn or 0)
         )
-        hard_avoid = state.known_hazard_stations | state.blocked_cells
+        hard_avoid = state.known_hazard_stations | state.blocked_cells | getattr(state, 'contamination_avoid_cells', set())
         for i in range(4):
             idx = (state.wander_direction_index + i) % 4
             direction, (dr, dc) = _DIRECTION_DELTAS[idx]
@@ -413,7 +413,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         """Optimistic BFS: treat unknown cells as traversable, avoid known walls and hazard stations."""
         if start == goal:
             return self._starter._fallback_action_name
-        avoid = state.known_hazard_stations - {goal}
+        avoid = (state.known_hazard_stations | getattr(state, 'contamination_avoid_cells', set())) - {goal, start}
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier and len(parents) < max_cells:
@@ -787,7 +787,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         return self._starter._action("move_east" if dc > 0 else "move_west")
 
     def _greedy_walk_toward_safe(self, state: MinerSkillState, current_abs: Coord, target_abs: Coord) -> Action:
-        avoid = state.known_hazard_stations | state.blocked_cells
+        avoid = state.known_hazard_stations | state.blocked_cells | getattr(state, 'contamination_avoid_cells', set())
         candidates = []
         for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
             neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)

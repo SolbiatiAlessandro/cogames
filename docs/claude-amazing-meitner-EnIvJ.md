@@ -99,3 +99,37 @@ Junction.held on seed 123: 15104 → 31862 (+111%).
 This is the single biggest improvement found in gear contamination research. The key was: don't try to predict WHERE contamination might happen (buffer zones), but react to WHERE it DID happen (remember and avoid).
 
 2026-05-08T01:30: exp7 is a major win. Next experiment should try to further improve seeds 7 and 99 which didn't benefit from contamination avoidance (no contamination events on those seeds).
+
+## Experiments 8-10: Refinement attempts (DISCARD/NO EFFECT)
+
+- Exp8: contamination avoidance in optimistic BFS — no effect (identical results)
+- Exp9: targeted hazard buffer (avoid ALL cells adjacent to the hazard station that caused contamination) — -11.4% regression! Too aggressive, blocked critical paths on seed 123
+- Exp10: contamination avoidance in _safe_wander and _greedy_walk_toward_safe — no effect (these code paths rarely trigger)
+- return_load=30 test: -30% regression on seeds 42/123 — shorter mining trips hurt
+
+## Extended validation (10 seeds total)
+
+Additional seeds with exp7:
+
+| Seed | Reward | Deposits | Miner gained/lost |
+|------|--------|----------|-------------------|
+| 256  | 2.445  | 1693     | 0.9/0.9 |
+| 314  | 3.937  | 2001     | 1.0/0.5 |
+| 777  | 3.350  | 2401     | 1.1/1.1 |
+| 1000 | 1.459  | 1323     | 1.1/1.1 |
+| 2024 | 3.110  | 1964     | 0.6/0.6 |
+
+10-seed average reward: (3.639+3.486+2.565+3.015+3.705+2.445+3.937+3.350+1.459+3.110)/10 = 3.071
+
+No regressions detected across 10 seeds. Miner gear churn consistently low (<=1.4/1.1).
+
+## Summary of final kept changes
+
+1. **BFS hazard avoidance in optimistic BFS** — `_bfs_optimistic_direction` now avoids hazard stations
+2. **Fast gear recovery** — detect gear loss mid-skill, immediately switch to gear_up
+3. **Approach rotation on contamination** — rotate approach side for miner station on contamination
+4. **Faster gear_up timeout** — timeout decreases with contamination count for faster retry
+5. **Contamination avoidance cells** (biggest win) — remember exact contamination positions in BFS avoid set
+6. **Station skip on high contamination count** — after 4+ contaminations, try further miner stations
+
+Key learning: reactive avoidance (remember where contamination happened) works much better than predictive avoidance (buffer zones around all stations). The former adapts to the specific map layout; the latter blocks too many paths.
