@@ -24,66 +24,66 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline→online): 2026-05-07 (Session 29)_
+_Updated by Director: 2026-05-08 (Session 30)_
 
-### Online Tournament (beta-cvc, 658 entries, cooperative scoring)
+### Online Tournament (beta-cvc, 712 entries, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **41.28** | `slanky:v171` | RL |
-| #2 | 41.10 | `Paz-Bot-9000:v47` | RL |
-| #3 | 40.82 | `Gryffindor:v11` | RL |
-| #4 | 40.76 | `slanky:v165` | RL |
-| #5 | 40.73 | `Slytherin:v14` | RL |
+| #1 | **41.86** | `Softy:v96` | RL (NEW #1) |
+| #2 | 41.28 | `slanky:v171` | RL |
+| #3 | 41.10 | `Paz-Bot-9000:v47` | RL |
+| #4 | 40.82 | `Gryffindor:v11` | RL |
+| #5 | 40.76 | `slanky:v165` | RL |
 | ... | | | |
-| **#38** | **35.87** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (drift from #36, 25 more entries) |
-| #42 | 35.36 | `lessandro-scripted-v54-astar:v2` | A* variant |
-| #46 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v11` | aSOVe variant |
-| #62 | 33.97 | `lessandro-scripted-v59:v1` | hCVEi — REGRESSED (reverted) |
+| **#40** | **36.15** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (stable) |
+| #50 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe variant |
+| #56 | 34.78 | `lessandro-scripted-v48:v1` | previous best |
+| TBD | TBD | **`lessandro-contamination-v64:v2`** | **NEW** — #64 fix, +15.2% offline, matches pending |
 
-_v52 still our best (#38, 35.87). Gap to #1: 13.1% (5.40 pts). No new submission — VZvye experiments produced <1% gains._
+_v52 still our best online (#40, 36.15). Gap to #1: 13.6% (5.71 pts). contamination-v64 submitted — awaiting online results._
 
-### v52 Recent Match Scores (15 matches, 2026-05-04 to 2026-05-06)
+### Offline Best Results (8-agent, 3000 steps)
+
+| Rank | Reward | Commit | Config | Seeds | Notes |
+|------|--------|--------|--------|-------|-------|
+| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | **+15.2% vs v52 baseline** |
+| 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | 5-seed avg | previous best |
+| 3 | 2.053 | `b6a86ae` | v52 + VZvye combined | 5-seed avg | +0.7%, within noise |
+
+### Key Findings (Session 30)
+
+1. **Gear contamination SOLVED** (#64) — EnIvJ branch delivered +15.2% avg reward. Seed 123 (contamination-prone) improved +92.6%. Key: reactive avoidance (remember exact contamination cells) >> predictive avoidance (buffer zones).
+2. **Bottleneck shifted: mining -> aligner throughput** — Post-fix, resource surpluses are 300-650 but hearts withdrawn only 20-31 of potential 69-97. Aligner side is now the ceiling (#67).
+3. **JUNCTION_ALIGN_DISTANCE=25 merged** — +7.9% in combined experiments (not independently validated).
+4. **contamination-v64:v2 submitted** to beta-cvc and beta-teams-tiny-fixed. 4 matches pending.
+5. **v52 match variance persists** — recent scores 6.3 to 54.5 (avg 35.5). Floor still low with weak partners.
+
+### v52 Recent Match Scores (19 matches)
 
 ```
-Best:  52.4 (slanky:v171)      Worst: 23.7 (ron.anticlips.runbest.g)
-Range: 23.7 — 52.4 (2.2x partner-dependent variance)
-Recent scores: 23.7, 24.4, 27.3, 28.3, 29.4, 32.0, 32.2, 34.3, 35.3, 38.6, 39.5, 46.1, 48.2, 51.3, 52.4
+Best:  54.5 (Softy:v96)         Worst: 6.3 (dedicated.ao:v1)
+Avg:   35.5                     Range: 6.3 — 54.5
+Scores: 6.3, 23.7, 24.4, 27.3, 28.3, 29.4, 31.2, 32.0, 32.2, 34.3, 35.3, 38.6, 39.5, 39.7, 46.1, 48.2, 51.3, 52.4, 54.5
 ```
-
-### Replay Analysis — Session 29 Deep Dive
-
-| Metric | Best (52.4, slanky) | Worst (23.7, ron.anticlips) | Ratio |
-|--------|--------------------|-----------------------------|-------|
-| Our agent max survival | 9653/10000 | 4526/10000 | 2.1x |
-| Our total failures | 20 | 1346 | **67x** |
-| Junctions gained | 241 | 64 | 3.8x |
-| Cogs junction.held | 524,300 | 237,039 | 2.2x |
-| Clips junction.held | 79,589 | 504,365 | 0.16x |
-
-### Key Findings (Session 29)
-
-1. **Junction count is saturated** — VZvye proved v52 captures ~52 junctions in self-play regardless of changes. The lever is alignment SPEED, not count (#65).
-2. **JUNCTION_ALIGN_DISTANCE=15 is dead** — Contradicts C4lUC (+5%); VZvye showed -3.5% on v52 baseline.
-3. **67x failure differential** drives score variance — best vs worst matches differ most in agent failures (20 vs 1346). Gear contamination (#64) remains the top lever.
-4. **Scripted ceiling is real** — 6 experiments yielded <1% gains. 13% gap to RL policies can't close incrementally.
 
 ### Current Priority Stack
 
 ```
-priority:1  #64  Gear contamination prevention                 <- UNCHANGED, still highest leverage
-priority:1  #66  Submit v52 to beta-teams-tiny-fixed           <- NEW, free ranking (only 10 entries)
-priority:2  #65  Alignment speed (align junctions earlier)     <- NEW, from VZvye insight
-priority:2  #62  Junction capture rate & exploration coverage  <- DEMOTED, 6 experiments exhausted
-priority:2  #50  Per-agent alignment efficiency tuning         <- low-hanging fruit exhausted
+priority:1  #67  Aligner throughput bottleneck                 <- NEW, hearts 20-31 of potential 69-97
+priority:2  #65  Alignment speed (align junctions earlier)     <- overlaps with #67
+priority:2  #62  Junction capture rate & exploration coverage  <- exhausted at <1% gains
 priority:2  #41  RL policy training                            <- BLOCKED (needs GPU), ceiling-breaker
+priority:3  #50  Per-agent alignment efficiency tuning         <- DEMOTED, superseded by #67
 priority:3  #61, #56, #57                                     <- mortality is partner-dependent
 priority:3  #53, #27, #26, #12, #11, #10                      <- speculative / researched
+CLOSED  #64  Gear contamination prevention                 <- RESOLVED (+15.2%, merged EnIvJ)
+CLOSED  #66  Submit to beta-teams-tiny-fixed               <- RESOLVED (submitted)
 ```
 
 ### beta-teams-tiny-fixed Season
 
-No entries submitted yet. Only 10 entries exist (scores 10-29). See #66.
+Submissions made: v52:v1 and contamination-v64:v1. Still only 10 entries (scores 10-28). Awaiting match results.
 <!-- LEADERBOARD_END -->
 
 ### Autoresearch Progress
