@@ -22,7 +22,7 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
 _HUB_SEARCH_DISTANCE = 20
 _HUB_ALIGN_DISTANCE = 25
-_JUNCTION_ALIGN_DISTANCE = 20
+_JUNCTION_ALIGN_DISTANCE = 25
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
 # Issue-36 v4: increased from 0.50 to 0.70 — at 50%, agents only have 49 steps
@@ -106,6 +106,9 @@ class AlignerState(StarterCogState):
     steps_since_last_move: int = 0
     # Junctions permanently skipped after repeated navigation failures
     blacklisted_junctions: set[Coord] = field(default_factory=set)
+    # Issue-65: cells where gear contamination occurred — added to BFS avoid set
+    contamination_avoid_cells: set[Coord] = field(default_factory=set)
+    gear_contamination_count: int = 0
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
