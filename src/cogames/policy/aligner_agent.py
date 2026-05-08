@@ -756,25 +756,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
-        # Prefer a hazard-free path to the junction; only allow crossing scout/scrambler
-        # stations when the clean path is unreachable. Walking through a wrong-role station
-        # auto-equips that gear and drops aligner, which has been the dominant
-        # mid-episode contamination path on seeds 43/44 (issue #12).
-        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
+        # Use optimistic BFS first: treats unknown cells as traversable, enabling
+        # faster early-game navigation when paths go through unexplored territory.
+        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
+        if direction is None:
+            direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
         if direction is None:
             direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is None:
             direction = self._bfs_without_cooldowns(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # BFS failed: try optimistic BFS (treat unknown cells as traversable)
-        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
-        if direction is None:
-            direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
-        if direction is not None:
-            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # Last resort: greedy absolute navigation toward known junction position,
-        # still refusing to step onto known hazard stations.
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 
