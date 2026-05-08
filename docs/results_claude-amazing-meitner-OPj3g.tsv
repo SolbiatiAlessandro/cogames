@@ -8,3 +8,5 @@ eccd6f6	1123.734	hearts_used=56.8 junctions_aligned=56.8 hearts_gained=66.8	3000
 5264d13	1112.349	hearts_used=56.6 junctions_aligned=56.6 hearts_gained=67.4	3000	discard	exp5: stuck timeout 5x→3x. No effect on junctions, slight reward noise
 9a32984	1114.354	hearts_used=55.4 junctions_aligned=55.4 hearts_gained=67.6	3000	discard	exp6: hub_dist weight 0.2→0.0 (pure nearest). -0.8% vs exp2, junctions 55.4 vs 56.8
 072ed5b	1103.154	hearts_used=56.6 junctions_aligned=56.6 hearts_gained=66.6	3000	discard	exp7: explore distance 25→35. No effect on junction discovery, -1.8% vs exp2
+f6e6a76	1099.670	hearts_used=55.0 junctions_aligned=55.0 hearts_gained=67.0	3000	discard	exp8: frontier expansion bonus (-5.0/unlock). -2.1% vs exp2, seed 42 lost 7 junctions
+f6e6a76	1100.990	hearts_used=54.2 junctions_aligned=54.2 hearts_gained=66.0	3000	discard	exp8b: frontier expansion bonus (-1.0/unlock). -2.0% vs exp2, seed 99 lost 5 junctions

@@ -189,3 +189,16 @@ Results: avg 1103.15, -1.8% vs Exp 2. Seeds 42 and 555 were EXACTLY identical to
 - Increasing JUNCTION_ALIGN_DISTANCE in the game engine (config change)
 - Placing junctions more densely (map generation change)
 - Adding new alignment mechanics (game design change)
+
+## Experiment 8: Frontier-expansion scoring bonus
+
+Hypothesis: Current scoring picks nearest alignable junction regardless of strategic value. Some junctions are "bridge" junctions that, once aligned, bring currently-unreachable junctions into cascade range. Adding a bonus for junctions that would unlock more junctions should expand the cascade frontier faster.
+
+Changes: In `_cascade_priority_target`, for each candidate junction, count how many known-but-not-alignable junctions would enter cascade range (within 15 cells) if it were aligned. Each unlockable junction gives a score bonus.
+
+Results — Exp 8 (bonus -5.0): avg 1099.67, -2.1% vs Exp 2. Seed 42 dropped from 53→46 junctions.
+Results — Exp 8b (bonus -1.0): avg 1100.99, -2.0% vs Exp 2. Seed 99 dropped from 55→50 junctions.
+
+**DISCARD**: Frontier expansion scoring is fundamentally flawed. The unlock count doesn't account for actual reachability (walls, map topology), and the bonus distorts scoring to favor distant bridge junctions over easy nearby ones.
+
+Additional finding: Reward is `per_tick=True` — each aligned junction gives reward every step (`weight=1.0/max_steps`). Earlier alignments earn more cumulative reward. But the junction ceiling (~57) is architectural, not timing-based.
