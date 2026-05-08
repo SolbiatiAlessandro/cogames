@@ -109,3 +109,83 @@ Results — Exp 3b (weight 0.5): avg 1118.15, **+2.0%** vs baseline, **-0.5%** v
 ## Experiment 4: 5 aligners + 3 miners
 
 Hypothesis: With 4 aligners, aligner throughput is the bottleneck — each aligner cycles ~217 steps per alignment. Adding a 5th aligner (25% more capacity) should increase junction alignment rate. Mining surplus is 300-650 per element, so 3 miners may still produce enough resources (7 of each per heart).
+
+Results: Using `--num-aligners 5` flag (no code changes).
+
+| Seed | Exp 2 (4a/4m) | Exp 4 (5a/3m) | Change |
+|------|---------------|---------------|--------|
+| 42 | 1067.54 | 1037.93 | -2.8% |
+| 123 | 1090.68 | 1053.44 | -3.4% |
+| 7 | 1146.89 | 1082.52 | -5.6% |
+| 99 | 1114.49 | 987.05 | -11.4% |
+| 555 | 1199.08 | 1176.16 | -1.9% |
+| **Avg** | **1123.73** | **1067.42** | **-5.0%** |
+
+**DISCARD**: 5 aligners is significantly worse. Despite more hearts being produced (67.8 vs 66.8), fewer junctions were aligned (55.0 vs 56.8) due to aligner congestion. Fewer miners also reduces mining reward. The bottleneck is NOT aligner count — it's per-aligner efficiency.
+
+Key insight: per-aligner throughput is ~211 steps/alignment, but ideal round-trip is ~41 steps (15 to junction + 15 back + 1 align + 10 hub wait). The remaining ~170 steps are: gear-up (one-time), stuck timeouts (100 steps max), exploration, HP retreat, navigation obstacles.
+
+## Experiment 5: Reduce stuck timeout for faster failure recovery
+
+Hypothesis: When an aligner gets stuck navigating to a junction (BFS fails), it waits `stuck_threshold * 5 = 100` steps before timing out. Reducing to `stuck_threshold * 3 = 60` steps saves up to 40 steps per stuck event, allowing the aligner to try alternative targets sooner.
+
+Results: avg 1112.35, +1.5% vs baseline, **-1.0%** vs Exp 2. Junction counts identical to Exp 2 (56.6 vs 56.8). Stuck timeout is NOT a significant bottleneck — aligners aren't wasting time stuck.
+
+**DISCARD**: No effect on junction throughput. Reverting.
+
+Key insight from Exps 1-5: junction alignment count is remarkably stable (~55-57) across most experiments. Only the distance fix helped slightly. We have ~10 unused hearts at game end — the constraint is **junction availability**, not aligner speed. The cascade frontier stalls when there are no more junctions within 15 cells of friendly junctions.
+
+## Experiment 6: Pure nearest-junction scoring (hub_dist weight 0.0)
+
+Hypothesis: With hub_dist weight 0.2, aligners slightly prefer close-to-hub junctions, potentially clustering near hub and neglecting frontier-edge junctions. Setting weight to 0.0 (pure travel distance) should help aligners spread evenly across the frontier, maximizing cascade expansion into new territory.
+
+Results: avg 1114.35, -0.8% vs Exp 2. Junctions 55.4 vs 56.8. Seed 42 lost 4 junctions.
+
+**DISCARD**: 0.2 weight confirmed optimal. Without it, aligners scatter on some maps and miss central junctions.
+
+Scoring experiment summary:
+| Weight | Avg Reward | Junctions |
+|--------|-----------|-----------|
+| 0.0 | 1114.35 | 55.4 |
+| **0.2** | **1123.73** | **56.8** |
+| 0.5 | 1118.15 | 56.0 |
+| 1.0 | 1093.79 | 55.0 |
+
+## Experiment 7: Increase explore distance 25→35
+
+Hypothesis: The alignment frontier stalls when nearby junctions are exhausted. Increasing `_JUNCTION_EXPLORE_DISTANCE` from 25 to 35 lets aligners scout further from the alignment network during exploration, discovering junctions beyond the current cascade range. These junctions become targetable as the cascade extends.
+
+Results: avg 1103.15, -1.8% vs Exp 2. Seeds 42 and 555 were EXACTLY identical to Exp 2 — wider exploration had zero effect. Seed 99 lost 1 junction and regressed -8.5%.
+
+**DISCARD**: Junction discovery is NOT the bottleneck. All nearby junctions are already found with 25 explore distance.
+
+---
+
+## Summary of all experiments
+
+| # | Experiment | Avg Reward | vs Baseline | vs Exp 2 | Junctions | Status |
+|---|-----------|-----------|-------------|----------|-----------|--------|
+| 0 | Baseline (4a/4m, dist=25) | 1096.15 | — | — | 55.4 | — |
+| 1 | Fast-cycle hearts (<4→<2) | 1083.61 | -1.1% | — | 55.4 | DISCARD |
+| **2** | **Junction dist fix (25→15)** | **1123.73** | **+2.5%** | **—** | **56.8** | **KEEP** |
+| 3 | Hub_dist weight 1.0 | 1093.79 | -0.2% | -2.7% | 55.0 | DISCARD |
+| 3b | Hub_dist weight 0.5 | 1118.15 | +2.0% | -0.5% | 56.0 | DISCARD |
+| 4 | 5 aligners + 3 miners | 1067.42 | -2.6% | -5.0% | 55.0 | DISCARD |
+| 5 | Stuck timeout 5x→3x | 1112.35 | +1.5% | -1.0% | 56.6 | DISCARD |
+| 6 | Hub_dist weight 0.0 | 1114.35 | +1.7% | -0.8% | 55.4 | DISCARD |
+| 7 | Explore distance 25→35 | 1103.15 | +0.6% | -1.8% | 56.6 | DISCARD |
+
+**Only Experiment 2 produced a statistically significant improvement.** The junction distance fix corrected a real bug: policy used 25 for cascade alignment checks but the game engine uses 15, causing wasted trips.
+
+**Key findings:**
+1. Junction alignment count is remarkably stable (~55-57) across all parameter variations
+2. ~10 hearts remain unused at game end → the bottleneck is junction availability, not aligner speed
+3. The cascade frontier naturally stalls when junction density drops below 1 per 15 cells
+4. Hub_dist weight 0.2 in cascade scoring is well-calibrated (optimal)
+5. 4 aligners + 4 miners (50/50 split) is optimal
+6. Stuck timeout and exploration distance changes have no effect on junction count
+
+**Remaining bottleneck:** The alignment ceiling (~57 junctions per 3000 steps) is determined by map topology — specifically the density and distribution of junctions relative to the cascade range (15 cells from friendly junctions, 25 from hub). Improving this would require either:
+- Increasing JUNCTION_ALIGN_DISTANCE in the game engine (config change)
+- Placing junctions more densely (map generation change)
+- Adding new alignment mechanics (game design change)

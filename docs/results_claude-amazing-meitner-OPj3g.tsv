@@ -4,3 +4,7 @@ commit	mission_reward	secondary_rewards	steps	status	description
 eccd6f6	1123.734	hearts_used=56.8 junctions_aligned=56.8 hearts_gained=66.8	3000	keep	exp2: fix junction align distance 25→15 to match game engine. +2.5% improvement
 38d4db8	1093.790	hearts_used=55.0 junctions_aligned=55.0 hearts_gained=65.4	3000	discard	exp3: hub_dist weight 0.2→1.0 in cascade scoring. -0.2% vs baseline
 38d4db8	1118.150	hearts_used=56.0 junctions_aligned=56.0 hearts_gained=65.4	3000	discard	exp3b: hub_dist weight 0.2→0.5 in cascade scoring. +2.0% but worse than exp2
+0c519bf	1067.421	hearts_used=55.0 junctions_aligned=55.0 hearts_gained=67.8	3000	discard	exp4: 5 aligners + 3 miners (--num-aligners 5). -5.0% vs exp2, aligner congestion
+5264d13	1112.349	hearts_used=56.6 junctions_aligned=56.6 hearts_gained=67.4	3000	discard	exp5: stuck timeout 5x→3x. No effect on junctions, slight reward noise
+9a32984	1114.354	hearts_used=55.4 junctions_aligned=55.4 hearts_gained=67.6	3000	discard	exp6: hub_dist weight 0.2→0.0 (pure nearest). -0.8% vs exp2, junctions 55.4 vs 56.8
+072ed5b	1103.154	hearts_used=56.6 junctions_aligned=56.6 hearts_gained=66.6	3000	discard	exp7: explore distance 25→35. No effect on junction discovery, -1.8% vs exp2
