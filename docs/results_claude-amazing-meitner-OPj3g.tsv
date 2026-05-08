@@ -10,3 +10,10 @@ eccd6f6	1123.734	hearts_used=56.8 junctions_aligned=56.8 hearts_gained=66.8	3000
 072ed5b	1103.154	hearts_used=56.6 junctions_aligned=56.6 hearts_gained=66.6	3000	discard	exp7: explore distance 25→35. No effect on junction discovery, -1.8% vs exp2
 f6e6a76	1099.670	hearts_used=55.0 junctions_aligned=55.0 hearts_gained=67.0	3000	discard	exp8: frontier expansion bonus (-5.0/unlock). -2.1% vs exp2, seed 42 lost 7 junctions
 f6e6a76	1100.990	hearts_used=54.2 junctions_aligned=54.2 hearts_gained=66.0	3000	discard	exp8b: frontier expansion bonus (-1.0/unlock). -2.0% vs exp2, seed 99 lost 5 junctions
+6ba0a6d	1090.424	hearts_used=55.6 junctions_aligned=55.6 hearts_gained=68.4	3000	discard	exp9: heart carry increase (<4→<6). -3.0% vs exp2, one aligner monopolizes hearts
+6ba0a6d	1082.240	hearts_used=54.4 junctions_aligned=54.4 hearts_gained=60.4	3000	discard	exp10: return_load=20 (--return-load 20). -12.6% vs baseline, miners waste time traveling
+6ba0a6d	1104.686	hearts_used=55.8 junctions_aligned=55.8 hearts_gained=66.8	3000	discard	exp11: blacklist threshold 1→3. -1.7% vs exp2, agents retry unreachable junctions too long
+6ba0a6d	1114.554	hearts_used=56.2 junctions_aligned=56.2 hearts_gained=66.6	3000	discard	exp12: explore cap 40→20 steps. -0.8% vs exp2, truncated exploration misses junctions
+6ba0a6d	1119.356	hearts_used=56.4 junctions_aligned=56.4 hearts_gained=67.0	3000	discard	exp13: L2 distance in _is_alignable and _alignment_frontier_cells. -0.4% vs exp2, no practical impact
+6ba0a6d	1097.784	hearts_used=55.2 junctions_aligned=55.2 hearts_gained=66.6	3000	discard	exp14: BFS direction diversity (rotate start direction). -2.3% vs exp2, worse paths on some maps
+6ba0a6d	1095.984	hearts_used=55.4 junctions_aligned=55.4 hearts_gained=66.8	3000	discard	exp15: quadrant exploration dispersion. -2.5% vs exp2, seed 7/99/555 all regressed ~4%

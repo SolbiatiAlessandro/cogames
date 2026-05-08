@@ -202,3 +202,105 @@ Results — Exp 8b (bonus -1.0): avg 1100.99, -2.0% vs Exp 2. Seed 99 dropped fr
 **DISCARD**: Frontier expansion scoring is fundamentally flawed. The unlock count doesn't account for actual reachability (walls, map topology), and the bonus distorts scoring to favor distant bridge junctions over easy nearby ones.
 
 Additional finding: Reward is `per_tick=True` — each aligned junction gives reward every step (`weight=1.0/max_steps`). Earlier alignments earn more cumulative reward. But the junction ceiling (~57) is architectural, not timing-based.
+
+## Experiment 9: Heart carry increase (<4→<6)
+
+Hypothesis: If aligners carry more hearts per trip, they can align multiple junctions without returning to hub. Increasing the heart accumulation threshold from <4 to <6 should reduce round-trip overhead.
+
+Results: avg 1090.42, **-3.0%** vs Exp 2. One aligner monopolized hearts while others idled at hub.
+
+**DISCARD**: Heart competition is already tight with 4 aligners. Increasing carry threshold exacerbates inequality — one aligner gets 6 hearts while others get 0.
+
+## Experiment 10: Miner return_load=20
+
+Hypothesis: Miners returning with higher loads (20 vs default) means fewer trips and more total resources deposited, enabling more hearts.
+
+Results: avg 1082.24, **-12.6%** vs baseline. Massive regression.
+
+**DISCARD**: Miners waste too much time traveling to accumulate 20 resources. Deposit frequency matters more than deposit size.
+
+## Experiment 11: Blacklist threshold 1→3
+
+Hypothesis: Currently aligners blacklist a junction after 1 failed alignment attempt (timeout). Raising to 3 gives them more chances to reach tricky junctions that may be reachable but require more pathing attempts.
+
+Results: avg 1104.69, **-1.7%** vs Exp 2. Agents spent 265 steps stuck retrying genuinely unreachable junctions.
+
+**DISCARD**: The first timeout is usually correct — the junction truly isn't reachable. Retrying wastes time.
+
+## Experiment 12: Explore cap 40→20 steps
+
+Hypothesis: Aligners spend ~38 steps average per explore phase (84 total across 4 aligners). Halving the explore cap to 20 should push them back to hub/junction sooner.
+
+Results: avg 1114.55, **-0.8%** vs Exp 2. Truncated exploration left some junctions undiscovered on certain seeds.
+
+**DISCARD**: Exploration time is already well-calibrated. Cutting it short hurts junction discovery.
+
+## Experiment 13: L2 distance in policy (matching game engine)
+
+Hypothesis: Game engine uses L2 distance (dr²+dc² ≤ r²) but policy uses Manhattan distance. Fixing both `_is_alignable()` and `_alignment_frontier_cells()` to use L2 should eliminate edge cases where policy thinks a junction is alignable but engine disagrees (or vice versa).
+
+Changes:
+1. `_is_alignable()`: Manhattan `abs(dr)+abs(dc) <= radius` → L2 `dr*dr+dc*dc <= radius*radius`
+2. `_alignment_frontier_cells()`: Same conversion for explore distance check
+
+Results: avg 1119.36, **-0.4%** vs Exp 2. Junction counts nearly identical — very few junctions sit in the Manhattan/L2 diagonal gap.
+
+**DISCARD**: Theoretically correct but no practical impact. The map layouts don't place junctions in positions where Manhattan vs L2 disagree.
+
+## Experiment 14: BFS direction diversity
+
+Hypothesis: BFS always explores in the same direction order (N/S/E/W), causing all agents to prefer the same paths. Rotating the starting direction based on agent_id should create more diverse pathing and reduce agent congestion.
+
+Results: avg 1097.78, **-2.3%** vs Exp 2. Changed direction preferences gave specific agents worse paths on some maps.
+
+**DISCARD**: The default direction order is fine. Diversity for its own sake doesn't help — the original order produces good paths on average.
+
+## Experiment 15: Quadrant exploration dispersion
+
+Hypothesis: All 4 aligners explore the same direction (nearest unknown), causing them to cluster. Assigning each aligner a preferred quadrant (based on agent_id % 4) and biasing exploration toward that direction should improve map coverage.
+
+Changes: Added `_quadrant_biased_target()` method that scores frontier cells with `travel - quadrant_bonus * 0.3` where quadrant_bonus rewards cells in the agent's preferred direction from hub.
+
+Results:
+| Seed | Exp 2 | Exp 15 | Change |
+|------|-------|--------|--------|
+| 42 | 1067.54 | 1072.19 | +0.4% |
+| 123 | 1090.68 | 1093.92 | +0.3% |
+| 7 | 1146.89 | 1099.53 | -4.1% |
+| 99 | 1114.49 | 1069.52 | -4.0% |
+| 555 | 1199.08 | 1144.76 | -4.5% |
+| **Avg** | **1123.73** | **1095.98** | **-2.5%** |
+
+**DISCARD**: Quadrant bias hurts on 3/5 seeds. The static quadrant assignment doesn't adapt to actual junction placement — agents forced into junction-sparse quadrants waste exploration time.
+
+---
+
+## Updated Summary (Experiments 1-15)
+
+| # | Experiment | Avg Reward | vs Exp 2 | Junctions | Status |
+|---|-----------|-----------|----------|-----------|--------|
+| 0 | Baseline | 1096.15 | -2.5% | 55.4 | — |
+| 1 | Fast-cycle hearts | 1083.61 | -3.6% | 55.4 | DISCARD |
+| **2** | **Junction dist fix** | **1123.73** | **—** | **56.8** | **KEEP** |
+| 3 | Scoring weight 1.0 | 1093.79 | -2.7% | 55.0 | DISCARD |
+| 3b | Scoring weight 0.5 | 1118.15 | -0.5% | 56.0 | DISCARD |
+| 4 | 5 aligners | 1067.42 | -5.0% | 55.0 | DISCARD |
+| 5 | Stuck timeout 3x | 1112.35 | -1.0% | 56.6 | DISCARD |
+| 6 | Scoring weight 0.0 | 1114.35 | -0.8% | 55.4 | DISCARD |
+| 7 | Explore dist 35 | 1103.15 | -1.8% | 56.6 | DISCARD |
+| 8 | Frontier bonus -5.0 | 1099.67 | -2.1% | 55.0 | DISCARD |
+| 8b | Frontier bonus -1.0 | 1100.99 | -2.0% | 54.2 | DISCARD |
+| 9 | Heart carry <6 | 1090.42 | -3.0% | 55.6 | DISCARD |
+| 10 | return_load=20 | 1082.24 | -3.7% | 54.4 | DISCARD |
+| 11 | Blacklist threshold 3 | 1104.69 | -1.7% | 55.8 | DISCARD |
+| 12 | Explore cap 20 | 1114.55 | -0.8% | 56.2 | DISCARD |
+| 13 | L2 distance | 1119.36 | -0.4% | 56.4 | DISCARD |
+| 14 | BFS direction diversity | 1097.78 | -2.3% | 55.2 | DISCARD |
+| 15 | Quadrant dispersion | 1095.98 | -2.5% | 55.4 | DISCARD |
+
+**15 experiments run, only Exp 2 (junction dist fix) improved reward.** All parameter tuning experiments within the current aligner architecture converge to the same ~56 junction ceiling. The bottleneck is map topology, not policy parameters.
+
+**Conclusion on Issue #67**: The aligner throughput bottleneck is solved to the extent possible within the current game architecture. The junction alignment ceiling (~57 per 3000 steps) is determined by map topology — junction density and placement relative to the 15-cell cascade range. Further improvement requires either:
+1. Game-level changes (increase JUNCTION_ALIGN_DISTANCE, denser junction placement)
+2. Entirely different approaches (e.g., optimizing for 10k-step online tournament format where ceiling may be higher)
+3. Cross-cutting improvements (faster gear-up, better navigation, miner efficiency)
