@@ -25,3 +25,5 @@ opt-v13	pending	2ag=14.9/4ag=40.2/6ag=45.4/8ag=42.2	10000	pending	aligner-opt-v1
 opt-v14	pending	pending	10000	pending	aligner-opt-v14 — remove move_blocked from blocked_cells (map pollution fix)
 opt-v15	pending	pending	10000	pending	aligner-opt-v15 — map pollution fix + hub_weight=0.1
 opt-v16	pending	pending	10000	pending	aligner-opt-v16 — map pollution fix + blacklist TTL (300 steps, not permanent)
+opt-v17	pending	pending	10000	pending	aligner-opt-v17 — map pollution fix + NO blacklisting at all
+opt-v18	pending	pending	10000	pending	aligner-opt-v18 — map pollution fix + ORIGINAL blacklist (cleanest A/B)

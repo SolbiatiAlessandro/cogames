@@ -408,16 +408,14 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if state.current_skill == "align_neutral":
                 state.align_neutral_timeouts += 1
                 if state.align_neutral_timeouts >= 1:
-                    sm = self._shared_map
-                    stuck_junction = sm.aligner_targets.get(obs.agent_id) if sm else None
-                    if stuck_junction is None:
-                        current_abs = self._spawn_offset(obs)
-                        non_bl = (state.known_neutral_junctions | state.known_enemy_junctions) - state.blacklisted_junctions
-                        stuck_junction = self._nearest_known(current_abs, non_bl) if non_bl else None
+                    current_abs = self._spawn_offset(obs)
+                    non_bl = (state.known_neutral_junctions | state.known_enemy_junctions) - state.blacklisted_junctions
+                    stuck_junction = self._nearest_known(current_abs, non_bl) if non_bl else None
                     if stuck_junction is not None:
                         state.blacklisted_junctions.add(stuck_junction)
-                        state.blacklist_ttls[stuck_junction] = 300
-                        self._event(state, f"blacklisted stuck junction at {stuck_junction} for 300 steps after {state.align_neutral_timeouts} timeouts")
+                        state.known_neutral_junctions.discard(stuck_junction)
+                        state.known_enemy_junctions.discard(stuck_junction)
+                        self._event(state, f"blacklisted stuck junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
                         state.align_neutral_timeouts = 0
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
