@@ -39,5 +39,19 @@ Only 3 policy files changed:
 - `llm_miner_policy.py`: contamination detection in `_maybe_finish_skill`, faster gear_up timeout
 - `llm_skills.py`: 3 new MinerSkillState fields, `_select_miner_station` method, contamination avoidance in BFS/explore/wander
 
-All changes are the +15.2% contamination avoidance fix from the EnIvJ branch (10-seed validated offline)
+All changes are the +15.2% contamination avoidance fix from the EnIvJ branch (10-seed validated offline).
+
+---
+
+**2026-05-09T18:00:00Z**: Starting issue #67 experiments while waiting for #68 match results.
+
+### Experiment 1: Reduce heart wait time at hub (issue #67)
+
+**Hypothesis**: Aligners spend too long waiting at the hub for hearts. Reducing the max heart wait from 6 to 3 ticks and max hearts per trip from 4 to 3 will speed up the aligner cycle, increasing hearts withdrawn per 3000 steps.
+
+**Changes**:
+- `machina_llm_roles_policy.py` line 368: `heart_count < 4` -> `heart_count < 3`
+- `machina_llm_roles_policy.py` line 368: `no_progress_on_target_steps < 6` -> `no_progress_on_target_steps < 3`
+
+Testing online since local environment has dependency issues.
 
