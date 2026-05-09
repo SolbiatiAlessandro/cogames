@@ -3,12 +3,13 @@ cfad6c7	0.000000	online_crash=8/8	10000	crash	contamination-v64:v2 — partial b
 cfad6c7	44.099	qualifying_score=44.10	10000	keep	contamination-v64:v3 — full-bundle upload fix confirmed working (qualifying solo match)
 cfad6c7	31.66	2ag=22.53/4ag=37.93/6ag=34.10	10000	keep	contamination-v64:v3 — CvC avg (19 matches), 4ag on par with v52
 3d937bb	36.59	4ag=36.59(1match)	10000	keep	aligner-opt-v1 — hearts<3 wait<3 JUNCTION=25 + contam (1 CvC match)
-3d937bb	38.52	2ag=24.5/4ag=41.2/6ag=44.0	10000	best	aligner-opt-v1 — #23! J=25 hearts<3 wait<3 + contam (20 CvC complete)
+3d937bb	39.72	2ag=24.5/4ag=41.2/6ag=44.0	10000	best	aligner-opt-v1 — #14! J=25 hearts<3 wait<3 + contam (22 CvC, stable)
 d9837e3	36.72	2ag=18.9/4ag=36.2/6ag=43.0	10000	keep	aligner-opt-v2 — #39 J=30 hurts 2ag/4ag (20 CvC complete)
 d9837e3	5.47	2ag=5.5	10000	failed	aligner-opt-5a3m — 5A+3M allocation FAILED (#718)
-v52-main	pending	pending	10000	pending	v52-clean — v52 exact code via full-bundle upload (baseline control)
-v52-main	pending	pending	10000	pending	v52-aligner-opt — v52 + JUNCTION=30 + hearts<3 wait<3, NO contamination
-v52-main	pending	pending	10000	pending	v52-junction35 — v52 + JUNCTION=35 + hearts<3 wait<3, NO contamination
-v52-main	pending	pending	10000	pending	v52-hubweight — v52 + JUNCTION=30 + hub_weight=0.5 + hearts<3 wait<3, NO contam
-v52-main	pending	pending	10000	pending	v52-j25-fast — v52 + JUNCTION=25 + hearts<3 wait<3, NO contam (best combo)
+v52-main	32.03	2ag=13.6/4ag=30.4/6ag=39.6	10000	keep	v52-clean — v52 exact code (#109), hearts opt = +6 pts confirmed
+v52-main	38.45	2ag=13.8/4ag=45.1/6ag=44.3	10000	keep	v52-aligner-opt — J=30 NO contam (#24), great 4ag but 2ag=13.8
+v52-main	36.49	2ag=22.4/4ag=34.8/6ag=40.9	10000	keep	v52-junction35 — J=35 NO contam (#43), too aggressive
+v52-main	37.22	2ag=20.8/4ag=36.2/6ag=42.5	10000	keep	v52-hubweight — J=30 hub_wt=0.5 (#35), helps 2ag hurts 4ag
+v52-main	18.31	2ag=7.8/4ag=30.9/6ag=41.0	10000	keep	v52-j25-fast — J=25 NO contam (#272 EARLY), contam code helps!
 opt-v3	pending	pending	10000	pending	aligner-opt-v3 — J=25 + enemy junction recapture bonus (-8) + contam
+opt-v4	pending	pending	10000	pending	aligner-opt-v4 — J=25 + contam + stuck_threshold=15 (faster stuck recovery)
