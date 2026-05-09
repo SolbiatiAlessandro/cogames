@@ -526,11 +526,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         state.blocked_cells.difference_update(visible_cells)
         state.blocked_cells.update(blocked_now)
-        # Issue-44: use per-agent cooldowns + legacy move_blocked_cells
         visually_free = visible_cells - blocked_now
         state.move_blocked_cells.difference_update(visually_free)
         cooldown_cells = set(state.move_cooldowns.keys())
-        state.blocked_cells.update(state.move_blocked_cells)
         state.blocked_cells.update(cooldown_cells)
         state.known_free_cells.update(visually_free - cooldown_cells)
         state.known_free_cells.difference_update(state.blocked_cells)

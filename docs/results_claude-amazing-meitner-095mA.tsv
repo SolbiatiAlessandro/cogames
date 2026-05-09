@@ -15,9 +15,12 @@ opt-v3	27.64	2ag=18.0/4ag=29.9/6ag=36.7	10000	failed	aligner-opt-v3 — #54! rec
 opt-v4	27.50	2ag=15.4/4ag=30.0/6ag=40.2	10000	failed	aligner-opt-v4 — #120! stuck=15 HURTS, aligner abandons targets too fast (11 CvC)
 opt-v5	2.00	qual=2.46/1.54	10000	failed	aligner-opt-v5 — return_load=60 BROKEN, miner never deposits
 opt-v6	28.50	2ag=20.1/4ag=35.3/6ag=41.8	10000	failed	aligner-opt-v6 — #78 adaptive J + recapture hurts (10 CvC)
-opt-v7	pending	pending	10000	pending	aligner-opt-v7 — J=25 adaptive(15 for 2ag) + NO recapture + contam
+opt-v7	31.78	2ag=17.1/4ag=40.4/6ag=39.9	10000	failed	aligner-opt-v7 — #121 adaptive J=15 for 2ag HURTS (20 CvC)
 opt-v8	27.80	2ag=24.9/4ag=24.6/6ag=38.1	10000	failed	aligner-opt-v8 — #139 stuck=12 HURTS, 4ag=24.6 catastrophic (13 CvC)
 opt-v9	26.10	2ag=12.7/4ag=35.8/6ag=42.1	10000	failed	aligner-opt-v9 — #107 cluster bonus HURTS 2ag badly (10 CvC)
-opt-v10	pending	qual=[35.9]	10000	pending	aligner-opt-v10 — adaptive hub dist + cluster bonus (likely bad)
-opt-v11	pending	pending	10000	pending	aligner-opt-v11 — blacklist bug fix + adaptive J (clean version)
+opt-v10	24.63	2ag=16.2/8ag=41.5	10000	failed	aligner-opt-v10 — #332! adaptive hub + cluster bonus CATASTROPHIC (6 CvC)
+opt-v11	39.04	qual=39.0	10000	pending	aligner-opt-v11 — blacklist fix + adaptive J (1 qual match)
 opt-v12	pending	pending	10000	pending	aligner-opt-v12 — 1 scout for shared map exploration (scout_ids=7)
+opt-v13	pending	pending	10000	pending	aligner-opt-v13 — ONLY blacklist fix (cleanest A/B vs opt-v1)
+opt-v14	pending	pending	10000	pending	aligner-opt-v14 — remove move_blocked from blocked_cells (map pollution fix)
+opt-v15	pending	pending	10000	pending	aligner-opt-v15 — map pollution fix + hub_weight=0.1
