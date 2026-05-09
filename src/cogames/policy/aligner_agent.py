@@ -22,7 +22,7 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
 _HUB_SEARCH_DISTANCE = 20
 _HUB_ALIGN_DISTANCE = 25
-_JUNCTION_ALIGN_DISTANCE = 30
+_JUNCTION_ALIGN_DISTANCE = 25
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
 # Issue-36 v4: increased from 0.50 to 0.70 — at 50%, agents only have 49 steps
@@ -732,14 +732,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
         if hub is None:
             return self._nearest_known(current_abs, candidates)
-        enemy_juncs = state.known_enemy_junctions
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            base = travel + hub_dist * 0.2
-            if j in enemy_juncs:
-                base -= 8
-            return base
+            return travel + hub_dist * 0.2
         return min(candidates, key=score)
 
     def _effective_junction_distance(self) -> int:

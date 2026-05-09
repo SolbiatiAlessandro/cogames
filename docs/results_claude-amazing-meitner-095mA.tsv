@@ -15,3 +15,6 @@ opt-v3	pending	pending	10000	pending	aligner-opt-v3 — J=25 + enemy junction re
 opt-v4	pending	pending	10000	pending	aligner-opt-v4 — J=25 + contam + stuck_threshold=15 (faster stuck recovery)
 opt-v5	pending	pending	10000	pending	aligner-opt-v5 — J=25 + contam + return_load=60 (fewer miner trips)
 opt-v6	pending	pending	10000	pending	aligner-opt-v6 — J=25(4+ag)/15(2ag) + contam + enemy recapture + adaptive J
+opt-v3	35.63	2ag=14.87/4ag=34.52/6ag=49.89	10000	failed	aligner-opt-v3 — #54! enemy recapture bonus HURTS 2ag badly (6 CvC)
+opt-v7	pending	pending	10000	pending	aligner-opt-v7 — J=25 adaptive(15 for 2ag) + NO recapture + contam
+opt-v8	pending	pending	10000	pending	aligner-opt-v8 — same as v7 + stuck_threshold=12 (faster recovery)
