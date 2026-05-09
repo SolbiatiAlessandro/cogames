@@ -101,6 +101,8 @@ def main():
         for key, value in agent.items():
             totals[key] = totals.get(key, 0) + value
 
+    game_stats = results.stats.get("game", {})
+
     log.info("Episode finished in %.1fs", elapsed)
     log.info("RESULT steps=%d total_reward=%.6f avg_reward_per_agent=%.6f", results.steps, total_reward, avg_reward)
     log.info("RESULT rewards_per_agent=%s", [f"{r:.4f}" for r in results.rewards])
@@ -109,16 +111,20 @@ def main():
         if totals[k] != 0:
             log.info("STAT %s = %.1f", k, totals[k])
 
+    junction_held = game_stats.get('cogs/aligned.junction.held', totals.get('aligned.junction.held', 0))
+    junction_gained = game_stats.get('cogs/aligned.junction.gained', totals.get('aligned.junction.gained', 0))
+    heart_withdrawn = game_stats.get('cogs/heart.withdrawn', totals.get('heart.withdrawn', 0))
+
     print(f"\n=== EXPERIMENT RESULT ===")
     print(f"seed={args.seed} steps={results.steps} total_reward={total_reward:.6f} avg_per_agent={avg_reward:.6f}")
-    print(f"junction.held={totals.get('aligned.junction.held', 0):.0f}")
-    print(f"junction.gained={totals.get('aligned.junction.gained', 0):.0f}")
+    print(f"junction.held={junction_held:.0f}")
+    print(f"junction.gained={junction_gained:.0f}")
     print(f"heart.gained={totals.get('heart.gained', 0):.0f}")
-    print(f"heart.withdrawn={totals.get('heart.withdrawn', 0):.0f}")
-    print(f"carbon.deposited={totals.get('cogs/carbon.deposited', 0):.0f}")
-    print(f"oxygen.deposited={totals.get('cogs/oxygen.deposited', 0):.0f}")
-    print(f"germanium.deposited={totals.get('cogs/germanium.deposited', 0):.0f}")
-    print(f"silicon.deposited={totals.get('cogs/silicon.deposited', 0):.0f}")
+    print(f"heart.withdrawn={heart_withdrawn:.0f}")
+    print(f"carbon.deposited={game_stats.get('cogs/carbon.deposited', 0):.0f}")
+    print(f"oxygen.deposited={game_stats.get('cogs/oxygen.deposited', 0):.0f}")
+    print(f"germanium.deposited={game_stats.get('cogs/germanium.deposited', 0):.0f}")
+    print(f"silicon.deposited={game_stats.get('cogs/silicon.deposited', 0):.0f}")
 
 
 if __name__ == "__main__":
