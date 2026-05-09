@@ -70,3 +70,29 @@ My hypothesis: fixing this mismatch will improve reward because:
 3. Faster cascade progression since aligners don't waste time on unreachable junctions
 
 Change: `_JUNCTION_ALIGN_DISTANCE = 25` → `_JUNCTION_ALIGN_DISTANCE = 15` in aligner_agent.py
+
+### Exp 2 Result (align=15 only): +1.7% avg
+
+| Seed | Baseline | Exp2 | Delta |
+|------|----------|------|-------|
+| 42   | 130.053 | 127.970 | -1.6% |
+| 123  | 133.936 | 134.277 | +0.3% |
+| 7    | 137.904 | 145.025 | +5.2% |
+| 99   | 135.197 | 139.311 | +3.0% |
+| 555  | 148.006 | 149.884 | +1.3% |
+| **Avg** | **137.019** | **139.293** | **+1.7%** |
+
+### Exp 2b: Split align=15 / explore=25: +2.5% avg — KEEP
+
+Added `_JUNCTION_EXPLORE_DISTANCE = 25` for the exploration frontier, keeping `_JUNCTION_ALIGN_DISTANCE = 15` for the alignment check. This preserves broad scouting while only attempting alignment within engine range.
+
+| Seed | Baseline | Exp2b | Delta |
+|------|----------|-------|-------|
+| 42   | 130.053 | 133.443 | +2.6% |
+| 123  | 133.936 | 136.335 | +1.8% |
+| 7    | 137.904 | 143.361 | +4.0% |
+| 99   | 135.197 | 139.311 | +3.0% |
+| 555  | 148.006 | 149.884 | +1.3% |
+| **Avg** | **137.019** | **140.467** | **+2.5%** |
+
+This is the same fix the #67 researcher found (+2.5% on their branch) — independently validated here.

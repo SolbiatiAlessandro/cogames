@@ -1,1 +1,4 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+addb38c	137.019	junction.held=134019 junction.gained=55.4	3000	keep	baseline 5-seed avg (4A+4M scripted)
+647af4b	137.000	junction.held=134001	3000	discard	heart accumulation <4 to <2 (-0.01% flat)
+fda53a9	140.467	junction.held=137468 junction.gained=56.8	3000	keep	fix JUNCTION_ALIGN_DISTANCE=15 + explore=25 (+2.5%)
