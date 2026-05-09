@@ -79,3 +79,39 @@ While waiting for the crash fix, uploaded 3 variants:
 
 All 3 are currently running qualifying matches on beta-cvc.
 
+---
+
+**2026-05-09T19:30:00Z**: CvC results coming in for contamination-v64:v3.
+
+### contamination-v64:v3 — 19 CvC matches completed
+
+Performance by agent allocation (compared to v52 baseline):
+
+| Allocation | v3 avg (n) | v52 avg (n) | Delta |
+|------------|-----------|-------------|-------|
+| 2 agents   | 22.53 (6) | 28.31 (18)  | -20%  |
+| 4 agents   | 37.93 (6) | 38.01 (14)  | -0.2% |
+| 6 agents   | 34.10 (7) | 37.35 (17)  | -8.7% |
+
+The 6-agent average is dragged by a 6.06 outlier (vs ron.anticlips.subsystems.h — pathological map with 50-68% move failure rates for both sides). Excluding outlier: 6-agent avg = 38.77 (better than v52).
+
+**Conclusion**: Contamination code is neutral at 4+ agents but harmful with 2 agents. The miner contamination overhead (extra BFS avoidance, gear rotation) is most visible when there's only 1 miner.
+
+### aligner-opt-v2 early results — very promising
+
+aligner-opt-v2 (hearts<3, wait<3, JUNCTION=30) has 4 CvC matches:
+- 4 agents: **44.81** vs ron.anticlips.b, **35.82** vs ron.tom.h → avg **40.31**
+- 2 agents: 14.34 vs ron.massive.gen6.b, 37.27 vs ron.calib.high_b → avg 25.81
+
+The 4-agent CvC average of 40.31 would be top-15 territory if it holds! The 44.81 is the highest single CvC score we've ever achieved.
+
+### New experiments uploaded (A/B test)
+
+To isolate aligner optimizations from contamination changes:
+- `lessandro-v52-clean:v1` — exact v52 code via full-bundle upload (baseline control)
+- `lessandro-v52-aligner-opt:v1` — v52 + JUNCTION=30 + hearts<3 + wait<3, NO contamination code
+
+If v52-aligner-opt matches or beats aligner-opt-v2's scores, it confirms:
+1. The aligner optimizations (JUNCTION=30, faster hub visits) are the key improvement
+2. The contamination code should be dropped for online play
+
