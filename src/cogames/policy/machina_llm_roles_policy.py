@@ -57,6 +57,7 @@ class LLMAlignerState(AlignerState):
     align_neutral_timeouts: int = 0
     get_heart_timeouts: int = 0
     recent_events: list[str] = field(default_factory=list)
+    blacklist_ttls: dict[tuple[int, int], int] = field(default_factory=dict)
     # HP monitoring
     max_hp_seen: int = 0
     retreating: bool = False
@@ -415,9 +416,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         stuck_junction = self._nearest_known(current_abs, non_bl) if non_bl else None
                     if stuck_junction is not None:
                         state.blacklisted_junctions.add(stuck_junction)
-                        state.known_neutral_junctions.discard(stuck_junction)
-                        state.known_enemy_junctions.discard(stuck_junction)
-                        self._event(state, f"blacklisted stuck junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
+                        state.blacklist_ttls[stuck_junction] = 300
+                        self._event(state, f"blacklisted stuck junction at {stuck_junction} for 300 steps after {state.align_neutral_timeouts} timeouts")
                         state.align_neutral_timeouts = 0
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
@@ -470,6 +470,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
     def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+
+        expired_bl = [j for j, ttl in state.blacklist_ttls.items() if ttl <= 0]
+        for j in expired_bl:
+            del state.blacklist_ttls[j]
+            state.blacklisted_junctions.discard(j)
+        for j in list(state.blacklist_ttls):
+            state.blacklist_ttls[j] -= 1
 
         # ── Team coordination: sync shared state ──
         sm = self._shared_map
