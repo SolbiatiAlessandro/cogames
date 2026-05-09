@@ -13,3 +13,4 @@ v52-main	37.22	2ag=20.8/4ag=36.2/6ag=42.5	10000	keep	v52-hubweight — J=30 hub_
 v52-main	18.31	2ag=7.8/4ag=30.9/6ag=41.0	10000	keep	v52-j25-fast — J=25 NO contam (#272 EARLY), contam code helps!
 opt-v3	pending	pending	10000	pending	aligner-opt-v3 — J=25 + enemy junction recapture bonus (-8) + contam
 opt-v4	pending	pending	10000	pending	aligner-opt-v4 — J=25 + contam + stuck_threshold=15 (faster stuck recovery)
+opt-v5	pending	pending	10000	pending	aligner-opt-v5 — J=25 + contam + return_load=60 (fewer miner trips)
