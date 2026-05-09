@@ -55,3 +55,27 @@ All changes are the +15.2% contamination avoidance fix from the EnIvJ branch (10
 
 Testing online since local environment has dependency issues.
 
+---
+
+**2026-05-09T18:30:00Z**: CRASH FIX CONFIRMED!
+
+### contamination-v64:v3 — first match completed successfully
+
+- **Score: 44.10** (qualifying match, solo 8 agents)
+- Episode ID: 32478f4d
+- Replay: https://softmax-public.s3.amazonaws.com/replays/39034bb6-3bc4-4abf-b85b-5dace1ef3f74.json.z
+- All 8 agent logs available (policy_agent_0.txt through policy_agent_7.txt)
+
+This confirms the root cause was the partial bundle shadowing. The full-bundle upload script (`scripts/upload_full_bundle.py`) fixes the issue.
+
+Note: 44.10 is a qualifying score (solo), not a competitive CvC score. v52's competitive average is 36.45. The qualifying score is higher because there's no opponent. Once v3 passes qualifying (needs 2 matches), it will get competitive CvC matches against other policies.
+
+### Aligner throughput experiments uploaded (issue #67)
+
+While waiting for the crash fix, uploaded 3 variants:
+- `aligner-opt-v1:v1`: hearts<3 + wait<3 ticks (4A+4M, JUNCTION=25)
+- `aligner-opt-v2:v1`: hearts<3 + wait<3 ticks + JUNCTION_DIST=30 (4A+4M)
+- `aligner-opt-5a3m:v1`: same as v2 but 5A+3M allocation
+
+All 3 are currently running qualifying matches on beta-cvc.
+

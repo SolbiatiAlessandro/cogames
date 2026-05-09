@@ -1,0 +1,6 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+cfad6c7	0.000000	online_crash=8/8	10000	crash	contamination-v64:v2 — partial bundle shadowing crashed all matches (same bug as #28)
+cfad6c7	44.099	qualifying_score=44.10	10000	keep	contamination-v64:v3 — full-bundle upload fix confirmed working (qualifying solo match)
+3d937bb	pending	pending	10000	pending	aligner-opt-v1 — hearts<3 wait<3 (issue #67 experiment)
+d9837e3	pending	pending	10000	pending	aligner-opt-v2 — hearts<3 wait<3 + JUNCTION_DIST=30 (issue #67 experiment)
+d9837e3	pending	pending	10000	pending	aligner-opt-5a3m — same as v2 + 5A+3M allocation (issue #67 experiment)
