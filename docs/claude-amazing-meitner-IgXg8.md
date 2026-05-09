@@ -41,3 +41,32 @@ Key observations:
 - Reward is deterministic (all 8 agents get identical reward per seed)
 
 Now analyzing aligner timing to find where speed improvements are possible.
+
+### Alignment Rate Profile (seed 42)
+
+| Steps | Junctions Gained | Junction.Held | Pct of Final |
+|-------|-----------------|---------------|-------------|
+| 200   | 8               | 945           | 16%         |
+| 500   | 30              | 7,746         | 60%         |
+| 1000  | 48              | 29,003        | 96%         |
+| 1500  | 48              | 53,003        | 96%         |
+| 2000  | 49              | 77,215        | 98%         |
+| 3000  | 50              | 127,050       | 100%        |
+
+Key finding: alignment is **96% complete by step 1000**. Only 2 more junctions are added in steps 1000-3000. The critical window is steps 200-500 where 22 junctions are aligned (44% of total).
+
+---
+
+## Experiment 1: Reduce heart accumulation <4 to <2 — DISCARDED (-0.01% avg)
+Flat result, essentially no effect. Heart accumulation timing doesn't matter at 3000 steps.
+
+## Experiment 2: Fix JUNCTION_ALIGN_DISTANCE mismatch (25→15)
+
+2026-05-09T02:00: starting new experiment. The game engine uses `CvCConfig.JUNCTION_ALIGN_DISTANCE=15` but our policy uses `_JUNCTION_ALIGN_DISTANCE=25`. This means aligners target junctions 16-25 cells from the nearest friendly junction, where cascade alignment silently fails (heart consumed with no effect). The #67 researcher on branch OPj3g found this fix gave +2.5%, but it was never merged to main.
+
+My hypothesis: fixing this mismatch will improve reward because:
+1. No wasted hearts on impossible alignments (travel to junction + timeout)
+2. Aligners focus on actually-alignable junctions within 15 cells
+3. Faster cascade progression since aligners don't waste time on unreachable junctions
+
+Change: `_JUNCTION_ALIGN_DISTANCE = 25` → `_JUNCTION_ALIGN_DISTANCE = 15` in aligner_agent.py
