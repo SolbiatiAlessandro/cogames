@@ -22,8 +22,10 @@ opt-v10	24.63	2ag=16.2/8ag=41.5	10000	failed	aligner-opt-v10 — #332! adaptive 
 opt-v11	30.60	2ag=14.4/4ag=40.7/6ag=44.8/8ag=42.2	10000	failed	aligner-opt-v11 — adaptive J=15 for 2ag KILLS performance (12 CvC)
 opt-v12	25.60	2ag=13.2/4ag=34.5/6ag=41.0/8ag=40.1	10000	failed	aligner-opt-v12 — scout agent FAILS, loses too much from agent slot (10 CvC)
 opt-v13	35.83	2ag=22.7/4ag=38.7/6ag=39.1/8ag=42.2	10000	failed	aligner-opt-v13 — #54! blacklist fix HURTS ALL allocations (20 CvC)
-opt-v14	pending	pending	10000	pending	aligner-opt-v14 — remove move_blocked from blocked_cells (map pollution fix)
-opt-v15	pending	pending	10000	pending	aligner-opt-v15 — map pollution fix + hub_weight=0.1
-opt-v16	pending	pending	10000	pending	aligner-opt-v16 — map pollution fix + blacklist TTL (300 steps, not permanent)
-opt-v17	pending	pending	10000	pending	aligner-opt-v17 — map pollution fix + NO blacklisting at all
-opt-v18	pending	pending	10000	pending	aligner-opt-v18 — map pollution fix + ORIGINAL blacklist (cleanest A/B)
+opt-v14	33.0	2ag=22.7/4ag=36.8/6ag=40.1	10000	failed	aligner-opt-v14 — #54! map fix + harmful bl HURTS all allocations (20 CvC)
+opt-v15	35.8	2ag=26.4/4ag=37.4/6ag=43.9	10000	keep	aligner-opt-v15 — #20 map fix + harmful bl + hw=0.1, hw helps 6ag! (20 CvC)
+opt-v16	32.5	2ag=20.9/4ag=38.0/6ag=41.5	10000	failed	aligner-opt-v16 — #49 map fix + harmful bl + TTL, harmful bl still hurts (13 CvC)
+opt-v17	32.9	2ag=27.3/4ag=39.7/6ag=40.7	10000	keep	aligner-opt-v17 — #61 map fix + no bl, 2ag good but 6ag low n=1 (9 CvC)
+opt-v18	25.0	2ag=14.7/4ag=40.2/6ag=35.9	10000	failed	aligner-opt-v18 — #149 map fix + orig bl, 2ag CATASTROPHIC (7 CvC)
+opt-v19	pending	pending	10000	pending	aligner-opt-v19 — NO map fix + hub_weight=0.1 (clean hw test vs opt-v1)
+opt-v20	pending	pending	10000	pending	aligner-opt-v20 — map fix + hub_weight=0.1 + orig bl (hw+map A/B)
