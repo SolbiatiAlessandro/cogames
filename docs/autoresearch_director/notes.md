@@ -1,102 +1,132 @@
 # Director Notes
-_Written: 2026-05-08 (Session 30)_
+_Written: 2026-05-09 (Session 31, offline-to-online)_
 
 ## What I observed
 
-### Replay unavailable
-Python 3.11 on this machine lacks `typing.override` (3.12+). Could not run capture_frames.py. Relied on EnIvJ experiment log (10-seed validation data) and online match history instead.
+### contamination-v64 CRASHED online (P0, #68)
 
-### EnIvJ branch experiments (completed 2026-05-08)
+The +15.2% offline improvement from the gear contamination fix (#64) is completely blocked from online deployment. All 8 qualifying matches across both seasons failed:
 
-Branch `claude/amazing-meitner-EnIvJ` ran 10 experiments on #64 (gear contamination):
+- **beta-cvc**: 4 matches, all `status=failed`, `error_type=crash`
+- **beta-teams-tiny-fixed**: 4 matches, all `status=failed`, `error_type=crash`
+- Error: `"received 1011 (internal error); then sent 1011 (internal error)"`
+- All matches were solo qualifying (assignments=[0,0,0,0,0,0,0,0]), so the crash happens without any opponent interaction
 
-| # | Experiment | Delta | Decision |
-|---|-----------|-------|----------|
-| 1 | Fast recovery + BFS hazard + approach rotation | +4.6% | KEEP |
-| 2-4 | Safe explore, safe approach cells, hazard buffer | 0% to -11.4% | DISCARD |
-| 5 | Faster gear_up timeout on repeat failures | +0.4% | KEEP |
-| 6 | Fix contamination count reset bug | bugfix | KEEP |
-| 7 | **Contamination avoidance cells** | **+15.2%** | **KEEP (BIG WIN)** |
-| 8-10 | Optimistic BFS contam, hazard buffer, safe wander | 0% | DISCARD |
+This is a 100% crash rate, indicating a fundamental code error — likely an import, class definition, or early-initialization issue, not a runtime edge case.
 
-Combined 5-seed results (8-agent, 3000 steps):
-- Baseline: 2.849 avg reward
-- Post-fix: 3.282 avg reward (+15.2%)
-- Seed 123 (worst): 1.810 -> 3.486 (+92.6%)
+### Root cause investigation (inconclusive)
+
+I inspected all code changes between v52 (working) and contamination-v64 (crashing):
+
+Files changed:
+- `llm_skills.py` — `contamination_avoid_cells` field, `_safe_wander`, `_greedy_walk_toward_safe`, BFS avoidance
+- `llm_miner_policy.py` — contamination detection, cell recording
+- `aligner_agent.py` — `JUNCTION_ALIGN_DISTANCE=25`, 2 new dataclass fields
+- `cross_role_policy.py` — `_expand_hazard_zone`, `_navigate_to_station_safe`
+
+No obvious crash-causing bug found through code inspection:
+- All imports are clean and available
+- `from __future__ import annotations` is present where needed
+- `dataclasses.replace` is properly imported
+- All `getattr(state, 'contamination_avoid_cells', set())` calls are defensive
+
+Possible causes I cannot rule out without server logs:
+1. MettaGrid API mismatch between local and server versions
+2. Bundle packaging error (stale or missing files)
+3. A subtle runtime error in the new contamination code paths
+
+### v52 online replay analysis (score 44.67, 10k steps)
+
+Downloaded and analyzed replay `e566505e` (v52 + ron.anticlips.v5.baseline.b, cooperative):
+
+| Metric | Value | Insight |
+|--------|-------|---------|
+| Hearts withdrawn | 5 | Extremely low — confirms aligner throughput bottleneck (#67) |
+| Junction control | cogs 446,698 vs clips 214,190 (2:1) | Strong junction dominance |
+| Resource deposits | 2969-3456 per element | Mining surplus, not a bottleneck |
+| Agent survival (ours) | 4588-7499 steps | Die before 10k but far better than partner |
+| Agent survival (partner) | 767-1767 steps | Partner agents die very early |
+| Vibe transitions | 0 for all agents | Nobody uses change_vibe actions |
+| All agents alive at end | Yes (8/8) | Agents survive in this match |
+
+Key insight: Our agents outlive partner agents by 3-5x. The partner dying early means we need to be robust to carrying the team solo for most of the 10k steps.
+
+### Leaderboard status
+
+**beta-cvc (736 entries)**:
+- v52: #39 (36.45), up from #40 (36.15) — score improved by 0.30 despite 24 new entries entering
+- Gap to #1 (Softy:v96 at 41.86): 5.41 pts (12.9%), narrowed from 13.6%
+- Top 5 unchanged: Softy:v96, slanky:v171, Paz-Bot-9000:v47, Gryffindor:v11, slanky:v165
+
+**beta-teams-tiny-fixed (10 entries)**:
+- No lessandro entries visible. Need to verify if v52 was submitted here.
+- Top entries: Paz-Bot-9000:v76 (#1, 12.0), slinky:v6 (#2, 13.0)
+
+### v52 match statistics (25 matches, beta-cvc)
+
+- Average: 36.32 (up from 35.5 at session 30)
+- Min: 6.32 (dedicated.ao:v1 — anomalously bad partner)
+- Max: 54.46 (ron.anticlips)
+- Variance still high: std deviation ~12 pts, driven by partner quality
+
+## Offline observations
+
+No new offline experiments since session 30. The latest TSV results are from EnIvJ:
+- Baseline (v52): 2.849 avg reward (5-seed)
+- Post-contamination-fix: 3.282 avg reward (+15.2%)
 - 10-seed extended validation: avg 3.071, no regressions
 
-Also included: JUNCTION_ALIGN_DISTANCE 20->25 (+7.9% in combined test, not isolated)
-
-**Key insight**: Reactive avoidance (remember exact cells where contamination happened) works dramatically better than predictive avoidance (buffer zones around all hazard stations). Buffer zones block critical paths; reactive cells adapt to specific map layouts.
-
-### EnIvJ branch: MERGED into main
-
-Strong evidence: +15.2% (10-seed validated), clean code (209 ins / 15 del, 5 files), no regressions.
-
-### NNt07 branch: NOT merged
-
-Superseded by EnIvJ. NNt07 had partial contamination fix (+0.75% avg) that EnIvJ extended to +15.2%.
+The offline trajectory is stalled because the contamination fix can't be deployed online, and the next bottleneck (#67, aligner throughput) is logically blocked until deployment succeeds.
 
 ## Online observations
 
-### Leaderboard (beta-cvc)
-- v52 at **#40/712** (36.15) — stable despite 54 new entries
-- New #1: Softy:v96 at 41.86 (up from slanky:v171 at 41.28)
-- Gap to #1: **5.71 pts (13.6%)**
-- contamination-v64:v2 submitted — 4 matches pending, no scores yet
+- v52 is slowly gaining ground: #39 (36.45) vs #40 (36.15) last session
+- The cooperative scoring means partner quality dominates variance
+- Our agent survival (4588-7499 steps) is a competitive advantage
+- Zero vibe usage across the board — this might be a missed optimization or the game doesn't reward it
 
-### v52 recent matches (19 matches)
-Scores: 6.3, 23.7, 24.4, 27.3, 28.3, 29.4, 31.2, 32.0, 32.2, 34.3, 35.3, 38.6, 39.5, 39.7, 46.1, 48.2, 51.3, 52.4, 54.5
-Average: 35.5, Min: 6.3 (dedicated.ao:v1), Max: 54.5 (Softy:v96)
+## Offline→Online gap
 
-The 6.3 score with dedicated.ao:v1 is the worst match ever recorded. Our ceiling with good partners (54.5 with the new #1 Softy:v96) is competitive.
-
-### beta-teams-tiny-fixed
-v52 and contamination-v64 both submitted. Still 10 entries. Awaiting results.
-
-## Current bottleneck
-
-**Aligner throughput (#67)**. Post-contamination-fix, mining is no longer the constraint. Evidence:
-- Resource surpluses: 300-650 per element (miners have excess capacity)
-- Hearts withdrawn: 20-31 out of maximum potential 69-97 (only 30-40% utilization)
-- The aligner is the throughput bottleneck: travel time hub->junction->hub is too long, hub congestion with 4 aligners, heart queue wait time
-
-This is a clean bottleneck shift. The next researcher should focus on aligner efficiency, not mining.
-
-## What I expected to happen vs. what I found
-
-**Expected**: Gear contamination (#64) would be the top lever (from session 29 notes). VZvye experiments exhausted junction tweaks at <1%.
-
-**Found**: #64 was indeed the top lever -- EnIvJ delivered +15.2%, the largest single improvement in recent history. The key was that the EnIvJ researcher tried the RIGHT form of avoidance (reactive, cell-level) vs. what NNt07 had tried (BFS-level buffers which regressed). Session 29's recommendation to pursue BFS-level station avoidance was partially wrong -- pure BFS buffers regress, but reactive cell avoidance works.
-
-**Surprise**: The bottleneck shifted clearly to aligner throughput. Hearts withdrawn is only 30-40% of potential. This means further mining improvements are wasted.
+1. **Offline best**: 3.282/agent (commit d922520, contamination fix). **Online best**: #39, 36.45 (v52, pre-fix code).
+2. **Gap is entirely caused by deployment failure**: The fix works offline (+15.2%) but crashes online (8/8 failed). This is not a strategic gap — it's a packaging/compatibility bug.
+3. **If the crash were fixed**: Optimistic estimate is +3-5 rank positions (based on the 15.2% offline improvement), potentially reaching #35-37. This would narrow the gap to #1 from 12.9% to ~9%.
+4. **Bottleneck**: 100% online (deployment crash), not offline (policy quality).
 
 ## Issues updated this session
 
-- **#64**: CLOSED. Resolved by EnIvJ merge. +15.2% avg reward, 10-seed validated.
-- **#66**: CLOSED. v52 and contamination-v64 submitted to beta-teams-tiny-fixed.
-- **#65**: Removed `in-progress` label. JUNCTION_ALIGN_DISTANCE=25 merged as part of EnIvJ but not independently validated. Overlaps with new #67.
-- **#67**: CREATED (priority:1). Aligner throughput bottleneck -- hearts 20-31 of 69-97 potential. The new #1 priority.
-- **#50**: DEMOTED to priority:3. Superseded by #67.
+- **#68**: CREATED (priority:0). contamination-v64 crashes online, 8/8 qualifying matches failed. P0 blocker.
+- **#67**: DEMOTED to priority:2, commented with online replay data confirming aligner bottleneck (5 hearts in 10k steps). Blocked by #68.
+- **#65**: Commented — cannot validate JUNCTION_ALIGN_DISTANCE=25 online until #68 resolved.
+- **#62**: Commented with v52 junction control data (2:1 ratio). Blocked by #68.
 
 ## Branches NOT merged (and why)
 
-- **NNt07** (acbd9a5): Superseded by EnIvJ. Only had partial contamination fix (+0.75%).
-- **VZvye** (b6a86ae): +0.7% combined -- within noise. Still not merging per session 29 reasoning.
-- **C4lUC**, **q8Otj**: hCVEi-contaminated. Still not merging.
-- **dCgfY**: No new work.
-- **vigilant-feynman-0S1xy**: Empty, no commits beyond main.
+No new branches with work since session 30. Branch status unchanged:
+- **NNt07**: Superseded by EnIvJ
+- **VZvye**: +0.7%, within noise
+- **C4lUC, q8Otj**: hCVEi-contaminated
+- **dCgfY**: No new work
+
+Branch cleanup still needed (80+ remote branches).
 
 ## Submission status
 
-- **beta-cvc**: v52:v1 live at #40 (36.15). contamination-v64:v2 submitted, 4 matches pending.
-- **beta-teams-tiny-fixed**: v52 and contamination-v64 submitted. Awaiting results.
+- **beta-cvc**: v52:v1 live at #39 (36.45). contamination-v64:v2 CRASHED (8/8).
+- **beta-teams-tiny-fixed**: contamination-v64:v1 CRASHED (4/4). v52 status unclear.
+- **No new submission made this session** — cogames CLI installed but Python 3.11 environment can't build local package (requires 3.12). Need the local Mac environment (Python 3.12) for uploads.
 
 ## Open questions for next director
 
-1. **How does contamination-v64 perform online?** The +15.2% offline is large, but v59 also looked good offline and regressed 10% online. The contamination fix is architecturally cleaner than v59 (reactive cells vs. complex state machines), so I'm cautiously optimistic. Check contamination-v64:v2 rank after it accumulates matches.
-2. **Is 5A+3M better than 4A+4M now that mining is surplus?** With the aligner throughput bottleneck, adding a 5th aligner might help. But v51 (5A+3M) scored lower historically. The dynamics may have changed post-contamination-fix.
-3. **Heart queue wait time**: Currently 6 ticks. This was optimized for the old bottleneck (mining). With mining surplus, reducing to 3-4 ticks might speed up aligner cycling.
-4. **Stale branch cleanup**: 80+ remote branches. Most predate v52 revert. NNt07 can now be deleted (superseded by EnIvJ).
-5. **Online score floor**: The 6.3 score with dedicated.ao:v1 is catastrophic. Is this a hostile partner or a broken one? If hostile partners are common, defensive play might matter.
-6. **JUNCTION_ALIGN_DISTANCE=25**: Merged as part of EnIvJ but needs isolated validation. If contamination-v64 performs well online, this is implicitly validated. If it regresses, consider reverting just this change.
+1. **Why does contamination-v64 crash online?** This is the #1 question. The next researcher on #68 should:
+   - Run `cogames scrimmage` locally with current main code to see if it reproduces
+   - Try a bisect submission: v52 + only JUNCTION_ALIGN_DISTANCE=25 (safe, no contamination logic)
+   - If that works, add contamination changes incrementally to find the crashing change
+   - Ask Softmax for server-side logs if possible
+
+2. **Should we submit v52 to beta-teams-tiny-fixed?** We have no entries there. v52 is proven stable.
+
+3. **Is the v52 score improving organically?** It went from 36.15 to 36.45 (+0.30) without any code change. This could be random variance or partner pool changes.
+
+4. **Vibe transitions: missed optimization?** Zero agents use change_vibe. If vibes affect gameplay, this could be low-hanging fruit. If they don't, it's irrelevant.
+
+5. **Branch cleanup**: Still 80+ remote branches. Consider deleting merged/superseded ones (NNt07, VZvye, etc.) next session.

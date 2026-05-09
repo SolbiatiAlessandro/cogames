@@ -24,66 +24,67 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-08 (Session 30)_
+_Updated by Director: 2026-05-09 (Session 31, offline→online)_
 
-### Online Tournament (beta-cvc, 712 entries, cooperative scoring)
+### Online Tournament (beta-cvc, 736 entries, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **41.86** | `Softy:v96` | RL (NEW #1) |
+| #1 | **41.86** | `Softy:v96` | RL |
 | #2 | 41.28 | `slanky:v171` | RL |
 | #3 | 41.10 | `Paz-Bot-9000:v47` | RL |
 | #4 | 40.82 | `Gryffindor:v11` | RL |
 | #5 | 40.76 | `slanky:v165` | RL |
 | ... | | | |
-| **#40** | **36.15** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (stable) |
-| #50 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe variant |
-| #56 | 34.78 | `lessandro-scripted-v48:v1` | previous best |
-| TBD | TBD | **`lessandro-contamination-v64:v2`** | **NEW** — #64 fix, +15.2% offline, matches pending |
+| **#39** | **36.45** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (stable, +0.30 since S30) |
+| #53 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe variant |
+| #63 | 34.63 | `lessandro-scripted-v48:v1` | previous best |
+| CRASHED | — | ~~`lessandro-contamination-v64:v2`~~ | **8/8 matches FAILED** (#68) |
 
-_v52 still our best online (#40, 36.15). Gap to #1: 13.6% (5.71 pts). contamination-v64 submitted — awaiting online results._
+_v52 still our best online (#39, 36.45). Gap to #1: 12.9% (5.41 pts). contamination-v64 CRASHED online — see #68._
 
 ### Offline Best Results (8-agent, 3000 steps)
 
 | Rank | Reward | Commit | Config | Seeds | Notes |
 |------|--------|--------|--------|-------|-------|
-| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | **+15.2% vs v52 baseline** |
+| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | **+15.2% vs v52** (CRASHES ONLINE) |
 | 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | 5-seed avg | previous best |
 | 3 | 2.053 | `b6a86ae` | v52 + VZvye combined | 5-seed avg | +0.7%, within noise |
 
-### Key Findings (Session 30)
+### Key Findings (Session 31)
 
-1. **Gear contamination SOLVED** (#64) — EnIvJ branch delivered +15.2% avg reward. Seed 123 (contamination-prone) improved +92.6%. Key: reactive avoidance (remember exact contamination cells) >> predictive avoidance (buffer zones).
-2. **Bottleneck shifted: mining -> aligner throughput** — Post-fix, resource surpluses are 300-650 but hearts withdrawn only 20-31 of potential 69-97. Aligner side is now the ceiling (#67).
-3. **JUNCTION_ALIGN_DISTANCE=25 merged** — +7.9% in combined experiments (not independently validated).
-4. **contamination-v64:v2 submitted** to beta-cvc and beta-teams-tiny-fixed. 4 matches pending.
-5. **v52 match variance persists** — recent scores 6.3 to 54.5 (avg 35.5). Floor still low with weak partners.
+1. **CRITICAL: contamination-v64 CRASHES 100% online** (#68, P0) — All 8 qualifying matches failed with `error_type: crash` (WebSocket 1011). The +15.2% offline improvement is completely blocked from online deployment.
+2. **v52 stable** at #39/736 (36.45), slightly improved from #40/712 (36.15). Gap to #1 narrowed from 13.6% to 12.9%.
+3. **Online replay analysis** (v52, score 44.67): Only 5 hearts withdrawn in 10k steps, confirming aligner throughput bottleneck (#67). Junction control 2:1 in our favor. Our agents survive 4588-7499 steps vs partner agents 767-1767.
+4. **Zero vibe transitions** across all agents in online replays — neither our policy nor partners use change_vibe actions.
+5. **beta-teams-tiny-fixed**: contamination-v64:v1 also crashed (4/4 failed). No lessandro entries on leaderboard.
 
-### v52 Recent Match Scores (19 matches)
+### v52 Recent Match Scores (25 matches)
 
 ```
-Best:  54.5 (Softy:v96)         Worst: 6.3 (dedicated.ao:v1)
-Avg:   35.5                     Range: 6.3 — 54.5
-Scores: 6.3, 23.7, 24.4, 27.3, 28.3, 29.4, 31.2, 32.0, 32.2, 34.3, 35.3, 38.6, 39.5, 39.7, 46.1, 48.2, 51.3, 52.4, 54.5
+Best:  54.46 (ron.anticlips)     Worst: 6.32 (dedicated.ao:v1)
+Avg:   36.32                     Range: 6.32 — 54.46
+Scores: 6.3, 23.7, 24.4, 27.3, 28.3, 28.4, 29.4, 31.2, 32.0, 32.2, 34.1, 34.3, 35.3, 38.6, 38.6, 39.5, 39.7, 43.4, 44.1, 44.7, 46.1, 48.2, 51.3, 52.4, 54.5
 ```
 
 ### Current Priority Stack
 
 ```
-priority:1  #67  Aligner throughput bottleneck                 <- NEW, hearts 20-31 of potential 69-97
-priority:2  #65  Alignment speed (align junctions earlier)     <- overlaps with #67
-priority:2  #62  Junction capture rate & exploration coverage  <- exhausted at <1% gains
-priority:2  #41  RL policy training                            <- BLOCKED (needs GPU), ceiling-breaker
-priority:3  #50  Per-agent alignment efficiency tuning         <- DEMOTED, superseded by #67
-priority:3  #61, #56, #57                                     <- mortality is partner-dependent
-priority:3  #53, #27, #26, #12, #11, #10                      <- speculative / researched
-CLOSED  #64  Gear contamination prevention                 <- RESOLVED (+15.2%, merged EnIvJ)
-CLOSED  #66  Submit to beta-teams-tiny-fixed               <- RESOLVED (submitted)
+priority:0  #68  contamination-v64 CRASHES online              <- P0, blocks ALL deployment
+priority:2  #67  Aligner throughput bottleneck                  <- BLOCKED by #68
+priority:2  #65  Alignment speed (align junctions earlier)      <- BLOCKED by #68
+priority:2  #62  Junction capture rate & exploration coverage   <- exhausted at <1% gains
+priority:2  #41  RL policy training                             <- BLOCKED (needs GPU)
+priority:3  #50  Per-agent alignment efficiency tuning          <- superseded by #67
+priority:3  #61, #56, #57                                      <- mortality is partner-dependent
+priority:3  #53, #27, #26, #12, #11, #10                       <- speculative / researched
+CLOSED  #64  Gear contamination prevention                  <- RESOLVED offline (+15.2%), crashes online
+CLOSED  #66  Submit to beta-teams-tiny-fixed                <- RESOLVED (submitted, but crashed)
 ```
 
 ### beta-teams-tiny-fixed Season
 
-Submissions made: v52:v1 and contamination-v64:v1. Still only 10 entries (scores 10-28). Awaiting match results.
+Both v52:v1 and contamination-v64:v1 submitted. contamination-v64:v1 crashed (4/4 failed). No lessandro entries visible on leaderboard (10 total entries, scores 12-26). v52 may not have been submitted to this season.
 <!-- LEADERBOARD_END -->
 
 ### Autoresearch Progress
