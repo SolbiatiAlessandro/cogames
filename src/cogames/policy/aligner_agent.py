@@ -81,6 +81,7 @@ class SharedMap:
         self.extractors_by_element: dict[str, set[Coord]] = {
             e: set() for e in ("carbon", "oxygen", "germanium", "silicon")
         }
+        self.registered_agent_count: int = 0
 
 
 @dataclass
@@ -649,7 +650,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
         vision_margin = max(self._obs_radius_row, self._obs_radius_col)
         hub_search_radius = _HUB_ALIGN_DISTANCE + vision_margin
-        junction_search_radius = _JUNCTION_ALIGN_DISTANCE + vision_margin
+        junction_search_radius = self._effective_junction_distance() + vision_margin
 
         preferred_frontier = {
             cell
@@ -741,13 +742,19 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return base
         return min(candidates, key=score)
 
+    def _effective_junction_distance(self) -> int:
+        if self._shared_map is not None and self._shared_map.registered_agent_count <= 2:
+            return 15
+        return _JUNCTION_ALIGN_DISTANCE
+
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
+        j_dist = self._effective_junction_distance()
         hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
         for hub in hubs:
             if abs(junction[0] - hub[0]) + abs(junction[1] - hub[1]) <= _HUB_ALIGN_DISTANCE:
                 return True
         for friendly in state.known_friendly_junctions:
-            if abs(junction[0] - friendly[0]) + abs(junction[1] - friendly[1]) <= _JUNCTION_ALIGN_DISTANCE:
+            if abs(junction[0] - friendly[0]) + abs(junction[1] - friendly[1]) <= j_dist:
                 return True
         return False
 

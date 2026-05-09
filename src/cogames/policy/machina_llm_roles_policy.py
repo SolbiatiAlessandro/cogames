@@ -698,6 +698,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
 
     def agent_policy(self, agent_id: int) -> StatefulAgentPolicy[LLMAlignerState | LLMMinerState | ScoutState]:
         if agent_id not in self._agent_policies:
+            self._shared_map.registered_agent_count += 1
             role = self._assign_role(agent_id)
             logger.info("ROLE_ASSIGNMENT agent=%d role=%s scripted_miners=%s", agent_id, role, self._scripted_miners)
             if role == "aligner":
