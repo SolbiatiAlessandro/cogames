@@ -12,7 +12,7 @@ v52-main	36.49	2ag=22.4/4ag=34.8/6ag=40.9	10000	keep	v52-junction35 — J=35 NO 
 v52-main	37.22	2ag=20.8/4ag=36.2/6ag=42.5	10000	keep	v52-hubweight — J=30 hub_wt=0.5 (#35), helps 2ag hurts 4ag
 v52-main	18.31	2ag=7.8/4ag=30.9/6ag=41.0	10000	keep	v52-j25-fast — J=25 NO contam (#272 EARLY), contam code helps!
 opt-v3	27.64	2ag=18.0/4ag=29.9/6ag=36.7	10000	failed	aligner-opt-v3 — #54! recapture bonus HURTS all allocations (18 CvC)
-opt-v4	pending	pending	10000	pending	aligner-opt-v4 — J=25 + contam + stuck_threshold=15 (faster stuck recovery)
+opt-v4	27.50	2ag=15.4/4ag=30.0/6ag=40.2	10000	failed	aligner-opt-v4 — #120! stuck=15 HURTS, aligner abandons targets too fast (11 CvC)
 opt-v5	2.00	qual=2.46/1.54	10000	failed	aligner-opt-v5 — return_load=60 BROKEN, miner never deposits
 opt-v6	pending	pending	10000	pending	aligner-opt-v6 — J=25(4+ag)/15(2ag) + contam + enemy recapture + adaptive J
 opt-v7	pending	pending	10000	pending	aligner-opt-v7 — J=25 adaptive(15 for 2ag) + NO recapture + contam
