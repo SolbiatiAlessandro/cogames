@@ -11,3 +11,4 @@ v52-main	pending	pending	10000	pending	v52-aligner-opt — v52 + JUNCTION=30 + h
 v52-main	pending	pending	10000	pending	v52-junction35 — v52 + JUNCTION=35 + hearts<3 wait<3, NO contamination
 v52-main	pending	pending	10000	pending	v52-hubweight — v52 + JUNCTION=30 + hub_weight=0.5 + hearts<3 wait<3, NO contam
 v52-main	pending	pending	10000	pending	v52-j25-fast — v52 + JUNCTION=25 + hearts<3 wait<3, NO contam (best combo)
+opt-v3	pending	pending	10000	pending	aligner-opt-v3 — J=25 + enemy junction recapture bonus (-8) + contam

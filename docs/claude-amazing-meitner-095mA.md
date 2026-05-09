@@ -115,3 +115,37 @@ If v52-aligner-opt matches or beats aligner-opt-v2's scores, it confirms:
 1. The aligner optimizations (JUNCTION=30, faster hub visits) are the key improvement
 2. The contamination code should be dropped for online play
 
+---
+
+**2026-05-09T20:30:00Z**: Deep analysis of opt-v1 episode data — move failure bottleneck identified.
+
+### Episode analysis: move failures are the #1 bottleneck
+
+Analyzed per-agent metrics across opt-v1's 22 CvC matches (worst/Q1/median/Q3/best):
+
+| Match | Score | Agents | Move Fail% | Unique Cells | Max Stuck | Deaths/Agent |
+|-------|-------|--------|-----------|-------------|-----------|-------------|
+| WORST | 9.2 | 2ag | 24% | 820 | 97 | 9.5 |
+| Q1 | 30.9 | 2ag | 10% | 1100 | 33 | 6.0 |
+| MEDIAN | 41.8 | 8ag | 17% | 1370 | 97 | 29.5 |
+| Q3 | 44.6 | 6ag | 12% | 1529 | 93 | 31.0 |
+| BEST | 52.3 | 2ag | 0% | 1210 | 8 | 0 |
+
+Key findings:
+- **Aligners have 33% move failure rate** (3377/10000 steps fail for individual aligner)
+- **Max 178 steps without motion** (aligner stuck in unknown territory)
+- **Our agents visit 800-1500 unique cells** vs top RL agents at 2400-2700
+- **Move failure rate is the strongest predictor of match score**
+
+### Experiment: aligner-opt-v3 — enemy junction recapture priority
+
+Uploaded `lessandro-aligner-opt-v3:v1` with:
+- JUNCTION_ALIGN_DISTANCE = 25 (confirmed optimal)
+- hearts < 3, wait < 3 ticks (confirmed optimal)
+- **NEW: Enemy junction recapture bonus (-8 in cascade scoring)**
+  - Capturing enemy junctions gives 2x strategic value (we gain + they lose)
+  - -8 bonus means enemy junction 8 cells farther = equally preferred as neutral
+- WITH contamination code (same as opt-v1 for clean A/B comparison)
+
+A/B test: opt-v3 vs opt-v1. Only difference is the recapture bonus.
+
