@@ -407,7 +407,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill in {"get_heart", "align_neutral"} and state.skill_steps >= self._stuck_threshold * 5:
             if state.current_skill == "align_neutral":
                 state.align_neutral_timeouts += 1
-                if state.align_neutral_timeouts >= 1:
+                sm = self._shared_map
+                num_aligners = len(sm.aligner_targets) if sm else 1
+                if state.align_neutral_timeouts >= 1 and num_aligners >= 2:
                     current_abs = self._spawn_offset(obs)
                     non_bl = (state.known_neutral_junctions | state.known_enemy_junctions) - state.blacklisted_junctions
                     stuck_junction = self._nearest_known(current_abs, non_bl) if non_bl else None
