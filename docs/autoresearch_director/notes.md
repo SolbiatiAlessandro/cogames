@@ -30,10 +30,13 @@ No obvious crash-causing bug found through code inspection:
 - `dataclasses.replace` is properly imported
 - All `getattr(state, 'contamination_avoid_cells', set())` calls are defensive
 
+**Import test passed**: All policy classes, dataclass states, and contamination fields import and initialize correctly on Python 3.11. The crash is NOT an import error — it happens during runtime execution.
+
 Possible causes I cannot rule out without server logs:
-1. MettaGrid API mismatch between local and server versions
+1. MettaGrid API mismatch between local and server versions (local pyproject.toml pins mettagrid==0.15.0, pip-installed is 0.26.17)
 2. Bundle packaging error (stale or missing files)
-3. A subtle runtime error in the new contamination code paths
+3. A runtime error in the new contamination code paths that only triggers during gameplay
+4. cogames version change between bekkenze submission (0.25.6) and contamination-v64 (unknown)
 
 ### v52 online replay analysis (score 44.67, 10k steps)
 
