@@ -406,26 +406,19 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill in {"get_heart", "align_neutral"} and state.skill_steps >= self._stuck_threshold * 5:
             if state.current_skill == "align_neutral":
                 state.align_neutral_timeouts += 1
-                # After 1+ timeout, forget the nearest stuck junction to try a different target
                 if state.align_neutral_timeouts >= 1:
-                    current_abs = self._spawn_offset(obs)
-                    non_blacklisted_neutral = state.known_neutral_junctions - state.blacklisted_junctions
-                    non_blacklisted_enemy = state.known_enemy_junctions - state.blacklisted_junctions
-                    if non_blacklisted_neutral:
-                        stuck_junction = self._nearest_known(current_abs, non_blacklisted_neutral)
-                        if stuck_junction is not None:
-                            state.blacklisted_junctions.add(stuck_junction)
-                            state.known_neutral_junctions.discard(stuck_junction)
-                            self._event(state, f"blacklisted stuck neutral junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
-                            state.align_neutral_timeouts = 0
-                    elif non_blacklisted_enemy:
-                        # Also blacklist stuck enemy junctions
-                        stuck_junction = self._nearest_known(current_abs, non_blacklisted_enemy)
-                        if stuck_junction is not None:
-                            state.blacklisted_junctions.add(stuck_junction)
-                            state.known_enemy_junctions.discard(stuck_junction)
-                            self._event(state, f"blacklisted stuck enemy junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
-                            state.align_neutral_timeouts = 0
+                    sm = self._shared_map
+                    stuck_junction = sm.aligner_targets.get(obs.agent_id) if sm else None
+                    if stuck_junction is None:
+                        current_abs = self._spawn_offset(obs)
+                        non_bl = (state.known_neutral_junctions | state.known_enemy_junctions) - state.blacklisted_junctions
+                        stuck_junction = self._nearest_known(current_abs, non_bl) if non_bl else None
+                    if stuck_junction is not None:
+                        state.blacklisted_junctions.add(stuck_junction)
+                        state.known_neutral_junctions.discard(stuck_junction)
+                        state.known_enemy_junctions.discard(stuck_junction)
+                        self._event(state, f"blacklisted stuck junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
+                        state.align_neutral_timeouts = 0
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
