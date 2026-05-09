@@ -2,8 +2,10 @@ commit	mission_reward	secondary_rewards	steps	status	description
 cfad6c7	0.000000	online_crash=8/8	10000	crash	contamination-v64:v2 — partial bundle shadowing crashed all matches (same bug as #28)
 cfad6c7	44.099	qualifying_score=44.10	10000	keep	contamination-v64:v3 — full-bundle upload fix confirmed working (qualifying solo match)
 cfad6c7	31.66	2ag=22.53/4ag=37.93/6ag=34.10	10000	keep	contamination-v64:v3 — CvC avg (19 matches), 4ag on par with v52
-3d937bb	43.33	qualifying=44.90,41.77	10000	qualifying	aligner-opt-v1 — hearts<3 wait<3 JUNCTION=25 (graduated, CvC pending)
-d9837e3	40.71	2ag=25.81/4ag=40.31	10000	keep	aligner-opt-v2 — hearts<3 wait<3 JUNCTION=30 (4 CvC matches, 4ag=40.31 promising)
-d9837e3	35.93	qualifying=41.98,29.88	10000	keep	aligner-opt-5a3m — 5A+3M hurts qualifying (29.88 low), 18 CvC running
-v52-main	pending	pending	10000	pending	v52-clean — v52 exact code via full-bundle upload (baseline test)
+3d937bb	36.59	4ag=36.59(1match)	10000	keep	aligner-opt-v1 — hearts<3 wait<3 JUNCTION=25 + contam (1 CvC match)
+d9837e3	38.50	2ag=21.5/4ag=37.1/6ag=42.0	10000	best	aligner-opt-v2 — #23! hearts<3 wait<3 JUNCTION=30 + contam (14 CvC, 6ag=42.0!)
+d9837e3	5.47	2ag=5.5	10000	failed	aligner-opt-5a3m — 5A+3M allocation FAILED (#718)
+v52-main	pending	pending	10000	pending	v52-clean — v52 exact code via full-bundle upload (baseline control)
 v52-main	pending	pending	10000	pending	v52-aligner-opt — v52 + JUNCTION=30 + hearts<3 wait<3, NO contamination
+v52-main	pending	pending	10000	pending	v52-junction35 — v52 + JUNCTION=35 + hearts<3 wait<3, NO contamination
+v52-main	pending	pending	10000	pending	v52-hubweight — v52 + JUNCTION=30 + hub_weight=0.5 + hearts<3 wait<3, NO contam
