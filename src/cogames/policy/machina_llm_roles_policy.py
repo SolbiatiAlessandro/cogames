@@ -56,6 +56,7 @@ class LLMAlignerState(AlignerState):
     explore_start_junctions: int = 0
     align_neutral_timeouts: int = 0
     get_heart_timeouts: int = 0
+    explore_caps: int = 0
     recent_events: list[str] = field(default_factory=list)
     # HP monitoring
     max_hp_seen: int = 0
@@ -119,6 +120,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             explore_start_junctions=state.explore_start_junctions,
             align_neutral_timeouts=state.align_neutral_timeouts,
             get_heart_timeouts=state.get_heart_timeouts,
+            explore_caps=state.explore_caps,
             recent_events=list(state.recent_events),
             blacklisted_junctions=set(state.blacklisted_junctions),
             move_cooldowns=dict(state.move_cooldowns),
@@ -392,10 +394,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         ):
             new_total = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) - state.explore_start_junctions
             self._event(state, f"explore completed after discovering {new_total} new alignable junction(s)")
+            state.explore_caps = 0
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
-            # Cap explore duration to prevent long idle periods when no junctions nearby
-            self._event(state, f"explore capped after {state.skill_steps} steps without finding junctions")
+            state.explore_caps += 1
+            self._event(state, f"explore capped after {state.skill_steps} steps (cap #{state.explore_caps})")
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
@@ -442,6 +445,22 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         direction = self._UNSTUCK_DIRECTIONS[state.wander_direction_index % len(self._UNSTUCK_DIRECTIONS)]
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._starter._action(f"move_{direction}"), state
+
+    def _explore_directional(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
+        """Explore frontier cells biased toward agent's assigned quadrant from hub."""
+        frontier = self._frontier_cells(state)
+        if not frontier:
+            return self._safe_wander(state, self._spawn_offset(obs))
+        current_abs = self._spawn_offset(obs)
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        center = self._nearest_known(current_abs, hub_set) if hub_set else current_abs
+        row_sign = -1 if self._agent_id % 4 < 2 else 1
+        col_sign = -1 if self._agent_id % 2 == 0 else 1
+        quadrant = {
+            c for c in frontier
+            if (c[0] - center[0]) * row_sign >= 0 and (c[1] - center[1]) * col_sign >= 0
+        }
+        return self._explore_frontier(obs, state, quadrant or frontier)
 
     def _check_hp(self, obs: AgentObservation, state: LLMAlignerState, current_abs) -> bool:
         """Check HP and update retreat state. Returns True if agent should retreat."""
@@ -583,11 +602,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 action, base_state = self._explore(obs, state)
                 state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
-            if self._inventory_count(obs, "heart") > 0:
+            if state.explore_caps >= 1:
+                action, base_state = self._explore_directional(obs, state)
+            elif self._inventory_count(obs, "heart") > 0:
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_friendly_junctions:
-                # Heartless aligner with friendly junctions: explore alignment frontier
-                # to discover new junctions for when hearts become available
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_hubs:
                 action, base_state = self._explore_near_hub(obs, state)

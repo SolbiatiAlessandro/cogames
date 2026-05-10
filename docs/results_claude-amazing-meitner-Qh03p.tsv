@@ -1,0 +1,10 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+14c7ac6	128.349808	junction_aligned=51	3000	keep	baseline seed=42
+14c7ac6	134.538330	junction_aligned=51	3000	keep	baseline seed=123
+14c7ac6	139.702362	junction_aligned=59	3000	keep	baseline seed=7
+e47ae9c	129.731201	junction_aligned=52	3000	keep	wall-follow-v2 seed=42 (+1.1%)
+e47ae9c	138.971878	junction_aligned=55	3000	keep	wall-follow-v2 seed=123 (+3.3%)
+e47ae9c	143.870071	junction_aligned=58	3000	keep	wall-follow-v2 seed=7 (+3.0%)
+HEAD	133.910324	heart_gained=60	3000	keep	directional-explore seed=42 (+3.2% vs wf-v2)
+HEAD	139.439590	heart_gained=62	3000	keep	directional-explore seed=123 (+0.3% vs wf-v2)
+HEAD	144.223923	heart_gained=64	3000	keep	directional-explore seed=7 (+0.2% vs wf-v2)
