@@ -101,9 +101,15 @@ class AlignerState(StarterCogState):
     last_move_target: Coord | None = None
     # Cells blocked by move failure (not cleared by observation updates)
     move_blocked_cells: set[Coord] = field(default_factory=set)
+    # Issue-69: ordered tracking for FIFO eviction of move_blocked_cells
+    move_blocked_order: deque = field(default_factory=deque)
     # Issue-44: per-agent move cooldown to break congestion deadlocks
     move_cooldowns: dict[Coord, int] = field(default_factory=dict)
     steps_since_last_move: int = 0
+    # Issue-69: wall-following escape state
+    last_failed_target: Coord | None = None
+    wall_follow_direction: int = -1
+    wall_follow_steps: int = 0
     # Junctions permanently skipped after repeated navigation failures
     blacklisted_junctions: set[Coord] = field(default_factory=set)
     # Issue-65: cells where gear contamination occurred — added to BFS avoid set
@@ -468,7 +474,16 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             if current_abs == state.last_pos:
                 if state.steps_since_last_move <= 12:
                     state.move_cooldowns[state.last_move_target] = self._MOVE_COOLDOWN
-                state.move_blocked_cells.add(state.last_move_target)
+                if state.last_move_target not in state.move_blocked_cells:
+                    state.move_blocked_cells.add(state.last_move_target)
+                    state.move_blocked_order.append(state.last_move_target)
+                    # Issue-69: FIFO eviction — cap at 40 entries
+                    while len(state.move_blocked_order) > 40:
+                        evicted = state.move_blocked_order.popleft()
+                        state.move_blocked_cells.discard(evicted)
+                state.last_failed_target = state.last_move_target
+        if moved:
+            state.last_failed_target = None
         state.last_pos = current_abs
         state.last_move_target = None
 
@@ -776,6 +791,69 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         # still refusing to step onto known hazard stations.
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
+
+    _WALL_FOLLOW_TRIGGER = 5
+    _WALL_FOLLOW_MAX_STEPS = 15
+
+    def _wall_follow_escape(self, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState] | None:
+        """Wall-following escape using right-hand rule when stuck 5+ steps."""
+        if state.steps_since_last_move < self._WALL_FOLLOW_TRIGGER:
+            if state.wall_follow_direction != -1:
+                state.wall_follow_direction = -1
+                state.wall_follow_steps = 0
+            return None
+
+        hard_avoid = state.known_hazard_stations | state.blocked_cells
+
+        if state.wall_follow_direction == -1:
+            if state.last_failed_target is None:
+                return None
+            dr = state.last_failed_target[0] - current_abs[0]
+            dc = state.last_failed_target[1] - current_abs[1]
+            blocked_idx = -1
+            for i, (_, delta) in enumerate(_DIRECTION_DELTAS):
+                if delta == (dr, dc):
+                    blocked_idx = i
+                    break
+            if blocked_idx == -1:
+                return None
+            state.wall_follow_direction = (blocked_idx + 1) % 4
+            state.wall_follow_steps = 0
+
+        if state.wall_follow_steps >= self._WALL_FOLLOW_MAX_STEPS:
+            state.wall_follow_direction = -1
+            state.wall_follow_steps = 0
+            return None
+
+        fwd_idx = state.wall_follow_direction
+        toward_wall_idx = (fwd_idx + 1) % 4
+        away_wall_idx = (fwd_idx + 3) % 4
+        reverse_idx = (fwd_idx + 2) % 4
+
+        for try_idx in (toward_wall_idx, fwd_idx, away_wall_idx, reverse_idx):
+            direction, (dr, dc) = _DIRECTION_DELTAS[try_idx]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in hard_avoid and neighbor not in state.move_blocked_cells:
+                if try_idx == toward_wall_idx:
+                    state.wall_follow_direction = toward_wall_idx
+                elif try_idx == away_wall_idx:
+                    state.wall_follow_direction = away_wall_idx
+                elif try_idx == reverse_idx:
+                    state.wall_follow_direction = reverse_idx
+                state.wall_follow_steps += 1
+                return self._starter._action(f"move_{direction}"), state
+
+        for try_idx in (toward_wall_idx, fwd_idx, away_wall_idx, reverse_idx):
+            direction, (dr, dc) = _DIRECTION_DELTAS[try_idx]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in hard_avoid:
+                state.wall_follow_direction = try_idx
+                state.wall_follow_steps += 1
+                return self._starter._action(f"move_{direction}"), state
+
+        state.wall_follow_direction = -1
+        state.wall_follow_steps = 0
+        return None
 
     def step_with_state(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         current_abs = self._update_map_memory(obs, state)

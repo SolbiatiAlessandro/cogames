@@ -45,6 +45,10 @@ class MinerSkillState(StarterCogState):
     # Issue-44: per-agent move cooldown to break congestion deadlocks.
     move_cooldowns: dict[Coord, int] = field(default_factory=dict)
     steps_since_last_move: int = 0
+    # Issue-69: wall-following escape state for miners
+    last_failed_target: Coord | None = None
+    wall_follow_direction: int = -1
+    wall_follow_steps: int = 0
     # Issue-44: extractor depletion tracking. When a miner spends too many steps
     # near an extractor without gaining resources, mark it as depleted.
     depleted_extractors: set[Coord] = field(default_factory=set)
@@ -227,6 +231,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 # (blocking the only viable paths in tight corridors).
                 if state.steps_since_last_move <= 12:
                     state.move_cooldowns[state.last_move_target] = self._MOVE_COOLDOWN
+                state.last_failed_target = state.last_move_target
+        if moved:
+            state.last_failed_target = None
         state.last_pos = current_abs
         state.last_move_target = None
 
@@ -914,9 +921,82 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     _STUCK_THRESHOLD = 150
     _STUCK_EXPLORE_STEPS = 60
+    _WALL_FOLLOW_TRIGGER = 5
+    _WALL_FOLLOW_MAX_STEPS = 15
+
+    def _wall_follow_escape(self, state: MinerSkillState, current_abs: Coord) -> tuple[Action, MinerSkillState] | None:
+        """Wall-following escape for miners using right-hand rule."""
+        if state.steps_since_last_move < self._WALL_FOLLOW_TRIGGER:
+            if state.wall_follow_direction != -1:
+                state.wall_follow_direction = -1
+                state.wall_follow_steps = 0
+            return None
+
+        hard_avoid = state.known_hazard_stations | state.blocked_cells | getattr(state, 'contamination_avoid_cells', set())
+
+        if state.wall_follow_direction == -1:
+            if state.last_failed_target is None:
+                return None
+            dr = state.last_failed_target[0] - current_abs[0]
+            dc = state.last_failed_target[1] - current_abs[1]
+            blocked_idx = -1
+            for i, (_, delta) in enumerate(_DIRECTION_DELTAS):
+                if delta == (dr, dc):
+                    blocked_idx = i
+                    break
+            if blocked_idx == -1:
+                return None
+            state.wall_follow_direction = (blocked_idx + 1) % 4
+            state.wall_follow_steps = 0
+
+        if state.wall_follow_steps >= self._WALL_FOLLOW_MAX_STEPS:
+            state.wall_follow_direction = -1
+            state.wall_follow_steps = 0
+            return None
+
+        fwd_idx = state.wall_follow_direction
+        toward_wall_idx = (fwd_idx + 1) % 4
+        away_wall_idx = (fwd_idx + 3) % 4
+        reverse_idx = (fwd_idx + 2) % 4
+
+        cooldown_cells = set(state.move_cooldowns.keys())
+        for try_idx in (toward_wall_idx, fwd_idx, away_wall_idx, reverse_idx):
+            direction, (dr, dc) = _DIRECTION_DELTAS[try_idx]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in hard_avoid and neighbor not in cooldown_cells:
+                if try_idx == toward_wall_idx:
+                    state.wall_follow_direction = toward_wall_idx
+                elif try_idx == away_wall_idx:
+                    state.wall_follow_direction = away_wall_idx
+                elif try_idx == reverse_idx:
+                    state.wall_follow_direction = reverse_idx
+                state.wall_follow_steps += 1
+                return self._starter._action(f"move_{direction}"), state
+
+        for try_idx in (toward_wall_idx, fwd_idx, away_wall_idx, reverse_idx):
+            direction, (dr, dc) = _DIRECTION_DELTAS[try_idx]
+            neighbor = (current_abs[0] + dr, current_abs[1] + dc)
+            if neighbor not in hard_avoid:
+                state.wall_follow_direction = try_idx
+                state.wall_follow_steps += 1
+                return self._starter._action(f"move_{direction}"), state
+
+        state.wall_follow_direction = -1
+        state.wall_follow_steps = 0
+        return None
 
     def step_with_state(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         self._update_map_memory(obs, state)
+
+        # Issue-69: wall-following escape for miners when stuck
+        current_abs = self._current_abs(obs)
+        if (state.steps_since_last_move >= self._WALL_FOLLOW_TRIGGER
+            and state.last_failed_target is not None):
+            escape = self._wall_follow_escape(state, current_abs)
+            if escape is not None:
+                action, state = escape
+                self._record_move_target(action, obs, state)
+                return action, state
 
         agent_id = obs.agent_id
         self._step_counter[agent_id] = self._step_counter.get(agent_id, 0) + 1

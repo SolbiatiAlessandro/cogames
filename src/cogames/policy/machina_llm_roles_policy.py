@@ -508,12 +508,32 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
-        # Navigation shake: after 5 consecutive blocked moves, every 3rd step try a random direction
-        # This breaks BFS deadlocks caused by agent-occupied cells
-        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
-            action, state = self._unstuck(state)
-            state.skill_steps += 1
-            return action, state
+        # Issue-69: wall-following escape — only when truly stuck trying to move
+        _hubs_wf = state.verified_hubs if state.verified_hubs else state.known_hubs
+        near_hub_wf = any(
+            abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+            for h in _hubs_wf
+        )
+        on_valid_target = (
+            (state.current_skill == "get_heart" and near_hub_wf)
+            or (state.current_skill == "align_neutral" and current_abs in (state.known_neutral_junctions | state.known_enemy_junctions))
+            or (state.current_skill == "gear_up" and any(
+                abs(current_abs[0] - s[0]) + abs(current_abs[1] - s[1]) <= 1
+                for s in state.known_aligner_stations
+            ))
+        )
+        if (state.current_skill not in {None, "unstuck"}
+            and state.steps_since_last_move >= self._WALL_FOLLOW_TRIGGER
+            and state.last_failed_target is not None
+            and not on_valid_target):
+            escape = self._wall_follow_escape(state, current_abs)
+            if escape is not None:
+                action, state = escape
+                action_name = action.name if hasattr(action, "name") else ""
+                if action_name.startswith("move_"):
+                    state.last_move_target = self._move_target(current_abs, action_name[len("move_"):])
+                state.skill_steps += 1
+                return action, state
 
         if state.current_skill == "gear_up":
             action, base_state = self._gear_up(obs, state, current_abs)
