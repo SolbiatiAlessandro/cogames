@@ -73,3 +73,61 @@ Interpretation: Wall-following helps most on seeds with high initial failure rat
 Status: KEEP — consistent improvement across seeds.
 
 Next experiment: try applying same fix to miners, OR combine with temporal decay on move_blocked_cells.
+
+---
+
+## 2026-05-10T00:10:00Z: Experiment F — Proactive teammate avoidance (DISCARDED)
+
+**Hypothesis:** When BFS directs an agent toward a cell occupied by a teammate, dodge perpendicular to prevent the collision before it happens. This avoids `move_blocked_cells` pollution from transient teammate positions.
+
+**Implementation:** Added `_dodge_teammates` method to both aligner and miner. Before executing a move, check `SharedMap.agent_positions` — if target cell has a teammate, try perpendicular directions instead.
+
+**Results:**
+
+| Seed | Wall-Follow-v2 | Dodge | Change vs WF-v2 | Move Failures |
+|------|----------------|-------|-----------------|---------------|
+| 42   | 129.73         | 137.78 | **+6.2%**      | 830→1039 (+25%) |
+| 123  | 138.97         | 129.71 | **-6.7%**      | 932→1446 (+55%) |
+| 7    | 143.87         | 141.00 | **-2.0%**      | 826→1475 (+79%) |
+
+**Status: DISCARD — move failures increased dramatically on all seeds due to oscillation.**
+
+The perpendicular dodge causes agents to deflect off-course, then try to return, creating back-and-forth oscillation. Teammate positions are stale by one step, so the dodge often fires unnecessarily. The mechanism is fundamentally flawed for this use case.
+
+**Lesson learned:** Proactive collision avoidance via perpendicular dodge doesn't work because (1) positions are stale by one tick, (2) dodging sends agents off their BFS path causing more subsequent collisions, (3) the perpendicular direction often hits walls.
+
+---
+
+## 2026-05-10T00:15:00Z: Experiment G — Smarter move_blocked_cells with temporal decay
+
+**Hypothesis:** The FIFO eviction (cap=40) was neutral in 3000-step tests, but a time-based decay might work better. Instead of evicting the oldest entry, expire entries after N steps. This keeps recent collision data (useful for avoiding current obstacles) while forgetting stale data.
+
+Approach: Add a timestamp (step counter) to each `move_blocked_cells` entry. During `_update_map_memory`, evict entries older than 20 steps. This is more targeted than FIFO because it respects recency, not just insertion order.
+
+**Result: Not implemented** — temporal decay requires changing `move_blocked_cells` from `set` to `dict`, which breaks SharedMap's set-based operations. Instead, tried several alternative approaches:
+
+### Cooldown 6→3 steps: DISCARDED
+Move failures increased. Agents retry blocked cells too quickly.
+
+### Alignment distance 25→35: DISCARDED  
+Agents travel further to distant junctions, causing more failures. Current 25 is well-calibrated.
+
+### Return load 40→25: DISCARDED
+More trips to hub = more congestion. Fewer hearts despite more deposits.
+
+### 5 aligners / 3 miners: DISCARDED
+Seed 42 +3.4% but seeds 123/7 regressed -7%. Congestion at hub with more aligners.
+
+---
+
+## 2026-05-10T00:20:00Z: Online-targeted optimizations (Experiment H)
+
+Two changes that have zero offline impact but should help online CvC:
+
+**1. Enemy junction recapture priority:**
+Added `-10` score bonus to enemy junctions in `_cascade_priority_target`. When choosing which junction to align, prefer enemy junctions (recapture = +2 swing) over neutral (+1 swing) if within 10 cells travel distance.
+
+**2. Shorter defend timeout (1000→100 steps):**
+When hub is depleted, agents defended for up to 1000 steps (doing nothing). Now they defend for only 100 steps before switching to explore for new junctions. In offline vs-clips, defend never fires (hub never depletes), so no offline impact.
+
+Both changes verified zero-impact on seeds 42, 123, 7 at 3000 steps.
