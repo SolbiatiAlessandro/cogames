@@ -131,3 +131,44 @@ Added `-10` score bonus to enemy junctions in `_cascade_priority_target`. When c
 When hub is depleted, agents defended for up to 1000 steps (doing nothing). Now they defend for only 100 steps before switching to explore for new junctions. In offline vs-clips, defend never fires (hub never depletes), so no offline impact.
 
 Both changes verified zero-impact on seeds 42, 123, 7 at 3000 steps.
+
+---
+
+## 2026-05-10T00:25:00Z: Experiment I — Perpendicular dodge (steps 1-3) — DISCARDED
+
+**Hypothesis:** From issue #35's cross_role_policy, a perpendicular dodge on first move failure gave +33% improvement. Port this to machina_llm_roles_policy.
+
+**Implementation:** Before wall-following (step 5+), try perpendicular dodge at steps 1-3:
+- Step 1: clockwise perpendicular
+- Step 2: counter-clockwise perpendicular  
+- Step 3: reverse direction
+
+**Results (various guard levels):**
+
+| Guard | Seed 42 | Seed 123 | Seed 7 | Avg Change |
+|-------|---------|----------|--------|------------|
+| None (unguarded) | 134.28 (+3.5%) | 135.65 (-2.4%) | 147.92 (+2.8%) | +1.3% |
+| Full on_valid_target | 128.39 (-1.0%) | — | — | — |
+| Hub-only | 128.72 (-0.8%) | 125.27 (-9.9%) | 142.75 (-0.8%) | -3.8% |
+| Hub+junction | same as hub-only | same | same | same |
+
+**Status: DISCARD** — the unguarded version sometimes improves but causes oscillation on specific seeds (seed 7: max_stuck=1249). The guarded versions are consistently worse than baseline because the guard prevents the dodge in exactly the scenarios where congestion is worst. Our BFS navigation is already good enough that perpendicular overrides cause more harm than good.
+
+**Key insight:** Perpendicular dodge worked in the older cross_role_policy because that codebase had weaker BFS navigation. Our improved BFS cascade + wall-following handles stuck situations better without sending agents off-course.
+
+---
+
+## Summary of all experiments
+
+| Experiment | Change | Status | Notes |
+|-----------|--------|--------|-------|
+| D: Wall-following (trigger=5, max=15) | +2.4% avg | **KEPT** | Main improvement |
+| A: FIFO eviction (cap=40) | Neutral | kept (no harm) | May help online |
+| C: BFS without move_blocked | Neutral | kept (no harm) | May help online |
+| F: Teammate dodge | -0.5% avg | DISCARDED | Oscillation |
+| G: Cooldown 3/FIFO 20/distance 35/5-aligner | All negative | DISCARDED | Various |
+| H: Enemy priority + defend timeout | Zero offline | kept | Online-only benefit |
+| I: Perpendicular dodge (steps 1-3) | -3.8% guarded | DISCARDED | Overrides BFS poorly |
+
+**Net offline improvement: +2.4% from wall-following.**
+**Online-targeted changes: enemy junction priority, shorter defend timeout.**
