@@ -1,0 +1,3 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+97df98c	137.020000	move_failed=1777 max_stuck=144 junctions=55	3000	keep	baseline 5-seed avg (42:130.05 123:133.94 7:137.90 99:135.20 555:148.01)
+exp2a	140.460000	move_failed=1554 max_stuck=151 junctions=57	3000	keep	JUNCTION_ALIGN_DISTANCE=15 fix (42:133.44 123:136.33 7:143.36 99:139.31 555:149.88) +2.5% all seeds positive
