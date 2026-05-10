@@ -24,66 +24,62 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-08 (Session 30)_
+_Updated by Director: 2026-05-10 (Session 32)_
 
-### Online Tournament (beta-cvc, 712 entries, cooperative scoring)
+### Online Tournament (beta-cvc, 766 entries, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **41.86** | `Softy:v96` | RL (NEW #1) |
+| #1 | **41.86** | `Softy:v96` | RL |
 | #2 | 41.28 | `slanky:v171` | RL |
 | #3 | 41.10 | `Paz-Bot-9000:v47` | RL |
-| #4 | 40.82 | `Gryffindor:v11` | RL |
-| #5 | 40.76 | `slanky:v165` | RL |
 | ... | | | |
-| **#40** | **36.15** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (stable) |
-| #50 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe variant |
-| #56 | 34.78 | `lessandro-scripted-v48:v1` | previous best |
-| TBD | TBD | **`lessandro-contamination-v64:v2`** | **NEW** — #64 fix, +15.2% offline, matches pending |
+| **#13** | **40.07** | **`lessandro-aligner-opt-v1:v1`** | **OUR BEST** — J=25, hearts<3, wait<3, contamination |
+| #20 | 38.92 | `lessandro-aligner-opt-v17:v1` | map fix + no blacklist variant |
+| #21 | 38.88 | `lessandro-aligner-opt-v15:v1` | hub_weight=0.1 variant |
+| #41 | 36.98 | `lessandro-scripted-v52:v1` | previous best (pre-optimization) |
 
-_v52 still our best online (#40, 36.15). Gap to #1: 13.6% (5.71 pts). contamination-v64 submitted — awaiting online results._
+_Gap to #1: **1.79 pts (4.3%)** — down from 5.71 pts (13.6%) in session 30. Raw match avg (37.8) competitive with #1's (36.5)._
 
-### Offline Best Results (8-agent, 3000 steps)
+### Offline Best Results
 
-| Rank | Reward | Commit | Config | Seeds | Notes |
-|------|--------|--------|--------|-------|-------|
-| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | **+15.2% vs v52 baseline** |
-| 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | 5-seed avg | previous best |
-| 3 | 2.053 | `b6a86ae` | v52 + VZvye combined | 5-seed avg | +0.7%, within noise |
+| Rank | Reward | Config | Steps | Seeds | Notes |
+|------|--------|--------|-------|-------|-------|
+| 1 | **7.96** | 3A5M stuck=28 hazard-free BFS | 1000 (8ag) | seed 47 | best single-seed |
+| 2 | 4.83 | same config | 1000 (8ag) | 6-seed avg | issue #34 best |
+| 3 | 3.282 | v52 + contamination fix (#64) | 3000 (8ag) | 5-seed avg | +15.2% vs v52 |
 
-### Key Findings (Session 30)
+### Key Findings (Session 32)
 
-1. **Gear contamination SOLVED** (#64) — EnIvJ branch delivered +15.2% avg reward. Seed 123 (contamination-prone) improved +92.6%. Key: reactive avoidance (remember exact contamination cells) >> predictive avoidance (buffer zones).
-2. **Bottleneck shifted: mining -> aligner throughput** — Post-fix, resource surpluses are 300-650 but hearts withdrawn only 20-31 of potential 69-97. Aligner side is now the ceiling (#67).
-3. **JUNCTION_ALIGN_DISTANCE=25 merged** — +7.9% in combined experiments (not independently validated).
-4. **contamination-v64:v2 submitted** to beta-cvc and beta-teams-tiny-fixed. 4 matches pending.
-5. **v52 match variance persists** — recent scores 6.3 to 54.5 (avg 35.5). Floor still low with weak partners.
+1. **Crash fix deployed** (#68) — Partial bundle shadowing was the crash cause (same bug as #28). `scripts/upload_full_bundle.py` permanently fixes all future uploads.
+2. **+3 leaderboard points from 2-char change** — `hearts<4→<3` and `wait<6→<3` reduces hub dwell time. Combined with contamination code + J=25, reached #13 (40.07).
+3. **Aligner throughput ceiling is ARCHITECTURAL** (#67) — 19 experiments exhausted all parameter tuning. Junction count (~57/3000 steps) is capped by map topology (cascade range=15 cells).
+4. **33% of aligner steps are move failures** — agents bump walls in unknown territory. This is the next bottleneck.
+5. **2ag performance drags overall score** — our 4ag (41.2) and 6ag (44.0) are top-10 quality, but 2ag (24.5) drops the average.
+6. **Raw match scores already competitive with #1** — our avg 37.8 vs Softy:v96 avg 36.5. The Elo gap is about match count and variance, not raw performance.
 
-### v52 Recent Match Scores (19 matches)
+### opt-v1 Match Scores (25 matches)
 
 ```
-Best:  54.5 (Softy:v96)         Worst: 6.3 (dedicated.ao:v1)
-Avg:   35.5                     Range: 6.3 — 54.5
-Scores: 6.3, 23.7, 24.4, 27.3, 28.3, 29.4, 31.2, 32.0, 32.2, 34.3, 35.3, 38.6, 39.5, 39.7, 46.1, 48.2, 51.3, 52.4, 54.5
+Best:  52.3 (dinky_izzy)         Worst: 9.2 (lessandro-6a2m-v22)
+Avg:   37.8    Median: 42.3     Q1: 36.6   Q3: 44.1
+By allocation: 2ag=24.5  4ag=41.2  6ag=44.0
 ```
 
 ### Current Priority Stack
 
 ```
-priority:1  #67  Aligner throughput bottleneck                 <- NEW, hearts 20-31 of potential 69-97
-priority:2  #65  Alignment speed (align junctions earlier)     <- overlaps with #67
-priority:2  #62  Junction capture rate & exploration coverage  <- exhausted at <1% gains
-priority:2  #41  RL policy training                            <- BLOCKED (needs GPU), ceiling-breaker
-priority:3  #50  Per-agent alignment efficiency tuning         <- DEMOTED, superseded by #67
-priority:3  #61, #56, #57                                     <- mortality is partner-dependent
-priority:3  #53, #27, #26, #12, #11, #10                      <- speculative / researched
-CLOSED  #64  Gear contamination prevention                 <- RESOLVED (+15.2%, merged EnIvJ)
-CLOSED  #66  Submit to beta-teams-tiny-fixed               <- RESOLVED (submitted)
+priority:1  #69  Move failure rate reduction (33% steps wasted)   <- NEW, highest-leverage
+priority:2  #70  2-agent performance gap (24.5 vs 40+ at 4/6ag)  <- NEW, drags leaderboard
+priority:2  #41  RL policy training                               <- BLOCKED (needs GPU)
+priority:3  #67  Aligner throughput (EXHAUSTED — architectural)
+priority:3  #65, #62, #50                                         <- subsumed by #69/#70
+priority:3  #61, #56, #57                                         <- mortality is partner-dependent
+priority:3  #53, #27, #26, #12, #11, #10                          <- speculative
+CLOSED  #68  Online crash fix (bundle shadowing)
+CLOSED  #64  Gear contamination prevention (+15.2%)
+CLOSED  #66  Submit to beta-teams-tiny-fixed
 ```
-
-### beta-teams-tiny-fixed Season
-
-Submissions made: v52:v1 and contamination-v64:v1. Still only 10 entries (scores 10-28). Awaiting match results.
 <!-- LEADERBOARD_END -->
 
 ### Autoresearch Progress
