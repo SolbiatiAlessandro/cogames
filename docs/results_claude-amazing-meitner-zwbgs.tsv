@@ -2,3 +2,33 @@ commit	mission_reward	secondary_rewards	steps	status	description
 14c7ac6	1026.798462	hearts=57 max_stuck=126	3000	keep	baseline seed 42 (CD=6)
 14c7ac6	1076.306641	hearts=62 max_stuck=155	3000	keep	baseline seed 123 (CD=6)
 14c7ac6	1117.618896	hearts=63 max_stuck=147	3000	keep	baseline seed 7 (CD=6)
+b34f122	1028.697632	hearts=57 max_stuck=150	3000	keep	CD=3 seed 42
+b34f122	1104.189453	hearts=62 max_stuck=154	3000	keep	CD=3 seed 123
+b34f122	1158.686523	hearts=63 max_stuck=112	3000	keep	CD=3 seed 7
+b34f122	1048.751831	hearts=61 max_stuck=88	3000	discard	CD=3+ST=12 seed 42
+b34f122	1043.634766	hearts=60 max_stuck=91	3000	discard	CD=3+ST=12 seed 123
+b34f122	1169.258667	hearts=65 max_stuck=101	3000	discard	CD=3+ST=12 seed 7
+b34f122	998.856628	hearts=56 max_stuck=114	3000	discard	CD=3+ST=15 seed 42
+b34f122	1028.125000	hearts=58 max_stuck=121	3000	discard	CD=3+ST=15 seed 123
+b34f122	1093.143066	hearts=61 max_stuck=95	3000	discard	CD=3+ST=15 seed 7
+b34f122	1069.579956	hearts=60 max_stuck=190	3000	discard	CD=3+miner_CD=3 seed 42
+b34f122	1048.456421	hearts=59 max_stuck=172	3000	discard	CD=3+miner_CD=3 seed 123
+b34f122	1196.938599	hearts=66 max_stuck=153	3000	discard	CD=3+miner_CD=3 seed 7
+b34f122	1028.697632	hearts=57 max_stuck=150	3000	discard	CD=3+navshake_guarded seed 42
+b34f122	1098.297119	hearts=62 max_stuck=154	3000	discard	CD=3+navshake_guarded seed 123
+b34f122	1181.812744	hearts=65 max_stuck=117	3000	discard	CD=3+navshake_guarded seed 7
+b34f122	949.735229	hearts=53 max_stuck=100	3000	discard	CD=3+navshake_unguarded seed 42
+b34f122	1076.946411	hearts=60 max_stuck=235	3000	discard	CD=3+navshake_unguarded seed 123
+b34f122	1153.632080	hearts=64 max_stuck=120	3000	discard	CD=3+navshake_unguarded seed 7
+b34f122	984.927612	hearts=55 max_stuck=114	3000	discard	CD=3+hub_rotation seed 42
+b34f122	989.810181	hearts=55 max_stuck=135	3000	discard	CD=3+hub_rotation seed 123
+b34f122	1101.394653	hearts=61 max_stuck=133	3000	discard	CD=3+hub_rotation seed 7
+b34f122	1065.283325	hearts=59 max_stuck=151	3000	discard	CD=3+bfs_agent_avoid seed 42
+b34f122	1066.703613	hearts=59 max_stuck=192	3000	discard	CD=3+bfs_agent_avoid seed 123
+b34f122	1096.926025	hearts=61 max_stuck=275	3000	discard	CD=3+bfs_agent_avoid seed 7
+b34f122	1078.665405	hearts=60 max_stuck=155	3000	discard	CD=3+approach_agent_avoid seed 42
+b34f122	1062.298584	hearts=59 max_stuck=154	3000	discard	CD=3+approach_agent_avoid seed 123
+b34f122	1108.561157	hearts=61 max_stuck=159	3000	discard	CD=3+approach_agent_avoid seed 7
+b34f122	1056.559082	hearts=59 max_stuck=153	3000	discard	CD=3+shared_cooldowns seed 42
+b34f122	1065.498657	hearts=59 max_stuck=319	3000	discard	CD=3+shared_cooldowns seed 123
+b34f122	1158.686523	hearts=63 max_stuck=112	3000	discard	CD=3+shared_cooldowns seed 7

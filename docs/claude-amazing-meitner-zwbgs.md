@@ -61,8 +61,46 @@ Key context from previous researcher (branch claude/amazing-meitner-Qh03p):
 
 **Status: KEEP** — consistent improvement across all seeds.
 
+## Experiments tried on top of CD=3 (all discarded)
+
+### Stuck threshold reduction (ST=12, ST=15)
+- ST=12: avg 1087.21 (+1.3% vs baseline, -0.9% vs CD=3) — seed 123 regresses -3.0%
+- ST=15: avg 1040.04 (-3.1% vs baseline) — regresses all seeds
+- **Status: DISCARD** — cutting skill timeouts hurts at 3000 steps (prior +9% was at 500 steps only)
+
+### Miner CD=3 (matching aligner)
+- avg 1104.99 (+2.9% vs baseline, +0.7% vs CD=3) — but seed 123 -2.6%, max_stuck increased (190, 172, 153)
+- **Status: DISCARD** — miners thrash more with shorter cooldowns, inconsistent
+
+### Navigation shake fix (steps_since_last_move replaces dead no_move_steps)
+- Guarded (skip near target): avg 1102.94 (+0.5% vs CD=3) — barely activates
+- Unguarded: avg 1060.10 (-3.4% vs CD=3) — agents leave targets
+- **Status: DISCARD** — agents are stuck near targets, not in transit; shake can't help
+
+### Hub approach rotation on stuck
+- Rotate preferred_side every 5 stuck steps: avg 1025.38 (-6.5% vs CD=3)
+- **Status: DISCARD** — rotating disrupts approach progress
+
+### BFS agent position avoidance
+- Full BFS avoid: avg 1076.30 (-1.9% vs CD=3), max_stuck=275
+- Approach cell only: avg 1083.18 (-1.3% vs CD=3)
+- **Status: DISCARD** — too restrictive near hub clusters
+
+### move_blocked_cells periodic clear (every 100 steps)
+- avg 1097.19 (+0.0% vs CD=3) — identical results
+- **Status: NEUTRAL** — visual clearing already handles stale entries
+
+### Shared move cooldowns across agents
+- avg 1093.58 (-0.3% vs CD=3), max_stuck=319
+- **Status: DISCARD** — over-blocking cascading effect
+
+## Summary
+
+Only aligner CD=3 is a consistent improvement for issue #69 (+2.2% avg across 3 seeds).
+Many complementary approaches tested but none improve further. The move failure problem
+has diminishing returns — the congestion heuristic (move_blocked_cells) works well,
+and reducing cooldown TTL (CD=3) is the sweet spot for BFS retry speed.
+
 ## Next experiments to try
-- Combine aligner CD=3 with miner CD=3 (gave +2.9% but seed 123 regressed — might work better online)
-- Try stopping move_blocked_cells additions after 12+ stuck steps (agent is deeply stuck, permanent blocks are counterproductive)
-- Aligner hub approach rotation on repeated hub failures
 - Online validation via upload
+- Move to next priority issue
