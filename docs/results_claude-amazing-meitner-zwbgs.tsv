@@ -1,0 +1,4 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+14c7ac6	1026.798462	hearts=57 max_stuck=126	3000	keep	baseline seed 42 (CD=6)
+14c7ac6	1076.306641	hearts=62 max_stuck=155	3000	keep	baseline seed 123 (CD=6)
+14c7ac6	1117.618896	hearts=63 max_stuck=147	3000	keep	baseline seed 7 (CD=6)
