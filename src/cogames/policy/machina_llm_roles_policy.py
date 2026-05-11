@@ -349,6 +349,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
+        state.move_cooldowns.clear()
         self._event(state, f"planner selected {skill}: {reason}")
 
     def _maybe_finish_skill(self, obs: AgentObservation, state: LLMAlignerState) -> None:

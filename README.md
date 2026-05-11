@@ -24,66 +24,70 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-08 (Session 30)_
+_Updated by Director (offline-to-online): 2026-05-11 (Session 33)_
 
-### Online Tournament (beta-cvc, 712 entries, cooperative scoring)
+### Online Tournament (beta-cvc, 782 entries, cooperative scoring)
 
-| Rank | Score | Policy | Notes |
-|------|-------|--------|-------|
-| #1 | **41.86** | `Softy:v96` | RL (NEW #1) |
-| #2 | 41.28 | `slanky:v171` | RL |
-| #3 | 41.10 | `Paz-Bot-9000:v47` | RL |
-| #4 | 40.82 | `Gryffindor:v11` | RL |
-| #5 | 40.76 | `slanky:v165` | RL |
-| ... | | | |
-| **#40** | **36.15** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (stable) |
-| #50 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe variant |
-| #56 | 34.78 | `lessandro-scripted-v48:v1` | previous best |
-| TBD | TBD | **`lessandro-contamination-v64:v2`** | **NEW** — #64 fix, +15.2% offline, matches pending |
+| Rank | Score | StdDev | Matches | Policy | Notes |
+|------|-------|--------|---------|--------|-------|
+| #1 | **45.29** | 16.53 | 20 | `Softy:v103` | RL, new #1 (+3.4 pts since S30) |
+| #2 | 41.86 | 17.41 | 21 | `Softy:v96` | RL |
+| #3 | 41.59 | 18.06 | 20 | `Softy:v100` | RL |
+| #4 | 41.28 | 16.80 | 20 | `slanky:v171` | RL |
+| #7 | 41.10 | 16.79 | 21 | `Paz-Bot-9000:v47` | RL |
+| #10 | 40.73 | 15.52 | 32 | `Slytherin:v14` | RL |
+| ... | | | | | |
+| **#14** | **40.49** | **5.81** | **21** | **`lessandro-navfix-cd3:v1`** | **OUR BEST** (+4.34 vs v52) |
+| #18 | 40.07 | 9.23 | 23 | `lessandro-aligner-opt-v1:v1` | opt-v1 (prev best, S32) |
+| #54 | 36.73 | 9.38 | 65 | `lessandro-scripted-v52:v1` | long-term baseline |
+| #101 | 33.95 | 11.96 | 21 | `lessandro-contamination-v64:v3` | contamination fix alone |
 
-_v52 still our best online (#40, 36.15). Gap to #1: 13.6% (5.71 pts). contamination-v64 submitted — awaiting online results._
+_navfix-cd3:v1 is our best (#14, 40.49). Gap to #1: 10.6% (4.80 pts). Gap widened because Softy improved +3.4 pts._
+
+### navfix-cd3:v1 Match Profile (21 matches)
+
+```
+Min: 27.6  Max: 48.4  Avg: 40.4  StdDev: 5.81
+P5:  29.6  P95: 47.8
+Scores: 27.6, 28.0, 29.6, 29.9, 36.9, 38.2, 38.3, 38.4, 39.5, 39.8, 41.1, 41.4, 42.2, 42.4, 42.8, 43.9, 44.1, 46.8, 47.3, 47.7, 47.8, 47.9, 48.4
+```
 
 ### Offline Best Results (8-agent, 3000 steps)
 
 | Rank | Reward | Commit | Config | Seeds | Notes |
 |------|--------|--------|--------|-------|-------|
-| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | **+15.2% vs v52 baseline** |
+| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | +15.2% vs v52 baseline |
 | 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | 5-seed avg | previous best |
-| 3 | 2.053 | `b6a86ae` | v52 + VZvye combined | 5-seed avg | +0.7%, within noise |
+| 3 | ~3.3 | `b34f122` | CD=3 + contamination + hearts<3 | 3-seed avg | +2.2% from CD=3 |
 
-### Key Findings (Session 30)
+### Key Findings (Session 33 — Offline-to-Online)
 
-1. **Gear contamination SOLVED** (#64) — EnIvJ branch delivered +15.2% avg reward. Seed 123 (contamination-prone) improved +92.6%. Key: reactive avoidance (remember exact contamination cells) >> predictive avoidance (buffer zones).
-2. **Bottleneck shifted: mining -> aligner throughput** — Post-fix, resource surpluses are 300-650 but hearts withdrawn only 20-31 of potential 69-97. Aligner side is now the ceiling (#67).
-3. **JUNCTION_ALIGN_DISTANCE=25 merged** — +7.9% in combined experiments (not independently validated).
-4. **contamination-v64:v2 submitted** to beta-cvc and beta-teams-tiny-fixed. 4 matches pending.
-5. **v52 match variance persists** — recent scores 6.3 to 54.5 (avg 35.5). Floor still low with weak partners.
-
-### v52 Recent Match Scores (19 matches)
-
-```
-Best:  54.5 (Softy:v96)         Worst: 6.3 (dedicated.ao:v1)
-Avg:   35.5                     Range: 6.3 — 54.5
-Scores: 6.3, 23.7, 24.4, 27.3, 28.3, 29.4, 31.2, 32.0, 32.2, 34.3, 35.3, 38.6, 39.5, 39.7, 46.1, 48.2, 51.3, 52.4, 54.5
-```
+1. **50% move failure rate is GAME NORMAL** — Softy (#1) has the same 47-48% failure rate. Issue #69 was misdirected; demoted to priority:3.
+2. **Junction control efficiency is the real gap** — Our best match: 74.4% of junction-time vs Softy's 83.8%. This ~10% gap maps to ~6 score points. Created #71.
+3. **Our stddev is unusually low (5.81)** — Consistent but ceiling-limited. Max score 48.4 vs Softy likely 55+. We never reach high scores. Need to raise ceiling, not floor.
+4. **Agent lifespan variance** — Softy agents all run 5200-6200 steps; ours range 2000-7500. Some die early, wasting junction-holding potential.
+5. **72 policy versions uploaded** since session 30 — massive online A/B testing. navfix-cd3 emerged as best, improving +0.42 pts over opt-v1.
+6. **RL is the architectural ceiling** — All top-10 are RL. Scripted optimization is plateauing. #41 promoted to priority:1.
 
 ### Current Priority Stack
 
 ```
-priority:1  #67  Aligner throughput bottleneck                 <- NEW, hearts 20-31 of potential 69-97
-priority:2  #65  Alignment speed (align junctions earlier)     <- overlaps with #67
-priority:2  #62  Junction capture rate & exploration coverage  <- exhausted at <1% gains
-priority:2  #41  RL policy training                            <- BLOCKED (needs GPU), ceiling-breaker
-priority:3  #50  Per-agent alignment efficiency tuning         <- DEMOTED, superseded by #67
-priority:3  #61, #56, #57                                     <- mortality is partner-dependent
-priority:3  #53, #27, #26, #12, #11, #10                      <- speculative / researched
-CLOSED  #64  Gear contamination prevention                 <- RESOLVED (+15.2%, merged EnIvJ)
-CLOSED  #66  Submit to beta-teams-tiny-fixed               <- RESOLVED (submitted)
+priority:1  #71  Junction control efficiency (74% vs 84%)     <- NEW, the real gap to #1
+priority:1  #41  RL policy training                            <- PROMOTED, ceiling-breaker, all top-10 are RL
+priority:2  #70  2-agent allocation (24.5 avg vs 41+)          <- drags leaderboard
+priority:3  #69  Move failure rate                             <- DEMOTED, 50% is game-normal for ALL policies
+priority:3  #65  Alignment speed                               <- subsumed by #71
+priority:3  #62  Junction capture rate                         <- exhausted
+priority:3  #50, #61, #56, #57                                 <- mortality/efficiency, partner-dependent
+priority:3  #53, #27, #26, #23, #22, #21, #20, #19, #17, #12, #11, #10  <- speculative / researched
+CLOSED  #64  Gear contamination prevention                 <- RESOLVED
+CLOSED  #66, #67, #68                                     <- RESOLVED
 ```
 
-### beta-teams-tiny-fixed Season
-
-Submissions made: v52:v1 and contamination-v64:v1. Still only 10 entries (scores 10-28). Awaiting match results.
+**Current offline ceiling**: 3.282 reward (8-agent, 3000 steps, contamination fix + hearts<3)
+**Current online rank**: #14 of 782 in beta-cvc (navfix-cd3:v1, 40.49)
+**Gap**: Widened from 4.3% to 10.6% — Softy improved faster (+3.4 pts) than we did (+0.42 pts)
+**Next up**: #71 junction control efficiency, #41 RL training
 <!-- LEADERBOARD_END -->
 
 ### Autoresearch Progress
