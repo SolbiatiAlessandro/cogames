@@ -101,6 +101,7 @@ class AlignerState(StarterCogState):
     last_move_target: Coord | None = None
     # Cells blocked by move failure (not cleared by observation updates)
     move_blocked_cells: set[Coord] = field(default_factory=set)
+    move_blocked_order: deque = field(default_factory=deque)
     # Issue-44: per-agent move cooldown to break congestion deadlocks
     move_cooldowns: dict[Coord, int] = field(default_factory=dict)
     steps_since_last_move: int = 0
@@ -270,6 +271,21 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         state.known_free_cells = original_free
         return direction
 
+    def _bfs_without_move_blocked(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True) -> str | None:
+        """BFS ignoring move_blocked cells. These are often transient (other agents) and
+        may have cleared by the time we reach them. Only called as fallback when strict BFS fails."""
+        mb_cells = set(state.move_blocked_cells)
+        if not mb_cells:
+            return None
+        original_blocked = set(state.blocked_cells)
+        original_free = set(state.known_free_cells)
+        state.blocked_cells -= mb_cells
+        state.known_free_cells |= mb_cells
+        direction = self._bfs_first_direction(state, start, goal, avoid_hazards=avoid_hazards)
+        state.blocked_cells = original_blocked
+        state.known_free_cells = original_free
+        return direction
+
     def _bfs_optimistic_direction(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True, max_cells: int = 20000) -> str | None:
         """Optimistic BFS: treat unknown cells as traversable (only avoids known walls/hazards).
         Useful when the path to goal goes through unexplored territory."""
@@ -334,6 +350,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if direction is not None:
             return direction
         direction = self._bfs_without_cooldowns(state, current_abs, approach, avoid_hazards=avoid_hazards)
+        if direction is not None:
+            return direction
+        direction = self._bfs_without_move_blocked(state, current_abs, approach, avoid_hazards=avoid_hazards)
         if direction is not None:
             return direction
         direction = self._bfs_optimistic_direction(state, current_abs, approach, avoid_hazards=avoid_hazards)
@@ -468,7 +487,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             if current_abs == state.last_pos:
                 if state.steps_since_last_move <= 12:
                     state.move_cooldowns[state.last_move_target] = self._MOVE_COOLDOWN
-                state.move_blocked_cells.add(state.last_move_target)
+                if state.last_move_target not in state.move_blocked_cells:
+                    state.move_blocked_cells.add(state.last_move_target)
+                    state.move_blocked_order.append(state.last_move_target)
+                    while len(state.move_blocked_order) > 40:
+                        evicted = state.move_blocked_order.popleft()
+                        state.move_blocked_cells.discard(evicted)
         state.last_pos = current_abs
         state.last_move_target = None
 
@@ -764,6 +788,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is None:
             direction = self._bfs_without_cooldowns(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._bfs_without_move_blocked(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # BFS failed: try optimistic BFS (treat unknown cells as traversable)
