@@ -94,13 +94,38 @@ Key context from previous researcher (branch claude/amazing-meitner-Qh03p):
 - avg 1093.58 (-0.3% vs CD=3), max_stuck=319
 - **Status: DISCARD** — over-blocking cascading effect
 
+## Experiment 2: Clear cooldowns on skill transition
+
+**Hypothesis:** Stale cooldowns from get_heart (hub area) block BFS paths when switching to align_neutral.
+
+| Seed | CD=3 only | + Clear | Change |
+|------|-----------|---------|--------|
+| 42   | 1028.70   | 1028.70 | 0.0%   |
+| 123  | 1104.19   | 1125.04 | **+1.9%** |
+| 7    | 1158.69   | 1158.69 | 0.0%   |
+| 0    | 1173.21   | 1173.21 | 0.0%   |
+| 99   | 1103.93   | 1103.93 | 0.0%   |
+| **Avg** | **1113.74** | **1117.91** | **+0.4%** |
+
+**Status: KEEP** — 0 regressions, small improvement on one seed.
+
+## Additional discarded experiments (round 2)
+
+- **JUNCTION_ALIGN_DISTANCE=30**: +0.8% avg (only seed 7 improved)
+- **HUB_ALIGN_DISTANCE=30**: -1.6% avg (seeds 42/123 regress)
+- **Enemy junction priority**: zero effect (no enemies in offline self-play)
+- **5A+3M ratio**: -6.5% avg (not enough miners for hearts)
+- **3A+5M ratio**: -1.1% avg (seed 123 regresses)
+- **Max hearts=4**: zero effect (heart pipeline too slow for 4th heart)
+
 ## Summary
 
-Only aligner CD=3 is a consistent improvement for issue #69 (+2.2% avg across 3 seeds).
-Many complementary approaches tested but none improve further. The move failure problem
-has diminishing returns — the congestion heuristic (move_blocked_cells) works well,
-and reducing cooldown TTL (CD=3) is the sweet spot for BFS retry speed.
+Two kept changes for issue #69:
+1. Aligner CD=3 (+2.2% avg) — faster BFS retry
+2. Cooldown clear on skill switch (+0.4% avg) — fresh paths after skill change
+
+Combined: ~+2.6% over baseline. 20+ experiments tested, diminishing returns reached.
 
 ## Next experiments to try
-- Online validation via upload
+- Online validation via upload (done: lessandro-navfix-cd3:v1)
 - Move to next priority issue

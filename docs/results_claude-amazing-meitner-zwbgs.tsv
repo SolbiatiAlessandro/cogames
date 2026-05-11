@@ -32,3 +32,6 @@ b34f122	1108.561157	hearts=61 max_stuck=159	3000	discard	CD=3+approach_agent_avo
 b34f122	1056.559082	hearts=59 max_stuck=153	3000	discard	CD=3+shared_cooldowns seed 42
 b34f122	1065.498657	hearts=59 max_stuck=319	3000	discard	CD=3+shared_cooldowns seed 123
 b34f122	1158.686523	hearts=63 max_stuck=112	3000	discard	CD=3+shared_cooldowns seed 7
+8cfbc8f	1028.697632	hearts=57 max_stuck=150	3000	keep	CD=3+cooldown_clear seed 42
+8cfbc8f	1125.036011	hearts=62 max_stuck=154	3000	keep	CD=3+cooldown_clear seed 123 (+1.9% vs CD=3)
+8cfbc8f	1158.686523	hearts=63 max_stuck=112	3000	keep	CD=3+cooldown_clear seed 7
