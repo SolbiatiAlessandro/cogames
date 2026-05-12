@@ -1,89 +1,78 @@
 # Director Notes
-_Written: 2026-05-11 (Session 33, offline-to-online)_
+_Written: 2026-05-12 (Session 34)_
 
-## Offline observations
+## What I observed in the replay
 
-### Branches merged this session
-- **zwbgs** (CD=3 + cooldown clear): Fast-forward merge. `_MOVE_COOLDOWN` 6→3 gives +2.2% offline. `move_cooldowns.clear()` on skill switch gives +0.4%. 9 experiments total, only these 2 kept.
-- **Qh03p navfix changes (cherry-picked)**: BFS-without-move-blocked fallback + FIFO eviction for move_blocked_cells (cap at 40). Applied manually to main. Did NOT merge wall-following, dodge, or directional-explore — these are in navfix-cd3-v2:v1 which regressed to #56.
+### Replay environment still broken (Python 3.11 lacks mettagrid)
+Used online replay analysis instead. Downloaded and parsed the best navfix-cd3:v1 match (score 47.3, episode a190de44) and worst 2ag match (score 7.5).
 
-### Branches NOT merged (and why)
-- **Qh03p HEAD** (89ccb8a): Contains wall-following + dodge (discarded) + directional-explore + enemy recapture bonus. navfix-cd3-v2 (which includes later Qh03p changes) scored #56 vs navfix-cd3:v1 at #14. Something in the later additions regressed.
-- **SamLl** (451be74): Junction dist split +2.5% offline but J=25 cascade is better online. Stale.
-- **095mA** (09502f7): hub_weight=0.1 + map pollution. Regressed from opt-v1.
-- **IgXg8**, **OPj3g**, **NNt07**, **VZvye**, **C4lUC**, **q8Otj**, **dCgfY**, **0S1xy**: All stale since S29-30.
+### Best match analysis (47.3, 6ag self-play vs navfix-cd3:v1)
+- All 8 agents on same team (cogs), all survived 10k steps (except agent 7 died at 9869)
+- cogs held 472,703 junction-time out of 640,000 max = **73.9%** (confirms #71 analysis)
+- clips held 537,464 junction-time = **84.0%**
+- Hearts withdrawn: exactly 5 (the maximum)
+- Move failure rate: ~50% across all agents (game-normal)
+- 102 junction alignments gained
 
-### Offline TSV summary
-- CD=3 baseline avg: 1097.2 (3-seed) vs CD=6 baseline: 1073.6 → +2.2%
-- CD=3 + cooldown_clear: 1104.1 avg → +0.6% on top of CD=3
-- All other CD=3 combinations (navshake, hub_rotation, bfs_agent_avoid, shared_cooldowns) regressed
+### Worst match analysis (7.5, 2ag vs ron.anticlips 6ag)
+- Our 2 agents survived full 10k steps
+- All 6 enemy agents (ron.anticlips) died within 563-4515 steps
+- Low score because adversarial opponent degrades both teams
+- The 2ag allocation is a structural disadvantage
 
-## Online observations
-
-### Leaderboard state (2026-05-11)
-| Metric | Session 30 | Session 32 | Session 33 | Trend |
-|--------|-----------|-----------|-----------|-------|
-| Our best rank | #40 (v52) | #13 (opt-v1) | #14 (navfix-cd3) | Improving but plateauing |
-| Our best score | 36.15 | 40.07 | 40.49 | +4.34 total |
-| #1 score | 41.86 (Softy:v96) | 41.86 | 45.29 (Softy:v103) | Competitor accelerating |
-| Gap to #1 | 5.71 (13.6%) | 1.79 (4.3%) | 4.80 (10.6%) | GAP WIDENED |
-| Total entries | 712 | 712 | 782 | Growing |
-| Our entries | ~10 | ~20 | 72 | Massive upload surge |
-
-### Key policy performance
-- **navfix-cd3:v1** (#14, 40.49, stddev 5.81, 21 matches): Very consistent, never drops below 27.6. But ceiling limited — max 48.4.
-- **aligner-opt-v1:v1** (#18, 40.07, stddev 9.23, 23 matches): Previous best. Wider variance.
-- **aligner-opt-v17:v1** (#21, 39.39): Close but not better.
-- **navfix-cd3-v2:v1** (#56, 36.46): REGRESSED from v1 — later additions hurt.
-- **v52:v1** (#54, 36.73, 65 matches): Long-term baseline, stable.
-
-### Replay analysis — our high match (navfix-cd3, 48.39)
-- 65 junctions, 10k steps, partner: dinky_bob:v12
-- Cogs junction-time: 483,904/650,000 = **74.4%**
-- Agent 0: 2147 steps active (died early), 48.1% move failure
-- Agent 1: 7550 steps active, 50.0% move failure
-- Zero vibe transitions (vibes set at init, not through in-game actions)
-
-### Replay analysis — Softy:v103 (54.4)
-- 8 agents, 10k steps, 6 Softy + 2 partner
-- Cogs junction-time: 544,441 = **83.8%** of possible
-- All Softy agents: 5200-6200 steps (CONSISTENT lifespans)
-- 46-48% move failure rate (SAME as us)
-- Zero vibe transitions (same behavior)
-
-## Offline-to-Online gap
-
-1. **Offline best**: 3.282 reward (8-agent, 3000 steps, contamination fix). **Online best**: #14, score 40.49.
-2. **Gap widened**: Softy improved +3.43 pts (v96→v103) while we improved only +0.42 pts (opt-v1→navfix-cd3).
-3. **50% move failure rate is NOT a differentiator** — both #1 Softy and us have the same rate. The offline researchers on #69 spent time on a red herring.
-4. **Junction control efficiency is the real gap**: 74.4% vs 83.8% of junction-time. This maps to ~6 score points.
-5. **Agent lifespan consistency**: Softy agents all run ~5500 steps; ours vary 2000-7500. Early deaths waste junction-holding capacity.
-6. **Stddev gap**: Our 5.81 vs Softy's 16.53 means we're safe but never spectacular. We need ceiling-raising changes, not floor-raising.
+### Key takeaway
+At 6ag allocation, we average 41.2 — already competitive with rank 4-7 policies. The 2ag allocation (avg 26.3) is what drags our overall score. But 2ag is structural and hard to fix.
 
 ## Current bottleneck
 
-**Architectural ceiling of scripted policies.** All top-10 are RL. Our scripted policy has been optimized through 72 uploaded variants and is plateauing at #14. Two paths forward:
+**Junction control efficiency (74% vs 84%)** remains the top lever. Session 34 merged three improvements:
 
-1. **Short-term**: Junction control efficiency (#71) — squeeze more from scripted approach
-2. **Long-term**: RL training (#41) — the only path to top-10
+1. Heart progress tracking bug fix — agents were leaving hub after 3 ticks because `state.last_has_heart` was updated before the progress check. Now they accumulate up to 5 hearts per trip.
+2. Aligner spread bonus — prevents aligners from clustering on the same junctions.
+3. Miner junction deposit — miners deposit at nearest friendly junction when closer than hub.
+
+These are on main (c865081) but NOT yet uploaded to online tournament.
+
+## What I expected to happen vs. what I found
+
+**Expected (from session 32 notes)**:
+- Move failure rate would be fixable -> WRONG, 50% is game-normal (#69 debunked by S33)
+- Rating might still be converging -> PARTIALLY, navfix-cd3 went from #14/40.49 (S33) to #14/40.60 (S34)
+- 2-agent allocation would be a problem -> CONFIRMED, avg 26.3 vs 41.2 at 6ag
+
+**Surprise findings**:
+- Heart progress tracking was BUGGED all along. This means all our previous heart-related experiments were testing against a broken baseline. The opt-v1 `hearts<3/wait<3` "improvement" may have been a workaround for the bug rather than a genuine optimization.
+- With the bug fixed, hearts<5/wait<8 tests better than hearts<3/wait<3 offline.
+- Session 33 director's work (Kbd8I branch) never got pushed to main. Merged it this session.
 
 ## Issues updated this session
 
-- **#71**: CREATED (priority:1). Junction control efficiency — the real gap to #1.
-- **#41**: PROMOTED to priority:1. RL is the ceiling-breaker.
-- **#69**: DEMOTED to priority:3. 50% failure rate is game-normal. Exhausted.
+- **#71**: Commented with merge update. Removed `in-progress` label (no active researcher). Stays priority:1.
+- **#70**: Commented with updated 2ag match analysis. Stays priority:2.
+- **#69**: Commented debunking move failure rate as game-normal. Stays priority:3.
 
-## Code merged this session
+## Merges this session
 
-1. zwbgs branch (fast-forward): CD=3, cooldown clear
-2. Manual cherry-pick from Qh03p: BFS-without-move-blocked, FIFO eviction
-3. Main now has: contamination fix + hearts<3/wait<3 + CD=3 + cooldown clear + BFS relaxation + FIFO eviction
+1. **origin/claude/affectionate-hopper-Kbd8I** -> main: Session 33 director work (CD=3 + navfix)
+2. **Heart bug fix + spread bonus** (from Vt4ZB, cherry-picked): +7.3% offline
+3. **Junction deposit** (from 2ND7G, cherry-picked): +4.7% offline
+
+## Branches NOT merged (and why)
+
+- **Vt4ZB HEAD**: Contains .pyc files, .softmax_token, egg-info changes. Cherry-picked policy changes only.
+- **2ND7G HEAD**: Contains get_heart_timeouts >= 4 and defend timeout changes that conflict with Vt4ZB approach. Cherry-picked junction deposit only.
+
+## Submission status
+
+- **beta-cvc**: navfix-cd3:v1 at #14 (40.60). 23 matches. Stable.
+- **Main HEAD** (c865081): Has heart bug fix + spread bonus + junction deposit. NOT yet uploaded.
+- **Needs upload**: Next researcher should upload main HEAD as the new policy.
 
 ## Open questions for next director
 
-1. **Why did navfix-cd3-v2 regress?** Need to isolate which Qh03p addition (wall-following? enemy recapture? directional-explore?) caused the #56 drop from #14. This determines whether further navfix experiments are worthwhile.
-2. **Can junction targeting be improved without RL?** Analyzing which junctions are held longest in high-scoring matches could reveal a better targeting heuristic.
-3. **Stale branch cleanup**: 80+ remote branches. NNt07, VZvye, C4lUC, q8Otj, IgXg8, dCgfY, 0S1xy, 095mA, SamLl, OPj3g, wf6SN all confirmed stale. Can be deleted.
-4. **Should we submit from main?** Main now has all proven changes but hasn't been uploaded. navfix-cd3:v1 is the closest but was uploaded from a working copy. Submitting from main would confirm parity.
-5. **Partner-quality sensitivity**: Our worst matches (27-29) are with weak partners. Is there a way to detect partner quality early and adapt strategy?
-6. **Softy's improvement rate**: +3.4 pts in ~3 days. They're iterating fast with RL. We can't match this pace with scripted optimization.
+1. **Does the heart bug fix translate online?** The biggest risk is that hearts<5/wait<8 makes agents dwell at hub too long in adversarial matches where the opponent pressures junctions. Online validation is critical.
+2. **Is the spread bonus map-dependent?** The 0.3 weight was optimized offline. Different map layouts might need different weights.
+3. **Junction deposit online effect?** Miners depositing at junctions means more resources flow through junctions rather than hub. Unknown if this affects scoring.
+4. **RL ceiling (#41)**: All top-10 are RL. Scripted optimization is plateauing. When should we invest in RL training? It's a bigger lift but the only path to #1.
+5. **Stale branch cleanup needed**: 80+ remote branches still exist. Most are stale from sessions 24-30.
+6. **2ag strategy**: Is there a fundamentally different approach for 2-agent allocation? Focus on defense? Aggressive junction claiming? Or accept the structural disadvantage?
