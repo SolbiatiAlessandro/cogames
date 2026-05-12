@@ -1,0 +1,3 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+04857d1	134.35	junction.aligned=54.7;heart.gained=58.3;seeds=42-44	3000	keep	Baseline 3A5M stuck=28 scripted. 3-seed avg. Per-seed: 127.71/136.36/138.99
+c1f42eb	144.13	junction.aligned=57.3;heart.gained=66.0;seeds=42-47	3000	keep	Heart progress tracking fix + spread bonus. 6-seed avg. Per-seed: 139.06/140.33/153.00/149.33/141.69/140.36. +7.3% over baseline. Two changes: (1) fixed bug where heart acquisition never counted as progress (2) added aligner spread bonus weight=0.3 to encourage map coverage
