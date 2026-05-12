@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--mission", type=str, default="basic")
     parser.add_argument("--num-aligners", type=int, default=None)
     parser.add_argument("--return-load", type=int, default=None)
+    parser.add_argument("--stuck-threshold", type=int, default=None)
     args = parser.parse_args()
 
     from cogames.cogs_vs_clips.missions import get_core_missions
@@ -68,6 +69,8 @@ def main():
         policy_kwargs["num_aligners"] = args.num_aligners
     if args.return_load is not None:
         policy_kwargs["return_load"] = args.return_load
+    if args.stuck_threshold is not None:
+        policy_kwargs["stuck_threshold"] = args.stuck_threshold
 
     policy_spec = PolicySpec(
         class_path="cogames.policy.machina_llm_roles_policy.MachinaLLMRolesPolicy",
@@ -111,14 +114,14 @@ def main():
 
     print(f"\n=== EXPERIMENT RESULT ===")
     print(f"seed={args.seed} steps={results.steps} total_reward={total_reward:.6f} avg_per_agent={avg_reward:.6f}")
-    print(f"junction.held={totals.get('aligned.junction.held', 0):.0f}")
-    print(f"junction.gained={totals.get('aligned.junction.gained', 0):.0f}")
+    print(f"junction.aligned_by_agent={totals.get('junction.aligned_by_agent', 0):.0f}")
     print(f"heart.gained={totals.get('heart.gained', 0):.0f}")
-    print(f"heart.withdrawn={totals.get('heart.withdrawn', 0):.0f}")
-    print(f"carbon.deposited={totals.get('cogs/carbon.deposited', 0):.0f}")
-    print(f"oxygen.deposited={totals.get('cogs/oxygen.deposited', 0):.0f}")
-    print(f"germanium.deposited={totals.get('cogs/germanium.deposited', 0):.0f}")
-    print(f"silicon.deposited={totals.get('cogs/silicon.deposited', 0):.0f}")
+    print(f"heart.lost={totals.get('heart.lost', 0):.0f}")
+    print(f"action.move.success={totals.get('action.move.success', 0):.0f}")
+    print(f"action.move.failed={totals.get('action.move.failed', 0):.0f}")
+    print(f"move_fail_rate={totals.get('action.move.failed', 0) / max(1, totals.get('action.move.success', 0) + totals.get('action.move.failed', 0)):.1%}")
+    print(f"rewards_per_agent={[f'{r:.2f}' for r in results.rewards]}")
+    print(f"elapsed={elapsed:.1f}s")
 
 
 if __name__ == "__main__":
