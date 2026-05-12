@@ -57,6 +57,7 @@ class LLMAlignerState(AlignerState):
     align_neutral_timeouts: int = 0
     get_heart_timeouts: int = 0
     recent_events: list[str] = field(default_factory=list)
+    _last_heart_count: int = 0
     # HP monitoring
     max_hp_seen: int = 0
     retreating: bool = False
@@ -146,21 +147,25 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
     def _update_progress(self, obs: AgentObservation, state: LLMAlignerState) -> None:
         has_heart = self._inventory_count(obs, "heart") > 0
+        heart_count = self._inventory_count(obs, "heart")
         friendly_count = len(state.known_friendly_junctions)
         current_abs = self._spawn_offset(obs)
-        if state.current_skill == "get_heart" and has_heart and not state.last_has_heart:
+        prev_has_heart = state.last_has_heart
+        prev_heart_count = getattr(state, '_last_heart_count', 0)
+        if state.current_skill == "get_heart" and has_heart and not prev_has_heart:
             self._event(state, "acquired a heart")
         if state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions:
             self._event(state, f"friendly junction count increased from {state.last_friendly_junctions} to {friendly_count}")
 
-        state.last_has_heart = has_heart
-        state.last_friendly_junctions = friendly_count
         last_action_move = self._feature_value(obs, "last_action_move")
         made_progress = (
-            (state.current_skill == "get_heart" and has_heart and not state.last_has_heart)
+            (state.current_skill == "get_heart" and heart_count > prev_heart_count)
             or (state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions)
             or (state.current_skill == "gear_up" and self._current_gear(obs) == "aligner")
         )
+        state.last_has_heart = has_heart
+        state.last_friendly_junctions = friendly_count
+        state._last_heart_count = heart_count
         # Hub cells are blocked objects — agents stand adjacent, never on the hub cell itself.
         # Use Manhattan distance ≤ 1 for get_heart so navigation-shake doesn't fire while waiting.
         _hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
@@ -280,7 +285,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                     for h in _vh
                 )
-                if heart_count < 4 and near_hub:
+                if heart_count < 5 and near_hub:
                     pass
                 else:
                     reason = f"overrode get_heart to align_neutral ({heart_count} hearts, not near hub)"
@@ -302,7 +307,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh2
             )
-            if heart_count < 4 and near_hub:
+            if heart_count < 5 and near_hub:
                 pass
             elif known_alignable_junctions:
                 reason = f"overrode get_heart to align_neutral ({heart_count} hearts held)"
@@ -366,7 +371,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
+            if heart_count < 5 and near_hub and state.no_progress_on_target_steps < 8:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")
