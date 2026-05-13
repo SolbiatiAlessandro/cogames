@@ -142,3 +142,30 @@ Seed 43 consistently scores ~1.7 due to MINER gear contamination (walking throug
 - Contamination avoidance in BFS
 - Explore instead of defend after heart timeout
 - heart accumulation threshold=4 (consistent across plan/finish)
+
+## Experiment 18: Aligner spread bonus + miner junction deposit (ec2b9ca)
+
+2026-05-13 15:00: Two combined improvements:
+
+1. **Aligner spread bonus (weight=0.05)**: Added spread_bonus to `_cascade_priority_target` scoring. When other aligners are targeting nearby junctions, add a small penalty to encourage spread. Weight 0.05 is gentle enough to not override travel/hub_dist priorities but prevents multiple aligners clustering on the same junction group.
+
+2. **Miner junction deposit**: Miners now deposit at the nearest friendly junction when it's >5 cells closer than the hub. Junctions relay deposits to the hub via `queryDeposit`, so resources still reach the crafting pipeline. Reduces miner travel time when far from hub.
+
+### Results (10-episode average)
+| Metric | Baseline (273bbbb) | Combined (ec2b9ca) | Change |
+|--------|-------------------|---------------------|--------|
+| Avg reward | 3.283 | 3.469 | +5.7% |
+| Min | 2.125 | 1.916 | — |
+| Max | 5.765 | 5.933 | — |
+
+Episodes: 2.856, 1.916, 5.590, 2.615, 5.933, 2.846, 3.688, 4.043, 2.036, 3.171
+
+### Updated best configuration (ec2b9ca)
+- aligner_fraction=0.6 (5A+3M for 8 agents)
+- heart_queue=max(4, available)
+- HUB_ALIGN_DISTANCE=30, JUNCTION_ALIGN_DISTANCE=25 (Manhattan, acts as look-ahead)
+- Contamination avoidance in BFS
+- Explore instead of defend after heart timeout
+- heart accumulation threshold=4
+- **NEW**: Aligner spread bonus weight=0.05 in cascade priority scoring
+- **NEW**: Miner junction deposit when junction >5 cells closer than hub
