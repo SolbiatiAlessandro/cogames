@@ -194,3 +194,34 @@ Also tested:
 - Aligner spread bonus weight=0.05
 - Miner junction deposit when junction >5 cells closer than hub
 - **NEW**: Enemy junction recapture bonus=-3 when travel ≤ 15
+
+## Experiment 20: Stuck threshold 15 (dccb8c4)
+
+2026-05-13 16:55: Reduced stuck_threshold from 20 to 15. Faster stuck detection allows aligners to cycle through skills more quickly. Previously tested stuck_threshold=15 with defend-when-starved (-24.6%) but that was a different change. This time it's pure threshold reduction.
+
+Also tested:
+- stuck_threshold=25: avg 3.070 (-26.5%) — too slow
+- enemy travel≤20: 3.766 (5-ep) — worse than ≤15
+- enemy travel≤10: 3.766 (5-ep) — worse than ≤15
+- heart queue max(3): 3.076 (-13.3%) — too restrictive
+- scarce threshold=3: 4.182 (5-ep) — noise, no improvement
+- return_load=30: 2.633 (-24.1%) — too many trips
+
+### Results (10-episode average)
+| Metric | Previous best (4953971) | Stuck=15 (dccb8c4) | Change |
+|--------|------------------------|---------------------|--------|
+| Avg reward | 3.619 | **3.991** | **+10.3%** |
+| Median | 3.247 | **4.012** | +23.6% |
+| Worst seed 43 | 1.813 | **4.891** | +169.7% |
+
+### Updated best configuration (dccb8c4)
+- aligner_fraction=0.6 (5A+3M for 8 agents)
+- heart_queue=max(4, available)
+- HUB_ALIGN_DISTANCE=30, JUNCTION_ALIGN_DISTANCE=25 (Manhattan, acts as look-ahead)
+- Contamination avoidance in BFS
+- Explore instead of defend after heart timeout
+- heart accumulation threshold=4
+- Aligner spread bonus weight=0.05
+- Miner junction deposit when junction >5 cells closer than hub
+- Enemy junction recapture bonus=-3 when travel ≤ 15
+- **NEW**: stuck_threshold=15 (was 20)
