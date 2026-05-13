@@ -735,10 +735,20 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
         if hub is None:
             return self._nearest_known(current_abs, candidates)
+        other_targets: list[Coord] = []
+        sm = self._shared_map
+        if sm is not None:
+            for aid, tgt in sm.aligner_targets.items():
+                if aid != self._agent_id and tgt is not None:
+                    other_targets.append(tgt)
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            return travel + hub_dist * 0.2
+            spread_bonus = 0.0
+            if other_targets:
+                nearest_other = min(abs(j[0] - t[0]) + abs(j[1] - t[1]) for t in other_targets)
+                spread_bonus = -min(nearest_other, 30) * 0.05
+            return travel + hub_dist * 0.2 + spread_bonus
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:

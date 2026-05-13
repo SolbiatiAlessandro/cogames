@@ -811,6 +811,25 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     def _hub_preferred_side(self, obs: AgentObservation, state: MinerSkillState) -> int:
         return (obs.agent_id + state.hub_approach_rotation) % 4
 
+    def _nearest_deposit_target(self, current_abs: Coord, state: MinerSkillState) -> Coord | None:
+        hub_candidates = state.verified_hubs if state.verified_hubs else state.known_hubs
+        hub_target = self._nearest_known(current_abs, hub_candidates)
+        if hub_target is None:
+            return None
+        hub_dist = abs(current_abs[0] - hub_target[0]) + abs(current_abs[1] - hub_target[1])
+        sm = self._shared_map
+        if sm is not None and hasattr(sm, 'known_friendly_junctions') and sm.known_friendly_junctions:
+            best_junc = None
+            best_dist = hub_dist
+            for junc in sm.known_friendly_junctions:
+                jdist = abs(current_abs[0] - junc[0]) + abs(current_abs[1] - junc[1])
+                if jdist < best_dist - 5:
+                    best_dist = jdist
+                    best_junc = junc
+            if best_junc is not None:
+                return best_junc
+        return hub_target
+
     def _deposit_to_hub(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "deposit_to_hub":
             logger.info("agent=%s mode=deposit_to_hub load=%s", obs.agent_id, self._carried_total(obs))
@@ -825,8 +844,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 action, next_state = result
                 return action, replace(next_state, last_mode=state.last_mode)
             return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
-        hub_candidates = state.verified_hubs if state.verified_hubs else state.known_hubs
-        target_abs = self._nearest_known(current_abs, hub_candidates)
+        target_abs = self._nearest_deposit_target(current_abs, state)
+        if target_abs is None:
+            hub_candidates = state.verified_hubs if state.verified_hubs else state.known_hubs
+            target_abs = self._nearest_known(current_abs, hub_candidates)
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
             state.known_hubs.add(target_abs)
