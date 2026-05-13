@@ -314,10 +314,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if has_aligner and not has_heart and skill == "get_heart" and was_stuck and state.known_hubs:
             reason = "overrode get_heart to unstuck after stuck exit (escape navigation deadlock near hub)"
             skill = "unstuck"
-        # Hub likely depleted: after 1+ get_heart timeout, defend friendly junctions instead
-        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1 and state.known_friendly_junctions:
-            reason = f"overrode get_heart to defend after {state.get_heart_timeouts} timeouts (hub likely empty)"
-            skill = "defend"
+        # Hub likely depleted: after 1+ get_heart timeout, explore instead of wasting time
+        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1:
+            reason = f"overrode get_heart to explore after {state.get_heart_timeouts} timeouts (hub likely empty)"
+            skill = "explore"
         # Break explore→stuck loop when agent has gear+heart but no known junctions: try unstuck
         if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and was_stuck:
             reason = "overrode explore to unstuck after stuck exit (try escape moves to find junctions)"
@@ -365,7 +365,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
+            if heart_count < 4 and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")
@@ -394,7 +394,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"explore completed after discovering {new_total} new alignable junction(s)")
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
-            # Cap explore duration to prevent long idle periods when no junctions nearby
             self._event(state, f"explore capped after {state.skill_steps} steps without finding junctions")
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:

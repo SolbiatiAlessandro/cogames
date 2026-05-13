@@ -20,7 +20,7 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
     ("west", (0, -1)),
 )
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
-_HUB_SEARCH_DISTANCE = 20
+_HUB_SEARCH_DISTANCE = 30
 _HUB_ALIGN_DISTANCE = 30
 _JUNCTION_ALIGN_DISTANCE = 25
 
