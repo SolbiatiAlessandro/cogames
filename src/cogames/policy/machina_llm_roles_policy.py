@@ -478,6 +478,14 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
 
+        # ── Gear contamination detection ──
+        current_gear = self._current_gear(obs)
+        if current_gear is not None and current_gear != "aligner" and state.current_skill != "gear_up":
+            state.contamination_avoid_cells.add(current_abs)
+            state.gear_contamination_count += 1
+            self._event(state, f"gear contamination at {current_abs} (now {current_gear})")
+            state.current_skill = None
+
         # ── Team coordination: sync shared state ──
         sm = self._shared_map
         if sm is not None:

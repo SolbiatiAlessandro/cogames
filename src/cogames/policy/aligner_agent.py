@@ -235,6 +235,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if goal not in state.known_free_cells:
             return None
         avoid = (state.known_hazard_stations - {goal}) if avoid_hazards else set()
+        if avoid_hazards:
+            avoid = avoid | state.contamination_avoid_cells
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier:
@@ -276,6 +278,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if start == goal:
             return self._starter._fallback_action_name
         avoid = (state.known_hazard_stations - {goal}) if avoid_hazards else set()
+        if avoid_hazards:
+            avoid = avoid | state.contamination_avoid_cells
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier and len(parents) < max_cells:
@@ -396,7 +400,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
             neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
             dist = abs(neighbor[0] - target_abs[0]) + abs(neighbor[1] - target_abs[1])
-            is_hazard = neighbor in state.known_hazard_stations if avoid_hazards else False
+            is_hazard = (neighbor in state.known_hazard_stations or neighbor in state.contamination_avoid_cells) if avoid_hazards else False
             hard_blocked = neighbor in state.blocked_cells
             soft_blocked = neighbor in state.move_blocked_cells
             candidates.append((is_hazard, hard_blocked, soft_blocked, dist, dir_name))
