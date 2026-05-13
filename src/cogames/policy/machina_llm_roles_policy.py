@@ -337,13 +337,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             sm = self._shared_map
             available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
-            if already_getting >= max(3, available_hearts):
-                if state.known_friendly_junctions:
-                    skill = "defend"
-                    reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — defending instead"
-                else:
-                    skill = "explore"
-                    reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
+            if already_getting >= max(4, available_hearts):
+                skill = "explore"
+                reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
         if skill == "explore":
@@ -600,7 +596,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         num_scouts: int | str = "auto",
         scout_ids: str = "",
         return_load: int | str = 40,
-        stuck_threshold: int | str = 15,
+        stuck_threshold: int | str = 20,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
         llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
