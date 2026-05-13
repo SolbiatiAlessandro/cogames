@@ -1,0 +1,2 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+14c7ac6	0.581	jh=2809 jg=2.94 hw=5.0	3000	keep	baseline: machina_roles 2A+6M default config (3-ep avg)
