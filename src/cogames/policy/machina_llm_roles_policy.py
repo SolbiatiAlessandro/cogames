@@ -126,6 +126,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         )
         return result
 
+    def _read_hp(self, obs: AgentObservation) -> int | None:
+        center = self._starter._center
+        for token in obs.tokens:
+            if token.location != center:
+                continue
+            if token.feature.name == "inv:hp":
+                return int(token.value)
+        return None
+
     def _event(self, state: LLMAlignerState, message: str) -> None:
         state.recent_events.append(message)
         del state.recent_events[:-10]
