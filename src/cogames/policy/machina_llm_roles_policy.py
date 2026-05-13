@@ -148,17 +148,19 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         has_heart = self._inventory_count(obs, "heart") > 0
         friendly_count = len(state.known_friendly_junctions)
         current_abs = self._spawn_offset(obs)
-        if state.current_skill == "get_heart" and has_heart and not state.last_has_heart:
+        prev_has_heart = state.last_has_heart
+        prev_friendly_count = state.last_friendly_junctions
+        if state.current_skill == "get_heart" and has_heart and not prev_has_heart:
             self._event(state, "acquired a heart")
-        if state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions:
-            self._event(state, f"friendly junction count increased from {state.last_friendly_junctions} to {friendly_count}")
+        if state.current_skill == "align_neutral" and friendly_count > prev_friendly_count:
+            self._event(state, f"friendly junction count increased from {prev_friendly_count} to {friendly_count}")
 
         state.last_has_heart = has_heart
         state.last_friendly_junctions = friendly_count
         last_action_move = self._feature_value(obs, "last_action_move")
         made_progress = (
-            (state.current_skill == "get_heart" and has_heart and not state.last_has_heart)
-            or (state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions)
+            (state.current_skill == "get_heart" and has_heart and not prev_has_heart)
+            or (state.current_skill == "align_neutral" and friendly_count > prev_friendly_count)
             or (state.current_skill == "gear_up" and self._current_gear(obs) == "aligner")
         )
         # Hub cells are blocked objects — agents stand adjacent, never on the hub cell itself.
@@ -365,7 +367,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
+            if heart_count < 5 and near_hub and state.no_progress_on_target_steps < 8:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")
