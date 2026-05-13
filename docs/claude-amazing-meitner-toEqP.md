@@ -100,3 +100,45 @@ Key learnings:
 3. JUNCTION_ALIGN_DISTANCE=25 is still optimal (30 causes travel waste)
 4. Hub_dist=0.2 scoring weight is the sweet spot
 5. Heart production is NOT the bottleneck — alignment cycle time is
+
+## Session 2: 2026-05-13 08:30
+
+### Experiments 9-16: Parameter tuning (all discarded)
+
+| Experiment | Avg Reward | Change | Why |
+|-----------|-----------|--------|-----|
+| Enemy junction bonus=-5 | 3.000 | -8.1% | Travel overhead to distant enemy junctions |
+| Enemy junction bonus=-2 | 3.228 | -1.1% | Still not worth the travel |
+| 6A+2M (fraction=0.75) | 1.809 | -44.6% | Too few miners kills heart production |
+| JUNCTION_ALIGN_DISTANCE=28 | 2.408 | -26.3% | Worse than 30, travel waste |
+| Heart accumulation=2 | 3.265 | 0% | Identical — aligners rarely get >1 heart |
+| L2 distance fix (15/25) | 2.946 | -9.8% | Strict matching loses look-ahead benefit |
+| return_load=25 | 2.345 | -28.2% | More trips = too much miner travel overhead |
+| get_heart timeout=60 | 2.550 | -21.9% | Too short, hearts need time to craft |
+
+### Key discovery: game uses L2 distance (dr²+dc² ≤ r²), not Manhattan
+
+Game config: JUNCTION_ALIGN_DISTANCE=15 (L2), HUB_ALIGN_DISTANCE=25 (L2). Our Manhattan 25/30 work as look-ahead heuristics — targeting junctions that will become alignable as the network expands. Strict L2 matching hurts because it loses this look-ahead.
+
+### Experiment 17: Explore instead of defend (BEST — commit 273bbbb)
+
+After get_heart timeout (hub empty), switch to explore instead of defend. Defending wastes time idling on a friendly junction. Exploring discovers new junctions and map cells.
+
+| Metric | Previous best | Explore-not-defend | Change |
+|--------|-------------|-------------------|--------|
+| Avg reward (5-ep) | 3.265 | 3.417 | +4.7% |
+| Avg reward (10-ep) | — | 3.283 | +0.5% |
+| Junction held | 29,655 | 31,174 | +5.1% |
+| Junction gained | 62.6 | 65.6 | +4.8% |
+
+### Seed 43 diagnosis
+
+Seed 43 consistently scores ~1.7 due to MINER gear contamination (walking through hazard stations), not aligner issues. Miners get stuck in gear_up loops for hundreds of steps. The BFS hazard avoidance works but can't prevent first-contact contamination through unknown cells (optimistic BFS).
+
+### Current best configuration (273bbbb)
+- aligner_fraction=0.6 (5A+3M for 8 agents)
+- heart_queue=max(4, available)
+- HUB_ALIGN_DISTANCE=30, JUNCTION_ALIGN_DISTANCE=25 (Manhattan, acts as look-ahead)
+- Contamination avoidance in BFS
+- Explore instead of defend after heart timeout
+- heart accumulation threshold=4 (consistent across plan/finish)
