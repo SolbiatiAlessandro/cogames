@@ -225,3 +225,49 @@ Also tested:
 - Miner junction deposit when junction >5 cells closer than hub
 - Enemy junction recapture bonus=-3 when travel ≤ 15
 - **NEW**: stuck_threshold=15 (was 20)
+
+---
+
+## 2026-05-13 20:00: Experiment — Split timeout get_heart*3 / align_neutral*5
+
+**Hypothesis**: get_heart should time out faster than align_neutral since it's a simpler task.
+**Result**: 5-ep avg 2.212 (-45.9%). Terrible. The shorter get_heart timeout causes cascading failures.
+**Status**: DISCARD.
+
+## 2026-05-13 20:15: Experiment sweep — parameter tuning
+
+Tested several parameters against baseline 4.086 (5-ep):
+- heart_count<2 accumulation: 0% change (same results — stale detection already ejects early)
+- MOVE_COOLDOWN=3: -16.3% (navigation thrashing)
+- MOVE_COOLDOWN=4: -13.6% (still too aggressive)
+- spread_bonus=0.10: -5.0% (pushes aligners too far apart)
+- explore cap stuck_threshold*1: -2.1% (within noise)
+- reclaim lost junctions bonus=-5: -3.7% (10-ep; chases far-away lost junctions)
+
+## 2026-05-13 21:35: KEY INSIGHT — Agent deaths are the bottleneck
+
+**Discovery**: Game stats show death=5.0 per agent (40 total deaths in 3000 steps). Aligners have HP retreat DISABLED (base class `_read_hp` returns None). When agents die, they lose gear + hearts → 50+ wasted steps recovering.
+
+**Root cause**: The base AlignerPolicyImpl intentionally disables HP reading due to "oscillation near territory boundaries." But the death cost (5× per agent) far outweighs oscillation cost.
+
+**Fix**: Override `_read_hp` in `LLMAlignerPolicyImpl` to actually read HP from observation tokens. Uses existing `_check_hp` logic with 0.70 threshold.
+
+## 2026-05-13 21:48: Experiment — Enable aligner HP retreat (3da4e05)
+
+### Results
+| Metric | Before (dccb8c4) | After (3da4e05) | Change |
+|--------|-------------------|------------------|--------|
+| Deaths/agent | 5.0 | 2.75 | **-45%** |
+| 5-ep avg | 4.086 | 4.984 | **+22.0%** |
+| 10-ep avg | 3.991 | 4.128 | **+3.4%** |
+| Max episode | ~5.0 | 7.41 | **+48%** |
+| Junction gains | 74 | 78 | +5.4% |
+
+Threshold sweep: 0.55 (-17.4%), 0.60 (-16.3%), 0.70 (+3.4%), 0.80 (-19.4%).
+0.70 is optimal — agents retreat early enough to survive but don't waste too much time retreating.
+
+### Updated best configuration (3da4e05)
+- All previous optimizations from dccb8c4
+- **NEW**: Aligner HP retreat enabled (override _read_hp to read actual HP)
+- HP_RETREAT_THRESHOLD=0.70 (unchanged, but now active for aligners)
+- Cumulative improvement: baseline 2.690 → current 4.128 (**+53.5%**)
