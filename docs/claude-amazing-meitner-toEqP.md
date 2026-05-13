@@ -271,3 +271,26 @@ Threshold sweep: 0.55 (-17.4%), 0.60 (-16.3%), 0.70 (+3.4%), 0.80 (-19.4%).
 - **NEW**: Aligner HP retreat enabled (override _read_hp to read actual HP)
 - HP_RETREAT_THRESHOLD=0.70 (unchanged, but now active for aligners)
 - Cumulative improvement: baseline 2.690 → current 4.128 (**+53.5%**)
+
+## 2026-05-13 22:40: Experiment — Miner HP retreat tuning
+
+**Hypothesis**: Miners at 0.25 HP retreat threshold die frequently, losing carried resources. Increasing helps.
+
+### Miner HP retreat threshold sweep (5-ep avg)
+| Threshold | Avg reward | vs 0.50 baseline |
+|-----------|-----------|-----------------|
+| 0.50 | 5.129 | baseline |
+| 0.60 | 5.520 | +7.6% |
+| **0.65** | **5.901** | **+15.1%** |
+| 0.70 | 4.869 | -5.1% |
+
+### 10-ep verified result (70819dc)
+- 10-ep avg: **4.751** (vs 4.559 at 0.50 = +4.2%, vs 3.991 original = **+19.0%**)
+- Max episode: **8.73** 
+- Junction gains per episode 1 (seed 42): **97** (was 74 originally, 78 with aligner-only)
+
+### Updated best configuration (70819dc)
+- All previous optimizations
+- Aligner HP retreat enabled at 0.70 threshold
+- **NEW**: Miner HP retreat increased from 0.25 to 0.65
+- Cumulative improvement: baseline 2.690 → current 4.751 (**+76.6%**)
