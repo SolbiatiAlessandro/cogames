@@ -1,2 +1,10 @@
 commit	mission_reward	secondary_rewards	steps	status	description
-14c7ac6	0.581	jh=2809 jg=2.94 hw=5.0	3000	keep	baseline: machina_roles 2A+6M default config (3-ep avg)
+14c7ac6	0.581	jh=2809 jg=2.94 hw=5.0	3000	discard	baseline: machina_roles (wrong policy) 2A+6M default config (3-ep avg)
+14c7ac6	2.690	jh=23897 jg=53.7 hw=347	3000	keep	baseline: machina_llm_roles 4A+4M default config (3-ep avg)
+14c7ac6	3.165	jh=23897 jg=53.7 hw=347	3000	keep	baseline: machina_llm_roles 4A+4M default config (5-ep avg)
+f717a9c	2.717	jh=24163 jg=55.0	3000	discard	cascade-expand junction priority (+1% marginal not worth overhead)
+0bd15cc	2.892	jh=25916 jg=62.0	3000	keep	5A+3M (fraction=0.625) (+7.5% vs baseline 3-ep)
+0bd15cc	3.152	jh=25916 jg=62.0	3000	keep	5A+3M (fraction=0.6) + heart queue max(4) (5-ep avg)
+c0667e8	2.182	jh=18825 jg=53.3	3000	discard	5A+3M stuck_threshold=15 + defend-when-starved (-24.6%)
+01d4b01	2.497	jh=n/a jg=n/a	3000	discard	JUNCTION_ALIGN_DISTANCE=30 (-20.8%)
+pending	3.265	jh=29655 jg=62.6	3000	keep	best: 5A+3M + HUB_ALIGN_DISTANCE=30 + contam avoid (5-ep avg +3.2%)

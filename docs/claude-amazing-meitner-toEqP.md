@@ -41,4 +41,62 @@ Key observation: With only 2 aligners and no SharedMap coordination, junction co
 
 ## Experiment 1: Increase heart accumulation to 5
 
-2026-05-13 05:28: Starting experiment. Hypothesis: Aligners make too many hub trips. Currently they collect 3 hearts, align 3 junctions, then return. With 5 hearts per trip, they make ~40% fewer hub trips and spend more time aligning junctions.
+2026-05-13 05:28: NO EFFECT. Hub can't produce hearts fast enough — aligners only get 1 heart per trip regardless of threshold. The bottleneck is heart PRODUCTION, not collection capacity.
+
+## Experiment 2: Network-expansion-aware junction priority
+
+2026-05-13 05:40: Added cascade_count bonus to junction scoring. Marginal +1% improvement (within noise). Reverted — not worth the O(n²) overhead.
+
+## Experiment 3: 5 aligners (5A+3M) instead of 4A+4M
+
+2026-05-13 05:48: Increased aligner fraction from 0.5 to 0.625.
+
+### Results
+| Metric | Baseline (4A+4M) | 5A+3M | Change |
+|--------|------------------|-------|--------|
+| Avg reward | 2.690 | 2.892 | +7.5% |
+| Junction held | 23,897 | 25,916 | +8.4% |
+| Junction gained | 53.7 | 62.0 | +15.5% |
+| Episode 0 | 3.454 | 3.810 | +10.3% |
+| Episode 1 | 1.234 | 2.280 | +84.7% |
+| Episode 2 | 3.381 | 2.585 | -23.5% |
+
+Heart production dropped significantly (347→22 withdrawn) due to fewer miners, but junction gains still improved. The extra aligner more than compensated. Variance is high — episode 2 regressed.
+
+## Experiments 4-7: Various parameter tuning (discarded)
+
+- **5A-tuned** (stuck_threshold=15 + defend-when-starved): -24.6%. Lower timeout and defending waste time.
+- **Heart queue max(4)**: +3.6% median improvement with 5 aligners. Prevents 2/5 aligners from being permanently heart-starved.
+- **Contamination avoidance**: No effect in self-play (expected — helps online). Kept as defensive measure.
+- **JUNCTION_ALIGN_DISTANCE=30**: -20.8%. Too far, aligners waste time traveling.
+- **hub_dist=0.5**: -10.1%. Stronger hub bias limits junction selection.
+- **hub_dist=0.1**: -9.9%. Weaker hub bias causes poor route planning.
+- **MOVE_COOLDOWN=4**: -13.0%. Too aggressive retry causes collision loops.
+- **Heart patience=6**: -13.0%. Aligners waste time at empty hub.
+- **HUB_ALIGN_DISTANCE=35**: Worse than 30. Too far.
+
+## Experiment 8: HUB_ALIGN_DISTANCE=30 (BEST)
+
+2026-05-13 07:55: Increased HUB_ALIGN_DISTANCE from 25 to 30. This expands the zone around the hub where junctions are directly alignable WITHOUT needing cascade from other junctions. Critical for early game when the alignment network is small.
+
+### Results (5-episode average)
+| Metric | Baseline (4A+4M) | Best config | Change |
+|--------|------------------|-------------|--------|
+| Avg reward | 3.165 | 3.265 | +3.2% |
+| Median | 3.381 | 3.898 | +15.3% |
+| Junction held | ~23,897 | ~29,655 | +24.1% |
+| Junction gained | ~53.7 | ~62.6 | +16.6% |
+
+### Final configuration
+- aligner_fraction=0.6 (5A+3M for 8 agents, 2A+2M for 4 agents)
+- heart_queue=max(4, available) instead of max(3, available)
+- HUB_ALIGN_DISTANCE=30 (was 25)
+- JUNCTION_ALIGN_DISTANCE=25 (reverted from 30 experiment)
+- Aligner contamination avoidance in BFS (defensive for online)
+
+Key learnings:
+1. More aligners (5 vs 4) directly improves junction control throughput
+2. HUB_ALIGN_DISTANCE=30 > 25 because more junctions are alignable without cascade
+3. JUNCTION_ALIGN_DISTANCE=25 is still optimal (30 causes travel waste)
+4. Hub_dist=0.2 scoring weight is the sweet spot
+5. Heart production is NOT the bottleneck — alignment cycle time is
