@@ -24,66 +24,74 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-12 (Session 34)_
+_Updated by Director (offline-to-online): 2026-05-13 (Session 35)_
 
-### Online Tournament (beta-cvc, cooperative scoring)
+### Online Tournament (beta-cvc, 827 entries)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **45.29** | `Softy:v103` | RL, top since S30 |
+| #1 | **45.29** | `Softy:v103` | RL, 20 matches |
 | #2 | 41.86 | `Softy:v96` | RL |
-| #3 | 41.59 | `Softy:v100` | RL |
 | #4 | 41.28 | `slanky:v171` | RL |
 | #7 | 41.10 | `Paz-Bot-9000:v47` | RL |
-| #8 | 40.82 | `Gryffindor:v11` | RL |
-| **#14** | **40.60** | **`lessandro-navfix-cd3:v1`** | **OUR BEST** — CD=3 + BFS navfix |
-| #19 | 39.94 | `lessandro-aligner-opt-v1:v1` | prev best (S32, hearts<3/wait<3) |
-| #56 | 36.51 | `lessandro-scripted-v52:v1` | long-term baseline |
+| #10 | 40.73 | `Slytherin:v14` | RL |
+| **#16** | **40.16** | **`lessandro-navfix-cd3:v1`** | **OUR BEST** — CD=3 + BFS navfix |
+| #19 | 39.94 | `lessandro-aligner-opt-v1:v1` | prev best (S32) |
+| #55 | 36.44 | `lessandro-scripted-v52:v1` | long-term baseline |
+| NEW | pending | `lessandro-kensho:v1` | JUST UPLOADED — heart fix + spread + junction deposit |
 
-### navfix-cd3:v1 Match Profile (23 matches)
+### navfix-cd3:v1 Match Profile (25 matches)
 
 ```
-Avg: 34.7  Med: 39.1  Min: 7.5  Max: 47.3  StdDev: 10.8
+Avg: 39.7  Med: 41.4  Min: 20.9  Max: 48.4  StdDev: 7.4
 
-By allocation:
-  2ag: avg=26.3  (n=7)  ← biggest drag
-  4ag: avg=34.0  (n=6)
-  6ag: avg=41.2  (n=8)  ← competitive with top-10
-  8ag: avg=40.1  (n=2)
+Top partners:   dinky_bob (48.4), ron.massive-no-divert (46.8), Luna (47.7)
+Weak partners:  osprey (20.9), ron.anticlips.balanced (28.0), mahault (29.6)
+```
+
+### Replay Analysis: Us vs Softy (Session 35)
+
+```
+                      Our Best (48.4)     Softy Best (57.5)
+Junction efficiency:     74.4%               87.1%
+Agent lifespan range:    2147-7550 steps     5496-5620 steps
+Lifespan consistency:    5400 step range     124 step range   <-- KEY GAP
+Move failure rate:       1-26%               15-16%
+Our agents assigned:     2 of 8              6 of 8
 ```
 
 ### Offline Best Results (8-agent)
 
 | Rank | Reward | Commit | Config | Steps | Notes |
 |------|--------|--------|--------|-------|-------|
-| 1 | **+7.3%** | `97c9fc3` (Vt4ZB) | heart bug fix + spread bonus | 3000 | 6-seed validated, #71 |
-| 2 | **+4.7%** | `af0f99a` (2ND7G) | miner junction deposit | 3000 | #71, independent of above |
-| 3 | 3.282 | `d922520` | contamination fix (#64) | 3000 | 5-seed avg, merged to main |
-| 4 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | 3000 | 5-seed avg |
+| 1 | **+7.3%** | `97c9fc3` (Vt4ZB) | heart bug fix + spread bonus | 3000 | 6-seed, merged |
+| 2 | **+4.7%** | `af0f99a` (2ND7G) | miner junction deposit | 3000 | merged |
+| 3 | +3.2% | `e11e905` (toEqP) | 5A+3M + HUB_ALIGN=30 | 3000 | not merged, conflicts with navfix |
+| 4 | 3.282 | `d922520` | contamination fix (#64) | 3000 | 5-seed avg, merged |
 
-### Key Findings (Session 34)
+### Key Findings (Session 35)
 
-1. **Heart progress tracking bug found and fixed** — `state.last_has_heart` updated BEFORE progress check, so heart acquisition never counted as progress. Agents left hub after 3 ticks instead of accumulating hearts. Bug fix + threshold correction = +7.3% offline.
-2. **Aligner clustering is real** — Without spread bonus, multiple aligners target the same junction. Spread bonus (weight 0.3) spreads them across the map for better coverage.
-3. **Miner junction deposit saves travel time** — Miners deposit at nearest friendly junction when >5 cells closer than hub (+4.7% offline).
-4. **2-agent allocation is structural** — avg 26.3 at 2ag vs 41.2 at 6ag. Worst match (7.5) is 2ag vs adversarial 6ag opponent. Hard to fix without fundamentally different 2-agent strategy.
-5. **All agents survive 10k steps** — In our best match (47.3), 7/8 agents survived full 10k. Agent 7 died at step 9869. This is much better than earlier versions.
-6. **Combined changes merged to main (c865081)** — awaiting online upload and validation.
+1. **Agent lifespan consistency is THE gap** — Softy agents live 5500+/-60 steps (likely intentional die/respawn). Our agents range 2147-7550 steps. This explains junction efficiency gap (74% vs 87%) and score gap.
+2. **kensho:v1 uploaded** — combines heart fix (+7.3%), spread bonus, junction deposit (+4.7%) with proven navfix-cd3 code. Awaiting matches.
+3. **dharma:v1 is broken** — all 4 matches failed (import crash). Ignore it.
+4. **Session 33/34 code was never on main** — merged to working branch this session.
+5. **toEqP researcher found +3.2% offline** (5A+3M, HUB_ALIGN=30) but conflicts with proven navfix code. Needs separate online testing track.
+6. **Move failure rate is game-normal** — Softy has 15-16% failure too (#69 confirmed closed).
 
 ### Current Priority Stack
 
 ```
-priority:1  #71  Junction control efficiency (74% vs 84%)     <- active, 3 improvements merged
-priority:1  #41  RL policy training                            <- ceiling-breaker, all top-10 are RL
-priority:2  #70  2-agent allocation (26.3 avg vs 41+)          <- structural, hard to fix
+priority:1  #71  Junction control efficiency (74% vs 87%)     <- root cause: agent lifespan
+priority:1  #41  RL policy training                            <- ceiling-breaker, top-15 are all RL
+priority:2  #70  2-agent allocation (20.9-28.0 avg)            <- structural, matchmaking-dependent
 priority:3  #69, #65, #62, #50, #61, #56, #57                 <- exhausted / game-normal / subsumed
 priority:3  #53, #27, #26, #23, #22, #21, #20, #19, #17, #12, #11, #10  <- speculative
 ```
 
-**Current online rank**: #14 of ~780 in beta-cvc (navfix-cd3:v1, 40.60)
-**Gap to #1**: 4.69 pts (10.3%) — Softy:v103 at 45.29
-**Merged to main**: heart bug fix + spread bonus + junction deposit (untested online)
-**Next up**: Upload combined policy, validate online, then #41 RL training
+**Current online rank**: #16 of 827 in beta-cvc (navfix-cd3:v1, 40.16)
+**Gap to #1**: 5.13 pts (11.3%) — Softy:v103 at 45.29
+**Just uploaded**: kensho:v1 (heart fix + spread + junction deposit over navfix-cd3 base)
+**Next up**: Monitor kensho:v1 matches, then #41 RL training or agent lifespan control
 <!-- LEADERBOARD_END -->
 
 ### Autoresearch Progress
