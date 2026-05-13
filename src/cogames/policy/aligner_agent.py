@@ -731,10 +731,18 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
         if hub is None:
             return self._nearest_known(current_abs, candidates)
+        all_unjunctions = state.known_neutral_junctions | state.known_enemy_junctions
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            return travel + hub_dist * 0.2
+            cascade_count = 0
+            for uj in all_unjunctions:
+                if uj == j:
+                    continue
+                if abs(uj[0] - j[0]) + abs(uj[1] - j[1]) <= _JUNCTION_ALIGN_DISTANCE:
+                    if not self._is_alignable(uj, state):
+                        cascade_count += 1
+            return travel + hub_dist * 0.2 - cascade_count * 3.0
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
@@ -785,7 +793,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
             for h in _vhubs
         )
-        want_more_hearts = heart_count > 0 and heart_count < 5 and near_hub
+        want_more_hearts = heart_count > 0 and heart_count < 3 and near_hub
         if self._current_gear(obs) != "aligner":
             action, state = self._gear_up(obs, state, current_abs)
         elif heart_count <= 0 or want_more_hearts:
