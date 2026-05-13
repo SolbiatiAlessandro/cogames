@@ -169,3 +169,28 @@ Episodes: 2.856, 1.916, 5.590, 2.615, 5.933, 2.846, 3.688, 4.043, 2.036, 3.171
 - heart accumulation threshold=4
 - **NEW**: Aligner spread bonus weight=0.05 in cascade priority scoring
 - **NEW**: Miner junction deposit when junction >5 cells closer than hub
+
+## Experiment 19: Nearby enemy junction recapture priority (4953971)
+
+2026-05-13 15:35: Added enemy_bonus=-3 to junction priority scoring, gated by travel distance ≤ 15. Recapturing enemy junctions is a +2 swing for the same heart cost. Previous experiments without distance gating failed (bonus=-5: -8.1%, bonus=-2: -1.1%) because aligners traveled too far.
+
+### Results (10-episode average)
+| Metric | Previous best (ec2b9ca) | Enemy recapture (4953971) | Change |
+|--------|------------------------|---------------------------|--------|
+| Avg reward | 3.469 | **3.619** | **+4.3%** |
+| Max episode | 5.933 | **7.769** | +30.9% |
+
+Also tested:
+- bonus=-5 gated: 3.574 (5-ep) — too aggressive
+- return_load=30: 2.633 (5-ep, -24.1%) — too many trips
+
+### Updated best configuration (4953971)
+- aligner_fraction=0.6 (5A+3M for 8 agents)
+- heart_queue=max(4, available)
+- HUB_ALIGN_DISTANCE=30, JUNCTION_ALIGN_DISTANCE=25 (Manhattan, acts as look-ahead)
+- Contamination avoidance in BFS
+- Explore instead of defend after heart timeout
+- heart accumulation threshold=4
+- Aligner spread bonus weight=0.05
+- Miner junction deposit when junction >5 cells closer than hub
+- **NEW**: Enemy junction recapture bonus=-3 when travel ≤ 15

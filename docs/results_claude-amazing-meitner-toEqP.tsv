@@ -18,3 +18,6 @@ e11e905	3.265	jh=29655 jg=62.6	3000	keep	5A+3M + HUB_ALIGN_DISTANCE=30 + contam 
 273bbbb	3.417	jh=31174 jg=65.6	3000	keep	best: explore-not-defend after heart timeout (5-ep avg +4.7%)
 273bbbb	3.283	jh=29831 jg=64.2	3000	keep	explore-not-defend (10-ep avg +0.5%)
 ec2b9ca	3.469	jh=21176 jg=44.4	3000	keep	best: spread bonus 0.05 + junction deposit (10-ep avg +5.7%)
+ec2b9ca	2.633	jh=n/a jg=n/a	3000	discard	return_load=30 (-24.1% vs 3.469)
+ec2b9ca	3.574	jh=n/a jg=n/a	3000	discard	enemy recapture bonus=-5 gated travel<=15 (5-ep, weaker than -3)
+4953971	3.619	jh=n/a jg=n/a	3000	keep	best: enemy recapture bonus=-3 gated travel<=15 (10-ep avg +4.3%)
