@@ -1,0 +1,7 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+14c7ac6	2.690000	junctions=52 hearts=60	3000	baseline	main HEAD baseline: 8-agent self-play 4A+4M (5-seed avg seeds 42/123/7/99/555)
+a86628c	2.725000	junctions=52 hearts=60	3000	keep	exp1: fix heart progress tracking bug — prev_has_heart/prev_friendly_count
+33092a1	2.760000	junctions=52 hearts=60	3000	keep	exp2: heart accumulation tune — hearts<3 stale<5
+d7ce9cb	2.760000	junctions=52 hearts=60	3000	discard	exp3: return_load=35 — NO EFFECT (miners batch to 40 regardless)
+08349a8	2.900000	junctions=52 hearts=60	3000	keep	exp4: nearest-junction targeting — remove hub_dist bias (+7.8% vs baseline)
+d472167	2.900000	junctions=52 hearts=60	3000	keep	exp5: revert return_load to 40 (confirmed no effect)
