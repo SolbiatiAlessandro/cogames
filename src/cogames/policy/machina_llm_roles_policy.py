@@ -568,8 +568,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if self._inventory_count(obs, "heart") > 0:
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_friendly_junctions:
-                # Heartless aligner with friendly junctions: explore alignment frontier
-                # to discover new junctions for when hearts become available
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_hubs:
                 action, base_state = self._explore_near_hub(obs, state)
@@ -597,7 +595,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         aligner_ids: str = "",
         num_scouts: int | str = "auto",
         scout_ids: str = "",
-        return_load: int | str = 40,
+        return_load: int | str = 35,
         stuck_threshold: int | str = 20,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
