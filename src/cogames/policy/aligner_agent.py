@@ -727,15 +727,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _cascade_priority_target(self, current_abs: Coord, candidates: set[Coord], state: AlignerState) -> Coord | None:
         if not candidates:
             return None
-        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
-        hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
-        if hub is None:
-            return self._nearest_known(current_abs, candidates)
-        def score(j: Coord) -> float:
-            travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
-            hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            return travel + hub_dist * 0.2
-        return min(candidates, key=score)
+        return min(candidates, key=lambda j: abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1]))
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
         hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
