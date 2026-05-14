@@ -67,10 +67,57 @@ Junction claiming is COMPLETE by step 1500. Remaining 1500-10000 steps are pure 
 - Junction blacklisting on stuck exit has zero effect (wrong skill diagnosed)
 - Uploaded: ax5wp-v2-hub35:v1 to Softmax tournament
 
+## Session 3: 2A+6M discovery + patience=10 (commit 4168ad3)
+
+2026-05-14 12:00: Discovered aligner_fraction=0.25 (2A+6M) is optimal:
+- 1A+7M: -3%, 2A+6M: +12.2%, 3A+5M: +8.8%, 4A+4M: +6.4%, 5A+3M: -4%
+- 5-seed avg: 949.6 (baseline: 846.2)
+- Uploaded ax5wp-v3-2a6m:v1
+
+2026-05-14 13:00: Major discovery: heart wait patience optimization.
+- Aligners wait for 2nd heart before leaving hub
+- _maybe_finish_skill: no_progress_on_target_steps threshold from 3→10
+- 5-seed avg: 1137.0 (+7.3% over previous best, +19.5% over baseline)
+- Junctions: 57.2 avg (up from 52), Hearts: 61.8 avg (up from 54)
+- Patience sweep: 3=1031.8, 5=1086.7, 8=1105.2, 10=1115.4, 12=1082.2, 20=1060.7
+- Committed 4168ad3, uploaded ax5wp-v4-patience10:v1
+
+2026-05-14 13:30: 10k step validation (3 seeds):
+- patience=10: 4305.6 avg (+2.7% over previous 4193.5)
+- Seeds: 3960.2 + 4279.9 + 4676.8
+
+2026-05-14 14:00: Parameter sweep results (all no effect or worse):
+- Hub_dist weight: 0.0=945, 0.1=729, 0.2=985 (best), 0.3=872
+- Spread bonus: 0.02=882, 0.05=985 (best), 0.10=952
+- JUNCTION_ALIGN_DISTANCE: 20/25/30/100 all identical (cascade irrelevant)
+- HUB_ALIGN_DISTANCE: 35/40/45 all identical (all reachable at 35)
+- near_hub threshold: 2/4 identical
+- MOVE_COOLDOWN: 4/6/8/10 all within noise
+- stuck_threshold: 15 worse, 20 optimal
+- unstuck_horizon: 4/8 identical
+- explore cap: 20/40/60 all identical
+- Heart threshold: <2=1059, <3=1115 (best), <4=1097
+- return_load: 20 worse, 40 optimal
+- team_scarce threshold: 2/5 identical
+- Travel urgency scoring: no meaningful effect
+
+2026-05-14 15:00: Online tournament status:
+- Best online: navfix-cd3:v1 at #17 (40.32)
+- Top: Softy:v103 at 45.29 (12% gap)
+- ax5wp policies: 0 matches yet (just uploaded)
+
+## Best config: +19.5% over baseline (commit 4168ad3)
+- HUB_ALIGN_DISTANCE=35
+- Aligner spread bonus (-0.05 * min_dist) in cascade scoring
+- Enemy recapture priority (-8 bonus)
+- aligner_fraction=0.25 (2A+6M)
+- Heart wait patience: no_progress < 10 (up from 3)
+- All other params at baseline (stuck=20, COOLDOWN=6, hearts<3)
+
 ## Next steps for future researchers
-- Check online tournament performance of ax5wp-v2-hub35:v1
-- Try longer episodes (10k steps) to validate improvement scales
-- Investigate the game-level stuck periods (not policy-addressable with current approach)
-- Try adaptive explore strategies to speed up initial junction discovery
-- Consider different hub_dist weight (currently 0.2) in cascade scoring
-- Try 3A+5M for extra mining throughput (since 4A+4M > 5A+3M)
+- Wait for ax5wp-v4-patience10:v1 online scores, compare to navfix-cd3:v1
+- Watch replays to identify competitive play weaknesses
+- Try time-varying roles (start 3A+5M, switch to 2A+6M after 1500 steps)
+- Investigate scout agent for competitive awareness
+- Try anti-scrambler defensive behaviors
+- Consider different map layouts (maps may vary in tournament)

@@ -13,3 +13,9 @@ b86d281	1083.4	aggressive nav shake: more move failures	3000	discard	nav shake a
 7076aba	828.0	junctions=53.0 (heart bug fix alone: worse)	3000	discard	heart progress bug fix only: -2.2%, faster hub exit actually helps throughput
 7076aba	874.0	junctions=54.3 (HUB_ALIGN=40: too far)	3000	discard	HUB_ALIGN=40: agents travel too far, -2.9% vs HUB_ALIGN=35
 7076aba	838.0	junctions=52.3 (COOLDOWN=3: worse)	3000	discard	MOVE_COOLDOWN=3: more move failures, -5% vs baseline COOLDOWN=6
+f45d587	949.6	junctions=55.0 hearts=57.4 (5-seed: 927.8+916.1+1029.7+873.4+1000.9)	3000	keep	2A+6M + HUB_ALIGN=35 + spread + enemy (+12.2% vs baseline 846.2)
+4168ad3	1137.0	junctions=57.2 hearts=61.8 (5-seed: 1048.1+1087.5+1210.8+1203.7+1135.3)	3000	keep	patience=10 + 2A+6M + HUB_ALIGN=35 (+19.5% vs baseline, +7.3% vs prev best)
+4168ad3	4305.6	junctions=56.3 hearts=60.0 (3-seed: 3960.2+4279.9+4676.8)	10000	keep	10k validation: patience=10 + 2A+6M (+2.7% vs prev 10k avg 4193.5)
+4168ad3	1059.9	junctions=52 (no spread: -0.3%, within noise)	3000	discard	spread bonus removed: no effect with only 2 aligners
+4168ad3	1073.5	return_load=20 (more frequent deposits: -3.7%)	3000	discard	return_load=20: extra travel time wastes miner productivity
+4168ad3	1081.4	stuck_threshold=15: -3.0%	3000	discard	stuck=15 + patience=10: agents abandon targets too quickly
