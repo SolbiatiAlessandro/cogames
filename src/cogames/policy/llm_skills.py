@@ -347,21 +347,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if not hub_set:
             return self._nearest_known(current_abs, candidates)
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1]))
-        friendly = set()
-        sm = self._shared_map
-        if sm is not None and hasattr(sm, 'known_friendly_junctions'):
-            friendly = sm.known_friendly_junctions
-        friendly_anchors = friendly | hub_set
-        def _score(c: Coord) -> tuple[float, Coord]:
-            travel = abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])
-            hub_d = abs(c[0] - hub[0]) + abs(c[1] - hub[1])
-            territory_bonus = 0.0
-            if friendly_anchors:
-                nearest_friendly = min(abs(c[0] - f[0]) + abs(c[1] - f[1]) for f in friendly_anchors)
-                if nearest_friendly <= 10:
-                    territory_bonus = -5.0
-            return (travel + hub_d // 2 + territory_bonus, c)
-        return min(candidates, key=_score)
+        return min(candidates, key=lambda c: (
+            abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])
+            + (abs(c[0] - hub[0]) + abs(c[1] - hub[1])) // 2,
+            c,
+        ))
 
     def _closest_visible_location(self, obs: AgentObservation, tag_ids: set[int]) -> Coord | None:
         return self._starter._closest_tag_location(obs, tag_ids)
