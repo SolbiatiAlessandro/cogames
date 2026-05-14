@@ -148,19 +148,17 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         has_heart = self._inventory_count(obs, "heart") > 0
         friendly_count = len(state.known_friendly_junctions)
         current_abs = self._spawn_offset(obs)
-        prev_has_heart = state.last_has_heart
-        prev_friendly_count = state.last_friendly_junctions
-        if state.current_skill == "get_heart" and has_heart and not prev_has_heart:
+        if state.current_skill == "get_heart" and has_heart and not state.last_has_heart:
             self._event(state, "acquired a heart")
-        if state.current_skill == "align_neutral" and friendly_count > prev_friendly_count:
-            self._event(state, f"friendly junction count increased from {prev_friendly_count} to {friendly_count}")
+        if state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions:
+            self._event(state, f"friendly junction count increased from {state.last_friendly_junctions} to {friendly_count}")
 
         state.last_has_heart = has_heart
         state.last_friendly_junctions = friendly_count
         last_action_move = self._feature_value(obs, "last_action_move")
         made_progress = (
-            (state.current_skill == "get_heart" and has_heart and not prev_has_heart)
-            or (state.current_skill == "align_neutral" and friendly_count > prev_friendly_count)
+            (state.current_skill == "get_heart" and has_heart and not state.last_has_heart)
+            or (state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions)
             or (state.current_skill == "gear_up" and self._current_gear(obs) == "aligner")
         )
         # Hub cells are blocked objects — agents stand adjacent, never on the hub cell itself.
@@ -282,7 +280,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                     for h in _vh
                 )
-                if heart_count < 3 and near_hub:
+                if heart_count < 4 and near_hub:
                     pass
                 else:
                     reason = f"overrode get_heart to align_neutral ({heart_count} hearts, not near hub)"
@@ -294,6 +292,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if has_aligner and has_heart and known_alignable_junctions and skill == "align_neutral" and was_stuck:
             reason = "overrode align_neutral to unstuck after stuck exit (escape navigation deadlock near junction)"
             skill = "unstuck"
+        # Prevent immediate-completion loops: get_heart already done if has_heart=True
+        # Exception: near hub with <3 hearts, allow accumulation
         if has_aligner and has_heart and skill == "get_heart":
             heart_count = self._inventory_count(obs, "heart")
             current_abs = self._spawn_offset(obs)
@@ -302,7 +302,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh2
             )
-            if heart_count < 5 and near_hub:
+            if heart_count < 4 and near_hub:
                 pass
             elif known_alignable_junctions:
                 reason = f"overrode get_heart to align_neutral ({heart_count} hearts held)"
@@ -337,7 +337,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             sm = self._shared_map
             available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
-            if already_getting >= max(4, available_hearts):
+            if already_getting >= max(3, available_hearts):
                 skill = "explore"
                 reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
@@ -365,7 +365,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 5:
+            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")
@@ -509,6 +509,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._plan_skill(obs, state)
 
         # Navigation shake: after 5 consecutive blocked moves, every 3rd step try a random direction
+        # This breaks BFS deadlocks caused by agent-occupied cells
         if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck(state)
             state.skill_steps += 1
@@ -595,7 +596,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         num_scouts: int | str = "auto",
         scout_ids: str = "",
         return_load: int | str = 40,
-        stuck_threshold: int | str = 15,
+        stuck_threshold: int | str = 20,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
         llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
@@ -642,7 +643,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             na_str = str(num_aligners).lower()
             self._static_aligner_ids = None
             if na_str == "auto":
-                self._aligner_fraction = 0.6
+                self._aligner_fraction = 0.5
             else:
                 self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
         self._assigned_roles: dict[int, str] = {}

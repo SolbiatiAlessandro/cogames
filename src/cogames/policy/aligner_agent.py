@@ -21,7 +21,7 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 )
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
 _HUB_SEARCH_DISTANCE = 20
-_HUB_ALIGN_DISTANCE = 30
+_HUB_ALIGN_DISTANCE = 35
 _JUNCTION_ALIGN_DISTANCE = 25
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
@@ -744,9 +744,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
             spread_bonus = 0.0
             if other_positions:
-                min_dist = min(
-                    abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
-                )
+                min_dist = min(abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions)
                 spread_bonus = -0.05 * min(min_dist, 30)
             enemy_bonus = -8.0 if j in enemy_junctions else 0.0
             return travel + hub_dist * 0.2 + spread_bonus + enemy_bonus
