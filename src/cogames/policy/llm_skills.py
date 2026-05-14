@@ -644,7 +644,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 return elem
         return None
 
-    _EXTRACTOR_DEPLETION_THRESHOLD = 40
+    _EXTRACTOR_DEPLETION_THRESHOLD = 30
 
     def _active_extractors(self, state: MinerSkillState) -> set[Coord]:
         return state.known_extractors - state.depleted_extractors
