@@ -670,24 +670,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 for anchor in aligned_network
             )
         }
-        if preferred_frontier:
-            return preferred_frontier
-        wider_frontier = {
-            cell
-            for cell in frontier
-            if any(
-                (
-                    anchor in hub_set
-                    and abs(cell[0] - anchor[0]) + abs(cell[1] - anchor[1]) <= hub_search_radius + 15
-                )
-                or (
-                    anchor in state.known_friendly_junctions
-                    and abs(cell[0] - anchor[0]) + abs(cell[1] - anchor[1]) <= junction_search_radius + 15
-                )
-                for anchor in aligned_network
-            )
-        }
-        return wider_frontier or frontier
+        return preferred_frontier or frontier
 
     def _explore_for_alignment(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         return self._explore_frontier(obs, state, self._alignment_frontier_cells(state))
