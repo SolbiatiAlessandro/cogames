@@ -516,15 +516,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         # ── HP safety: retreat to hub/friendly territory if HP is low ──
         if self._check_hp(obs, state, current_abs):
             # Retreat to nearest hub or friendly junction
-            # Prefer hub when heartless — can heal AND get heart simultaneously
             _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
-            has_heart = self._inventory_count(obs, "heart") > 0
-            if not has_heart and _retreat_hubs:
-                target = self._nearest_known(current_abs, _retreat_hubs)
-            else:
-                retreat_targets = _retreat_hubs | state.known_friendly_junctions
-                target = self._nearest_known(current_abs, retreat_targets) if retreat_targets else None
-            if target is not None:
+            retreat_targets = _retreat_hubs | state.known_friendly_junctions
+            if retreat_targets:
+                target = self._nearest_known(current_abs, retreat_targets)
                 direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                 if direction:
                     action = self._starter._action(f"move_{direction}")
