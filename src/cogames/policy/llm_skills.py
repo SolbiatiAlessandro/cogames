@@ -903,6 +903,22 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.retreating_to_hub = False
         return state.retreating_to_hub
 
+    def _in_friendly_territory(self, obs: AgentObservation, state: MinerSkillState) -> bool:
+        current_abs = self._current_abs(obs)
+        sm = self._shared_map
+        if sm and hasattr(sm, 'known_friendly_junctions'):
+            for junc in sm.known_friendly_junctions:
+                dr = current_abs[0] - junc[0]
+                dc = current_abs[1] - junc[1]
+                if dr * dr + dc * dc <= 100:
+                    return True
+        for hub in (state.verified_hubs or state.known_hubs):
+            dr = current_abs[0] - hub[0]
+            dc = current_abs[1] - hub[1]
+            if dr * dr + dc * dc <= 400:
+                return True
+        return False
+
     def _nearest_extractor_to_hub(self, state: MinerSkillState) -> Coord | None:
         hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
         extractors = state.verified_extractors if state.verified_extractors else state.known_extractors
