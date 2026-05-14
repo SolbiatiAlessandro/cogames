@@ -93,3 +93,22 @@ Early findings:
 5. stuck15+hpret65 combo is slightly negative
 
 CAUTION: These are qualifying self-play matches (1-2 per variant). Need 10+ competition matches to judge.
+
+## 2026-05-14T17:45: competition results starting — big gap between qualifying and competition
+
+Competition matches now coming in. Key finding: qualifying (self-play) scores are inflated by 10-20 points compared to competition (mixed-policy) matches.
+
+| Variant | Qual Avg | Comp Avg | Competition Scores | Notes |
+|---------|----------|----------|-------------------|-------|
+| 73d-enemy | 41.87 | 28.08 | 15.8, 14.8, 26.1, 44.5, 39.3 | HUGE variance, often terrible |
+| 73f-spread | 43.33 | 37.35 | 25.4, 44.9, 41.8 | One bad match pulls avg down |
+| 73g-stuck15-hpret65 | 37.13 | 28.05 | 9.9, 39.7, 34.6 | Confirmed negative |
+| 73b-5a3m | 42.45 | pending | (just qualified) | Still looking strong |
+
+**Critical observation**: enemy recapture priority (-8 bonus) scores 14.8-15.8 in some competition matches. This suggests the enemy recapture behavior causes agents to chase enemy junctions far from hub, dying or getting contaminated.
+
+Uploaded additional combos:
+- `evyIm-73p-hub35-5a3m`: HUB=35 + 5A3M (two strongest individual changes)
+- `evyIm-73q-hub35-spread-5a3m`: HUB=35 + spread + 5A3M (top 3 combined)
+
+**Surprising finding**: 73m-5a3m-hub30 scored only 24.78 in qualifying — WORSE than either change alone. Changes interact non-linearly.
