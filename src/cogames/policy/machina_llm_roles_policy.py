@@ -551,9 +551,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             # Junction coordination: avoid targeting same junction as other aligner
             sm = self._shared_map
             if sm is not None:
+                my_team = obs.agent_id // 4
                 targeted_by_others = {
                     t for aid, t in sm.aligner_targets.items()
-                    if aid != obs.agent_id and t is not None
+                    if aid != obs.agent_id and t is not None and aid // 4 == my_team
                 }
                 if targeted_by_others:
                     saved_bl = set(state.blacklisted_junctions)
