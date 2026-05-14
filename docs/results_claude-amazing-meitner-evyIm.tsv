@@ -8,3 +8,7 @@ pending	0.000000	online_pending	0	pending	evyIm-73e-hpret65: HP_RETREAT_THRESHOL
 pending	0.000000	online_pending	0	pending	evyIm-73f-spread: spread bonus -0.05*min(dist,30)
 pending	0.000000	online_pending	0	pending	evyIm-73g-stuck15-hpret65: stuck15 + HP retreat combo
 pending	0.000000	online_pending	0	pending	evyIm-73h-5a3m-stuck15: 5A+3M + stuck15 combo
+pending	0.000000	online_pending	0	pending	evyIm-73i-hub35: HUB_ALIGN_DISTANCE=35
+pending	0.000000	online_pending	0	pending	evyIm-73j-2a6m: num_aligners=2 (2A+6M)
+pending	0.000000	online_pending	0	pending	evyIm-73k-patience10: heart wait patience=10
+pending	0.000000	online_pending	0	pending	evyIm-73L-fullbest: HUB=35+spread+enemy+2A6M+patience10

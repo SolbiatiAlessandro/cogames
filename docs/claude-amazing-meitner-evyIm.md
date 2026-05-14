@@ -49,3 +49,22 @@ Re-uploaded all variants WITH `--season beta-cvc` — all confirmed "Submitted t
 **Why combos**: toEqP showed stuck_threshold and HP retreat were the two biggest individual deltas offline (+10.3% and +19.0%). Testing combos early to see if they stack or interact online.
 
 Now waiting for qualifying matches to complete. Each policy needs to pass qualification before entering the competition pool where scores are measured.
+
+## 2026-05-14T17:25: uploaded additional variants based on ax5wp findings
+
+Read ax5wp session 2-3 comments on issue #71. Key findings contradict issue #73 assumptions:
+- 5A+3M is **bad** (-7.4% offline) — we already uploaded it as variant B, will validate
+- stuck_threshold=15 is **bad** (-1.3%) — already variant A
+- 2A+6M is the BEST ratio (+12.2%)
+- HUB_ALIGN=35 is better than 30 (+6.4% vs +2.7%)
+- patience=10 (heart wait steps) is +19.5%
+
+Additional uploads:
+| Policy Name | Change | Policy ID |
+|-------------|--------|-----------|
+| `evyIm-73i-hub35` | HUB_ALIGN_DISTANCE=35 only | `8b58b222` |
+| `evyIm-73j-2a6m` | num_aligners=2 (2A+6M) only | `a570e754` |
+| `evyIm-73k-patience10` | Heart wait patience=10 (was 3) | `3575dd29` |
+| `evyIm-73L-fullbest` | HUB=35 + spread + enemy + 2A+6M + patience=10 | `c3d88b8c` |
+
+Total: 13 policies in beta-cvc qualifying pool (1 baseline + 6 individual + 2 combos from #73 + 4 from ax5wp insights).
