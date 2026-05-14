@@ -541,14 +541,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.skill_steps += 1
             return action, state
 
-        # Soft collision avoidance: temporarily avoid other agents' positions in BFS
-        _agent_avoid_added: set[tuple[int, int]] = set()
-        if sm is not None:
-            for aid, pos in sm.agent_positions.items():
-                if aid != obs.agent_id and pos not in state.contamination_avoid_cells:
-                    state.contamination_avoid_cells.add(pos)
-                    _agent_avoid_added.add(pos)
-
         if state.current_skill == "gear_up":
             action, base_state = self._gear_up(obs, state, current_abs)
             state = self._copy_with(state, base_state)
@@ -610,9 +602,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state = self._copy_with(state, base_state)
         else:
             action, state = self._unstuck(state)
-
-        # Clean up temporary agent-position avoidance
-        state.contamination_avoid_cells -= _agent_avoid_added
 
         state.skill_steps += 1
         action_name = action.name if hasattr(action, "name") else ""
