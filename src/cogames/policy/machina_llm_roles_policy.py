@@ -56,7 +56,6 @@ class LLMAlignerState(AlignerState):
     explore_start_junctions: int = 0
     align_neutral_timeouts: int = 0
     get_heart_timeouts: int = 0
-    explore_steps_heartless: int = 0
     recent_events: list[str] = field(default_factory=list)
     # HP monitoring
     max_hp_seen: int = 0
@@ -522,16 +521,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             return action, state
 
         self._maybe_finish_skill(obs, state)
-        if state.get_heart_timeouts >= 1 and self._inventory_count(obs, "heart") == 0:
-            if state.current_skill == "explore":
-                state.explore_steps_heartless += 1
-            if state.explore_steps_heartless >= 150:
-                state.get_heart_timeouts = 0
-                state.explore_steps_heartless = 0
-                state.current_skill = None
-                self._event(state, "periodic get_heart retry after 150 heartless explore steps")
-        else:
-            state.explore_steps_heartless = 0
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
