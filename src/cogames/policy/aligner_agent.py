@@ -23,8 +23,6 @@ _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECT
 _HUB_SEARCH_DISTANCE = 30
 _HUB_ALIGN_DISTANCE = 30
 _JUNCTION_ALIGN_DISTANCE = 25
-_HUB_ALIGN_L2_SQ = 28 * 28
-_JUNCTION_ALIGN_L2_SQ = 18 * 18
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
 # Issue-36 v4: increased from 0.50 to 0.70 — at 50%, agents only have 49 steps
@@ -758,14 +756,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
         hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
         for hub in hubs:
-            dr = junction[0] - hub[0]
-            dc = junction[1] - hub[1]
-            if dr * dr + dc * dc <= _HUB_ALIGN_L2_SQ:
+            if abs(junction[0] - hub[0]) + abs(junction[1] - hub[1]) <= _HUB_ALIGN_DISTANCE:
                 return True
         for friendly in state.known_friendly_junctions:
-            dr = junction[0] - friendly[0]
-            dc = junction[1] - friendly[1]
-            if dr * dr + dc * dc <= _JUNCTION_ALIGN_L2_SQ:
+            if abs(junction[0] - friendly[0]) + abs(junction[1] - friendly[1]) <= _JUNCTION_ALIGN_DISTANCE:
                 return True
         return False
 
