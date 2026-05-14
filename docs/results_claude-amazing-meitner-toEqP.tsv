@@ -49,3 +49,8 @@ e188235	3.402	jh=n/a jg=n/a	3000	discard	aligner explore direction spread (-28.4
 386c975	4.439	jh=41394 jg=66.1 hw=17.4	3000	discard	periodic get_heart retry 150 steps (-6.6% 10-ep)
 386c975	3.914	jh=36136 jg=61.6 hw=29	3000	discard	heart progress bug fix + heart<5 patience<8 + retry=300 (-4.2% 5-ep)
 386c975	3.066	jh=27657 jg=52.0 hw=22.8	3000	discard	heart progress bug fix only + retry=300 (-25.0% 5-ep)
+d1512b0	4.255	jh=n/a jg=n/a	3000	discard	chain value scoring -2.0 per unlocked junction (-10.5% 5-ep)
+02d0ec3	4.751	jh=n/a jg=n/a	3000	keep	early blacklist junctions at close range (0% effect 10-ep, harmless)
+99c24c5	3.591	jh=n/a jg=n/a	3000	discard	two-tier HP retreat 85% in enemy territory (-24.5% 5-ep)
+e9954fa	4.348	jh=n/a jg=n/a	3000	discard	conditional get_heart reset when queue<2 (-8.5% 10-ep)
+cab9cfe	3.163	jh=n/a jg=n/a	3000	discard	anticipatory alignment via _is_alignable (-33.4% 10-ep)
