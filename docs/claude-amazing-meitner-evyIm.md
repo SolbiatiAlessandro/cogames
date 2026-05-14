@@ -68,3 +68,28 @@ Additional uploads:
 | `evyIm-73L-fullbest` | HUB=35 + spread + enemy + 2A+6M + patience=10 | `c3d88b8c` |
 
 Total: 13 policies in beta-cvc qualifying pool (1 baseline + 6 individual + 2 combos from #73 + 4 from ax5wp insights).
+
+Also uploaded two more 5A+3M combos based on early results (5A+3M scored 45.08 in first qualifying match!):
+- `evyIm-73m-5a3m-hub30`: 5A+3M + HUB_ALIGN=30
+- `evyIm-73n-5a3m-patience10`: 5A+3M + patience=10
+
+## 2026-05-14T17:35: early qualifying results (VERY preliminary, 1-2 matches each)
+
+| Variant | Avg Score | Matches | vs navfix-cd3 (40.32) | Signal |
+|---------|-----------|---------|----------------------|--------|
+| **73b-5a3m** | **45.08** | 1 | **+11.8%** | STRONG positive |
+| 73d-enemy | 41.87 | 2 | +3.8% | Positive |
+| baseline | 41.77 | 1 | +3.6% | Baseline OK |
+| 73e-hpret65 | 41.77 | 1 | +3.6% | Neutral |
+| 73f-spread | 41.77 | 1 | +3.6% | Neutral |
+| 73g-stuck15-hpret65 | 39.67 | 1 | -1.6% | Negative |
+| **73h-5a3m-stuck15** | **30.33** | 1 | **-24.8%** | **STRONG negative** |
+
+Early findings:
+1. **5A+3M alone is AMAZING online** (45.08) — contradicts ax5wp's -7.4% offline finding
+2. **5A+3M + stuck15 combo is TERRIBLE** (30.33) — stuck15 destroys 5A+3M benefit
+3. Enemy recapture priority shows moderate positive signal
+4. HP retreat 0.65 and spread bonus appear neutral vs baseline
+5. stuck15+hpret65 combo is slightly negative
+
+CAUTION: These are qualifying self-play matches (1-2 per variant). Need 10+ competition matches to judge.
