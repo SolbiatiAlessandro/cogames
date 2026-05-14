@@ -57,3 +57,4 @@ cab9cfe	3.163	jh=n/a jg=n/a	3000	discard	anticipatory alignment via _is_alignabl
 8c6d562	4.521	jh=n/a jg=n/a	3000	discard	blacklist expiry 300 steps (-4.8% 10-ep)
 197796d	4.381	jh=n/a jg=n/a	3000	discard	longer get_heart timeout stuck*7 (-7.8% 10-ep)
 4413f9e	3.373	jh=n/a jg=n/a	3000	discard	heart accumulation patience 6 when 2+ hearts (-29.0% 10-ep)
+e00fdcd	4.487	jh=n/a jg=n/a	3000	discard	frontier patrol: scan farthest friendly junction when no targets (-5.6% 10-ep)
