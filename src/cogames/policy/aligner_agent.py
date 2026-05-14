@@ -748,7 +748,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             spread_bonus = 0.0
             if other_targets:
                 nearest_other = min(abs(j[0] - t[0]) + abs(j[1] - t[1]) for t in other_targets)
-                spread_bonus = -min(nearest_other, 20) * 0.1
+                spread_bonus = -min(nearest_other, 30) * 0.05
             enemy_bonus = -3.0 if j in enemy_junctions and travel <= 15 else 0.0
             return travel + hub_dist * 0.2 + spread_bonus + enemy_bonus
         return min(candidates, key=score)
