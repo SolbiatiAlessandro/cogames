@@ -52,44 +52,87 @@ Conclusion: Spread+enemy combo is within noise on navfix-cd3.
 Changes that helped in earlier sessions (with HUB35+2A6M+patience10) don't help individually on clean main.
 The online A/B tests are the decisive signal.
 
-## 2026-05-14: Online results snapshot (updated)
+## 2026-05-14: Online results — FULL LEADERBOARD SNAPSHOT
 
-### Leaderboard positions (beta-cvc qualifying)
-| Policy | Rank | Score | Matches | Notes |
-|--------|------|-------|---------|-------|
-| **ax5wp-junct71:v1** | **#5** | **41.73** | 9 | Best mine, unknown code |
-| lessandro-navfix-cd3:v1 | #17 | 40.51 | 27 | Baseline |
-| ax5wp-73d-enemy:v1 | #27 | 39.08 | 8 | Enemy -8 (has 1.07 outlier!) |
-| ax5wp-73c-hub30:v1 | #30 | 38.91 | ? | HUB_ALIGN=30 |
-| ax5wp-73-baseline:v1 | #132 | 33.32 | ? | Clean baseline upload |
+### All issue-73 variants (beta-cvc qualifying)
+| Policy | Rank | Score | Matches | Raw Avg | Change |
+|--------|------|-------|---------|---------|--------|
+| **ax5wp-73j-enemy-hub30** | **#1** | **48.75** | 6 | 39.71 | enemy-8 + HUB30 |
+| ax5wp-73d-enemy | #19 | 40.58 | 16 | 38.80 | enemy -8 |
+| lessandro-navfix-cd3 | #20 | 40.39 | 29 | 40.10 | BASELINE |
+| ax5wp-73c-hub30 | #24 | 40.06 | 16 | 39.45 | HUB_ALIGN=30 |
+| ax5wp-73i-enemy-spread | #29 | 39.34 | ? | ? | enemy-8 + spread |
+| ax5wp-73n-hubw05 | #34 | 38.97 | ? | ? | hubw=0.5 |
+| ax5wp-73m-hubw0 | #39 | 38.75 | ? | ? | hubw=0 |
+| ax5wp-73-baseline | #53 | 37.87 | ? | ? | clean baseline |
+| ax5wp-73o-enemy-hubw0 | #64 | 37.19 | ? | ? | enemy + hubw=0 |
+| ax5wp-73g-patience10 | #65 | 37.18 | ? | ? | patience=10 |
+| ax5wp-73e-hpret65 | #76 | 36.66 | ? | ? | HP retreat 0.65 |
+| ax5wp-73l-enemy4 | #82 | 36.33 | ? | ? | enemy -4 |
+| ax5wp-73f-spread | #90 | 36.12 | ? | ? | spread -0.05 |
+| ax5wp-73a-stuck15 | #155 | 33.20 | 20 | 30.69 | stuck=15 |
+| ax5wp-73p-enemy-hubw05 | #160 | 33.02 | ? | ? | enemy + hubw=0.5 |
+| ax5wp-73h-combo-safe | #170 | 32.45 | ? | ? | hub35+2a6m+pat10 |
+| ax5wp-73b-5a3m | #189 | 31.35 | ? | ? | 5A+3M |
+| ax5wp-73k-enemy12 | #736 | 8.20 | ? | ? | enemy -12 |
 
-### Critical finding: Enemy variant match data analysis
+### Key findings from match data analysis
 
-ax5wp-73d-enemy has ONE catastrophic match (1.07 with "anoop.visage" — broken partner):
-- **With outlier**: avg=37.75, 8 matches → score 39.08 on leaderboard
-- **Without outlier**: avg=42.99, 7 matches → would be ~#8 on leaderboard
+**ax5wp-73j-enemy-hub30 (#1, score 48.75)**: Only 6 matches — score is INFLATED by rating algorithm.
+- Raw scores: [48.75, 43.74, 43.25, 41.60, 40.04, 20.86]
+- Raw avg = 39.71 (below baseline's 40.10)
+- Rating system hasn't converged — #1 ranking is unreliable
 
-Match scores: [52.28, 25.88, 49.29, **1.07**, 53.35, 36.43, 44.45, 39.28]
+**ax5wp-73d-enemy (#19, score 40.58)**: Recovered from #27 as more matches complete.
+- 16 matches, raw avg 38.80 (dragged by 1.07 outlier with broken partner)
+- Excl. 1.07: avg 41.31 (15 matches) — marginally better than baseline
+- Enemy priority is the ONLY isolated change showing positive signal online
 
-navfix-cd3 comparison: avg=40.09, 27 matches, worst=20.88 (never paired with anoop.visage)
+**ax5wp-73k-enemy12 (#736, 8.20)**: Too-aggressive enemy bonus is catastrophic.
+- Enemy -12 bonus is too strong, distorts all targeting decisions
+- Confirms -8 is near the right ballpark, -12 is way past it
 
-**Conclusion**: Enemy priority IS working online — avg 43 vs baseline 40 when paired with reasonable partners. The leaderboard drop from #5→#27 is entirely due to one terrible partner match.
+### Pattern from hub_dist weight sweep
+| hubw | Score | Rank | Notes |
+|------|-------|------|-------|
+| 0.0 | 38.75 | #39 | Below baseline |
+| 0.2 | 40.39 | #20 | Baseline |
+| 0.5 | 38.97 | #34 | Below baseline |
+| enemy+hubw0 | 37.19 | #64 | Hurts more than helps |
+| enemy+hubw0.5 | 33.02 | #160 | Much worse |
 
-### Wave 2 variants (enemy optimization, enrolled, awaiting matches)
-| Variant | Change | Upload Name | Status |
-|---------|--------|-------------|--------|
-| I | enemy -8 + spread -0.05 | ax5wp-73i-enemy-spread | enrolled |
-| J | enemy -8 + HUB_ALIGN=30 | ax5wp-73j-enemy-hub30 | enrolled |
-| K | enemy bonus -12 | ax5wp-73k-enemy12 | enrolled |
-| L | enemy bonus -4 | ax5wp-73l-enemy4 | enrolled |
+**Conclusion**: Current hubw=0.2 is optimal. Higher or lower values regress online.
 
-### Wave 3 variants (hub_dist weight sweep, enrolled, awaiting matches)
-| Variant | Change | Upload Name | Status |
-|---------|--------|-------------|--------|
-| M | hub_dist weight = 0 (pure travel) | ax5wp-73m-hubw0 | enrolled |
-| N | hub_dist weight = 0.5 (strong hub) | ax5wp-73n-hubw05 | enrolled |
-| O | enemy -8 + hubw=0 | ax5wp-73o-enemy-hubw0 | enrolled |
-| P | enemy -8 + hubw=0.5 | ax5wp-73p-enemy-hubw05 | enrolled |
+### L2 distance bug discovered and fixed
+
+Game engine uses L2 distance (dr²+dc² ≤ r²) for alignment checks.
+Policy used Manhattan distance (|dr|+|dc| ≤ r) with same thresholds.
+- Hub (r=25): Manhattan ≤ 25 → L2 ≤ 25 always (safe, Manhattan ≤ L2)
+- Cascade (r=15): Manhattan ≤ 25 vs game L2 ≤ 15 → **OVER-PERMISSIVE** by ~44%
+
+Fixed _is_alignable to use L2 distance matching game engine exactly.
+Offline: +1.3% avg (5 seeds), +7.3% on seed 42.
+
+### Wave 4 variants (L2 fix + combos, awaiting matches)
+| Variant | Change | Upload Name |
+|---------|--------|-------------|
+| Q | hub_dist weight = 1.0 | ax5wp-73q-hubw10 |
+| R | enemy -8 + hubw=1.0 | ax5wp-73r-enemy-hubw10 |
+| S | L2 distance fix only | ax5wp-73s-l2fix |
+| T | L2 fix + enemy -8 | ax5wp-73t-l2fix-enemy |
+| U | L2 fix + enemy -8 + hubw=1.0 | ax5wp-73u-l2-enemy-hubw10 |
+| V | L2 fix + enemy -8 + HUB30 | ax5wp-73v-l2-enemy-hub30 |
+
+### Offline validation: hub_dist weight sweep (5-seed avg)
+| Weight | Seed 42 | 5-seed avg | vs baseline |
+|--------|---------|-----------|-------------|
+| 0.0 | 1035.19 | — | +0.8% (s42) |
+| 0.2 | 1026.80 | 1101.69 | baseline |
+| 0.5 | 1077.01 | — | +4.9% (s42) |
+| 1.0 | 1095.33 | 1099.68 | -0.2% |
+| 2.0 | 1011.92 | 1090.25 | -1.0% |
+
+All within noise offline — online is the real test.
 
 ### Clips scramble impact estimate (10k steps)
 - 100 scramble events × up to 4 junctions = ~400 scramble attacks per episode
