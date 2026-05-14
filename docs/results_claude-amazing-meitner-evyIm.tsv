@@ -1,0 +1,10 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+pending	0.000000	online_pending	0	pending	evyIm-baseline: clean navfix-cd3 uploaded to beta-cvc qualifying
+pending	0.000000	online_pending	0	pending	evyIm-73a-stuck15: stuck_threshold=15
+pending	0.000000	online_pending	0	pending	evyIm-73b-5a3m: num_aligners=5
+pending	0.000000	online_pending	0	pending	evyIm-73c-hub30: HUB_ALIGN_DISTANCE=30
+pending	0.000000	online_pending	0	pending	evyIm-73d-enemy: enemy recapture priority -8
+pending	0.000000	online_pending	0	pending	evyIm-73e-hpret65: HP_RETREAT_THRESHOLD=0.65
+pending	0.000000	online_pending	0	pending	evyIm-73f-spread: spread bonus -0.05*min(dist,30)
+pending	0.000000	online_pending	0	pending	evyIm-73g-stuck15-hpret65: stuck15 + HP retreat combo
+pending	0.000000	online_pending	0	pending	evyIm-73h-5a3m-stuck15: 5A+3M + stuck15 combo
