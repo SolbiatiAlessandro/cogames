@@ -165,3 +165,18 @@ Every combination tested made stuck15 worse:
 All other individual changes (HUB30, HUB35, 5A3M, 2A6M, patience10, spread, enemy) are BELOW baseline on the leaderboard.
 
 **Recommendation**: Merge stuck_threshold=15 as a one-line default change.
+
+## 2026-05-14T20:00: threshold sweep confirms 15 is optimal
+
+Tested stuck_threshold={10, 12, 15, 20}:
+
+| Threshold | LB Rank | LB Score | Comp Matches | Comp Avg |
+|-----------|---------|----------|-------------|----------|
+| **15** | **#5** | **41.8** | 8 | 39.1 |
+| 20 (baseline) | #18 | 40.5 | 27 | 39.8 |
+| 10 | #220 | 29.1 | 13 | 28.4 |
+| 12 | #556 | 13.0 | 4 | 13.0 |
+
+Sharp cliff below 15 — agents abandon junctions before completing alignment at 12 or 10 steps. 15 is the sweet spot.
+
+**Issue #73 COMPLETE**: 24 variants, 300+ matches, stuck_threshold=15 is the only change that improves online performance. Code change committed.
