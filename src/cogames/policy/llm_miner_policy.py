@@ -539,8 +539,6 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             logger.info("agent=%s step=%d inv=%s skill=%s", aid, step_num, inv, state.current_skill)
 
         if self._check_miner_hp(obs, state):
-            if self._carried_total(obs) == 0 and self._in_friendly_territory(obs, state):
-                return self._starter._action("noop"), state
             action, base_state = self._deposit_to_hub(obs, state)
             return action, self._copy_with(state, base_state)
 
