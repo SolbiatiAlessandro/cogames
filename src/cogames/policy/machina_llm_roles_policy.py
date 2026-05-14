@@ -289,7 +289,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                     for h in _vh
                 )
-                if heart_count < 5 and near_hub:
+                if heart_count < 4 and near_hub:
                     pass
                 else:
                     reason = f"overrode get_heart to align_neutral ({heart_count} hearts, not near hub)"
@@ -302,7 +302,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             reason = "overrode align_neutral to unstuck after stuck exit (escape navigation deadlock near junction)"
             skill = "unstuck"
         # Prevent immediate-completion loops: get_heart already done if has_heart=True
-        # Exception: near hub with <4 hearts, allow accumulation
+        # Exception: near hub with <3 hearts, allow accumulation
         if has_aligner and has_heart and skill == "get_heart":
             heart_count = self._inventory_count(obs, "heart")
             current_abs = self._spawn_offset(obs)
@@ -311,7 +311,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh2
             )
-            if heart_count < 5 and near_hub:
+            if heart_count < 4 and near_hub:
                 pass
             elif known_alignable_junctions:
                 reason = f"overrode get_heart to align_neutral ({heart_count} hearts held)"
@@ -374,7 +374,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 5 and near_hub and state.no_progress_on_target_steps < 3:
+            if heart_count < 4 and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")
