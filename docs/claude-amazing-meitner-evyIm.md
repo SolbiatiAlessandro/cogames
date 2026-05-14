@@ -112,3 +112,37 @@ Uploaded additional combos:
 - `evyIm-73q-hub35-spread-5a3m`: HUB=35 + spread + 5A3M (top 3 combined)
 
 **Surprising finding**: 73m-5a3m-hub30 scored only 24.78 in qualifying — WORSE than either change alone. Changes interact non-linearly.
+
+## 2026-05-14T18:30: 132 competition matches — definitive results
+
+After collecting 132 competition matches (2+ player, NOT self-play), the picture is clear.
+
+**Reference scores:**
+- navfix-cd3:v1 (original, 25 matches): avg 39.7
+- evyIm-baseline (re-upload, 8 matches): avg 30.5
+- ~9pt gap likely from matchmaking variance for new policies
+
+**Top variants (vs re-uploaded baseline):**
+
+| Rank | Variant | N | Avg | vs Base |
+|------|---------|---|-----|---------|
+| 1 | **73m-5a3m-hub30** | 9 | 37.9 | **+7.4** |
+| 2 | 73L-fullbest | 9 | 34.7 | +4.2 |
+| 3 | 73n-5a3m-patience10 | 9 | 34.1 | +3.6 |
+| 4 | 73e-hpret65 | 7 | 33.3 | +2.8 |
+| 5 | 73b-5a3m | 10 | 32.3 | +1.8 |
+| — | baseline | 8 | 30.5 | 0.0 |
+| — | 73f-spread | 10 | 29.0 | -1.5 |
+| — | 73i-hub35 | 8 | 28.9 | -1.5 |
+| — | 73j-2a6m | 8 | 26.9 | -3.5 |
+| LAST | 73p-hub35-5a3m | 5 | 16.6 | -13.9 |
+
+**Key insights:**
+1. 5A3M + HUB30 combo is synergistic — better together than individually
+2. HUB35 is BAD online (vs HUB30 which is OK)
+3. 2A6M is bad online despite strong offline results
+4. Changes interact non-linearly (5A3M+HUB30=+7.4, 5A3M+HUB35=-13.9)
+
+**Uploaded refined combos:**
+- `evyIm-73r-5a3m-hub30-pat10`: 5A3M + HUB30 + patience10 (id=aa51ee86)
+- `evyIm-73s-5a3m-hub30-pat10-hpret65`: 5A3M + HUB30 + patience10 + hpret65 (id=6ebde76b)
