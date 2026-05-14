@@ -96,3 +96,6 @@ d9f1e1b	5.901	jh=n/a jg=n/a	3000	discard	team_scarce_gap_3 — reduce team scarc
 bac8c98	2.973	jh=n/a jg=n/a	3000	discard	junction_deposit_threshold_8 — increase from 5 to 8 steps closer — miners waste time walking to hub (-49.6% 5-ep)
 b8f42df	4.122	jh=n/a jg=n/a	3000	discard	team_only_deconfliction — limit aligner deconfliction to same-team only — allows flip wars (-30.1% 5-ep)
 a2c083f	3.640	jh=n/a jg=n/a	3000	discard	cascade_cluster_bonus — bias targeting toward clusters of unaligned junctions (-0.5 per nearby) — scatters aligners (-19.4% 5-ep)
+73774aa	5.608	jh=n/a jg=n/a	3000	discard	network_chain_bonus — reward junctions near friendly network (-2.0 if within 15 cells) — over-clusters aligners (-4.96% 5-ep)
+1c39337	5.901	jh=n/a jg=n/a	3000	baseline	FIX: restored junction_deposit_threshold from 8 back to 5 (bac8c98 was never reverted) — matches original baseline
+1c39337	6.608	jh=n/a jg=n/a	10000	baseline	10k-step baseline with correct threshold=5 — +12.0% vs 3k baseline
