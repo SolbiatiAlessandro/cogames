@@ -13,7 +13,7 @@ from mettagrid.simulator.interface import AgentObservation
 logger = logging.getLogger("cogames.policy.llm_skills")
 
 Coord = tuple[int, int]
-_HUB_SEARCH_DISTANCE = 25
+_HUB_SEARCH_DISTANCE = 20
 _HUB_EXTRACTOR_OFFSETS: tuple[Coord, ...] = ((-8, -8), (-8, 8), (8, -8), (8, 8))
 _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
     ("north", (-1, 0)),
