@@ -442,6 +442,16 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+            if state.current_skill == "align_neutral" and self._shared_map is not None:
+                stuck_target = self._shared_map.aligner_targets.get(obs.agent_id)
+                if stuck_target is not None:
+                    current_abs = self._spawn_offset(obs)
+                    dist = abs(stuck_target[0] - current_abs[0]) + abs(stuck_target[1] - current_abs[1])
+                    if dist <= 5:
+                        state.blacklisted_junctions.add(stuck_target)
+                        state.known_neutral_junctions.discard(stuck_target)
+                        state.known_enemy_junctions.discard(stuck_target)
+                        self._event(state, f"blacklisted unreachable junction {stuck_target} (dist={dist})")
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
