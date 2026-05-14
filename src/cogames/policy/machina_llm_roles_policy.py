@@ -365,7 +365,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 10:
+            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")
@@ -643,7 +643,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             na_str = str(num_aligners).lower()
             self._static_aligner_ids = None
             if na_str == "auto":
-                self._aligner_fraction = 0.25
+                self._aligner_fraction = 0.5
             else:
                 self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
         self._assigned_roles: dict[int, str] = {}
