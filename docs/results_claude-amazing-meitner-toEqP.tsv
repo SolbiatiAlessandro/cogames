@@ -65,3 +65,4 @@ e00fdcd	4.487	jh=n/a jg=n/a	3000	discard	frontier patrol: scan farthest friendly
 7e39b44	4.126	jh=n/a jg=n/a	3000	discard	hub-biased retreat for heartless aligners (-13.2% 10-ep)
 a1beeed	3.927	jh=n/a jg=n/a	3000	discard	nav-shake 4/2 (was 5/3) — too many random moves (-17.3% 10-ep)
 9fb0118	3.337	jh=n/a jg=n/a	3000	discard	BFS agent collision avoidance via SharedMap positions (-29.8% 10-ep)
+1d6fac6	3.037	jh=n/a jg=n/a	3000	discard	MOVE_COOLDOWN=8 (was 6) — too long avoidance creates dead zones (-36.1% 10-ep)
