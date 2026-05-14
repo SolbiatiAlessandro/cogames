@@ -204,7 +204,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         dr, dc = delta_map.get(direction, (0, 0))
         return (current_abs[0] + dr, current_abs[1] + dc)
 
-    _MOVE_COOLDOWN = 6
+    _MOVE_COOLDOWN = 8
 
     def _update_map_memory(self, obs: AgentObservation, state: MinerSkillState) -> None:
         current_abs = self._current_abs(obs)
