@@ -443,6 +443,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._starter._action(f"move_{direction}"), state
 
+    def _read_hp(self, obs: AgentObservation) -> int | None:
+        center = self._starter._center
+        for token in obs.tokens:
+            if token.location != center:
+                continue
+            if token.feature.name == "inv:hp":
+                return int(token.value)
+        return None
+
     def _check_hp(self, obs: AgentObservation, state: LLMAlignerState, current_abs) -> bool:
         """Check HP and update retreat state. Returns True if agent should retreat."""
         hp = self._read_hp(obs)
@@ -566,8 +575,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if self._inventory_count(obs, "heart") > 0:
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_friendly_junctions:
-                # Heartless aligner with friendly junctions: explore alignment frontier
-                # to discover new junctions for when hearts become available
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_hubs:
                 action, base_state = self._explore_near_hub(obs, state)

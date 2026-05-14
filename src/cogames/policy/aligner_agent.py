@@ -626,9 +626,30 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, frontier_cells)
+        target_abs = self._pick_spread_frontier(current_abs, frontier_cells)
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
+
+    def _pick_spread_frontier(self, current_abs: Coord, frontier_cells: set[Coord]) -> Coord | None:
+        if not frontier_cells:
+            return None
+        sm = self._shared_map
+        if sm is None or len(frontier_cells) <= 1:
+            return self._nearest_known(current_abs, frontier_cells)
+        other_positions = [
+            pos for aid, pos in sm.agent_positions.items()
+            if aid != self._agent_id
+        ]
+        if not other_positions:
+            return self._nearest_known(current_abs, frontier_cells)
+        def score(cell: Coord) -> float:
+            dist_self = abs(cell[0] - current_abs[0]) + abs(cell[1] - current_abs[1])
+            min_dist_other = min(
+                abs(cell[0] - p[0]) + abs(cell[1] - p[1])
+                for p in other_positions
+            )
+            return dist_self - min_dist_other * 0.5
+        return min(frontier_cells, key=score)
 
     def _explore(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         return self._explore_frontier(obs, state, self._frontier_cells(state))
@@ -731,10 +752,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
         if hub is None:
             return self._nearest_known(current_abs, candidates)
+        enemy = state.known_enemy_junctions
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            return travel + hub_dist * 0.2
+            enemy_bonus = -8 if j in enemy else 0
+            return travel + hub_dist * 0.2 + enemy_bonus
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
