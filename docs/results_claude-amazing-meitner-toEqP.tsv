@@ -84,3 +84,4 @@ fe4c071	3.634	jh=n/a jg=n/a	3000	discard	pure nearest extractor (no hub bias) �
 7336f78	4.514	jh=n/a jg=n/a	3000	discard	enable aligner HP reading (was None) — zero effect in self-play (0% 5-ep)
 769f5c4	3.461	jh=n/a jg=n/a	3000	discard	cascade hub_dist weight 0.3 (was 0.2) — too much hub bias (-23.3% 10-ep)
 5cb7dee	4.380	jh=n/a jg=n/a	3000	discard	spread bonus -min(nearest,20)*0.1 (was -min(nearest,30)*0.05) — marginal loss (-3.0% 10-ep)
+01d0264	3.206	jh=n/a jg=n/a	3000	discard	cascade network proximity bonus — biases to already-covered area, not new territory (-45.6% 5-ep)
