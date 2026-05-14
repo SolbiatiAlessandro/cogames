@@ -82,3 +82,4 @@ d2e7905	3.316	jh=n/a jg=n/a	3000	discard	miner extractor hub_dist weight 1.0 (wa
 fe4c071	3.634	jh=n/a jg=n/a	3000	discard	pure nearest extractor (no hub bias) — miners mine far from hub, waste travel time (-38.4% 5-ep)
 90720a5	4.057	jh=n/a jg=n/a	3000	discard	heart queue limit max(3) (was max(4)) — too few aligners fetch hearts (-10.1% 10-ep)
 7336f78	4.514	jh=n/a jg=n/a	3000	discard	enable aligner HP reading (was None) — zero effect in self-play (0% 5-ep)
+769f5c4	3.306	jh=n/a jg=n/a	3000	discard	cascade hub_dist weight 0.3 (was 0.2) — too much hub bias, aligners won't travel to good junctions (-44.0% 5-ep)
