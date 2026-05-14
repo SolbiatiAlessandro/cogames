@@ -479,7 +479,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 self._event(state, f"HP low ({hp}/{state.max_hp_seen}), retreating")
                 state.retreating = True
             return True
-        if state.retreating and (in_friendly or hp_fraction > 0.7):
+        if state.retreating and hp_fraction > 0.5 and (in_friendly or hp_fraction > 0.7):
             logger.info("agent=%s HP_OK hp=%d/%d in_friendly=%s resuming",
                         obs.agent_id, hp, state.max_hp_seen, in_friendly)
             state.retreating = False
