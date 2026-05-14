@@ -54,3 +54,6 @@ d1512b0	4.255	jh=n/a jg=n/a	3000	discard	chain value scoring -2.0 per unlocked j
 99c24c5	3.591	jh=n/a jg=n/a	3000	discard	two-tier HP retreat 85% in enemy territory (-24.5% 5-ep)
 e9954fa	4.348	jh=n/a jg=n/a	3000	discard	conditional get_heart reset when queue<2 (-8.5% 10-ep)
 cab9cfe	3.163	jh=n/a jg=n/a	3000	discard	anticipatory alignment via _is_alignable (-33.4% 10-ep)
+8c6d562	4.521	jh=n/a jg=n/a	3000	discard	blacklist expiry 300 steps (-4.8% 10-ep)
+197796d	4.381	jh=n/a jg=n/a	3000	discard	longer get_heart timeout stuck*7 (-7.8% 10-ep)
+4413f9e	3.373	jh=n/a jg=n/a	3000	discard	heart accumulation patience 6 when 2+ hearts (-29.0% 10-ep)
