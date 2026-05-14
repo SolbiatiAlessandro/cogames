@@ -949,9 +949,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if hp is not None:
             if hp > state.max_hp_seen:
                 state.max_hp_seen = hp
-            _late = self._shared_map is not None and self._shared_map.late_game
-            _miner_thr = 0.75 if _late else self._MINER_HP_RETREAT_THRESHOLD
-            if state.max_hp_seen > 0 and hp < state.max_hp_seen * _miner_thr:
+            if state.max_hp_seen > 0 and hp < state.max_hp_seen * self._MINER_HP_RETREAT_THRESHOLD:
                 if not state.retreating_to_hub:
                     logger.info("agent=%s MINER_HP_LOW hp=%d/%d retreating",
                                 obs.agent_id, hp, state.max_hp_seen)
