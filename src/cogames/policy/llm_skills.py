@@ -823,7 +823,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             best_dist = hub_dist
             for junc in sm.known_friendly_junctions:
                 jdist = abs(current_abs[0] - junc[0]) + abs(current_abs[1] - junc[1])
-                if jdist < best_dist - 3:
+                if jdist < best_dist - 5:
                     best_dist = jdist
                     best_junc = junc
             if best_junc is not None:
