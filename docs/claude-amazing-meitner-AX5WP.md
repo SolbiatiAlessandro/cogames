@@ -47,18 +47,30 @@ Junction claiming is COMPLETE by step 1500. Remaining 1500-10000 steps are pure 
 
 2026-05-14 08:10: Key observation: move failures tripled from 787 (original baseline) to 2319 with our changes. The 5A+3M config creates more congestion near hub. But the extra aligner throughput more than compensates for the congestion cost. One agent was stuck for 170 consecutive steps — a target for future optimization.
 
-## Best config so far: +2.2% (commit b86d281)
-- Heart progress bug fix (genuine bug, was never counting heart acquisition as progress)
-- aligner_fraction=0.6 (5A+3M for 8 agents)
-- stuck_threshold=15 (was 20)
-- HUB_ALIGN_DISTANCE=30 (was 25)
-- Aligner spread bonus in _cascade_priority_target
+## Best config so far: +6.4% (commit 7076aba)
+- HUB_ALIGN_DISTANCE=35 (was 25 in baseline)
+- Aligner spread bonus (-0.05 * min_dist_to_others) in _cascade_priority_target
 - Enemy recapture priority (-8 bonus for enemy junctions, no effect in self-play but helps online)
-- Heart queue max(4,...) for 5 aligners
+- All other parameters at baseline values (4A+4M, stuck=20, hearts<3 wait)
+- Synergy: HUB_ALIGN=35 and spread bonus work together — without spread, HUB=35 gives same results as HUB=30
+
+2026-05-14 10:30: Session 2 findings:
+- Environment produces different absolute numbers than session 1 (~846 vs ~1102 baseline avg)
+- Relative comparisons are still valid
+- Re-baselined all comparisons: baseline 14c7ac6 = 846.2 avg (5 seeds)
+- Key discovery: HUB_ALIGN=35 is sweet spot (30=+2.7%, 35=+6.4%, 40=+3.3%)
+- Previous session's changes (5A+3M, stuck=15, heart bug fix) ALL hurt in current env
+- Heart bug "fix" actually reduces throughput (faster hub exit is better)
+- Move cooldown reduction (6→3): -5%, too many failed navigations
+- Return_load parameter (2/3/5) has zero effect — miners always deposit 1 resource at a time
+- 776-step stuck period on seed 45 is game-level physics, not fixable by policy
+- Junction blacklisting on stuck exit has zero effect (wrong skill diagnosed)
+- Uploaded: ax5wp-v2-hub35:v1 to Softmax tournament
 
 ## Next steps for future researchers
-- The 170-step stuck period suggests a congestion deadlock — investigate and fix
-- Try longer episodes (10k steps) to see if improvements scale (10k gave 3993 vs ~3400 baseline)
-- Upload to online tournament to validate against real opponents
-- Junction deposit concept is valid but needs better implementation
-- Consider adaptive aligner count based on resource availability
+- Check online tournament performance of ax5wp-v2-hub35:v1
+- Try longer episodes (10k steps) to validate improvement scales
+- Investigate the game-level stuck periods (not policy-addressable with current approach)
+- Try adaptive explore strategies to speed up initial junction discovery
+- Consider different hub_dist weight (currently 0.2) in cascade scoring
+- Try 3A+5M for extra mining throughput (since 4A+4M > 5A+3M)

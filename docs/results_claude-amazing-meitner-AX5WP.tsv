@@ -7,3 +7,9 @@ b86d281	1112.6	junctions=57.0 stuck_threshold=10 — too aggressive	3000	discard
 b86d281	1019.7	6A+2M: gear contamination + too few miners	3000	discard	aligner_fraction=0.75 (6A+2M): mining bottleneck + gear contamination
 b86d281	1077.4	junction deposit for miners: inconsistent across seeds	3000	discard	miner junction deposit (>5 cells): helps some seeds but -19% on seed 45
 b86d281	1083.4	aggressive nav shake: more move failures	3000	discard	nav shake at 3/2 instead of 5/3: causes MORE move failures
+7076aba	900.0	junctions=55.4 (5-seed avg: 863.2+867.3+942.2+950.3+877.3)	3000	keep	HUB_ALIGN=35 + spread bonus + enemy priority (+6.4% vs re-baselined 846.2)
+7076aba	813.0	junctions=52.8 (5A+3M: mining bottleneck)	3000	discard	5A+3M with HUB_ALIGN=35: -7.4% vs 4A+4M, mining throughput too low
+7076aba	866.0	junctions=52.6 (stuck=15: too aggressive)	3000	discard	stuck_threshold=15: reduces max_stuck from 776→110 but loses -1.3% avg
+7076aba	828.0	junctions=53.0 (heart bug fix alone: worse)	3000	discard	heart progress bug fix only: -2.2%, faster hub exit actually helps throughput
+7076aba	874.0	junctions=54.3 (HUB_ALIGN=40: too far)	3000	discard	HUB_ALIGN=40: agents travel too far, -2.9% vs HUB_ALIGN=35
+7076aba	838.0	junctions=52.3 (COOLDOWN=3: worse)	3000	discard	MOVE_COOLDOWN=3: more move failures, -5% vs baseline COOLDOWN=6
