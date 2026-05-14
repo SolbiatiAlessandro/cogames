@@ -76,3 +76,4 @@ d816df6	4.751	jh=n/a jg=n/a	3000	discard	miner extractor depletion threshold 30 
 ad3032e	4.751	jh=n/a jg=n/a	3000	discard	miner STUCK_EXPLORE_STEPS=40 (was 60) — zero effect (0.0% 10-ep)
 c922f52	4.751	jh=27012 jg=50.9	3000	discard	miner STUCK_THRESHOLD=120 (was 150) — zero effect (0.0% 10-ep)
 8039203	4.587	jh=n/a jg=n/a	3000	discard	territory distance fix hub=20 junction=10 (was 15 both) — tighter junction radius causes more retreats (-3.4% 10-ep)
+5e764a2	3.880	jh=n/a jg=n/a	3000	discard	remove hub_dist from cascade priority scoring — aligners wander too far (-18.3% 10-ep)
