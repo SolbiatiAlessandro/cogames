@@ -621,7 +621,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         aligner_ids: str = "",
         num_scouts: int | str = "auto",
         scout_ids: str = "",
-        return_load: int | str = 45,
+        return_load: int | str = 40,
         stuck_threshold: int | str = 15,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
