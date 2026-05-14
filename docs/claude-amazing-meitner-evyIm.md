@@ -146,3 +146,22 @@ After collecting 132 competition matches (2+ player, NOT self-play), the picture
 **Uploaded refined combos:**
 - `evyIm-73r-5a3m-hub30-pat10`: 5A3M + HUB30 + patience10 (id=aa51ee86)
 - `evyIm-73s-5a3m-hub30-pat10-hpret65`: 5A3M + HUB30 + patience10 + hpret65 (id=6ebde76b)
+- `evyIm-73t-stuck15-hub30`: stuck15 + HUB30 (id=a1324426)
+- `evyIm-73u-stuck15-pat10`: stuck15 + patience10 (id=c917df31)
+
+## 2026-05-14T19:30: DEFINITIVE RESULTS — stuck_threshold=15 is THE winner
+
+After 200+ competition matches across 22 variants, the results are clear:
+
+**73a-stuck15 is #5 on beta-cvc leaderboard (41.8)**, beating navfix-cd3 (#18, 40.5) by 1.3 points.
+
+Every combination tested made stuck15 worse:
+- stuck15 alone: #5 (41.8)
+- stuck15 + patience10: #62 (37.2)
+- stuck15 + hpret65: #107 (35.3)
+- stuck15 + 5a3m: #108 (35.3)
+- stuck15 + hub30: #275 (24.8)
+
+All other individual changes (HUB30, HUB35, 5A3M, 2A6M, patience10, spread, enemy) are BELOW baseline on the leaderboard.
+
+**Recommendation**: Merge stuck_threshold=15 as a one-line default change.
