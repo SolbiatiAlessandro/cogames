@@ -59,3 +59,6 @@ cab9cfe	3.163	jh=n/a jg=n/a	3000	discard	anticipatory alignment via _is_alignabl
 4413f9e	3.373	jh=n/a jg=n/a	3000	discard	heart accumulation patience 6 when 2+ hearts (-29.0% 10-ep)
 e00fdcd	4.487	jh=n/a jg=n/a	3000	discard	frontier patrol: scan farthest friendly junction when no targets (-5.6% 10-ep)
 06fd373	4.003	jh=n/a jg=49.4	3000	discard	4A+4M ratio (fraction=0.5) — fewer aligners can't compensate for more miners (-15.7% 10-ep)
+09ccb44	3.894	jh=n/a jg=n/a	3000	discard	explore cap stuck_threshold*3 (45 steps) — too much time wandering (-18.0% 10-ep)
+150eb9f	3.920	jh=n/a jg=n/a	3000	discard	miner deposit threshold -3 (more junction deposits) — hurts mining throughput (-17.5% 10-ep)
+92a98ad	3.601	jh=n/a jg=n/a	3000	discard	cascade hub_dist weight 0.1 (was 0.2) — poor cascade building (-24.2% 10-ep)
