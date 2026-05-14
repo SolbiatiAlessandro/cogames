@@ -677,12 +677,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _gear_up(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         self._log_mode(obs, state, "gear_up")
+        preferred_side = self._agent_id % 4
         visible_target = self._starter._closest_tag_location(obs, self._aligner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
             state.known_aligner_stations.add(target_abs)
             state.verified_aligner_stations.add(target_abs)
-            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True, preferred_side=preferred_side)
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
@@ -693,11 +694,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             if hub_set:
                 hub_center = self._nearest_known(current_abs, hub_set)
                 expected_station = (hub_center[0] + 4, hub_center[1] - 3)
-                direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=True)
+                direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=True, preferred_side=preferred_side)
                 if direction is not None:
                     return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             return self._explore(obs, state)
-        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True, preferred_side=preferred_side)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
