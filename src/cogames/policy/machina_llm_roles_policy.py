@@ -324,16 +324,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             reason = "overrode get_heart to unstuck after stuck exit (escape navigation deadlock near hub)"
             skill = "unstuck"
         # Hub likely depleted: after 1+ get_heart timeout, explore instead of wasting time
-        # BUT: reset timeout if hub queue has capacity (few agents competing for hearts)
         if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1:
-            sm = self._shared_map
-            queue_has_capacity = sm is not None and len(sm.agents_getting_hearts) < 2
-            if queue_has_capacity:
-                state.get_heart_timeouts = 0
-                reason = f"reset get_heart_timeouts: only {len(sm.agents_getting_hearts)} agents in queue"
-            else:
-                reason = f"overrode get_heart to explore after {state.get_heart_timeouts} timeouts (hub likely empty)"
-                skill = "explore"
+            reason = f"overrode get_heart to explore after {state.get_heart_timeouts} timeouts (hub likely empty)"
+            skill = "explore"
         # Break explore→stuck loop when agent has gear+heart but no known junctions: try unstuck
         if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and was_stuck:
             reason = "overrode explore to unstuck after stuck exit (try escape moves to find junctions)"
