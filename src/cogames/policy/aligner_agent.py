@@ -761,11 +761,6 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         for friendly in state.known_friendly_junctions:
             if abs(junction[0] - friendly[0]) + abs(junction[1] - friendly[1]) <= _JUNCTION_ALIGN_DISTANCE:
                 return True
-        sm = self._shared_map
-        if sm is not None:
-            for tgt in sm.aligner_targets.values():
-                if tgt is not None and abs(junction[0] - tgt[0]) + abs(junction[1] - tgt[1]) <= _JUNCTION_ALIGN_DISTANCE:
-                    return True
         return False
 
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
