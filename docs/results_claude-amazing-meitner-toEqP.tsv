@@ -93,3 +93,5 @@ d9f1e1b	5.901	jh=n/a jg=n/a	3000	discard	team_scarce_gap_3 — reduce team scarc
 283c8d5	5.882	jh=n/a jg=n/a	3000	discard	enemy_distance_scaled — distance-proportional enemy bonus -5*(1-travel/20) — zero effect (-0.3% 5-ep)
 8e625ad	4.694	jh=n/a jg=n/a	3000	discard	nav_shake_6_4 — less aggressive shaking (6/4 vs 5/3) — agents stay stuck too long (-20.5% 5-ep)
 82f44dd	3.652	jh=n/a jg=n/a	3000	discard	stuck_threshold_14 — reduce from 15 to 14 — agents give up too quickly (-38.1% 5-ep)
+bac8c98	2.973	jh=n/a jg=n/a	3000	discard	junction_deposit_threshold_8 — increase from 5 to 8 steps closer — miners waste time walking to hub (-49.6% 5-ep)
+b8f42df	4.122	jh=n/a jg=n/a	3000	discard	team_only_deconfliction — limit aligner deconfliction to same-team only — allows flip wars (-30.1% 5-ep)
