@@ -348,7 +348,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return self._nearest_known(current_abs, candidates)
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1]))
         return min(candidates, key=lambda c: (
-            abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]),
+            abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])
+            + (abs(c[0] - hub[0]) + abs(c[1] - hub[1])) // 2,
             c,
         ))
 
