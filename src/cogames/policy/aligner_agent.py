@@ -30,9 +30,7 @@ _JUNCTION_ALIGN_DISTANCE = 25
 # At 70%, agents have 69 steps to reach hub, which is much more forgiving.
 _HP_RETREAT_THRESHOLD = 0.70
 # Distance from hub/friendly junction to be considered "in friendly territory"
-# Game uses TERRITORY_CONTROL_RADIUS=10 for junctions and *2=20 for hubs.
-_FRIENDLY_TERRITORY_DISTANCE_HUB = 20
-_FRIENDLY_TERRITORY_DISTANCE_JUNCTION = 10
+_FRIENDLY_TERRITORY_DISTANCE = 15
 
 
 class SharedMap:
@@ -572,10 +570,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _in_friendly_territory(self, current_abs: Coord, state: AlignerState) -> bool:
         """Check if agent is near hub or a friendly junction (safe from HP drain)."""
         for hub in state.known_hubs:
-            if abs(current_abs[0] - hub[0]) + abs(current_abs[1] - hub[1]) <= _FRIENDLY_TERRITORY_DISTANCE_HUB:
+            if abs(current_abs[0] - hub[0]) + abs(current_abs[1] - hub[1]) <= _FRIENDLY_TERRITORY_DISTANCE:
                 return True
         for fj in state.known_friendly_junctions:
-            if abs(current_abs[0] - fj[0]) + abs(current_abs[1] - fj[1]) <= _FRIENDLY_TERRITORY_DISTANCE_JUNCTION:
+            if abs(current_abs[0] - fj[0]) + abs(current_abs[1] - fj[1]) <= _FRIENDLY_TERRITORY_DISTANCE:
                 return True
         return False
 
