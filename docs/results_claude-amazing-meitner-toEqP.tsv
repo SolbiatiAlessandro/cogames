@@ -95,3 +95,4 @@ d9f1e1b	5.901	jh=n/a jg=n/a	3000	discard	team_scarce_gap_3 — reduce team scarc
 82f44dd	3.652	jh=n/a jg=n/a	3000	discard	stuck_threshold_14 — reduce from 15 to 14 — agents give up too quickly (-38.1% 5-ep)
 bac8c98	2.973	jh=n/a jg=n/a	3000	discard	junction_deposit_threshold_8 — increase from 5 to 8 steps closer — miners waste time walking to hub (-49.6% 5-ep)
 b8f42df	4.122	jh=n/a jg=n/a	3000	discard	team_only_deconfliction — limit aligner deconfliction to same-team only — allows flip wars (-30.1% 5-ep)
+a2c083f	3.640	jh=n/a jg=n/a	3000	discard	cascade_cluster_bonus — bias targeting toward clusters of unaligned junctions (-0.5 per nearby) — scatters aligners (-19.4% 5-ep)
