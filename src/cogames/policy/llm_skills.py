@@ -15,8 +15,6 @@ logger = logging.getLogger("cogames.policy.llm_skills")
 Coord = tuple[int, int]
 _HUB_SEARCH_DISTANCE = 20
 _HUB_EXTRACTOR_OFFSETS: tuple[Coord, ...] = ((-8, -8), (-8, 8), (8, -8), (8, 8))
-_HUB_HAZARD_STATION_OFFSETS: tuple[Coord, ...] = ((4, -3), (4, -1), (4, 3))
-_HUB_MINER_STATION_OFFSET: Coord = (4, 1)
 _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
     ("north", (-1, 0)),
     ("east", (0, 1)),
@@ -66,7 +64,6 @@ class MinerSkillState(StarterCogState):
     gear_up_approach_rotation: int = 0
     gear_contamination_count: int = 0
     contamination_avoid_cells: set[Coord] = field(default_factory=set)
-    predicted_station_hubs: set[Coord] = field(default_factory=set)
 
 
 class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
@@ -316,7 +313,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     if cell_tags & etags:
                         state.verified_extractors_by_element[element].add(abs_cell)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
-        self._predict_stations_from_hubs(state)
         self._remember_visible_hub(obs, state)
 
     def _safe_wander(self, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
@@ -378,17 +374,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if min(abs(cell[0] - anchor[0]) + abs(cell[1] - anchor[1]) for anchor in anchors) <= max_anchor_distance:
                 near_frontier.add(cell)
         return near_frontier or frontier
-
-    def _predict_stations_from_hubs(self, state: MinerSkillState) -> None:
-        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
-        for hub in hub_set:
-            if hub in state.predicted_station_hubs:
-                continue
-            state.predicted_station_hubs.add(hub)
-            for dr, dc in _HUB_HAZARD_STATION_OFFSETS:
-                state.known_hazard_stations.add((hub[0] + dr, hub[1] + dc))
-            miner_pos = (hub[0] + _HUB_MINER_STATION_OFFSET[0], hub[1] + _HUB_MINER_STATION_OFFSET[1])
-            state.known_miner_stations.add(miner_pos)
 
     def _predicted_extractor_positions(self, state: MinerSkillState) -> set[Coord]:
         predicted: set[Coord] = set()
