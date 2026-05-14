@@ -60,6 +60,8 @@ class LLMAlignerState(AlignerState):
     # HP monitoring
     max_hp_seen: int = 0
     retreating: bool = False
+    total_steps: int = 0
+    blacklist_timestamps: dict[tuple[int, int], int] = field(default_factory=dict)
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -121,8 +123,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             get_heart_timeouts=state.get_heart_timeouts,
             recent_events=list(state.recent_events),
             blacklisted_junctions=set(state.blacklisted_junctions),
+            blacklist_timestamps=dict(state.blacklist_timestamps),
             move_cooldowns=dict(state.move_cooldowns),
             steps_since_last_move=state.steps_since_last_move,
+            total_steps=state.total_steps,
         )
         return result
 
@@ -423,14 +427,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_neutral)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
+                            state.blacklist_timestamps[stuck_junction] = state.total_steps
                             state.known_neutral_junctions.discard(stuck_junction)
                             self._event(state, f"blacklisted stuck neutral junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
                             state.align_neutral_timeouts = 0
                     elif non_blacklisted_enemy:
-                        # Also blacklist stuck enemy junctions
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_enemy)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
+                            state.blacklist_timestamps[stuck_junction] = state.total_steps
                             state.known_enemy_junctions.discard(stuck_junction)
                             self._event(state, f"blacklisted stuck enemy junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
                             state.align_neutral_timeouts = 0
@@ -449,6 +454,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     dist = abs(stuck_target[0] - current_abs[0]) + abs(stuck_target[1] - current_abs[1])
                     if dist <= 5:
                         state.blacklisted_junctions.add(stuck_target)
+                        state.blacklist_timestamps[stuck_target] = state.total_steps
                         state.known_neutral_junctions.discard(stuck_target)
                         state.known_enemy_junctions.discard(stuck_target)
                         self._event(state, f"blacklisted unreachable junction {stuck_target} (dist={dist})")
@@ -492,9 +498,19 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             logger.warning("agent=%s role=aligner step_error=%s — returning noop", obs.agent_id, e)
             return self._starter._action("noop"), state
 
+    _BLACKLIST_EXPIRY = 300
+
     def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
+        state.total_steps += 1
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+
+        expired = [j for j, ts in state.blacklist_timestamps.items()
+                   if state.total_steps - ts >= self._BLACKLIST_EXPIRY]
+        for j in expired:
+            del state.blacklist_timestamps[j]
+            state.blacklisted_junctions.discard(j)
+            self._event(state, f"blacklist expired for junction {j}")
 
         # ── Gear contamination detection ──
         current_gear = self._current_gear(obs)
