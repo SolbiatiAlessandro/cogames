@@ -637,7 +637,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         min_val = min(deposits.values())
         max_val = max(deposits.values())
-        if max_val - min_val < 5:
+        if max_val - min_val < 3:
             return None
         for elem, val in deposits.items():
             if val == min_val:
