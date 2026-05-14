@@ -1,0 +1,9 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+14c7ac6	1101.7	junctions=51 hearts=57 (5-seed avg: 1026.8+1068.3+1177.9+1141.6+1093.8)	3000	keep	baseline: 4A+4M stuck=20 HUB_ALIGN=25 (5-seed avg)
+b86d281	1125.5	junctions=57.4 hearts=67.4 (5-seed avg: 1025.1+1137.2+1208.6+1170.8+1085.9)	3000	keep	heart bug fix + 5A+3M + stuck=15 + HUB_ALIGN=30 + spread bonus (+2.2%)
+b86d281	1111.7	junctions=56.8 hearts=71.0 (hearts<5 threshold — too much hoarding)	3000	discard	same code but hearts<5 threshold: excess hoarding wastes time
+b86d281	1112.2	junctions=57.0 (hearts<4 threshold — still too much hoarding)	3000	discard	hearts<4 threshold: 14 avg unused hearts at end
+b86d281	1112.6	junctions=57.0 stuck_threshold=10 — too aggressive	3000	discard	stuck=10: agents give up navigation too early
+b86d281	1019.7	6A+2M: gear contamination + too few miners	3000	discard	aligner_fraction=0.75 (6A+2M): mining bottleneck + gear contamination
+b86d281	1077.4	junction deposit for miners: inconsistent across seeds	3000	discard	miner junction deposit (>5 cells): helps some seeds but -19% on seed 45
+b86d281	1083.4	aggressive nav shake: more move failures	3000	discard	nav shake at 3/2 instead of 5/3: causes MORE move failures

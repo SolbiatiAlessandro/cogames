@@ -738,6 +738,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 pos for aid, pos in sm.agent_positions.items()
                 if aid != self._agent_id and pos is not None
             ]
+        enemy_junctions = state.known_enemy_junctions
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
@@ -747,7 +748,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                     abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
                 )
                 spread_bonus = -0.05 * min(min_dist, 30)
-            return travel + hub_dist * 0.2 + spread_bonus
+            enemy_bonus = -8.0 if j in enemy_junctions else 0.0
+            return travel + hub_dist * 0.2 + spread_bonus + enemy_bonus
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
