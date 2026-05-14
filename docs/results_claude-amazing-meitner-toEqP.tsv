@@ -106,3 +106,5 @@ a2c083f	3.640	jh=n/a jg=n/a	3000	discard	cascade_cluster_bonus — bias targetin
 14a2adb	4.689	jh=n/a jg=n/a	3000	discard	predicted_hazard_stations — predict non-miner stations from hub center, add to blocked_cells — creates nav barriers near hub (-20.5% 5-ep)
 0094ee2	2.928	jh=n/a jg=n/a	3000	discard	aligner_fraction_065 — swap team ratios Cogs=3A1M/Clips=2A2M (was 2A2M/3A1M) — map asymmetry strongly favors current (-50.4% 5-ep)
 3b762ae	5.871	jh=n/a jg=n/a	3000	discard	miner_noop_retreat — noop when retreating with empty cargo in friendly territory — zero effect (-0.5% 5-ep, noise)
+07a3b7d	5.901	jh=n/a jg=n/a	3000	discard	heart_accumulate_3 — reduce heart accumulation threshold from 4 to 3 — zero effect (0.0% 5-ep, aligners never reach 3 hearts)
+c167969	1.965	jh=n/a jg=n/a	3000	discard	get_heart_timeout_3x — reduce get_heart timeout from 5x to 3x stuck_threshold — catastrophic, aligners give up on hearts too fast (-66.7% 4-ep partial)

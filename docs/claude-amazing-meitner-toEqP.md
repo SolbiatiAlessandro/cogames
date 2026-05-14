@@ -365,3 +365,26 @@ Both L2 variants severely regress. The larger radii (22/30) are WORSE, confirmin
 
 **Hypothesis**: When HP is low and cargo=0, noop in friendly territory instead of navigating.
 - Result: **5.871** (-0.5%, noise). Healing rate is the same whether nooping or oscillating near junction. Reverted.
+
+## 2026-05-14: Experiment — heart accumulation 3 (was 4)
+
+**Hypothesis**: Aligners leave hub sooner with 3+ hearts instead of 4+.
+- Result: **5.901** (0.0%). Aligners rarely accumulate 3+ hearts — hearts arrive one at a time from mining, and the 75-step timeout mechanism controls when aligners leave hub. Reverted.
+
+## 2026-05-14: Experiment — get_heart timeout 3x (was 5x)
+
+**Hypothesis**: Reduce get_heart timeout from 75 to 45 steps so aligners explore sooner when hub is depleted.
+- Result: **~1.97** (-66.7%, 4-seed partial). Catastrophic — aligners give up on hearts too quickly, leaving without hearts and entering explore→get_heart loops. Reverted.
+
+---
+
+## Session 15 Summary
+
+**9 experiments run, ALL reverted (0 improvements)**. This session tested:
+- Distance metrics (L2 vs Manhattan): Manhattan is optimal
+- Station prediction: Visual discovery already handles it
+- Team composition: Map is asymmetric, current assignment is optimal
+- HP retreat optimization: Zero effect
+- Heart pipeline tuning: Zero effect (accumulation) or catastrophic (timeout)
+
+**Conclusion**: The scripted policy on this branch has reached its optimization ceiling. 100+ experiments across 15 sessions, with the last ~40 experiments ALL regressing or having zero effect. The parameter space is thoroughly explored.
