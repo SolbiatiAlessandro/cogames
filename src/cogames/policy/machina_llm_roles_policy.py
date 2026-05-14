@@ -48,6 +48,7 @@ class LLMAlignerState(AlignerState):
     current_skill: str | None = None
     current_reason: str = ""
     skill_steps: int = 0
+    total_steps: int = 0
     no_move_steps: int = 0
     no_progress_on_target_steps: int = 0
     last_has_heart: bool = False
@@ -324,7 +325,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             reason = "overrode get_heart to unstuck after stuck exit (escape navigation deadlock near hub)"
             skill = "unstuck"
         # Hub likely depleted: after 1+ get_heart timeout, explore instead of wasting time
-        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1:
+        # Late game (step>=2000): reset timeouts so aligners retry — hub has accumulated miner deposits
+        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1 and state.total_steps < 2000:
             reason = f"overrode get_heart to explore after {state.get_heart_timeouts} timeouts (hub likely empty)"
             skill = "explore"
         # Break explore→stuck loop when agent has gear+heart but no known junctions: try unstuck
@@ -494,6 +496,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
     def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         current_abs = self._update_map_memory(obs, state)
+        state.total_steps += 1
         self._update_progress(obs, state)
 
         # ── Gear contamination detection ──
