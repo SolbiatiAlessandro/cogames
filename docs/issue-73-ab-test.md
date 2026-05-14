@@ -143,3 +143,71 @@ All within noise offline — online is the real test.
 - With 50 held junctions, each could be hit ~8 times
 - Recapture cycle: ~20-50 steps per junction
 - Estimated 30% of aligner time on recapture → enemy priority directly improves this
+
+## 2026-05-15: Navigation Diagnostics & Hub L2 Fix
+
+### Navigation diagnostic findings (seed 42, 43, 44 at 3k steps)
+
+Instrumented aligner agents to measure move failure rates, BFS cascade usage, and time allocation.
+
+| Metric | Seed 42 | Seed 43 | Seed 44 |
+|--------|---------|---------|---------|
+| Move failure rate | 3.9% | 6.0% | 12.7% |
+| Stuck time | 1.3% | 2.3% | 5.8% |
+| BFS primary success | 100% | 99.5% | 98.5% |
+| Exploration time | 57-63% | 52-71% | 47-66% |
+
+**Key findings:**
+1. **Move failure rate is LOW (4-6%)** — NOT the bottleneck
+2. **BFS succeeds 99-100% when there's a target** — navigation code is effective
+3. **Exploration consumes 50-70% of aligner time** — the REAL bottleneck
+4. Seed 44 agent 1: 33% fail rate, 1000 steps wasted in defend mode (pathological)
+
+### Hub alignment geometry mismatch discovered
+
+Game engine uses L2 distance (dr²+dc² ≤ r²) for hub alignment (r=25).
+Policy used Manhattan distance (|dr|+|dc| ≤ 25) for hub filtering.
+
+For diagonal junctions, Manhattan is MORE restrictive than L2:
+- Junction at (13,13) from hub: Manhattan=26 (MISS), L2=18.4 (OK)
+- Manhattan diamond inscribes the L2 circle
+
+Analysis on seed 42 (269 total junctions, 8 hub cells):
+- 101 junctions: both filters agree (hub-alignable)
+- 65 junctions: initially flagged as missed but covered by other hub cells
+- **23 junctions: TRULY missed by Manhattan filter** (L2 ≤ 25 but Manhattan > 25 from ALL hub cells)
+- 80 junctions: both agree NOT hub-alignable
+
+Avg distance of missed junctions: Manhattan=27.7, L2=20.4 — well within engine's range.
+
+### Cascade false positives analysis
+
+Policy uses Manhattan ≤ 25 for cascade (engine uses L2 ≤ 15):
+- 29 false positive cascade junctions (Manhattan OK, L2 > 15)
+- 0 missed cascade junctions
+- Tightening cascade to L2 ≤ 15 HURTS performance (-1.5% when combined with other fixes)
+- Over-permissive cascade filter provides beneficial incidental exploration
+
+### Experiment: Hub L2 fix + defend timeout + heart retry
+
+Three changes from baseline:
+1. `_is_alignable` hub check: Manhattan → L2 distance (23 more junctions alignable)
+2. Defend timeout: `stuck_threshold * 50` → `stuck_threshold * 10` (1000→200 steps)
+3. Heart retry threshold: `get_heart_timeouts >= 1` → `>= 2` (more retries before defend)
+
+| Seed | Baseline | Hub L2 only | Full combo |
+|------|----------|-------------|-----------|
+| 42 | 1026.80 | 1101.63 | 1101.63 |
+| 43 | 1068.33 | 1050.41 | 1050.41 |
+| 44 | 1177.92 | 1177.92 | 1203.67 |
+| 45 | 1141.58 | 1141.58 | 1207.41 |
+| 46 | 1093.82 | 1124.69 | 1124.69 |
+| **Avg** | **1101.69** | **1119.25 (+1.6%)** | **1137.56 (+3.3%)** |
+
+Cascade L2 fix tested separately: REGRESSES from +3.3% to +1.8% when added to combo.
+
+### Online variants uploaded
+| Variant | Changes | Upload Name |
+|---------|---------|-------------|
+| W | Hub L2 fix only | ax5wp-73w-hubl2 |
+| X | Hub L2 + defend200 + HT≥2 | ax5wp-73x-hubl2-def |

@@ -739,8 +739,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
         hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
+        hub_r2 = _HUB_ALIGN_DISTANCE * _HUB_ALIGN_DISTANCE
         for hub in hubs:
-            if abs(junction[0] - hub[0]) + abs(junction[1] - hub[1]) <= _HUB_ALIGN_DISTANCE:
+            dr = junction[0] - hub[0]
+            dc = junction[1] - hub[1]
+            if dr * dr + dc * dc <= hub_r2:
                 return True
         for friendly in state.known_friendly_junctions:
             if abs(junction[0] - friendly[0]) + abs(junction[1] - friendly[1]) <= _JUNCTION_ALIGN_DISTANCE:

@@ -314,8 +314,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if has_aligner and not has_heart and skill == "get_heart" and was_stuck and state.known_hubs:
             reason = "overrode get_heart to unstuck after stuck exit (escape navigation deadlock near hub)"
             skill = "unstuck"
-        # Hub likely depleted: after 1+ get_heart timeout, defend friendly junctions instead
-        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1 and state.known_friendly_junctions:
+        # Hub likely depleted: after 2+ get_heart timeouts, defend friendly junctions instead
+        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 2 and state.known_friendly_junctions:
             reason = f"overrode get_heart to defend after {state.get_heart_timeouts} timeouts (hub likely empty)"
             skill = "defend"
         # Break explore→stuck loop when agent has gear+heart but no known junctions: try unstuck
@@ -379,7 +379,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, "defend ended: acquired heart while defending")
             state.get_heart_timeouts = 0
             state.current_skill = None
-        elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 50:
+        elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 10:
             self._event(state, "defend ended: trying get_heart again")
             state.get_heart_timeouts = 0  # reset to allow another get_heart attempt
             state.current_skill = None
