@@ -24,70 +24,62 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline-to-online): 2026-05-11 (Session 33)_
+_Updated by Director: 2026-05-14 (Session 36)_
 
-### Online Tournament (beta-cvc, 782 entries, cooperative scoring)
+### Online Tournament (beta-cvc, 842 entries, cooperative scoring)
 
-| Rank | Score | StdDev | Matches | Policy | Notes |
-|------|-------|--------|---------|--------|-------|
-| #1 | **45.29** | 16.53 | 20 | `Softy:v103` | RL, new #1 (+3.4 pts since S30) |
-| #2 | 41.86 | 17.41 | 21 | `Softy:v96` | RL |
-| #3 | 41.59 | 18.06 | 20 | `Softy:v100` | RL |
-| #4 | 41.28 | 16.80 | 20 | `slanky:v171` | RL |
-| #7 | 41.10 | 16.79 | 21 | `Paz-Bot-9000:v47` | RL |
-| #10 | 40.73 | 15.52 | 32 | `Slytherin:v14` | RL |
-| ... | | | | | |
-| **#14** | **40.49** | **5.81** | **21** | **`lessandro-navfix-cd3:v1`** | **OUR BEST** (+4.34 vs v52) |
-| #18 | 40.07 | 9.23 | 23 | `lessandro-aligner-opt-v1:v1` | opt-v1 (prev best, S32) |
-| #54 | 36.73 | 9.38 | 65 | `lessandro-scripted-v52:v1` | long-term baseline |
-| #101 | 33.95 | 11.96 | 21 | `lessandro-contamination-v64:v3` | contamination fix alone |
+| Rank | Score | Policy | Notes |
+|------|-------|--------|-------|
+| #1 | **45.29** | `Softy:v103` | RL |
+| #2 | 41.86 | `Softy:v96` | RL |
+| #3 | 41.70 | `Softy:v107` | RL (new) |
+| #5 | 41.28 | `slanky:v171` | RL |
+| #8 | 41.10 | `Paz-Bot-9000:v47` | RL |
+| #9 | 40.82 | `Gryffindor:v11` | RL |
+| ... | | | |
+| **#17** | **40.32** | **`lessandro-navfix-cd3:v1`** | **OUR BEST** (stable, navfix merged to main) |
+| #20 | 39.94 | `lessandro-aligner-opt-v1:v1` | opt-v1 (prev best, S32) |
+| #44 | 37.39 | `lessandro-kensho:v1` | REGRESSED — heart fix + spread + deposit hurt online |
+| #58 | 36.33 | `lessandro-scripted-v52:v1` | long-term baseline |
 
-_navfix-cd3:v1 is our best (#14, 40.49). Gap to #1: 10.6% (4.80 pts). Gap widened because Softy improved +3.4 pts._
-
-### navfix-cd3:v1 Match Profile (21 matches)
-
-```
-Min: 27.6  Max: 48.4  Avg: 40.4  StdDev: 5.81
-P5:  29.6  P95: 47.8
-Scores: 27.6, 28.0, 29.6, 29.9, 36.9, 38.2, 38.3, 38.4, 39.5, 39.8, 41.1, 41.4, 42.2, 42.4, 42.8, 43.9, 44.1, 46.8, 47.3, 47.7, 47.8, 47.9, 48.4
-```
+_navfix-cd3:v1 stable at #17 (40.32). Gap to #1: 11.0% (4.97 pts). Softy accelerating._
 
 ### Offline Best Results (8-agent, 3000 steps)
 
-| Rank | Reward | Commit | Config | Seeds | Notes |
+| Rank | Reward | Branch | Config | Seeds | Notes |
 |------|--------|--------|--------|-------|-------|
-| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | +15.2% vs v52 baseline |
-| 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | 5-seed avg | previous best |
-| 3 | ~3.3 | `b34f122` | CD=3 + contamination + hearts<3 | 3-seed avg | +2.2% from CD=3 |
+| 1 | **4.751** | toEqP | 5A+3M, HUB=30, stuck=15, spread, enemy recapture | 10-ep avg | **+76.6% vs baseline, AT CEILING** |
+| 2 | 3.469 | toEqP (S3) | spread + junction deposit | 10-ep avg | +29.0% cumulative |
+| 3 | 3.282 | `d922520` | v52 + contamination fix (#64) | 5-seed avg | +15.2% vs v52 baseline |
 
-### Key Findings (Session 33 — Offline-to-Online)
+### Key Findings (Session 36)
 
-1. **50% move failure rate is GAME NORMAL** — Softy (#1) has the same 47-48% failure rate. Issue #69 was misdirected; demoted to priority:3.
-2. **Junction control efficiency is the real gap** — Our best match: 74.4% of junction-time vs Softy's 83.8%. This ~10% gap maps to ~6 score points. Created #71.
-3. **Our stddev is unusually low (5.81)** — Consistent but ceiling-limited. Max score 48.4 vs Softy likely 55+. We never reach high scores. Need to raise ceiling, not floor.
-4. **Agent lifespan variance** — Softy agents all run 5200-6200 steps; ours range 2000-7500. Some die early, wasting junction-holding potential.
-5. **72 policy versions uploaded** since session 30 — massive online A/B testing. navfix-cd3 emerged as best, improving +0.42 pts over opt-v1.
-6. **RL is the architectural ceiling** — All top-10 are RL. Scripted optimization is plateauing. #41 promoted to priority:1.
+1. **Scripted policy at parameter ceiling** — toEqP hit local optimum: 14/14 experiments regressed in sessions 5-6. No more gains from parameter tuning.
+2. **CRITICAL: kensho REGRESSED online (-7.3%)** — Heart bug fix (+7.3% offline) + spread bonus + junction deposit (+4.7% offline) = 37.39 online vs navfix-cd3's 40.32. Offline-online gap is growing.
+3. **ax5wp-junct71:v1 uploaded today** — Combined toEqP-like config. If this also regresses, confirms bundled changes don't transfer. Critical pending data point.
+4. **Agent lifespan consistency is the architectural gap** — Softy: 5,500±60 steps. Ours: 2,147-7,550. This is RL-learned behavior, not fixable by scripted tuning.
+5. **Competition accelerating** — Softy:v103 at 45.29 (was 41.86 at S30). New entrants (Gryffindor, Slytherin) filling top 15.
+6. **100+ policy versions uploaded** — 842 total entries in beta-cvc. Online A/B is the methodology.
 
 ### Current Priority Stack
 
 ```
-priority:1  #71  Junction control efficiency (74% vs 84%)     <- NEW, the real gap to #1
-priority:1  #41  RL policy training                            <- PROMOTED, ceiling-breaker, all top-10 are RL
+priority:1  #73  Online A/B test toEqP changes individually   <- NEW, highest leverage
+priority:1  #71  Junction control efficiency (74% vs 84%)     <- parameter ceiling hit, needs online validation
+priority:1  #41  RL policy training                            <- architectural ceiling-breaker
 priority:2  #70  2-agent allocation (24.5 avg vs 41+)          <- drags leaderboard
-priority:3  #69  Move failure rate                             <- DEMOTED, 50% is game-normal for ALL policies
-priority:3  #65  Alignment speed                               <- subsumed by #71
-priority:3  #62  Junction capture rate                         <- exhausted
-priority:3  #50, #61, #56, #57                                 <- mortality/efficiency, partner-dependent
-priority:3  #53, #27, #26, #23, #22, #21, #20, #19, #17, #12, #11, #10  <- speculative / researched
-CLOSED  #64  Gear contamination prevention                 <- RESOLVED
-CLOSED  #66, #67, #68                                     <- RESOLVED
+CLOSED  #69  Move failure rate (CD=3 merged, 50% is game-normal)
+CLOSED  #65  Alignment speed (exhausted)
+CLOSED  #62  Junction capture rate (exhausted)
+CLOSED  #56, #57, #61  Agent survival/10k utilization (subsumed by #71/#41)
+CLOSED  #50  Per-agent efficiency tuning (exhausted)
+CLOSED  #64, #66, #67, #68  Contamination, qualifying, throughput
 ```
 
-**Current offline ceiling**: 3.282 reward (8-agent, 3000 steps, contamination fix + hearts<3)
-**Current online rank**: #14 of 782 in beta-cvc (navfix-cd3:v1, 40.49)
-**Gap**: Widened from 4.3% to 10.6% — Softy improved faster (+3.4 pts) than we did (+0.42 pts)
-**Next up**: #71 junction control efficiency, #41 RL training
+**Current offline ceiling**: 4.751 reward (toEqP, 8-agent, 3000 steps) — but UNTESTED online
+**Current online rank**: #17 of 842 in beta-cvc (navfix-cd3:v1, 40.32)
+**Gap to #1**: 4.97 pts (11.0%) — widening, Softy accelerating
+**Next up**: #73 — A/B test individual toEqP improvements online. Wait for ax5wp-junct71 results.
 <!-- LEADERBOARD_END -->
 
 ### Autoresearch Progress

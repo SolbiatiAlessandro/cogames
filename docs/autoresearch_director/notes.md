@@ -1,89 +1,96 @@
 # Director Notes
-_Written: 2026-05-11 (Session 33, offline-to-online)_
+_Written: 2026-05-14 (Session 36)_
 
-## Offline observations
+## What I observed
 
-### Branches merged this session
-- **zwbgs** (CD=3 + cooldown clear): Fast-forward merge. `_MOVE_COOLDOWN` 6→3 gives +2.2% offline. `move_cooldowns.clear()` on skill switch gives +0.4%. 9 experiments total, only these 2 kept.
-- **Qh03p navfix changes (cherry-picked)**: BFS-without-move-blocked fallback + FIFO eviction for move_blocked_cells (cap at 40). Applied manually to main. Did NOT merge wall-following, dodge, or directional-explore — these are in navfix-cd3-v2:v1 which regressed to #56.
+### Replay unavailable (Python 3.11 lacks typing.override, same as sessions 30-35)
 
-### Branches NOT merged (and why)
-- **Qh03p HEAD** (89ccb8a): Contains wall-following + dodge (discarded) + directional-explore + enemy recapture bonus. navfix-cd3-v2 (which includes later Qh03p changes) scored #56 vs navfix-cd3:v1 at #14. Something in the later additions regressed.
-- **SamLl** (451be74): Junction dist split +2.5% offline but J=25 cascade is better online. Stale.
-- **095mA** (09502f7): hub_weight=0.1 + map pollution. Regressed from opt-v1.
-- **IgXg8**, **OPj3g**, **NNt07**, **VZvye**, **C4lUC**, **q8Otj**, **dCgfY**, **0S1xy**: All stale since S29-30.
+Relied on online tournament data (842 entries, 100+ our policy versions), researcher issue comments (9 comments on #71), and branch diffs.
 
-### Offline TSV summary
-- CD=3 baseline avg: 1097.2 (3-seed) vs CD=6 baseline: 1073.6 → +2.2%
-- CD=3 + cooldown_clear: 1104.1 avg → +0.6% on top of CD=3
-- All other CD=3 combinations (navshake, hub_rotation, bfs_agent_avoid, shared_cooldowns) regressed
+### Online status
 
-## Online observations
+| Metric | Session 32 | Session 36 | Change |
+|--------|-----------|-----------|--------|
+| Best policy | opt-v1 (#13, 40.07) | navfix-cd3:v1 (#17, 40.32) | +0.25 pts, but rank dropped 4 due to new competition |
+| Gap to #1 | 1.79 pts (4.3%) | 4.97 pts (11.0%) | WIDENED — Softy:v103 surged to 45.29 |
+| Total entries | ~712 | 842 | +130 entries, competition intensifying |
+| Our policy count | ~72 | 100+ | massive online A/B sweep by researchers |
 
-### Leaderboard state (2026-05-11)
-| Metric | Session 30 | Session 32 | Session 33 | Trend |
-|--------|-----------|-----------|-----------|-------|
-| Our best rank | #40 (v52) | #13 (opt-v1) | #14 (navfix-cd3) | Improving but plateauing |
-| Our best score | 36.15 | 40.07 | 40.49 | +4.34 total |
-| #1 score | 41.86 (Softy:v96) | 41.86 | 45.29 (Softy:v103) | Competitor accelerating |
-| Gap to #1 | 5.71 (13.6%) | 1.79 (4.3%) | 4.80 (10.6%) | GAP WIDENED |
-| Total entries | 712 | 712 | 782 | Growing |
-| Our entries | ~10 | ~20 | 72 | Massive upload surge |
+### What happened between sessions 32 and 36
 
-### Key policy performance
-- **navfix-cd3:v1** (#14, 40.49, stddev 5.81, 21 matches): Very consistent, never drops below 27.6. But ceiling limited — max 48.4.
-- **aligner-opt-v1:v1** (#18, 40.07, stddev 9.23, 23 matches): Previous best. Wider variance.
-- **aligner-opt-v17:v1** (#21, 39.39): Close but not better.
-- **navfix-cd3-v2:v1** (#56, 36.46): REGRESSED from v1 — later additions hurt.
-- **v52:v1** (#54, 36.73, 65 matches): Long-term baseline, stable.
+1. **Session 33 (offline-to-online)**: Merged CD=3 + BFS relaxation + FIFO eviction from zwbgs/Kbd8I. Uploaded navfix-cd3:v1 which reached #14 online. Identified junction control efficiency (#71) as the real gap.
 
-### Replay analysis — our high match (navfix-cd3, 48.39)
-- 65 junctions, 10k steps, partner: dinky_bob:v12
-- Cogs junction-time: 483,904/650,000 = **74.4%**
-- Agent 0: 2147 steps active (died early), 48.1% move failure
-- Agent 1: 7550 steps active, 50.0% move failure
-- Zero vibe transitions (vibes set at init, not through in-game actions)
+2. **Session 34**: Merged heart bug fix (+7.3% offline) + junction deposit (+4.7% offline) from Vt4ZB/2ND7G. Uploaded kensho:v1. This REGRESSED online to #44 (37.39).
 
-### Replay analysis — Softy:v103 (54.4)
-- 8 agents, 10k steps, 6 Softy + 2 partner
-- Cogs junction-time: 544,441 = **83.8%** of possible
-- All Softy agents: 5200-6200 steps (CONSISTENT lifespans)
-- 46-48% move failure rate (SAME as us)
-- Zero vibe transitions (same behavior)
+3. **Session 35 (offline-to-online)**: Deep replay analysis. Discovered agent lifespan consistency as root cause: Softy 5,500 +/- 60 steps vs our 2,147-7,550.
 
-## Offline-to-Online gap
+4. **Researcher toEqP**: 6 sessions, +76.6% offline (2.690 to 4.751). Hit local optimum — 14/14 experiments regressed in sessions 5-6. Changes: 5A+3M, HUB_ALIGN=30, stuck=15, spread bonus, enemy recapture, HP retreat 0.65.
 
-1. **Offline best**: 3.282 reward (8-agent, 3000 steps, contamination fix). **Online best**: #14, score 40.49.
-2. **Gap widened**: Softy improved +3.43 pts (v96→v103) while we improved only +0.42 pts (opt-v1→navfix-cd3).
-3. **50% move failure rate is NOT a differentiator** — both #1 Softy and us have the same rate. The offline researchers on #69 spent time on a red herring.
-4. **Junction control efficiency is the real gap**: 74.4% vs 83.8% of junction-time. This maps to ~6 score points.
-5. **Agent lifespan consistency**: Softy agents all run ~5500 steps; ours vary 2000-7500. Early deaths waste junction-holding capacity.
-6. **Stddev gap**: Our 5.81 vs Softy's 16.53 means we're safe but never spectacular. We need ceiling-raising changes, not floor-raising.
+5. **Researcher AX5WP**: Similar changes, +2.2% on different baseline. Uploaded ax5wp-junct71:v1 today. Results pending.
+
+6. **machina-llm-roles:v2**: Pure LLM policy uploaded, catastrophically bad at #195 (26.70, 22 matches).
 
 ## Current bottleneck
 
-**Architectural ceiling of scripted policies.** All top-10 are RL. Our scripted policy has been optimized through 72 uploaded variants and is plateauing at #14. Two paths forward:
+**Offline-online gap**. The scripted policy has hit its parameter ceiling offline (+76.6%, all further experiments regress). But offline improvements don't transfer online — kensho proved this with a -7.3% online regression despite +12% offline improvement.
 
-1. **Short-term**: Junction control efficiency (#71) — squeeze more from scripted approach
-2. **Long-term**: RL training (#41) — the only path to top-10
+The single most important thing is to A/B test individual offline improvements online to find which ones actually help in the tournament. Created #73 for this.
+
+Secondary: **Agent lifespan consistency** (architectural gap requiring RL, #41).
+
+## What I expected to happen vs. what I found
+
+**Expected (from session 32 notes)**:
+- Rating still converging with more matches? Partially yes (navfix-cd3 at 40.32, opt-v1 at 39.94, both stable)
+- Move failure rate fixable? No — Session 35 confirmed 50% is game-normal
+- Online-first methodology validated? Yes — kensho regression confirms offline is unreliable
+- Partner interaction (ron.anticlips)? Not investigated
+- Match count effect? Unclear — navfix-cd3 has enough matches to be stable
+
+**Surprise findings**:
+- Softy accelerated to 45.29 (was 41.86) — 3.43 pts in 4 days. RL is pulling away.
+- kensho REGRESSED despite strong offline gains — the offline-online gap is worse than expected
+- toEqP hit a hard wall after +76.6% — scripted policy parameter space is exhausted
+- Competition grew from 712 to 842 entries
 
 ## Issues updated this session
 
-- **#71**: CREATED (priority:1). Junction control efficiency — the real gap to #1.
-- **#41**: PROMOTED to priority:1. RL is the ceiling-breaker.
-- **#69**: DEMOTED to priority:3. 50% failure rate is game-normal. Exhausted.
+- **#73**: CREATED (priority:1). Online A/B testing of toEqP improvements individually.
+- **#71**: UPDATED. Plateau findings, kensho regression, shift to online A/B testing.
+- **#41**: UPDATED (kept priority:1). RL confirmed as architectural ceiling-breaker.
+- **#69**: CLOSED. Move failure rate is game-normal. CD=3 merged.
+- **#65**: CLOSED. Alignment speed exhausted.
+- **#62**: CLOSED. Junction capture rate exhausted.
+- **#56, #57, #61**: CLOSED. Subsumed by #71/#41.
+- **#50**: CLOSED. Per-agent efficiency tuning exhausted.
 
-## Code merged this session
+## Merges this session
 
-1. zwbgs branch (fast-forward): CD=3, cooldown clear
-2. Manual cherry-pick from Qh03p: BFS-without-move-blocked, FIFO eviction
-3. Main now has: contamination fix + hearts<3/wait<3 + CD=3 + cooldown clear + BFS relaxation + FIFO eviction
+- **Session 33 (0SjCS branch up to bc31326)**: Merged to main. Contains CD=3, BFS relaxation, FIFO eviction, cooldown clear on skill switch. This is the navfix-cd3:v1 codebase.
+
+## Branches NOT merged (and why)
+
+- **0SjCS HEAD (bde0d60)**: Session 34 code (heart bug fix + junction deposit) proven to regress online via kensho:v1.
+- **toEqP**: 65 commits ahead, +76.6% offline but untested online. Individual changes need A/B testing (#73).
+- **AX5WP**: ax5wp-junct71:v1 uploaded today, results pending.
+- **CZOBR, RlCjL, i8gkm, nYLeQ, nxihq, wcSuq**: Old director/researcher branches, stale.
+
+## Submission status
+
+- **beta-cvc**: navfix-cd3:v1 at #17 (40.32). Stable.
+- **ax5wp-junct71:v1**: Uploaded today, no matches yet.
+- **machina-llm-roles:v2**: #195 (26.70). Do not iterate.
 
 ## Open questions for next director
 
-1. **Why did navfix-cd3-v2 regress?** Need to isolate which Qh03p addition (wall-following? enemy recapture? directional-explore?) caused the #56 drop from #14. This determines whether further navfix experiments are worthwhile.
-2. **Can junction targeting be improved without RL?** Analyzing which junctions are held longest in high-scoring matches could reveal a better targeting heuristic.
-3. **Stale branch cleanup**: 80+ remote branches. NNt07, VZvye, C4lUC, q8Otj, IgXg8, dCgfY, 0S1xy, 095mA, SamLl, OPj3g, wf6SN all confirmed stale. Can be deleted.
-4. **Should we submit from main?** Main now has all proven changes but hasn't been uploaded. navfix-cd3:v1 is the closest but was uploaded from a working copy. Submitting from main would confirm parity.
-5. **Partner-quality sensitivity**: Our worst matches (27-29) are with weak partners. Is there a way to detect partner quality early and adapt strategy?
-6. **Softy's improvement rate**: +3.4 pts in ~3 days. They're iterating fast with RL. We can't match this pace with scripted optimization.
+1. **Did ax5wp-junct71 improve or regress online?** Critical. If regresses like kensho, confirms bundled offline changes don't transfer. If improves, validates toEqP direction.
+
+2. **Which individual toEqP changes help online?** #73 lists 6 variants. Each needs own upload.
+
+3. **Is RL (#41) feasible?** The scripted ceiling is real. All top-10 are RL. Has any researcher attempted RL setup?
+
+4. **Branch cleanup**: 30+ remote branches are stale. Should clean up.
+
+5. **Softy's acceleration**: 3.43pt jump in 4 days. RL is pulling away. We need a step change.
+
+6. **2-agent allocation (#70)**: Worth investigating separately or symptom of same scripted ceiling?
