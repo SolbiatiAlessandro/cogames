@@ -62,3 +62,6 @@ e00fdcd	4.487	jh=n/a jg=n/a	3000	discard	frontier patrol: scan farthest friendly
 09ccb44	3.894	jh=n/a jg=n/a	3000	discard	explore cap stuck_threshold*3 (45 steps) — too much time wandering (-18.0% 10-ep)
 150eb9f	3.920	jh=n/a jg=n/a	3000	discard	miner deposit threshold -3 (more junction deposits) — hurts mining throughput (-17.5% 10-ep)
 92a98ad	3.601	jh=n/a jg=n/a	3000	discard	cascade hub_dist weight 0.1 (was 0.2) — poor cascade building (-24.2% 10-ep)
+7e39b44	4.126	jh=n/a jg=n/a	3000	discard	hub-biased retreat for heartless aligners (-13.2% 10-ep)
+a1beeed	3.927	jh=n/a jg=n/a	3000	discard	nav-shake 4/2 (was 5/3) — too many random moves (-17.3% 10-ep)
+9fb0118	3.337	jh=n/a jg=n/a	3000	discard	BFS agent collision avoidance via SharedMap positions (-29.8% 10-ep)
