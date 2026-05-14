@@ -272,6 +272,23 @@ Threshold sweep: 0.55 (-17.4%), 0.60 (-16.3%), 0.70 (+3.4%), 0.80 (-19.4%).
 - HP_RETREAT_THRESHOLD=0.70 (unchanged, but now active for aligners)
 - Cumulative improvement: baseline 2.690 → current 4.128 (**+53.5%**)
 
+---
+
+## Session 15: 2026-05-14 20:40
+
+### Baseline: 5.901 (5-ep avg, 3k steps, seeds 42-46)
+
+Previous sessions (1-14) exhausted most parameter tuning (16+ experiments all regressed).
+Key context from online A/B testing (#73): stuck_threshold=15 is ONLY change that helps online.
+Most toEqP changes (5A3M, HUB30, spread, HP retreat) HURT online — massive offline-online gap.
+
+Previous session identified concrete waste via diagnostics:
+1. Miners retreat at HP 64% with partial loads (20/40 items) — 50% efficiency
+2. Miners stuck in gear_up loops after contamination (agent 6: 5+ timeouts)
+3. Aligners cycling explore→get_heart frequently
+
+---
+
 ## 2026-05-13 22:40: Experiment — Miner HP retreat tuning
 
 **Hypothesis**: Miners at 0.25 HP retreat threshold die frequently, losing carried resources. Increasing helps.
@@ -294,3 +311,40 @@ Threshold sweep: 0.55 (-17.4%), 0.60 (-16.3%), 0.70 (+3.4%), 0.80 (-19.4%).
 - Aligner HP retreat enabled at 0.70 threshold
 - **NEW**: Miner HP retreat increased from 0.25 to 0.65
 - Cumulative improvement: baseline 2.690 → current 4.751 (**+76.6%**)
+
+---
+
+## Session 15: 2026-05-14
+
+### Baseline (3k, 5-ep, seeds 42-46): 5.901
+### Baseline (10k, 5-ep, seeds 42-46): 6.608
+
+Previous sessions (1-14) exhausted most parameter tuning. Session 14 established 10k baseline.
+
+---
+
+## 2026-05-14: Experiment — stuck_threshold 18
+
+**Hypothesis**: Slightly more patience (18 vs 15) before declaring stuck could help.
+- Result: **5.547** (-6.0% vs 5.901 baseline). Reverted.
+
+## 2026-05-14: Experiment — territory_safe_mining
+
+**Hypothesis**: Miners should prefer extractors in friendly territory to avoid deaths.
+- Applied -5.0 bonus to extractors in friendly territory scoring.
+- Result: **4.049** (-31.4%). Over-constrains miners. Reverted.
+
+## 2026-05-14: Experiment — L2 alignable check
+
+**Hypothesis**: Using game-accurate L2 distance in `_is_alignable` (instead of Manhattan) should improve targeting precision.
+
+**Key insight**: Manhattan distance is deliberately permissive — it serves as a look-ahead heuristic that targets junctions that WILL become alignable as the network expands. Switching to L2 is more accurate for current state but loses this beneficial planning behavior.
+
+### L2 distance sweep
+| Radii (jct/hub) | Avg reward | vs baseline |
+|-----------------|-----------|-------------|
+| Manhattan 25/30 | 5.901 | baseline |
+| L2 18/28 | 4.354 | **-26.3%** |
+| L2 22/30 | 3.940 | **-33.2%** |
+
+Both L2 variants severely regress. The larger radii (22/30) are WORSE, confirming the issue is not radius size but the loss of Manhattan look-ahead. **Reverted and confirmed: Manhattan distance is optimal.**
