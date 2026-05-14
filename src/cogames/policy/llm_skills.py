@@ -892,12 +892,14 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if state.max_hp_seen <= 0:
             return False
         hp_fraction = hp / state.max_hp_seen
-        if hp_fraction < self._MINER_HP_RETREAT_THRESHOLD and not state.retreating_to_hub:
+        late = self._shared_map is not None and self._shared_map.late_game
+        retreat_threshold = 0.75 if late else self._MINER_HP_RETREAT_THRESHOLD
+        if hp_fraction < retreat_threshold and not state.retreating_to_hub:
             inv = self._read_all_inv(obs)
             logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) inv=%s retreating to hub",
                         obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, inv)
             state.retreating_to_hub = True
-        elif state.retreating_to_hub and hp_fraction >= 0.85:
+        elif state.retreating_to_hub and hp_fraction >= (0.90 if late else 0.85):
             logger.info("agent=%s MINER_HP_OK hp=%d/%d resuming mining",
                         obs.agent_id, hp, state.max_hp_seen)
             state.retreating_to_hub = False

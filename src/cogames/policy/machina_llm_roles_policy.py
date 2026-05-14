@@ -60,6 +60,7 @@ class LLMAlignerState(AlignerState):
     # HP monitoring
     max_hp_seen: int = 0
     retreating: bool = False
+    total_steps: int = 0
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -472,14 +473,16 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             return False
         hp_fraction = hp / state.max_hp_seen
         in_friendly = self._in_friendly_territory(current_abs, state)
-        if hp_fraction < _HP_RETREAT_THRESHOLD and not in_friendly:
+        retreat_threshold = 0.80 if state.total_steps > 3000 else _HP_RETREAT_THRESHOLD
+        if hp_fraction < retreat_threshold and not in_friendly:
             if not state.retreating:
                 logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) retreating to friendly territory",
                             obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
                 self._event(state, f"HP low ({hp}/{state.max_hp_seen}), retreating")
                 state.retreating = True
             return True
-        if state.retreating and (in_friendly or hp_fraction > 0.7):
+        resume_threshold = 0.90 if state.total_steps > 3000 else 0.7
+        if state.retreating and (in_friendly or hp_fraction > resume_threshold):
             logger.info("agent=%s HP_OK hp=%d/%d in_friendly=%s resuming",
                         obs.agent_id, hp, state.max_hp_seen, in_friendly)
             state.retreating = False
@@ -495,6 +498,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
     def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+        state.total_steps += 1
+        if state.total_steps > 3000 and self._shared_map is not None:
+            self._shared_map.late_game = True
 
         # ── Gear contamination detection ──
         current_gear = self._current_gear(obs)
