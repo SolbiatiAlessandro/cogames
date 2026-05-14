@@ -461,12 +461,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._starter._action(f"move_{direction}"), state
 
-    def _in_enemy_territory(self, current_abs, state: LLMAlignerState) -> bool:
-        for ej in state.known_enemy_junctions:
-            if abs(current_abs[0] - ej[0]) + abs(current_abs[1] - ej[1]) <= 10:
-                return True
-        return False
-
     def _check_hp(self, obs: AgentObservation, state: LLMAlignerState, current_abs) -> bool:
         """Check HP and update retreat state. Returns True if agent should retreat."""
         hp = self._read_hp(obs)
@@ -478,8 +472,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             return False
         hp_fraction = hp / state.max_hp_seen
         in_friendly = self._in_friendly_territory(current_abs, state)
-        retreat_threshold = 0.85 if self._in_enemy_territory(current_abs, state) else _HP_RETREAT_THRESHOLD
-        if hp_fraction < retreat_threshold and not in_friendly:
+        if hp_fraction < _HP_RETREAT_THRESHOLD and not in_friendly:
             if not state.retreating:
                 logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) retreating to friendly territory",
                             obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
