@@ -52,15 +52,18 @@ Conclusion: Spread+enemy combo is within noise on navfix-cd3.
 Changes that helped in earlier sessions (with HUB35+2A6M+patience10) don't help individually on clean main.
 The online A/B tests are the decisive signal.
 
-## 2026-05-14: Online results — FULL LEADERBOARD SNAPSHOT
+## 2026-05-14 19:30: Converged online results (CRITICAL UPDATE)
 
-### All issue-73 variants (beta-cvc qualifying)
-| Policy | Rank | Score | Matches | Raw Avg | Change |
-|--------|------|-------|---------|---------|--------|
-| **ax5wp-73j-enemy-hub30** | **#1** | **48.75** | 6 | 39.71 | enemy-8 + HUB30 |
-| ax5wp-73d-enemy | #19 | 40.58 | 16 | 38.80 | enemy -8 |
-| lessandro-navfix-cd3 | #20 | 40.39 | 29 | 40.10 | BASELINE |
-| ax5wp-73c-hub30 | #24 | 40.06 | 16 | 39.45 | HUB_ALIGN=30 |
+### Raw avg vs leaderboard divergence
+With 20+ matches per variant, raw averages are converging and tell a DIFFERENT story than leaderboard ranks (which use Elo/TrueSkill, not raw avg).
+
+| Policy | Rank | Score | Matches | Raw Avg | vs baseline |
+|--------|------|-------|---------|---------|-------------|
+| evyIm-73a-stuck15 | #5 | 41.85 | ~9 | 37.99 | different codebase? |
+| **ax5wp-73j-enemy-hub30** | **#11** | **40.95** | **21** | **39.47** | **closest to baseline** |
+| lessandro-navfix-cd3 | #18 | 40.49 | 29 | 40.10 | BASELINE |
+| ax5wp-73d-enemy | #31 | 39.16 | 21 | **36.46** | **-3.64 pts!** |
+| ax5wp-73c-hub30 | #26 | 39.35 | 16 | 39.45 | -0.65 pts |
 | ax5wp-73i-enemy-spread | #29 | 39.34 | ? | ? | enemy-8 + spread |
 | ax5wp-73n-hubw05 | #34 | 38.97 | ? | ? | hubw=0.5 |
 | ax5wp-73m-hubw0 | #39 | 38.75 | ? | ? | hubw=0 |
@@ -76,17 +79,18 @@ The online A/B tests are the decisive signal.
 | ax5wp-73b-5a3m | #189 | 31.35 | ? | ? | 5A+3M |
 | ax5wp-73k-enemy12 | #736 | 8.20 | ? | ? | enemy -12 |
 
-### Key findings from match data analysis
+### CRITICAL FINDING: No variant beats baseline by raw average
 
-**ax5wp-73j-enemy-hub30 (#1, score 48.75)**: Only 6 matches — score is INFLATED by rating algorithm.
-- Raw scores: [48.75, 43.74, 43.25, 41.60, 40.04, 20.86]
-- Raw avg = 39.71 (below baseline's 40.10)
-- Rating system hasn't converged — #1 ranking is unreliable
+With 20+ matches per variant, the initial positive signals have evaporated:
+- **enemy -8 alone**: 21 matches, raw avg 36.46 (BELOW baseline 40.10)
+- **enemy-hub30 combo**: 21 matches, raw avg 39.47 (closest, but still -0.63)
+- **L2 fix + enemy**: 19 matches, raw avg 35.47 (significantly worse)
+- **L2 fix + enemy + hub30**: 17 matches, raw avg 32.45 (catastrophic)
+- **L2 fix alone**: 4 matches, raw avg 39.60 (too early to judge)
 
-**ax5wp-73d-enemy (#19, score 40.58)**: Recovered from #27 as more matches complete.
-- 16 matches, raw avg 38.80 (dragged by 1.07 outlier with broken partner)
-- Excl. 1.07: avg 41.31 (15 matches) — marginally better than baseline
-- Enemy priority is the ONLY isolated change showing positive signal online
+The leaderboard ranks (Elo/TrueSkill) tell a different story — enemy-hub30 at #11 vs baseline at #18. This suggests the rating system adjusts for partner quality, which benefits enemy-hub30 more than raw average shows.
+
+**Bottom line**: navfix-cd3 remains our strongest policy. No code changes tested improve raw online performance. The scoring function (travel + hub_dist × 0.2) in the baseline is already well-calibrated.
 
 **ax5wp-73k-enemy12 (#736, 8.20)**: Too-aggressive enemy bonus is catastrophic.
 - Enemy -12 bonus is too strong, distorts all targeting decisions
