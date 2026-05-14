@@ -103,3 +103,6 @@ a2c083f	3.640	jh=n/a jg=n/a	3000	discard	cascade_cluster_bonus — bias targetin
 113e5fa	4.049	jh=n/a jg=n/a	3000	discard	territory_safe_mining — prefer extractors in friendly territory (-5.0 bonus) — over-constrains miners (-31.4% 5-ep)
 4a7699a	4.354	jh=n/a jg=n/a	3000	discard	l2_alignable_check_18_28 — L2 distance in _is_alignable with radii 18/28 — loses Manhattan look-ahead (-26.3% 5-ep)
 4a7699a	3.940	jh=n/a jg=n/a	3000	discard	l2_alignable_check_22_30 — L2 with larger radii 22/30 — still loses Manhattan look-ahead (-33.2% 5-ep)
+14a2adb	4.689	jh=n/a jg=n/a	3000	discard	predicted_hazard_stations — predict non-miner stations from hub center, add to blocked_cells — creates nav barriers near hub (-20.5% 5-ep)
+0094ee2	2.928	jh=n/a jg=n/a	3000	discard	aligner_fraction_065 — swap team ratios Cogs=3A1M/Clips=2A2M (was 2A2M/3A1M) — map asymmetry strongly favors current (-50.4% 5-ep)
+3b762ae	5.871	jh=n/a jg=n/a	3000	discard	miner_noop_retreat — noop when retreating with empty cargo in friendly territory — zero effect (-0.5% 5-ep, noise)

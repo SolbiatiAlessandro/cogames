@@ -348,3 +348,20 @@ Previous sessions (1-14) exhausted most parameter tuning. Session 14 established
 | L2 22/30 | 3.940 | **-33.2%** |
 
 Both L2 variants severely regress. The larger radii (22/30) are WORSE, confirming the issue is not radius size but the loss of Manhattan look-ahead. **Reverted and confirmed: Manhattan distance is optimal.**
+
+## 2026-05-14: Experiment — predicted hazard stations (hard-block)
+
+**Hypothesis**: Predict non-miner station positions from hub center and add to blocked_cells.
+- Result: **4.689** (-20.5%). Creates navigation barriers near hub by blocking 4 cells in a row south of hub center. Reverted.
+
+## 2026-05-14: Experiment — aligner_fraction 0.65
+
+**Hypothesis**: Swap per-team ratios: give Cogs 3A+1M (currently 2A+2M) and Clips 2A+2M (currently 3A+1M).
+- Result: **2.928** (-50.4%). Map positions are NOT symmetric — the current assignment is strongly favored by map layout. Reverted.
+
+**Key finding**: Cogs and Clips hub positions create asymmetric advantages. The current role assignment (Cogs=2A2M, Clips=3A1M) is optimal for the map layout.
+
+## 2026-05-14: Experiment — miner noop retreat
+
+**Hypothesis**: When HP is low and cargo=0, noop in friendly territory instead of navigating.
+- Result: **5.871** (-0.5%, noise). Healing rate is the same whether nooping or oscillating near junction. Reverted.
