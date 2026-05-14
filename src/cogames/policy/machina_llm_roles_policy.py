@@ -374,7 +374,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 4 and near_hub and state.no_progress_on_target_steps < 3:
+            patience = 6 if heart_count >= 2 else 3
+            if heart_count < 4 and near_hub and state.no_progress_on_target_steps < patience:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")
