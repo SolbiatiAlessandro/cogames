@@ -933,7 +933,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     _step_counter: dict[int, int] = {}
 
-    _STUCK_THRESHOLD = 120
+    _STUCK_THRESHOLD = 150
     _STUCK_EXPLORE_STEPS = 60
 
     def step_with_state(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
