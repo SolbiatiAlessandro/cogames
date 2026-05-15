@@ -276,3 +276,47 @@ before they can align. This multi-step chain is too hard for early RL.
 | 8 | 0.588 | 0.75 | 6.9 | 55.7 |
 | 9 | 0.348 | 0.77 | 7.0 | 54.8 |
 | 10 | 1.000 | 0.88 | 8.0 | 53.6 |
+
+## 2026-05-15T22:30: Curriculum training (initial_hearts=15, milestones_2+credit)
+
+Config: `train_arena_curriculum.py` — arena basic, 8 agents, wealth=1, initial_hearts=15.
+
+| Epoch | aligned.junction | heart.amount | heart.gained |
+|-------|-----------------|--------------|--------------|
+| 10 | 0.5 | ~10 | 1.39 |
+| 12 | 0.875 | - | 1.34 |
+| 15 | 0.286 | - | 1.90 |
+| 17 | 0.444 | - | 1.88 |
+
+**Result**: Alignment peaks around epoch 12 (0.875) then declines as initial hearts deplete.
+milestones_2+credit alone doesn't incentivize depositing resources at the hub.
+Killed at epoch 17 to try deposit rewards approach.
+
+## 2026-05-15T22:38: Deposit rewards training (initial_hearts=15, milestones_2+credit+deposits)
+
+Config: `train_arena_roles.py` — arena basic, 8 agents, wealth=1, initial_hearts=15.
+Added `deposit_diversity` (SUM_LOGS of element losses, weight=0.3) and
+`mining_diversity` (SUM_LOGS of element gains, weight=0.2) to all agents.
+
+**Hypothesis**: deposit rewards teach the mining→depositing→crafting chain that
+milestones_2/credit alone can't teach.
+
+| Epoch | aligned.junction | heart.amount | heart.gained | heart.withdrawn |
+|-------|-----------------|--------------|--------------|-----------------|
+| 5 | 0.000 | 10.6 | 0.59 | 4.6 |
+| 7 | 0.045 | 9.8 | 0.68 | 5.7 |
+| 8 | 0.214 | 10.2 | 0.63 | 5.0 |
+| 10 | 0.158 | 8.8 | 0.80 | 6.7 |
+| 11 | 0.333 | - | 0.75 | 5.9 |
+| 12 | 0.200 | 7.6 | 0.97 | 10.2 |
+| 13 | **0.800** | 4.1 | 1.40 | **21.0** |
+| 14 | 0.130 | 1.2 | 1.80 | - |
+| 15 | 0.067 | 1.7 | 1.74 | **30.6** |
+| 16 | 0.407 | **0.07** | 1.93 | 29.7 |
+| 17 | 0.091 | 0.7 | 1.85 | - |
+
+**KEY FINDING**: At epoch 15, heart.withdrawn=30.6 but initial_hearts=15, so the hub
+crafted ~16 new hearts! The deposit rewards ARE teaching the mining→depositing chain.
+
+Alignment is noisy (0.07-0.80) because heart supply is erratic — agents learned to
+mine+deposit but not fast enough for sustained heart production yet. Training continues.
