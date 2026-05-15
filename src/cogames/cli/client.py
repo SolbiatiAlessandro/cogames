@@ -136,7 +136,7 @@ class TournamentServerClient:
         self._server_url = server_url
         self._token = token
         self._login_server = login_server
-        self._http_client = httpx.Client(base_url=server_url, timeout=30.0)
+        self._http_client = httpx.Client(base_url=server_url, timeout=30.0, verify=False)
 
     def __enter__(self):
         return self

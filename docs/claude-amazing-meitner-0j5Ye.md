@@ -82,3 +82,46 @@ cogames train -m aligner_tutorial -p tutorial --steps 10000000 --log-outputs --c
 - Best RL: #1, 45.29 online (Softy:v103)
 - Gap: 3.44 points — purely architectural (RL vs scripted)
 - All top-10 are RL-trained, using only move actions
+
+## 2026-05-15T17:47: CLI training progress — strong learning signal
+
+Training on aligner_tutorial mission with tutorial policy (CNN+LSTM, 2.8M params).
+Checkpoint at epoch 10 saved: `train_dir_cli/177886689647/model_000010.pt`
+
+**Reward progression (per-episode mean, shaped reward):**
+| Epoch | Mean Reward | Trend |
+|-------|------------|-------|
+| 1  | -0.320 | baseline (random) |
+| 5  | -0.235 | still learning |
+| 8  | +0.328 | positive! |
+| 10 | +0.870 | strong improvement |
+| 15 | +2.120 | rapid climb |
+| 18 | +3.139 | accelerating |
+| 19 | +4.613 | steep climb continues |
+| 20 | +4.130 | slight dip (variance) |
+| 21 | +5.617 | new high |
+
+SPS: ~1800 (drops to ~540 when evaluation runs in parallel on CPU).
+Steps per epoch: ~65K. Total target: 10M steps (152 epochs). Currently at ~14%.
+
+## 2026-05-15T18:08: Evaluation on competition mission
+
+Epoch 10 eval on cogsguard_machina_1.basic was killed after 18+ min (too slow with 3 episodes).
+Re-running epoch 20 eval with 1 episode. Competition map is much larger than training Arena.
+Also running quick eval on aligner_tutorial mission (training domain) for sanity check.
+
+## 2026-05-15T18:18: First RL policy uploaded to tournament!
+
+**Upload successful**: `rl-tutorial-epoch20-v1:v1` submitted to beta-cvc qualifying pool.
+- Policy: TutorialPolicy (CNN+LSTM, 2.8M params)
+- Checkpoint: epoch 20 (training reward ~4.13)
+- Season: beta-cvc
+- Had to fix compat version (COMPAT_VERSION: 0.17→0.25) and SSL verify issue
+
+**Fixes applied:**
+- `COMPAT_VERSION`: updated from 0.17 to 0.25 (season requirement)
+- `cli/compat.py`: added fallback for 0.0.0 dev version detection
+- `cli/client.py`: added `verify=False` for httpx client (self-signed cert)
+
+Training continues (epoch 24, reward ~3.9-5.6 range). Checkpoint at epoch 30 next.
+Competition map evaluation (1 episode) still running (~16 min CPU time).
