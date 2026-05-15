@@ -56,6 +56,7 @@ class LLMAlignerState(AlignerState):
     explore_start_junctions: int = 0
     align_neutral_timeouts: int = 0
     get_heart_timeouts: int = 0
+    explore_consecutive_fails: int = 0
     recent_events: list[str] = field(default_factory=list)
     # HP monitoring
     max_hp_seen: int = 0
@@ -177,6 +178,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             or (state.current_skill == "align_neutral" and current_abs in self._known_alignable_junctions(state))
             or (state.current_skill == "gear_up" and near_aligner_station)
             or (state.current_skill == "defend" and current_abs in state.known_friendly_junctions)
+            or (state.current_skill == "patrol" and current_abs in state.known_friendly_junctions)
         )
         if made_progress:
             state.no_move_steps = 0
@@ -315,7 +317,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             reason = "overrode get_heart to unstuck after stuck exit (escape navigation deadlock near hub)"
             skill = "unstuck"
         # Hub likely depleted: after 1+ get_heart timeout, defend friendly junctions instead
-        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 2 and state.known_friendly_junctions:
+        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1 and state.known_friendly_junctions:
             reason = f"overrode get_heart to defend after {state.get_heart_timeouts} timeouts (hub likely empty)"
             skill = "defend"
         # Break explore→stuck loop when agent has gear+heart but no known junctions: try unstuck
@@ -331,6 +333,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             skill = "explore"
             reason = f"overrode unstuck to explore after {state.consecutive_unstuck} consecutive unstuck calls"
             state.consecutive_unstuck = 0
+        # Patrol mode: after 2+ explore cycles with no junctions found, patrol near friendly junctions
+        if skill == "explore" and has_heart and state.explore_consecutive_fails >= 2 and state.known_friendly_junctions:
+            skill = "patrol"
+            reason = f"patrol mode: {state.explore_consecutive_fails} explore failures, patrolling friendly junctions"
         # Heart queue management: avoid too many aligners rushing to hub when few hearts available
         # Allow at least 2 aligners simultaneously to reduce idle time
         if skill == "get_heart" and self._shared_map is not None:
@@ -379,7 +385,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, "defend ended: acquired heart while defending")
             state.get_heart_timeouts = 0
             state.current_skill = None
-        elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 10:
+        elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 50:
             self._event(state, "defend ended: trying get_heart again")
             state.get_heart_timeouts = 0  # reset to allow another get_heart attempt
             state.current_skill = None
@@ -392,10 +398,18 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         ):
             new_total = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) - state.explore_start_junctions
             self._event(state, f"explore completed after discovering {new_total} new alignable junction(s)")
+            state.explore_consecutive_fails = 0
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
-            # Cap explore duration to prevent long idle periods when no junctions nearby
-            self._event(state, f"explore capped after {state.skill_steps} steps without finding junctions")
+            state.explore_consecutive_fails += 1
+            self._event(state, f"explore capped after {state.skill_steps} steps (fail #{state.explore_consecutive_fails})")
+            state.current_skill = None
+        elif state.current_skill == "patrol" and self._known_alignable_junctions(state):
+            self._event(state, "patrol ended: new alignable junctions found")
+            state.explore_consecutive_fails = 0
+            state.current_skill = None
+        elif state.current_skill == "patrol" and state.skill_steps >= self._stuck_threshold * 5:
+            self._event(state, f"patrol ended after {state.skill_steps} steps, re-exploring")
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
@@ -430,10 +444,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 state.get_heart_timeouts += 1
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
-        elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
+        elif state.current_skill not in {None, "gear_up", "patrol"} and state.no_move_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
-        elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+        elif state.current_skill not in {None, "gear_up", "patrol"} and state.no_progress_on_target_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
@@ -510,7 +524,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
         # Navigation shake: after 5 consecutive blocked moves, every 3rd step try a random direction
         # This breaks BFS deadlocks caused by agent-occupied cells
-        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
+        if state.current_skill not in {None, "unstuck", "patrol"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck(state)
             state.skill_steps += 1
             return action, state
@@ -562,6 +576,22 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             else:
                 action, base_state = self._explore(obs, state)
                 state = self._copy_with(state, base_state)
+        elif state.current_skill == "patrol":
+            current_abs = self._spawn_offset(obs)
+            if current_abs in state.known_friendly_junctions:
+                action = self._starter._action("noop")
+            elif state.known_friendly_junctions:
+                target = self._nearest_known(current_abs, state.known_friendly_junctions)
+                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                if direction:
+                    action = self._starter._action(f"move_{direction}")
+                    state.last_move_target = self._move_target(current_abs, direction)
+                else:
+                    action, base_state = self._explore(obs, state)
+                    state = self._copy_with(state, base_state)
+            else:
+                action, base_state = self._explore(obs, state)
+                state = self._copy_with(state, base_state)
         elif state.current_skill == "explore":
             if self._inventory_count(obs, "heart") > 0:
                 action, base_state = self._explore_for_alignment(obs, state)
@@ -596,7 +626,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         num_scouts: int | str = "auto",
         scout_ids: str = "",
         return_load: int | str = 40,
-        stuck_threshold: int | str = 20,
+        stuck_threshold: int | str = 15,
         unstuck_horizon: int | str = 4,
         llm_api_url: str | None = None,
         llm_model: str | None = "nvidia/llama-3.3-nemotron-super-49b-v1.5",
