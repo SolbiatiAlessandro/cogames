@@ -352,3 +352,43 @@ Heart production: 17 crafted hearts by epoch 15 (heart.withdrawn=32 - 15 initial
 
 **BUT**: Variance is extremely high (0.056-0.889). The small eval sample size and
 clips opposition cause wild fluctuations. Training continues to epoch 20+.
+
+## 2026-05-15T23:11: Strong objective training (milestones_2:25)
+
+Config: `train_arena_strong_objective.py` — same as balanced but milestones_2 compounding
+factor 25 (5x default). Per-tick objective 5x stronger so holding aligned junctions
+should dominate all shaping rewards.
+
+| Epoch | aligned.junction | heart.amount | heart.gained | heart.withdrawn |
+|-------|-----------------|--------------|--------------|-----------------|
+| 5 | 0.053 | - | - | - |
+| 10 | **0.455** | 8.9 | 0.78 | - |
+| 13 | 0.300 | 8.3 | 0.88 | 7.0 |
+| 15 | 0.286 | 9.3 | 0.76 | 6.9 |
+| 17 | 0.167 | - | - | 7.2 |
+| 19 | 0.000 | - | - | - |
+| 22 | 0.000 | 9.0 | 0.75 | 7.6 |
+
+**FAILURE**: Alignment extremely unstable (0.0-0.455), collapsing to 0 by epoch 21.
+Strong per-tick objective doesn't help DISCOVER alignment — only rewards holding it.
+Average alignment epochs 10-22: ~0.19 (worse than balanced's ~0.35).
+
+## 2026-05-15T23:35: Fine-tuning attempts — catastrophic forgetting
+
+**Attempt 1**: Balanced epoch 10 → aggressive alignment (5.0 alignment, 3.0 aligner gear).
+Result: alignment immediately 0, agents only grabbed hearts (22 withdrawn). KL=0.025.
+
+**Attempt 2**: Balanced epoch 10 → moderate boost (2.0 alignment, 1.0 aligner gear).
+Result: same catastrophic forgetting. Alignment 0, hearts 22+ withdrawn.
+
+**Root cause**: Loading model weights without optimizer state (Adam momentum/variance)
+causes large early updates that destroy pre-trained behavior. Even moderate reward
+changes become destabilizing without the optimizer's learned step sizes.
+
+## 2026-05-15T23:42: Scarce hearts training (initial_hearts=3)
+
+Config: `train_arena_scarce_hearts.py` — arena basic, 8 agents, wealth=1, initial_hearts=3.
+Hypothesis: with only 3 hearts for 8 agents, agents MUST learn mining→crafting chain
+early. Balanced rewards identical to balanced config.
+
+Training started, monitoring to epoch 10+.

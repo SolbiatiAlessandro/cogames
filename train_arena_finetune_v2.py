@@ -1,13 +1,10 @@
-"""Training mission: competition map with short episodes.
+"""Fine-tune balanced epoch 10 checkpoint with slightly stronger alignment.
 
-Trains directly on cogsguard_machina_1.basic (88x88, 8 agents, 4 clips ships)
-but with max_steps=1000 instead of 10000 for faster training.
+The balanced model at epoch 10 achieved 0.889 alignment — peak performance.
+Fine-tune with identical rewards EXCEPT slightly higher alignment_bonus (2.0 vs 1.0)
+and slightly higher aligner_gear_bonus (1.0 vs 0.5).
 
-The model learns per-step behavior on the actual competition map layout.
-At inference time, episodes can be 10000 steps without issues since the
-observation space (13x13 local view) and action space are identical.
-
-initial_hearts=15 for bootstrap, wealth=1 matches competition.
+Keep mining/deposit rewards IDENTICAL to avoid catastrophic forgetting.
 """
 from cogames.cogs_vs_clips.missions import MISSIONS
 from cogames.cogs_vs_clips.reward_variants import apply_reward_variants
@@ -18,26 +15,24 @@ from mettagrid.config.reward_config import Aggregation, reward
 
 _MINER_ELEMENTS = ("carbon", "oxygen", "germanium", "silicon")
 
-competition_basic = None
+arena_basic = None
 for m in MISSIONS:
     if getattr(m, 'name', '') == 'basic':
         site = getattr(m, 'site', None)
-        if site and getattr(site, 'name', '') == 'cogsguard_machina_1':
-            competition_basic = m
+        if site and getattr(site, 'name', '') == 'cogsguard_arena':
+            arena_basic = m
             break
 
-if competition_basic is None:
-    raise ValueError("Could not find cogsguard_machina_1.basic mission")
+if arena_basic is None:
+    raise ValueError("Could not find cogsguard_arena.basic mission")
 
-competition_basic.max_steps = 1000
-
-competition_basic.teams = {
+arena_basic.teams = {
     "cogs": CogTeam(name="cogs", num_agents=8, wealth=1, initial_hearts=15),
 }
 
-config = competition_basic.make_env()
+config = arena_basic.make_env()
 
-apply_reward_variants(config, variants=["milestones_2:25", "credit"])
+apply_reward_variants(config, variants=["milestones_2", "credit"])
 
 for agent_cfg in config.game.agents:
     rewards = dict(agent_cfg.rewards)
@@ -55,10 +50,10 @@ for agent_cfg in config.game.agents:
     )
     rewards["aligner_gear_bonus"] = reward(
         stat("aligner.gained"),
-        weight=0.5,
+        weight=1.0,
     )
     rewards["alignment_bonus"] = reward(
         stat("junction.aligned_by_agent"),
-        weight=1.0,
+        weight=2.0,
     )
     agent_cfg.rewards = rewards
