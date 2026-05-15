@@ -8,3 +8,4 @@ dcc1a47	0.347	aligned.junction.held=2475,clips.aligned.junction.held=21040	1000	
 dcc1a47	0.10	aligned.junction.held=0,heart.withdrawn=5	1000	iterate	rl bootstrap epoch20 on competition map - zero alignment, no hearts available
 dcc1a47	0.00	aligned.junction.held=0,aligner.amount=0	1000	fail	rl arena_milestones_v1 epoch20 on training mission - aligner penalty blocked gear pickup
 b82e10c	0.00	aligned.junction=0,aligner.amount=0,heart.gained=1.9	1000	fail	rl arena_roles epoch20 - deposit rewards dominated, agents learned mining but abandoned alignment
+dd16ab8	0.13	aligned.junction.avg=0.13,heart.gained=1.9,heart.crafted=17	1000	iterate	rl arena_balanced epoch20 - capped deposits+alignment bonus, alignment noisy but mining chain works

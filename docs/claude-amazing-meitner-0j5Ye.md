@@ -318,5 +318,37 @@ milestones_2/credit alone can't teach.
 **KEY FINDING**: At epoch 15, heart.withdrawn=30.6 but initial_hearts=15, so the hub
 crafted ~16 new hearts! The deposit rewards ARE teaching the mining→depositing chain.
 
-Alignment is noisy (0.07-0.80) because heart supply is erratic — agents learned to
-mine+deposit but not fast enough for sustained heart production yet. Training continues.
+**FAILURE**: Uncapped deposit/mining rewards (weight 0.3+0.2, no max) dominated
+alignment incentives (capped at 1.0). By epoch 18, aligner.amount=0 and
+aligned.junction=0 — agents abandoned alignment entirely to focus on mining.
+
+## 2026-05-15T22:56: Balanced rewards training (milestones_2+credit+capped deposits+alignment bonus)
+
+Config: `train_arena_balanced.py` — arena basic, 8 agents, wealth=1, initial_hearts=15.
+Key changes from roles: deposit_diversity capped (0.15, max=2.0), mining_diversity
+capped (0.1, max=1.5), explicit alignment_bonus (1.0) and aligner_gear_bonus (0.5).
+
+| Epoch | aligned.junction | heart.amount | heart.gained | heart.withdrawn |
+|-------|-----------------|--------------|--------------|-----------------|
+| 3 | 0.062 | 12.7 | 0.31 | - |
+| 5 | 0.240 | 9.6 | 0.71 | - |
+| 6 | 0.273 | - | 0.56 | - |
+| 7 | 0.053 | - | 0.65 | - |
+| 8 | 0.308 | 10.6 | 0.58 | - |
+| 9 | 0.571 | - | 1.01 | - |
+| 10 | 0.471 | 7.8 | 0.93 | - |
+| **11** | **0.889** | - | 1.25 | - |
+| 12 | 0.071 | 1.2 | 1.76 | 23.9 |
+| 13 | 0.062 | 0.1 | 1.88 | 28.7 |
+| **14** | **0.688** | **0.4** | 1.84 | - |
+| 15 | 0.056 | 1.2 | 1.78 | 32.2 |
+
+**KEY BREAKTHROUGH**: At epoch 14, alignment recovered to 0.688 with heart.amount=0.4
+(essentially empty). This is the first config where alignment bounces back after initial
+hearts deplete — the mining→depositing→crafting chain is self-sustaining!
+
+Average alignment epochs 11-15: **0.353** (vs curriculum 0.286 at same point).
+Heart production: 17 crafted hearts by epoch 15 (heart.withdrawn=32 - 15 initial).
+
+**BUT**: Variance is extremely high (0.056-0.889). The small eval sample size and
+clips opposition cause wild fluctuations. Training continues to epoch 20+.
