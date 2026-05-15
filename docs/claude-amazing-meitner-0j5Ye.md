@@ -244,3 +244,35 @@ Token `6PnH...` returns `subject_type: anonymous` on `/whoami` — auth expired.
 The OAuth browser flow can't run in headless environment.
 Upload, matches, submissions all return 401. Leaderboard (public) works.
 **This blocks tournament submission — focusing on offline evaluation.**
+
+## 2026-05-15T21:58: Key finding — initial hearts critical for alignment learning
+
+**Arena milestones v1** (milestones_2+credit+aligner, NO initial hearts):
+- Epoch 20 eval: cogs/aligned.junction.held=0.0, aligner.amount=0.0
+- Despite 2M+ steps, agents never picked up aligner gear
+- The `aligner` reward variant's -1.0 penalty for non-aligner gear prevented exploration
+- Heart.withdrawn=5.0 but hearts wasted (no aligner gear to use them)
+
+**Aligner8 on arena WITH clips**: Zero alignment — EASY-trained model can't transfer to clips
+
+**Root cause**: Arena basic mission has `wealth=1, initial_hearts=None`. The aligner tutorial
+uses `wealth=3, initial_hearts=120`. Without pre-stocked hearts, agents must mine→craft→hearts
+before they can align. This multi-step chain is too hard for early RL.
+
+**Solution: Bootstrap training** (`train_arena_bootstrap.py`):
+- Arena basic with clips + `initial_hearts=60, wealth=2` + milestones_2+credit rewards
+- Hearts pre-stocked at hub → agents can learn alignment directly
+- Result: aligned.junction reached **1.0 by epoch 10** (vs 0.0 for v1 at epoch 20!)
+
+## 2026-05-15T22:05: Bootstrap training progress
+
+| Epoch | aligned.junction | heart.gained | max_steps | heart.amount |
+|-------|-----------------|--------------|-----------|--------------|
+| 1 | 0.000 | 0.175 | 2.36 | - |
+| 4 | 0.077 | 0.71 | 6.3 | 58.8 |
+| 5 | 0.250 | - | - | 55.5 |
+| 6 | 0.000 | 0.98 | 6.4 | 56.6 |
+| 7 | 0.200 | - | - | 56.5 |
+| 8 | 0.588 | 0.75 | 6.9 | 55.7 |
+| 9 | 0.348 | 0.77 | 7.0 | 54.8 |
+| 10 | 1.000 | 0.88 | 8.0 | 53.6 |
