@@ -1,97 +1,107 @@
 # Director Notes
-_Written: 2026-05-10 (Session 32)_
+_Written: 2026-05-15 (Session 34, offline-to-online)_
 
-## What I observed
+## Offline observations
 
-### Replay unavailable (same as session 30/31)
-Python 3.11 on this machine still lacks `typing.override` (3.12+) in the cogames source code. Relied on online match data and researcher episode analysis instead.
+### Merge: evyIm branch into main
+- Merged `claude/amazing-meitner-evyIm` (8 commits ahead)
+- Single code change: `stuck_threshold` 20 → 15 in `machina_llm_roles_policy.py`
+- Online evidence: #5 on leaderboard (41.85), best non-Softy policy
 
-### Online status — MASSIVE improvement since session 30
+### Offline best unchanged
+- Still 3.282 total reward (5-seed avg, d922520, v52 + contamination fix)
+- toEqP achieved 4.751 offline (+76.6%) but is #275 online (27.18) — confirms offline-online gap
 
-| Metric | Session 30 | Session 32 | Change |
-|--------|-----------|-----------|--------|
-| Best policy | v52 (#40, 36.15) | opt-v1 (#13, 40.07) | **+10.9% score, +27 ranks** |
-| Gap to #1 | 5.71 pts (13.6%) | 1.79 pts (4.3%) | **-69% gap** |
-| Variants tested | 1 (v52) | 21 (full A/B sweep) | new upload pipeline |
+### No new offline experiments worth merging
+- AX5WP branch: L2 distance fix + explore consecutive fails tracking. #11 online but combined with stuck15 regresses
+- U0G66 branch: L2 fix + patrol mode removal. #29-132 online. Not competitive
+- toEqP branch: 165 commits ahead. #261/#275 online. Catastrophic offline-online gap
+- issue-71 branch: 2 commits, just starting. No results yet
 
-### What happened between sessions 30 and 32
+## Online observations
 
-1. **Session 31 (offline-to-online director)**: Diagnosed contamination-v64 crash as bundle shadowing. Created diagnostic path.
-2. **Researcher 095mA**: Fixed the crash (upload_full_bundle.py), then ran 21 online A/B experiments. Found that:
-   - `hearts<3 + wait<3` = +6 leaderboard pts (vs v52-clean baseline)
-   - `JUNCTION_ALIGN_DISTANCE=25` is optimal
-   - Contamination code actually HELPS online (v52-j25-fast #272 vs opt-v1 #13 with same J=25)
-   - 19+ parameter variations all regressed vs opt-v1
-3. **Researcher SamLl**: Junction distance fix (align=15/explore=25) gives +2.5% offline but was NOT the improvement online — J=25 for cascade is better online.
+### Leaderboard (beta-cvc, 928 entries)
+| Rank | Score | Policy | Matches |
+|------|-------|--------|---------|
+| #1 | 45.29 | Softy:v103 | 20 |
+| #2 | 43.58 | Softy:v111 | 22 |
+| #5 | **41.85** | **evyIm-73a-stuck15:v1** | 8 |
+| #11 | 40.85 | ax5wp-74a-hubl2-def-enemy:v1 | ~15 |
+| #18 | 40.49 | lessandro-navfix-cd3:v1 | ~30 |
 
-### opt-v1 match profile (25 completed CvC matches)
+5 of our policies are in the top 20. 160 total policies submitted by us.
 
-- Avg: 37.8, Median: 42.3, Min: 9.2, Max: 52.3
-- By allocation: 2ag=24.5, 4ag=41.2, 6ag=44.0
-- vs External partners (20): avg 38.0
-- vs Internal policies (5): avg 36.8
-- Top 5 partners give us 44-52 (competitive with anyone)
-- Bottom matches (9-16) are with "ron.anticlips" weak/hostile partners
+### evyIm-73a-stuck15 match analysis (8 matches)
+- Avg: 41.85, Stddev: 7.1, p5: 21.4, p95: 46.6
+- Very consistent: no matches below 21 (vs Softy's floor of 5.3)
+- Ceiling capped at ~46 (vs Softy reaching 57+)
+- High-score match (45.09): 66 junctions, cogs held 450,858 (69%), 5 hearts withdrawn
+- Only 8 matches — rating may shift with more data
 
-For comparison, #1 Softy:v96 has avg 36.5, min 3.2, max 55.5. Our raw match scores are already competitive — the Elo difference is mainly about match count accumulation.
+### Replay analysis (score 45.09 match)
+- 8 agents total: 2 ours (evyIm), 6 partner (ax5wp-73k)
+- Agent lifespans: 1877-7269 steps (significant variance, some die early)
+- Cogs held 450,858 vs Clips held 551,066 junction-steps
+- Only 5 hearts withdrawn — standard hub depletion pattern
+- 100 junctions gained, 1384-1461 resources deposited per type
+
+## Offline-to-online gap
+
+### Current state
+1. **Offline best**: 3.282 (5-seed avg, contamination fix). Not changed since session 30.
+2. **Online best**: #5, score 41.85 (evyIm-73a-stuck15:v1, 8 matches)
+3. **Gap to #1**: 3.44 pts (7.6%) — Softy pushed from 41.86 to 45.29
+
+### Gap diagnosis
+1. The gap is **architectural**: scripted ceiling at ~42, RL ceiling at ~57 (p95)
+2. **Parameter stacking regresses**: U0G66 combo (#29) < either component (#5, #11). Same as kensho (#55 < navfix #18). See #74.
+3. **Offline-online correlation**: Weak. toEqP is +76.6% offline, -35% online (#275). stuck_threshold=15 has no special offline advantage but is #5 online.
+4. **Online-first methodology confirmed**: A/B testing 60+ variants online found the winner that offline testing missed.
+
+### Is the gap closing?
+- Session 30 to 34: We went from #40 (36.15) to #5 (41.85) = +15.8% absolute improvement
+- But #1 also improved: 41.86 to 45.29 = +8.2%
+- Our rank improved dramatically (#40 to #5) but the gap to #1 widened (1.79 to 3.44 pts)
+- Within scripted framework: GAP IS NOT CLOSING. Need architectural change (RL).
 
 ## Current bottleneck
 
-**Move failure rate (33% of aligner steps)** — agents waste 1/3 of steps bumping into walls and unknown obstacles. This is the strongest predictor of match score in the researcher's episode analysis. Created #69.
+**Architectural ceiling.** The scripted policy with BFS navigation and LLM planning has hit its performance ceiling at ~42 average. Evidence:
+- 60+ online variants tested; best is a single-parameter change
+- Combining improvements always regresses
+- p95 capped at 46.6 vs RL policies reaching 57+
+- The gap is in late-game sustained efficiency over 10k steps
 
-Secondary: **2-agent allocation weakness** (24.5 avg) drags overall rating. Created #70.
-
-## What I expected to happen vs. what I found
-
-**Expected (from session 30 notes)**:
-- contamination-v64 would perform well online once crash fixed ✓
-- Aligner throughput (#67) would be the top lever ✗
-- 5A+3M might help now that mining is surplus ✗ (catastrophic)
-- Heart queue wait reduction (6→3-4 ticks) might help ✓ (this was the key!)
-
-**Found**:
-- Contamination-v64 alone was neutral-negative online (v3 at #94, 33.95)
-- The real improvement came from `hearts<3 + wait<3` (reducing hub dwell time)
-- Combined with contamination code, this reached #13 — contamination helps by preventing gear loss
-- Aligner throughput (#67) was exhausted after 19 experiments — ceiling is architectural
-- The bottleneck shifted to raw navigation quality (move failures)
-
-**Key surprise**: Online-offline gap inverted. Contamination was +15.2% offline but initially negative online. The hearts<3/wait<3 change was tested online-first and immediately improved leaderboard. This validates online-first methodology.
+**Path forward**: RL training (#41) or accept #5 position.
 
 ## Issues updated this session
 
-- **#68**: CLOSED. Crash fixed by upload_full_bundle.py. opt-v1 reached #13.
-- **#67**: CLOSED. Exhausted (19 experiments). Junction ceiling is architectural.
-- **#65**: DEMOTED to priority:3. Subsumed by #67 findings.
-- **#62**: DEMOTED to priority:3. Subsumed by #67 findings.
-- **#69**: CREATED (priority:1). Move failure rate reduction — 33% of steps wasted.
-- **#70**: CREATED (priority:2). 2-agent allocation performance gap.
+- **#74**: CREATED (priority:1). Scripted ceiling documentation + combination regression pattern
+- **#73**: DEMOTED to priority:2. toEqP online results are catastrophic (#261/#275)
+- **#71**: DEMOTED to priority:2. Junction control marginal gains
+- **#41**: KEPT at priority:1. RL training is the only ceiling-breaker
+- **#70**: DEMOTED to priority:3. Even top policies struggle at 2-agent
 
 ## Merges this session
 
-- **hearts<3/wait<3 change**: Applied to main (1 line in machina_llm_roles_policy.py)
-- **upload_full_bundle.py**: Copied from 095mA branch to main
-- **Did NOT merge 095mA HEAD**: Contains hub_weight=0.1 and blacklist changes that regressed
+- **evyIm branch into main**: stuck_threshold 20 to 15. Reached #5 on leaderboard.
 
 ## Branches NOT merged (and why)
 
-- **095mA HEAD** (09502f7): hub_weight=0.1 + map pollution changes regressed from opt-v1.
-- **SamLl** (451be74): Junction dist split +2.5% offline but J=25 cascade is better online.
-- **IgXg8** (b5c06d5): Same as SamLl + .pyc files committed.
-- **OPj3g**: Issue #67 offline experiments. All exhausted.
-- **wf6SN** (7f3d1ea): Previous director notes only.
-- Old (NNt07, VZvye, C4lUC, q8Otj, dCgfY, 0S1xy): Stale since session 29-30.
+- **AX5WP** (14 ahead): L2 fix + explore fail tracking. #11 online but regresses when combined with stuck15.
+- **U0G66** (4 ahead): L2 fix + patrol removal. #29-132 online. Not competitive with evyIm.
+- **toEqP** (165 ahead): 6 cumulative changes, +76.6% offline, #275 online. DO NOT MERGE.
+- **issue-71** (2 ahead): Just started, no results.
 
 ## Submission status
 
-- **beta-cvc**: opt-v1:v1 at #13 (40.07). 25 matches, stable. Best ever.
-- **beta-teams-tiny-fixed**: Not checked this session.
+- **beta-cvc**: evyIm-73a-stuck15:v1 at #5 (41.85). 8 matches. Best ever.
+- No new submission needed — evyIm-73a is already uploaded and performing.
 
 ## Open questions for next director
 
-1. **Is the rating still converging?** With only 25 matches, opt-v1 may climb higher as Elo stabilizes. Check if score has changed.
-2. **Move failure rate — can it be fixed?** Removing move_blocked_cells HURT (095mA v14-v18). The fix isn't "remove bad blocks" — it needs fundamentally better exploration. This is a hard problem.
-3. **Online-first methodology**: Confirmed this session. Next researcher should upload early and iterate on online data rather than spending days on offline tuning.
-4. **Stale branch cleanup**: 80+ remote branches. NNt07, VZvye, C4lUC, q8Otj, IgXg8, dCgfY, 0S1xy all confirmed stale and can be deleted.
-5. **Partner interaction**: Worst matches (9-16) are with "ron.anticlips" policies. Are these actively adversarial or just weak? Could defensive play help?
-6. **Match count effect**: Softy:v96 likely has 100+ matches giving tighter Elo estimate. Our 25 matches may have inflated variance penalty. Simply accumulating more matches might close the gap without any code changes.
+1. **Has evyIm-73a stabilized?** With only 8 matches, the rating could shift. Check if score is still ~42 after 20+ matches.
+2. **Can we get RL training started?** #41 is the only path to top-3. GPU is the blocker. Any available compute?
+3. **Should we clean up branches?** 100+ remote branches. Many confirmed stale.
+4. **What's happening in the wider tournament?** Softy pushed 4+ new versions since session 30. They're iterating on RL training.
+5. **Is the combination regression pattern breakable?** 60+ variants suggest unlikely, but untested 2-change combos remain.

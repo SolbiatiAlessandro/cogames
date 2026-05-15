@@ -24,66 +24,74 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-08 (Session 30)_
+_Updated by Director (offline-to-online): 2026-05-15 (Session 34)_
 
-### Online Tournament (beta-cvc, 712 entries, cooperative scoring)
+### Online Tournament (beta-cvc, 928 entries, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **41.86** | `Softy:v96` | RL (NEW #1) |
-| #2 | 41.28 | `slanky:v171` | RL |
-| #3 | 41.10 | `Paz-Bot-9000:v47` | RL |
-| #4 | 40.82 | `Gryffindor:v11` | RL |
-| #5 | 40.76 | `slanky:v165` | RL |
+| #1 | **45.29** | `Softy:v103` | RL (pushed from 41.86) |
+| #2 | 43.58 | `Softy:v111` | RL |
+| #3 | 42.48 | `Softy:v107` | RL |
+| #4 | 41.86 | `Softy:v96` | RL (was #1 in session 30) |
+| **#5** | **41.85** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — best non-Softy policy!** |
+| #6 | 41.59 | `Softy:v100` | RL |
+| #7 | 41.28 | `slanky:v171` | RL |
 | ... | | | |
-| **#40** | **36.15** | **`lessandro-scripted-v52:v1`** | **OUR BEST** (stable) |
-| #50 | 35.00 | `lessandro-ohm-bekkenze-maha-bekkenze:v1` | aSOVe variant |
-| #56 | 34.78 | `lessandro-scripted-v48:v1` | previous best |
-| TBD | TBD | **`lessandro-contamination-v64:v2`** | **NEW** — #64 fix, +15.2% offline, matches pending |
+| **#11** | **40.85** | **`ax5wp-74a-hubl2-def-enemy:v1`** | hub L2 fix + defend + enemy |
+| #12 | 40.82 | `Gryffindor:v11` | RL |
+| ... | | | |
+| **#18** | **40.49** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
+| **#19** | **40.44** | **`ax5wp-73s-l2fix:v1`** | L2 distance fix |
+| **#20** | **40.43** | **`ax5wp-73x-hubl2-def:v1`** | L2 + defend |
 
-_v52 still our best online (#40, 36.15). Gap to #1: 13.6% (5.71 pts). contamination-v64 submitted — awaiting online results._
+_5 policies in top 20! Gap to #1: 3.44 pts (7.6%). Scripted ceiling confirmed at ~42 (#74)._
+
+### Our Best Policy: evyIm-73a-stuck15 (8 matches)
+
+```
+Avg:   41.85   Stddev: 7.1   p5: 21.4   p95: 46.6
+vs Softy:v103 — Avg: 45.29, Stddev: 16.5, p5: 5.3, p95: 57.5
+Our floor is higher (21.4 vs 5.3) but ceiling is capped (46.6 vs 57.5)
+```
 
 ### Offline Best Results (8-agent, 3000 steps)
 
 | Rank | Reward | Commit | Config | Seeds | Notes |
 |------|--------|--------|--------|-------|-------|
-| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | **+15.2% vs v52 baseline** |
+| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | +15.2% vs v52 baseline |
 | 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | 5-seed avg | previous best |
-| 3 | 2.053 | `b6a86ae` | v52 + VZvye combined | 5-seed avg | +0.7%, within noise |
 
-### Key Findings (Session 30)
+### Key Findings (Session 34)
 
-1. **Gear contamination SOLVED** (#64) — EnIvJ branch delivered +15.2% avg reward. Seed 123 (contamination-prone) improved +92.6%. Key: reactive avoidance (remember exact contamination cells) >> predictive avoidance (buffer zones).
-2. **Bottleneck shifted: mining -> aligner throughput** — Post-fix, resource surpluses are 300-650 but hearts withdrawn only 20-31 of potential 69-97. Aligner side is now the ceiling (#67).
-3. **JUNCTION_ALIGN_DISTANCE=25 merged** — +7.9% in combined experiments (not independently validated).
-4. **contamination-v64:v2 submitted** to beta-cvc and beta-teams-tiny-fixed. 4 matches pending.
-5. **v52 match variance persists** — recent scores 6.3 to 54.5 (avg 35.5). Floor still low with weak partners.
+1. **#5 on leaderboard** — `evyIm-73a-stuck15:v1` reached #5 (41.85) with a single parameter change: `stuck_threshold=15`. Best non-Softy policy in the tournament.
+2. **Massive A/B testing campaign validated** — 60+ online variants tested by researchers evyIm and ax5wp. Online-first methodology confirmed as the right approach.
+3. **Combination regression pattern** (#74) — every attempt to stack individually-good changes regresses online. stuck15 alone (#5, 41.85) > stuck15+L2+defend+enemy (#29, 39.89). Scripted ceiling is architectural.
+4. **Softy pushed hard** — #1 went from 41.86 (v96) to 45.29 (v103), widening the absolute gap despite our improvement.
+5. **Consistency advantage** — our stddev 7.1 vs Softy's 16.5. We never score below 21; Softy can score as low as 5. But we can't reach 50+.
 
-### v52 Recent Match Scores (19 matches)
+### Progress Trajectory
 
 ```
-Best:  54.5 (Softy:v96)         Worst: 6.3 (dedicated.ao:v1)
-Avg:   35.5                     Range: 6.3 — 54.5
-Scores: 6.3, 23.7, 24.4, 27.3, 28.3, 29.4, 31.2, 32.0, 32.2, 34.3, 35.3, 38.6, 39.5, 39.7, 46.1, 48.2, 51.3, 52.4, 54.5
+Session 30 (#40, 36.15)  →  Session 32 (#13, 40.07)  →  Session 34 (#5, 41.85)
+Gap to #1:  5.71 (13.6%)  →  1.79 (4.3%)  →  3.44 (7.6%)
 ```
 
 ### Current Priority Stack
 
 ```
-priority:1  #67  Aligner throughput bottleneck                 <- NEW, hearts 20-31 of potential 69-97
-priority:2  #65  Alignment speed (align junctions earlier)     <- overlaps with #67
-priority:2  #62  Junction capture rate & exploration coverage  <- exhausted at <1% gains
-priority:2  #41  RL policy training                            <- BLOCKED (needs GPU), ceiling-breaker
-priority:3  #50  Per-agent alignment efficiency tuning         <- DEMOTED, superseded by #67
-priority:3  #61, #56, #57                                     <- mortality is partner-dependent
-priority:3  #53, #27, #26, #12, #11, #10                      <- speculative / researched
-CLOSED  #64  Gear contamination prevention                 <- RESOLVED (+15.2%, merged EnIvJ)
-CLOSED  #66  Submit to beta-teams-tiny-fixed               <- RESOLVED (submitted)
+priority:1  #74  Scripted ceiling at ~42 — combination regression     <- NEW, key finding
+priority:1  #41  RL policy training                                   <- ceiling-breaker, needs GPU
+priority:2  #73  A/B test toEqP improvements                         <- DEMOTED, toEqP terrible online
+priority:2  #71  Junction control efficiency                          <- DEMOTED, marginal gains left
+priority:3  #70  2-agent allocation                                   <- DEMOTED, even Softy struggles
+priority:3  #53, #27, #26, #23-17, #12, #11, #10                     <- speculative / researched
+CLOSED  #69  Move failure rate                                    <- 50% is game-normal
+CLOSED  #67  Aligner throughput                                   <- exhausted (19 experiments)
+CLOSED  #65  Alignment speed                                      <- subsumed
+CLOSED  #62  Junction capture rate                                <- exhausted
+CLOSED  #64  Gear contamination                                   <- RESOLVED
 ```
-
-### beta-teams-tiny-fixed Season
-
-Submissions made: v52:v1 and contamination-v64:v1. Still only 10 entries (scores 10-28). Awaiting match results.
 <!-- LEADERBOARD_END -->
 
 ### Autoresearch Progress
