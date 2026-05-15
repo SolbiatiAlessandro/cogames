@@ -613,6 +613,26 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return self._safe_wander(state, current_abs)
         return self._move_to(state, current_abs, best_frontier)
 
+    def _pick_spread_frontier(self, current_abs: Coord, frontier_cells: set[Coord]) -> Coord | None:
+        if not frontier_cells:
+            return None
+        sm = self._shared_map
+        other_positions = []
+        if sm is not None:
+            other_positions = [
+                pos for aid, pos in sm.agent_positions.items()
+                if aid != self._agent_id
+            ]
+        if not other_positions:
+            return self._nearest_known(current_abs, frontier_cells)
+        def spread_score(cell: Coord) -> float:
+            travel = abs(cell[0] - current_abs[0]) + abs(cell[1] - current_abs[1])
+            min_other = min(
+                abs(cell[0] - p[0]) + abs(cell[1] - p[1]) for p in other_positions
+            )
+            return travel - 0.5 * min(min_other, 30)
+        return min(frontier_cells, key=spread_score)
+
     def _explore_frontier(
         self,
         obs: AgentObservation,
@@ -626,7 +646,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, frontier_cells)
+        target_abs = self._pick_spread_frontier(current_abs, frontier_cells)
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
@@ -731,16 +751,34 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
         if hub is None:
             return self._nearest_known(current_abs, candidates)
+        enemy_junctions = state.known_enemy_junctions
+        sm = self._shared_map
+        other_positions = []
+        if sm is not None:
+            other_positions = [
+                pos for aid, pos in sm.agent_positions.items()
+                if aid != self._agent_id
+            ]
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            return travel + hub_dist * 0.2
+            s = travel + hub_dist * 0.2
+            if j in enemy_junctions:
+                s -= 8.0
+            if other_positions:
+                min_dist = min(
+                    abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
+                )
+                s -= 0.05 * min(min_dist, 30)
+            return s
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
         hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
         for hub in hubs:
-            if abs(junction[0] - hub[0]) + abs(junction[1] - hub[1]) <= _HUB_ALIGN_DISTANCE:
+            dx = junction[0] - hub[0]
+            dy = junction[1] - hub[1]
+            if (dx * dx + dy * dy) ** 0.5 <= _HUB_ALIGN_DISTANCE:
                 return True
         for friendly in state.known_friendly_junctions:
             if abs(junction[0] - friendly[0]) + abs(junction[1] - friendly[1]) <= _JUNCTION_ALIGN_DISTANCE:
