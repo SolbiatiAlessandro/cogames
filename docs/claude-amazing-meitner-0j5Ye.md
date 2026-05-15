@@ -204,3 +204,43 @@ Three concurrent training runs:
 1. Tutorial CNN+LSTM on aligner_tutorial (PID 14570) — epoch 50+, continuing
 2. LSTM on aligner_tutorial (PID 6786) — epoch 16+
 3. Tutorial CNN+LSTM on arena basic (PID 15293) — just started
+
+## 2026-05-15T20:22: Aligner8 training (8 agents, EASY, AlignerRewardsVariant)
+
+Custom mission `train_aligner8.py`: 8 agents, COGSGUARD_ARENA, 1000 max_steps, EASY difficulty.
+Using TutorialPolicy (CNN+LSTM, 2.8M params), 256 envs, ~3.9K SPS.
+
+**Training progression:**
+| Epoch | Steps | aligned.junction | heart.gained | heart.withdrawn | Notes |
+|-------|-------|-----------------|--------------|-----------------|-------|
+| 1 | 131K | 0.000 | 0.239 | - | random baseline |
+| 10 | 1.3M | 0.188 | ~3.0 | 162 | first alignment |
+| 11 | 1.4M | 0.556 | ~3.0 | - | alignment jump |
+| 20 | 2.6M | 0.133 | ~3.0 | 958 | noisy |
+| 30 | 3.9M | 2.789 | 3.0 | 350 | strong improvement |
+| 35 | 4.6M | 9.826 | 3.0 | 372 | excellent alignment |
+
+**Aligner8 epoch 30 eval on training mission (8 agents, 1000 steps):**
+- Shaped reward: **16.11** (aligned.junction.held=1718, aligned.junction.gained=5.73)
+- heart.gained=3.0, heart.withdrawn=81, silicon.deposited=36.1
+
+Killed at epoch 35 (4.6M steps) to free CPU for arena milestones training.
+
+## 2026-05-15T21:20: Arena milestones training (clips enabled, milestones_2)
+
+New training config `train_arena_milestones.py`:
+- Mission: cogsguard_arena.basic (50×50, 8 agents, 1000 steps, **clips enabled**)
+- Reward: milestones_2 + credit + aligner — competition-standard reward shaping
+- Policy: TutorialPolicy (CNN+LSTM, 2.8M params), 256 envs
+
+**Hypothesis**: Training with clips enabled and milestones_2 reward shaping will produce
+better competition transfer than EASY-mode training.
+
+Training at ~3.6K SPS. Estimated 10M steps in ~46 min.
+
+## 2026-05-15T21:24: Tournament server auth blocker
+
+Token `6PnH...` returns `subject_type: anonymous` on `/whoami` — auth expired.
+The OAuth browser flow can't run in headless environment.
+Upload, matches, submissions all return 401. Leaderboard (public) works.
+**This blocks tournament submission — focusing on offline evaluation.**
