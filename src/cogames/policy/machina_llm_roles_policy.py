@@ -178,7 +178,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             or (state.current_skill == "align_neutral" and current_abs in self._known_alignable_junctions(state))
             or (state.current_skill == "gear_up" and near_aligner_station)
             or (state.current_skill == "defend" and current_abs in state.known_friendly_junctions)
-            or (state.current_skill == "patrol" and current_abs in state.known_friendly_junctions)
         )
         if made_progress:
             state.no_move_steps = 0
@@ -333,10 +332,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             skill = "explore"
             reason = f"overrode unstuck to explore after {state.consecutive_unstuck} consecutive unstuck calls"
             state.consecutive_unstuck = 0
-        # Patrol mode: after 2+ explore cycles with no junctions found, patrol near friendly junctions
-        if skill == "explore" and has_heart and state.explore_consecutive_fails >= 2 and state.known_friendly_junctions:
-            skill = "patrol"
-            reason = f"patrol mode: {state.explore_consecutive_fails} explore failures, patrolling friendly junctions"
         # Heart queue management: avoid too many aligners rushing to hub when few hearts available
         # Allow at least 2 aligners simultaneously to reduce idle time
         if skill == "get_heart" and self._shared_map is not None:
@@ -404,13 +399,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.explore_consecutive_fails += 1
             self._event(state, f"explore capped after {state.skill_steps} steps (fail #{state.explore_consecutive_fails})")
             state.current_skill = None
-        elif state.current_skill == "patrol" and self._known_alignable_junctions(state):
-            self._event(state, "patrol ended: new alignable junctions found")
-            state.explore_consecutive_fails = 0
-            state.current_skill = None
-        elif state.current_skill == "patrol" and state.skill_steps >= self._stuck_threshold * 5:
-            self._event(state, f"patrol ended after {state.skill_steps} steps, re-exploring")
-            state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
             state.current_skill = None
@@ -444,10 +432,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 state.get_heart_timeouts += 1
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
-        elif state.current_skill not in {None, "gear_up", "patrol"} and state.no_move_steps >= self._stuck_threshold:
+        elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
-        elif state.current_skill not in {None, "gear_up", "patrol"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+        elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
@@ -524,7 +512,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
         # Navigation shake: after 5 consecutive blocked moves, every 3rd step try a random direction
         # This breaks BFS deadlocks caused by agent-occupied cells
-        if state.current_skill not in {None, "unstuck", "patrol"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
+        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck(state)
             state.skill_steps += 1
             return action, state
@@ -563,22 +551,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             current_abs = self._spawn_offset(obs)
             if current_abs in state.known_friendly_junctions:
                 # Already on junction - stand and defend (noop)
-                action = self._starter._action("noop")
-            elif state.known_friendly_junctions:
-                target = self._nearest_known(current_abs, state.known_friendly_junctions)
-                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
-                if direction:
-                    action = self._starter._action(f"move_{direction}")
-                    state.last_move_target = self._move_target(current_abs, direction)
-                else:
-                    action, base_state = self._explore(obs, state)
-                    state = self._copy_with(state, base_state)
-            else:
-                action, base_state = self._explore(obs, state)
-                state = self._copy_with(state, base_state)
-        elif state.current_skill == "patrol":
-            current_abs = self._spawn_offset(obs)
-            if current_abs in state.known_friendly_junctions:
                 action = self._starter._action("noop")
             elif state.known_friendly_junctions:
                 target = self._nearest_known(current_abs, state.known_friendly_junctions)

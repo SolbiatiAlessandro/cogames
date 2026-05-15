@@ -21,8 +21,8 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 )
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
 _HUB_SEARCH_DISTANCE = 20
-_HUB_ALIGN_DISTANCE = 25
-_JUNCTION_ALIGN_DISTANCE = 25
+_HUB_ALIGN_RADIUS_SQ = 25 * 25
+_JUNCTION_ALIGN_RADIUS_SQ = 15 * 15
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
 # Issue-36 v4: increased from 0.50 to 0.70 — at 50%, agents only have 49 steps
@@ -648,8 +648,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return frontier
 
         vision_margin = max(self._obs_radius_row, self._obs_radius_col)
-        hub_search_radius = _HUB_ALIGN_DISTANCE + vision_margin
-        junction_search_radius = _JUNCTION_ALIGN_DISTANCE + vision_margin
+        hub_search_radius_sq = (25 + vision_margin) ** 2
+        junction_search_radius_sq = (15 + vision_margin) ** 2
 
         preferred_frontier = {
             cell
@@ -657,11 +657,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             if any(
                 (
                     anchor in hub_set
-                    and abs(cell[0] - anchor[0]) + abs(cell[1] - anchor[1]) <= hub_search_radius
+                    and (cell[0] - anchor[0]) ** 2 + (cell[1] - anchor[1]) ** 2 <= hub_search_radius_sq
                 )
                 or (
                     anchor in state.known_friendly_junctions
-                    and abs(cell[0] - anchor[0]) + abs(cell[1] - anchor[1]) <= junction_search_radius
+                    and (cell[0] - anchor[0]) ** 2 + (cell[1] - anchor[1]) ** 2 <= junction_search_radius_sq
                 )
                 for anchor in aligned_network
             )
@@ -734,16 +734,20 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            return travel + hub_dist * 0.3
+            return travel + hub_dist * 0.2
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
         hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
         for hub in hubs:
-            if abs(junction[0] - hub[0]) + abs(junction[1] - hub[1]) <= _HUB_ALIGN_DISTANCE:
+            dr = junction[0] - hub[0]
+            dc = junction[1] - hub[1]
+            if dr * dr + dc * dc <= _HUB_ALIGN_RADIUS_SQ:
                 return True
         for friendly in state.known_friendly_junctions:
-            if abs(junction[0] - friendly[0]) + abs(junction[1] - friendly[1]) <= _JUNCTION_ALIGN_DISTANCE:
+            dr = junction[0] - friendly[0]
+            dc = junction[1] - friendly[1]
+            if dr * dr + dc * dc <= _JUNCTION_ALIGN_RADIUS_SQ:
                 return True
         return False
 
