@@ -53,3 +53,32 @@ New approach based on tutorials/TRAIN_ALIGNER.py:
 **Hypothesis**: CNN with spatial obs processing + dense reward shaping will learn much faster than flat LSTM with sparse reward. Top policies all use spatial processing.
 
 Training running at PID 17219.
+
+## 2026-05-15T17:25: CNN+LSTM custom training — failed (batch too small)
+
+Custom train_rl.py (NUM_ENVS=4, batch_size=4096) killed at epoch 38: reward 0.0000, approx_kl=0.0. Batch size was 8x too small for meaningful gradients.
+
+Fixed to NUM_ENVS=64 (batch_size=32768), restarted. After 15 epochs (490K steps): reward still 0.0000 but approx_kl=0.001-0.006 (policy updating). Agent max_steps growing from 2→28 (agents surviving longer).
+
+Killed custom training — switched to built-in `cogames train` CLI which:
+- Uses 256 parallel envs (vs 64)
+- Tutorial policy with 2.8M params (vs 708K custom)
+- Proper vectorization and training infrastructure
+
+## 2026-05-15T17:31: CLI training started (tutorial policy, aligner_tutorial mission)
+
+```
+cogames train -m aligner_tutorial -p tutorial --steps 10000000 --log-outputs --checkpoints ./train_dir_cli
+```
+
+- Architecture: TutorialPolicyNet (CNN+LSTM, hidden=512, 2.8M params)
+- Mission: aligner_tutorial (4 agents, 1000 steps, Arena 50×50, EASY, AlignerRewardsVariant)
+- Training speed: ~1700 SPS
+- Batch size: ~65K (256 envs × 4 agents × BPTT=64)
+- Estimated: first checkpoint at epoch 50 (~32 min), full 10M in ~98 min
+
+**Competition context** (from issue #41):
+- Best scripted: #5, 41.85 online (evyIm-73a-stuck15:v1)
+- Best RL: #1, 45.29 online (Softy:v103)
+- Gap: 3.44 points — purely architectural (RL vs scripted)
+- All top-10 are RL-trained, using only move actions

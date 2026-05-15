@@ -1159,6 +1159,7 @@ def train_cmd(
             env_cfg_supplier=supplier,
             missions_arg=missions,
             log_outputs=log_outputs,
+            checkpoint_interval=50,
         )
 
     except ValueError as exc:  # pragma: no cover - user input

@@ -156,7 +156,7 @@ def make_env(cfg=None, buf=None, seed=None):
     return env
 
 
-NUM_ENVS = 4
+NUM_ENVS = 64
 vecenv = pvector.make(
     make_env,
     num_envs=NUM_ENVS,
