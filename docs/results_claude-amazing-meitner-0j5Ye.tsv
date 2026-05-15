@@ -1,2 +1,5 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 6453f7a	0.557	aligned.junction.held=2573	3000	keep	scripted baseline (machina_roles, 2 aligners, seed 42)
+8d620d1	0.05	junction.aligned_by_agent=0,aligner.gained=0.12	500	iterate	rl tutorial epoch50 on competition map (500 steps) - trained on wrong mission
+8d620d1	0.18	junction.aligned_by_agent=0.5	500	keep	scripted baseline on competition map (500 steps) - comparison
+8d620d1	14.73	junction.aligned_by_agent=1.5,heart.gained=3.0	1000	iterate	rl tutorial epoch50 on training mission (shaped reward, aligner_tutorial)

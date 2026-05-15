@@ -124,4 +124,83 @@ Also running quick eval on aligner_tutorial mission (training domain) for sanity
 - `cli/client.py`: added `verify=False` for httpx client (self-signed cert)
 
 Training continues (epoch 24, reward ~3.9-5.6 range). Checkpoint at epoch 30 next.
-Competition map evaluation (1 episode) still running (~16 min CPU time).
+Competition map evaluation (1 episode) killed after 44 min CPU time — too slow on 4-core CPU.
+Eval on 88×88 map with 8 agents + 2.8M param model on CPU = ~100ms per forward pass.
+Decision: rely on tournament evaluation instead of slow offline eval.
+
+## 2026-05-15T18:31: Epoch 30 checkpoint uploaded
+
+**Upload**: `rl-tutorial-epoch30-v1:v1` → beta-cvc qualifying pool
+- Epoch 30: mean reward 6.20, best episode 14.09
+- Killed competition eval to free CPU for training (SPS: 500 → ~1800)
+- Training still improving: -0.32 (epoch 1) → 6.20 (epoch 30)
+
+**Reward trend (epochs 26-30):**
+| Epoch | Mean | Best | Episodes |
+|-------|------|------|----------|
+| 26 | 4.44 | 9.13 | 20 |
+| 27 | 4.54 | 6.80 | 26 |
+| 28 | 5.32 | 10.37 | 9 |
+| 29 | 5.94 | 20.05 | 19 |
+| 30 | 6.20 | 14.09 | 13 |
+
+Two policies uploaded to tournament: epoch 20 and epoch 30. Awaiting match results.
+
+## 2026-05-15T18:40: CRITICAL — ALL tournament matches fail with 1011 crash
+
+**ALL uploaded policies fail** in qualifying pool with "received 1011 (internal error); then sent 1011 (internal error)". Error type: `crash`. No logs available — crash happens before logging starts.
+
+**Tested uploads (ALL failed):**
+- rl-tutorial-epoch20-v1:v1 (class=tutorial)
+- rl-tutorial-epoch30-v1:v1 (class=tutorial)
+- rl-tutorial-epoch30-v2:v1 (with source file)
+- rl-tutorial-epoch40-v1:v1 (with source + setup_policy.py)
+- rl-cnn-lstm-e40:v1 (standalone, no einops)
+- rl-cnn-lstm-e40-v2:v1 (with setup_rl.py)
+- rl-cnn-lstm-e40-v3:v1 (inlined coordinates)
+- test-scripted-baseline:v1 (MachinaRolesPolicy — CONTROL TEST)
+- test-no-season:v1 (MachinaRolesPolicy, separate submit)
+- rl-lstm-bundle-e16:v1 (built-in LSTM policy bundle)
+- rl-tutorial-epoch50-v1:v1 (bundle URI approach)
+
+**Key findings:**
+- Even the scripted baseline (machina_roles) fails → NOT RL-specific
+- Other users' competition-pool matches complete fine today
+- Both qualifying and competition pools use same config_id
+- Qualifying matches are self-play (1 policy, 8 agents), competition has 2 players
+- The qualifying pool matchmaker/runner appears broken
+
+**Conclusion:** External blocker — qualifying pool infrastructure issue on server side.
+
+## 2026-05-15T18:50: Training continues — epoch 50 reached
+
+Training reward progression (shaped reward, per-episode mean):
+| Epoch | Approx Steps | Status |
+|-------|-------------|--------|
+| 1     | ~65K        | -0.320 |
+| 10    | ~650K       | +0.870 |
+| 20    | ~1.3M       | +4.130 |
+| 30    | ~2.0M       | +6.204 |
+| 40    | ~2.6M       | +11.22 |
+| 50    | ~3.3M       | checkpoint saved |
+
+## 2026-05-15T19:05: Offline evaluation results
+
+**Competition mission (cogsguard_machina_1.basic, 500 steps):**
+- RL tutorial epoch 50: **0.05 mission reward** — model trained on wrong mission (small arena)
+- Scripted baseline: **0.18 mission reward** — 3.6x better
+
+**Training mission (aligner_tutorial, 1000 steps):**
+- RL tutorial epoch 50: **14.73 shaped reward** — strong on training mission
+- Key stats: junction.aligned_by_agent=1.50, heart.gained=3.00, cell.visited=83305
+
+**Diagnosis:** Training on aligner_tutorial (50×50, 4 agents, 1000 steps, no clips) doesn't transfer to competition (88×88, 8 agents, 10000 steps, clips enabled). Need to train on competition-like mission.
+
+## 2026-05-15T19:10: Started arena training for competition transfer
+
+Started training on `cogsguard_arena.basic` with `standard` variant (50×50, 8 agents, 1000 steps, clips enabled) — much closer to competition format. Using fresh TutorialPolicy (not initialized from checkpoint).
+
+Three concurrent training runs:
+1. Tutorial CNN+LSTM on aligner_tutorial (PID 14570) — epoch 50+, continuing
+2. LSTM on aligner_tutorial (PID 6786) — epoch 16+
+3. Tutorial CNN+LSTM on arena basic (PID 15293) — just started

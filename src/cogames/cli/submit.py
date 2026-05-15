@@ -317,6 +317,7 @@ def upload_submission(
             content=f,
             headers={"Content-Type": "application/zip"},
             timeout=600.0,
+            verify=False,
         )
     upload_response.raise_for_status()
 
