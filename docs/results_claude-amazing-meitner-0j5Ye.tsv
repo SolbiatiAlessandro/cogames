@@ -1,0 +1,2 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+6453f7a	0.557	aligned.junction.held=2573	3000	keep	scripted baseline (machina_roles, 2 aligners, seed 42)
