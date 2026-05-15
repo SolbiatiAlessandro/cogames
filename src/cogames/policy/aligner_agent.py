@@ -28,7 +28,7 @@ _JUNCTION_ALIGN_DISTANCE = 25
 # Issue-36 v4: increased from 0.50 to 0.70 — at 50%, agents only have 49 steps
 # to reach hub (1 HP/step drain). If hub is >49 cells away, they die.
 # At 70%, agents have 69 steps to reach hub, which is much more forgiving.
-_HP_RETREAT_THRESHOLD = 0.70
+_HP_RETREAT_THRESHOLD = 0.65
 # Distance from hub/friendly junction to be considered "in friendly territory"
 _FRIENDLY_TERRITORY_DISTANCE = 15
 
@@ -769,7 +769,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 min_dist = min(
                     abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
                 )
-                s -= 0.05 * min(min_dist, 30)
+                s -= 0.10 * min(min_dist, 30)
             return s
         return min(candidates, key=score)
 

@@ -1,0 +1,12 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+14c7ac6	1101.69	junct=53 hearts=57	3000	keep	baseline navfix-cd3 (5-seed avg)
+b78cb3e	1137.95	junct=53 hearts=59	3000	keep	75c combo: Hub L2 + enemy-8 + spread-0.05 + defend×10 + heart-retry≥2
+b78cb3e	1099.47	junct=~50 hearts=~55	3000	discard	75c + stuck_threshold=15 — stuck15 hurts this combo
+b78cb3e	1150.66	junct=53 hearts=59	3000	keep	75c + junction spread=0.10 (BEST: +4.4% vs baseline)
+b78cb3e	1123.76	junct=~52 hearts=~58	3000	discard	75c + junction spread=0.15 — too aggressive
+b78cb3e	1132.45	junct=~52 hearts=~58	3000	discard	75c + explore spread=0.3 — too weak
+b78cb3e	1129.76	junct=~52 hearts=~58	3000	discard	75c + explore spread=0.7 — too strong
+b78cb3e	1136.04	junct=~52 hearts=~58	3000	discard	75c + heart accumulation <4 — excess hoarding
+b78cb3e	1141.08	junct=~52 hearts=~58	3000	discard	75c + explore cap=30 — within noise
+b78cb3e	1118.59	junct=~50 hearts=~55	3000	discard	75c + miner spread explore — miners travel too far
+b78cb3e	1122.06	junct=~51 hearts=~57	3000	discard	75c + L2 frontier alignment — too wide radius

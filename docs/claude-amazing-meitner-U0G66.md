@@ -50,7 +50,29 @@ Applied 5 changes from the ax5wp-75c variant that achieved #3 online (42.66):
 | 46 | 1093.82 | 1121.75 | +2.6% |
 | **Avg** | **1101.69** | **1137.95** | **+3.3%** |
 
-### 2026-05-15 00:15: Next experiments to try
-- stuck_threshold=15 on top of 75c
-- Phase-based strategy (claim vs hold)
-- Faster initial junction claiming
+### 2026-05-15 00:20: Parameter sweeps
+
+| Experiment | 5-seed avg | vs baseline | vs 75c-0.05 | Status |
+|-----------|-----------|-------------|-------------|--------|
+| 75c + stuck_threshold=15 | 1099.47 | -0.2% | -3.4% | discard |
+| 75c + HP retreat 0.65 | 1137.95 | +3.3% | 0% | keep (online-only) |
+| 75c + junction spread=0.10 | **1150.66** | **+4.4%** | **+1.1%** | **BEST** |
+| 75c + junction spread=0.15 | 1123.76 | +2.0% | -1.2% | discard |
+| 75c + explore spread=0.3 | 1132.45 | +2.8% | -0.5% | discard |
+| 75c + explore spread=0.7 | 1129.76 | +2.5% | -0.7% | discard |
+| 75c + heart accumulation <4 | 1136.04 | +3.1% | -0.2% | discard |
+| 75c + explore cap=30 | 1141.08 | +3.6% | +0.3% | noise |
+| 75c + enemy recapture -5 | 1150.66 | +4.4% | 0% | no effect in self-play |
+| 75c + miner spread explore | 1118.59 | +1.5% | -2.8% | discard |
+| 75c + L2 frontier alignment | 1122.06 | +1.8% | -2.5% | discard |
+
+Best config: 75c + junction spread=0.10, explore spread=0.5
+
+Key findings:
+- Enemy recapture is purely online-relevant (no enemy junctions in self-play)
+- HP retreat changes are online-relevant (no HP drain in self-play)
+- Junction spread=0.10 is optimal (0.05 too weak, 0.15 too strong)
+- Stuck_threshold=15 destructively interacts with 75c changes
+- Miner improvements hurt — miners need proximity to extractors
+
+### 2026-05-15 00:45: Preparing upload and further experiments
