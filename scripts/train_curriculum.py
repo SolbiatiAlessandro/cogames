@@ -70,6 +70,8 @@ def main():
     parser.add_argument("--goal-obs", action="store_true", help="Enable goal_obs for directional reward info")
     parser.add_argument("--boost-aligner", type=float, default=0.0,
                         help="Extra aligner_gained reward weight (no penalty for other gear)")
+    parser.add_argument("--boost-heart", type=float, default=0.0,
+                        help="Extra heart.gained/withdrawn reward weight")
     parser.add_argument("--no-hub-wall", action="store_true", help="Remove hub inner wall for easier exit")
     parser.add_argument("--randomize-spawns", action="store_true", help="Randomize agent spawn positions in hub")
     parser.add_argument("--flat-map", action="store_true", help="Disable biomes/dungeons for flat navigation")
@@ -162,6 +164,16 @@ def main():
                 game_stat("junction.aligned_by_agent"), weight=args.boost_aligner * 2.5
             )
         print(f"  Boosted aligner_gained to {args.boost_aligner}, junction_aligned to {args.boost_aligner * 2.5}")
+
+    if args.boost_heart > 0:
+        from mettagrid.config.game_value import stat as game_stat
+        from mettagrid.config.reward_config import reward as make_reward
+        agent_cfgs = env_cfg.game.agents if env_cfg.game.agents else [env_cfg.game.agent]
+        for agent_cfg in agent_cfgs:
+            agent_cfg.rewards["heart_gained"] = make_reward(
+                game_stat("heart.gained"), weight=args.boost_heart
+            )
+        print(f"  Boosted heart_gained to {args.boost_heart}")
 
     if args.explore_weight > 0:
         from mettagrid.config.game_value import stat as game_stat
