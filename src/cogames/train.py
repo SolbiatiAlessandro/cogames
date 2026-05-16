@@ -318,6 +318,15 @@ def train(
     )
 
     trainer = pufferl.PuffeRL(train_args, vecenv, policy.network())
+
+    resume_state_path = os.environ.get("COGAMES_RESUME_STATE", "")
+    if resume_state_path and os.path.exists(resume_state_path):
+        state = torch.load(resume_state_path, map_location=device)
+        trainer.optimizer.load_state_dict(state["optimizer_state_dict"])
+        trainer.global_step = state.get("global_step", 0)
+        trainer.epoch = state.get("update", 0)
+        console.print(f"[green]Resumed optimizer state from {resume_state_path} (epoch {trainer.epoch})[/green]")
+
     if log_outputs:
         console.clear()
         console.print("[dim]Evaluation stats will stream below; disabling Rich dashboard.[/dim]")
