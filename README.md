@@ -24,73 +24,70 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline-to-online): 2026-05-15 (Session 34)_
+_Updated by Director: 2026-05-16 (Session 35)_
 
-### Online Tournament (beta-cvc, 928 entries, cooperative scoring)
+### Online Tournament (beta-cvc, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **45.29** | `Softy:v103` | RL (pushed from 41.86) |
+| #1 | **45.29** | `Softy:v103` | RL |
 | #2 | 43.58 | `Softy:v111` | RL |
 | #3 | 42.48 | `Softy:v107` | RL |
-| #4 | 41.86 | `Softy:v96` | RL (was #1 in session 30) |
-| **#5** | **41.85** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — best non-Softy policy!** |
+| #4 | 41.86 | `Softy:v96` | RL |
+| **#5** | **41.85** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — scripted, stuck_threshold=15** |
 | #6 | 41.59 | `Softy:v100` | RL |
-| #7 | 41.28 | `slanky:v171` | RL |
-| ... | | | |
+| #7 | 41.28 | `slanky:v171` | RL (new competitor) |
+| #10 | 41.10 | `Paz-Bot-9000:v47` | new competitor |
 | **#11** | **40.85** | **`ax5wp-74a-hubl2-def-enemy:v1`** | hub L2 fix + defend + enemy |
-| #12 | 40.82 | `Gryffindor:v11` | RL |
-| ... | | | |
 | **#18** | **40.49** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
 | **#19** | **40.44** | **`ax5wp-73s-l2fix:v1`** | L2 distance fix |
 | **#20** | **40.43** | **`ax5wp-73x-hubl2-def:v1`** | L2 + defend |
 
-_5 policies in top 20! Gap to #1: 3.44 pts (7.6%). Scripted ceiling confirmed at ~42 (#74)._
+_5 policies in top 20, 30+ in top 100. Gap to #1: 3.44 pts (7.6%). Scripted ceiling at ~42 confirmed._
 
-### Our Best Policy: evyIm-73a-stuck15 (8 matches)
+### RL Training Progress (NEW)
 
-```
-Avg:   41.85   Stddev: 7.1   p5: 21.4   p95: 46.6
-vs Softy:v103 — Avg: 45.29, Stddev: 16.5, p5: 5.3, p95: 57.5
-Our floor is higher (21.4 vs 5.3) but ceiling is capped (46.6 vs 57.5)
-```
+| Phase | max_distance | Result | Status |
+|-------|-------------|--------|--------|
+| Phase 1 | 6 (close) | 1.4 junctions, 0.072 reward/500s | DONE |
+| Phase 2 | 10 (medium) | 4 junctions, 1416 held | IN PROGRESS |
+| Phase 3 | 15 (competition) | — | PENDING |
 
-### Offline Best Results (8-agent, 3000 steps)
+First ever RL junction alignment on competition map achieved via curriculum training (#75).
+CPU training viable: 2.8M param CNN+LSTM at 2.4K SPS. No GPU needed.
 
-| Rank | Reward | Commit | Config | Seeds | Notes |
-|------|--------|--------|--------|-------|-------|
-| 1 | **3.282** | `d922520` | v52 + contamination fix (#64) | 5-seed avg | +15.2% vs v52 baseline |
-| 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | 5-seed avg | previous best |
+### Offline Best Results (scripted, 8-agent, 3000 steps)
 
-### Key Findings (Session 34)
+| Rank | Reward | Commit | Config | Notes |
+|------|--------|--------|--------|-------|
+| 1 | **3.282** | `d922520` | v52 + contamination fix | +15.2% vs baseline, 5-seed avg |
+| 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | previous best |
 
-1. **#5 on leaderboard** — `evyIm-73a-stuck15:v1` reached #5 (41.85) with a single parameter change: `stuck_threshold=15`. Best non-Softy policy in the tournament.
-2. **Massive A/B testing campaign validated** — 60+ online variants tested by researchers evyIm and ax5wp. Online-first methodology confirmed as the right approach.
-3. **Combination regression pattern** (#74) — every attempt to stack individually-good changes regresses online. stuck15 alone (#5, 41.85) > stuck15+L2+defend+enemy (#29, 39.89). Scripted ceiling is architectural.
-4. **Softy pushed hard** — #1 went from 41.86 (v96) to 45.29 (v103), widening the absolute gap despite our improvement.
-5. **Consistency advantage** — our stddev 7.1 vs Softy's 16.5. We never score below 21; Softy can score as low as 5. But we can't reach 50+.
+### Key Findings (Session 35)
+
+1. **RL training breakthrough** — Curriculum training (close junctions within obs window) achieved first RL junction alignment on competition map. Path to top-3 is now clear (#75).
+2. **Scripted ceiling holds** — evyIm-73a-stuck15:v1 stable at #5 (41.85). No movement since session 34. Combination regression pattern confirmed across 60+ variants (#74).
+3. **New competitors** — slanky:v171 (#7, 41.28) and Paz-Bot-9000:v47 (#10, 41.10) entered top 10. Competition is tightening.
+4. **CPU RL training works** — Owner confirmed no GPU needed. LSTM/CNN models train at 2-4K SPS on CPU. Previous "blocked on GPU" was a false premise.
+5. **5-action space is key** — Top policies use only noop + 4 moves, no change_vibe. Our RL training confirms this eliminates entropy collapse.
 
 ### Progress Trajectory
 
 ```
-Session 30 (#40, 36.15)  →  Session 32 (#13, 40.07)  →  Session 34 (#5, 41.85)
-Gap to #1:  5.71 (13.6%)  →  1.79 (4.3%)  →  3.44 (7.6%)
+Session 30 (#40, 36.15)  →  Session 34 (#5, 41.85)  →  Session 35 (#5, 41.85, stable)
+RL training: 0 junctions (all prior) → 1.4 junctions (curriculum P1) → 4 junctions (P2 early)
 ```
 
 ### Current Priority Stack
 
 ```
-priority:1  #74  Scripted ceiling at ~42 — combination regression     <- NEW, key finding
-priority:1  #41  RL policy training                                   <- ceiling-breaker, needs GPU
-priority:2  #73  A/B test toEqP improvements                         <- DEMOTED, toEqP terrible online
-priority:2  #71  Junction control efficiency                          <- DEMOTED, marginal gains left
-priority:3  #70  2-agent allocation                                   <- DEMOTED, even Softy struggles
+priority:1  #75  RL Curriculum Training Phase 2+3                     <- NEW, the path to top-3
+priority:1  #41  RL policy training (parent issue)                    <- breakthrough! CPU viable
+priority:2  #74  Scripted ceiling at ~42                              <- documented, action on RL
+priority:3  #73  A/B test toEqP improvements                         <- DEMOTED, exhausted
+priority:3  #71  Junction control efficiency                          <- DEMOTED, RL will address
+priority:3  #70  2-agent allocation                                   <- low leverage
 priority:3  #53, #27, #26, #23-17, #12, #11, #10                     <- speculative / researched
-CLOSED  #69  Move failure rate                                    <- 50% is game-normal
-CLOSED  #67  Aligner throughput                                   <- exhausted (19 experiments)
-CLOSED  #65  Alignment speed                                      <- subsumed
-CLOSED  #62  Junction capture rate                                <- exhausted
-CLOSED  #64  Gear contamination                                   <- RESOLVED
 ```
 <!-- LEADERBOARD_END -->
 
