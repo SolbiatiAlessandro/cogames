@@ -74,6 +74,9 @@ def main():
     parser.add_argument("--randomize-spawns", action="store_true", help="Randomize agent spawn positions in hub")
     parser.add_argument("--flat-map", action="store_true", help="Disable biomes/dungeons for flat navigation")
     parser.add_argument("--start-aligner", action="store_true", help="Start agents with aligner gear")
+    parser.add_argument("--start-heart", action="store_true", help="Start agents with heart")
+    parser.add_argument("--no-explore", action="store_true", help="Disable cell.visited reward entirely")
+    parser.add_argument("--no-clips", action="store_true", help="Remove clips ships from map")
     args = parser.parse_args()
 
     phase_config = {
@@ -101,6 +104,10 @@ def main():
 
     from mettagrid.mapgen.mapgen import MapGen
     mb = env_cfg.game.map_builder
+    if isinstance(mb, MapGen.Config) and mb.instance is not None:
+        if args.no_clips and hasattr(mb.instance, 'map_corner_placements'):
+            mb.instance.map_corner_placements = []
+            print(f"  Removed clips ships from map")
     if isinstance(mb, MapGen.Config) and hasattr(mb.instance, 'hub'):
         if args.no_hub_wall:
             mb.instance.hub.include_inner_wall = False
@@ -115,11 +122,17 @@ def main():
             mb.instance.asteroid_mask = None
             print(f"  Flat map (no biomes/dungeons/obstacles/asteroid)")
 
-    if args.start_aligner:
+    if args.start_aligner or args.start_heart:
         agent_cfgs = env_cfg.game.agents if env_cfg.game.agents else [env_cfg.game.agent]
         for agent_cfg in agent_cfgs:
-            agent_cfg.inventory.initial["aligner"] = 1
-        print(f"  Agents start with aligner gear")
+            if args.start_aligner:
+                agent_cfg.inventory.initial["aligner"] = 1
+            if args.start_heart:
+                agent_cfg.inventory.initial["heart"] = 1
+        if args.start_aligner:
+            print(f"  Agents start with aligner gear")
+        if args.start_heart:
+            print(f"  Agents start with heart")
 
     if args.obs_size != 13:
         env_cfg.game.obs.width = args.obs_size
