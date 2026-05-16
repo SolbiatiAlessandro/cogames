@@ -243,7 +243,12 @@ def train(
 
     learning_rate = float(os.environ.get("COGAMES_LR", "0.00092"))
     ent_coef = float(os.environ.get("COGAMES_ENT_COEF", "0.01"))
-    bptt_horizon = 64 if use_rnn else 1
+    ent_start = float(os.environ.get("COGAMES_ENT_START", "0"))
+    ent_end = float(os.environ.get("COGAMES_ENT_END", "0"))
+    ent_anneal_frac = float(os.environ.get("COGAMES_ENT_ANNEAL_FRAC", "0.3"))
+    if ent_start > 0 and ent_end > 0:
+        ent_coef = ent_start
+    bptt_horizon = int(os.environ.get("COGAMES_BPTT", "64")) if use_rnn else 1
     optimizer = "adam"
     adam_eps = 1e-8
 
@@ -329,6 +334,9 @@ def train(
     with DeferSigintContextManager():
         try:
             while trainer.global_step < num_steps:
+                if ent_start > 0 and ent_end > 0:
+                    progress = min(1.0, trainer.global_step / (effective_timesteps * ent_anneal_frac))
+                    trainer.config["ent_coef"] = ent_start + (ent_end - ent_start) * progress
                 eval_stats = trainer.evaluate()
                 if log_outputs and eval_stats:
                     console.log(f"Evaluation: {datetime.now(UTC)}")

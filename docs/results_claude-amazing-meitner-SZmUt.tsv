@@ -15,3 +15,7 @@ b855825	0.050000	aligned.junction.held=0	500	discard	Lowent (seed100 ent=0.005) 
 b855825	0.050000	aligned.junction.held=0	500	discard	Lowent epoch 55 on competition - also no transfer
 b855825	0.050000	aligned.junction.held=0	500	discard	Lowent epoch 30 eval seed 100 - not seed-specific, curriculum close junctions dont generalize
 b855825	0.050000	aligned.junction.held=0	500	discard	Highent (seed200 ent=0.03) epoch 90 on competition - same as lowent, fine-tuning from e90 doesnt transfer
+c9da4c0	0.050000	aligned.junction.held=0	500	discard	Natural-map e50 (milestones_2:25+credit, 3000-step, seed42) - junction in training but not at 500 eval
+c9da4c0	0.250000	aligned.junction.held=0	2500	discard	Natural-map e50 at 2500 steps - credit reward overrides junction nav, worse than original e90
+c9da4c0	0.050000	aligned.junction.held=0 steps_without_motion=270	500	discard	Junction-only (milestones_2:25, no credit) e50 - agent learns to noop, sparse reward fails
+c9da4c0	0.250000	aligned.junction.held=0 steps_without_motion=2295	2500	discard	Junction-only e50 at 2500 steps - agent stuck 2295/2500 steps, completely degenerate

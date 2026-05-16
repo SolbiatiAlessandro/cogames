@@ -47,6 +47,7 @@ def patch_junction_distance(max_distance: int):
 def main():
     parser = argparse.ArgumentParser(description="Curriculum RL training")
     parser.add_argument("--phase", type=int, default=1, choices=[1, 2, 3], help="Curriculum phase")
+    parser.add_argument("--max-distance", type=int, default=None, help="Override curriculum max_distance")
     parser.add_argument("--steps", type=int, default=2000000, help="Steps per phase")
     parser.add_argument("--cogs", type=int, default=4, help="Number of agents")
     parser.add_argument("--ent-coef", type=float, default=0.02, help="Entropy coefficient")
@@ -58,6 +59,10 @@ def main():
     parser.add_argument("--tag", default="", help="Extra tag for output dir name")
     parser.add_argument("--num-envs", type=int, default=64, help="Number of parallel envs")
     parser.add_argument("--checkpoint-interval", type=int, default=10, help="Checkpoint every N epochs")
+    parser.add_argument("--explore-weight", type=float, default=0.0, help="cell.visited reward weight")
+    parser.add_argument("--ent-start", type=float, default=0.0, help="Entropy annealing start (0=disabled)")
+    parser.add_argument("--ent-end", type=float, default=0.0, help="Entropy annealing end")
+    parser.add_argument("--ent-anneal-frac", type=float, default=0.3, help="Fraction of training for annealing")
     args = parser.parse_args()
 
     phase_config = {
@@ -67,14 +72,15 @@ def main():
     }
 
     phase = phase_config[args.phase]
+    max_dist = args.max_distance if args.max_distance is not None else phase["max_distance"]
     print(f"=== CURRICULUM PHASE {args.phase}: {phase['desc']} ===")
-    print(f"  max_distance: {phase['max_distance']}")
+    print(f"  max_distance: {max_dist}")
     print(f"  steps: {args.steps}")
     print(f"  mission: {args.mission}")
     print(f"  reward variants: {args.reward}")
     print(f"  initial weights: {args.weights or 'random'}")
 
-    patch_junction_distance(phase["max_distance"])
+    patch_junction_distance(max_dist)
 
     _, env_cfg, _ = get_mission(
         args.mission,
@@ -89,7 +95,23 @@ def main():
     reward_variants = [v.strip() for v in args.reward.split(",") if v.strip()]
     apply_reward_variants(env_cfg, variants=reward_variants)
 
-    if args.ent_coef:
+    if args.explore_weight > 0:
+        from mettagrid.config.game_value import stat as game_stat
+        from mettagrid.config.reward_config import reward as make_reward
+        agent_cfgs = env_cfg.game.agents if env_cfg.game.agents else [env_cfg.game.agent]
+        for agent_cfg in agent_cfgs:
+            agent_cfg.rewards["cell_visited_explore"] = make_reward(
+                game_stat("cell.visited"), weight=args.explore_weight
+            )
+        print(f"  Added cell.visited exploration reward: weight={args.explore_weight}")
+
+    if args.ent_start > 0 and args.ent_end > 0:
+        os.environ["COGAMES_ENT_START"] = str(args.ent_start)
+        os.environ["COGAMES_ENT_END"] = str(args.ent_end)
+        os.environ["COGAMES_ENT_ANNEAL_FRAC"] = str(args.ent_anneal_frac)
+        os.environ["COGAMES_ENT_COEF"] = str(args.ent_start)
+        print(f"  Entropy annealing: {args.ent_start} → {args.ent_end} over {args.ent_anneal_frac*100}% of training")
+    elif args.ent_coef:
         os.environ["COGAMES_ENT_COEF"] = str(args.ent_coef)
 
     from mettagrid.policy.loader import resolve_policy_class_path
