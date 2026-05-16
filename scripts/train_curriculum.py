@@ -72,6 +72,8 @@ def main():
                         help="Extra aligner_gained reward weight (no penalty for other gear)")
     parser.add_argument("--no-hub-wall", action="store_true", help="Remove hub inner wall for easier exit")
     parser.add_argument("--randomize-spawns", action="store_true", help="Randomize agent spawn positions in hub")
+    parser.add_argument("--flat-map", action="store_true", help="Disable biomes/dungeons for flat navigation")
+    parser.add_argument("--start-aligner", action="store_true", help="Start agents with aligner gear")
     args = parser.parse_args()
 
     phase_config = {
@@ -97,16 +99,27 @@ def main():
         cogs=args.cogs,
     )
 
-    if args.no_hub_wall or args.randomize_spawns:
-        from mettagrid.mapgen.mapgen import MapGen
-        mb = env_cfg.game.map_builder
-        if isinstance(mb, MapGen.Config) and hasattr(mb.instance, 'hub'):
-            if args.no_hub_wall:
-                mb.instance.hub.include_inner_wall = False
-                print(f"  Removed hub inner wall")
-            if args.randomize_spawns:
-                mb.instance.hub.randomize_spawn_positions = True
-                print(f"  Randomized spawn positions")
+    from mettagrid.mapgen.mapgen import MapGen
+    mb = env_cfg.game.map_builder
+    if isinstance(mb, MapGen.Config) and hasattr(mb.instance, 'hub'):
+        if args.no_hub_wall:
+            mb.instance.hub.include_inner_wall = False
+            print(f"  Removed hub inner wall")
+        if args.randomize_spawns:
+            mb.instance.hub.randomize_spawn_positions = True
+            print(f"  Randomized spawn positions")
+        if args.flat_map:
+            mb.instance.biome_weights = {"none": 1.0}
+            mb.instance.dungeon_weights = {"none": 1.0}
+            mb.instance.base_biome_config = {"cluster_prob": 0.0}
+            mb.instance.asteroid_mask = None
+            print(f"  Flat map (no biomes/dungeons/obstacles/asteroid)")
+
+    if args.start_aligner:
+        agent_cfgs = env_cfg.game.agents if env_cfg.game.agents else [env_cfg.game.agent]
+        for agent_cfg in agent_cfgs:
+            agent_cfg.inventory.initial["aligner"] = 1
+        print(f"  Agents start with aligner gear")
 
     if args.obs_size != 13:
         env_cfg.game.obs.width = args.obs_size
