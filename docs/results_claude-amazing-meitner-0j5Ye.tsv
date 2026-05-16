@@ -21,3 +21,4 @@ d347656	0.15	aligned.junction.avg=0.22,heart.gained=0.55,peak=0.421	1000	fail	rl
 056edb5	0.00	aligned.junction=0,heart.withdrawn=5,entropy=1.30	10000	fail	rl 1k_15h epoch20 eval at 10000 steps - same failure, navigation is the bottleneck
 bd873bc	0.21	aligned.junction.avg=0.21,peak=0.357,heart.gained=0.59,entropy=1.22	1000	iterate	rl explore epoch13 (cell.visited+ent0.005) - peak 0.357 at epoch13, collapsed by epoch20
 0762c6c	0.24	aligned.junction.peak=0.238,avg=0.12,entropy=1.02	1000	fail	rl sparse epoch13 (no credit, milestones_2 only) - removing hub rewards didn't prevent collapse, 0 alignment by epoch 11
+4f63e4a	0.13	aligned.junction.peak=0.125,avg=0.05,entropy=1.47	1000	fail	rl navigator epoch8 (cell.visited=0.1, ent=0.02) - exploration too dominant, drowns alignment signal, entropy stable but useless

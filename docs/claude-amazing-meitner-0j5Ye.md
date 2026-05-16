@@ -674,3 +674,37 @@ moving outward from the hub once nearby cells are exhausted.
 - Exploring 15 cells toward junction → 1.5 reward, plus alignment → +2.0 = 3.5 total
 - High entropy (0.02) should prevent collapse to hub-only behavior
 - After hub cells exhausted, exploration gradient pushes outward
+
+### Results (epochs 1-8):
+| Epoch | aligned.junction | heart.gained | entropy |
+|-------|-----------------|--------------|---------|
+| 1 | 0.048 | 0.256 | 1.602 |
+| 4 | 0.083 | 0.677 | 1.539 |
+| 6 | 0.125 | 0.531 | 1.495 |
+| 7 | 0.125 | 0.672 | 1.478 |
+| 8 | 0.053 | 0.599 | 1.470 |
+
+### Conclusion: FAILURE
+- Entropy is very stable (1.6→1.47 over 8 epochs — much better than previous ~1.2)
+- But alignment is WEAKER than all previous configs (0-0.125 vs 0.136-0.400)
+- Exploration reward at 0.1 is 30x the alignment reward per step → drowns alignment signal
+- High entropy + dominant exploration = agents explore randomly but never learn alignment
+- **Key lesson**: exploration and alignment rewards must be balanced, not one dominant
+
+## 2026-05-16: Arena 5-action training — junctions within observation window
+
+### Hypothesis
+On the 50×50 arena map, junctions are ~7-10 tiles from hub center — within
+the 13×13 observation window (6 tiles in each direction). Agents can ACTUALLY
+SEE junctions from the hub, unlike the 88×88 competition map where junctions
+are 15+ tiles away (outside observation).
+
+If agents learn "walk toward visible junction → align it" on arena, this
+behavior should transfer to competition map when agents encounter junctions
+during exploration.
+
+### Config: `train_arena_5act_explore.py`
+- Arena map (50×50), 5-action space, 15 hearts
+- milestones_2 + aligner variant (penalizes wrong gear, strong alignment rewards)
+- cell.visited weight=0.05 (moderate exploration)
+- COGAMES_ENT_COEF=0.02 (high entropy to prevent collapse)
