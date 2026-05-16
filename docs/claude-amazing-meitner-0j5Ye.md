@@ -606,3 +606,71 @@ The CNN+LSTM model with 13×13 observation window CAN'T learn navigation because
 3. Must solve the hub-departure problem: agents must be incentivized to LEAVE the hub
 4. Dense hub rewards are counterproductive — they trap agents near the hub
 5. Consider training on arena (50×50) where junctions are closer, then transferring
+
+## 2026-05-16: Sparse reward training — removing hub rewards
+
+### Hypothesis
+Removing the `credit` variant (dense hub interaction rewards like heart_gained=0.05,
+aligner_gained=0.2, element_gained=0.001) and keeping only `milestones_2` + strong
+junction alignment would force agents to explore beyond the hub.
+
+### Config: `train_competition_sparse.py`
+- milestones_2 only (NO credit)
+- junction.aligned_by_agent weight=5.0
+- cell.visited weight=0.005
+- aligner.gained weight=0.5
+
+### Results (epochs 1-13):
+| Epoch | aligned.junction | heart.gained | entropy |
+|-------|-----------------|--------------|---------|
+| 1 | 0.000 | 0.117 | 1.605 |
+| 4 | 0.136 | 0.693 | 1.438 |
+| 5 | 0.185 | 0.685 | 1.293 |
+| 6 | 0.000 | 0.762 | 1.220 |
+| 9 | 0.238 | 0.768 | 1.182 |
+| 10 | 0.125 | 0.711 | 1.174 |
+| 11 | 0.000 | 0.789 | 1.130 |
+| 12 | 0.000 | 0.467 | 1.068 |
+| 13 | 0.000 | 0.489 | 1.024 |
+
+### Conclusion: FAILURE
+- Same trajectory as ALL previous runs — alignment oscillates 0-0.24, collapses by epoch 11
+- Removing credit didn't prevent collapse — milestones_2 still provides some hub rewards
+- Entropy decline follows same pattern regardless of reward structure
+- **Entropy below ~1.1 → alignment collapse is a UNIVERSAL pattern** across all configs
+
+## 2026-05-16: Scripted policy analysis — why it works
+
+The scripted `machina_roles_policy` achieves 0.347 by using multi-tier BFS pathfinding:
+1. Standard BFS on known free cells
+2. Cooldown-bypassing BFS (ignores transient blocks)
+3. Optimistic BFS (treats unknown cells as passable, 20K cell limit)
+4. Greedy fallback (Manhattan distance heuristic)
+
+**Key insight**: The scripted aligner explicitly navigates to junctions using pathfinding.
+RL agents with 13×13 observations CAN'T learn this because:
+- Junctions are 15+ tiles from hub (outside observation window)
+- Agent must navigate BLIND for 9+ tiles before seeing a junction
+- No stat exists for "distance to junction" or "direction to junction"
+- Only available exploration stat is `cell.visited` (binary per cell)
+
+## 2026-05-16: Navigator training — dominant exploration reward
+
+### New approach
+Make exploration the PRIMARY reward signal (10-100x previous), with alignment as secondary.
+The hypothesis: if agents learn to systematically explore the map, they'll naturally
+encounter junctions. cell.visited only rewards NEW cells, so agents are forced to keep
+moving outward from the hub once nearby cells are exhausted.
+
+### Config: `train_competition_navigator.py`
+- cell.visited weight=0.1 (100x the original 0.001, 20x the sparse 0.005)
+- junction.aligned_by_agent weight=2.0
+- aligner.gained weight=0.5
+- milestones_2 (no credit)
+- COGAMES_ENT_COEF=0.02 (2x default, prevents entropy collapse)
+
+### Expected dynamics
+- Hub area ~441 cells → 44.1 reward for exploring hub (dominant early signal)
+- Exploring 15 cells toward junction → 1.5 reward, plus alignment → +2.0 = 3.5 total
+- High entropy (0.02) should prevent collapse to hub-only behavior
+- After hub cells exhausted, exploration gradient pushes outward
