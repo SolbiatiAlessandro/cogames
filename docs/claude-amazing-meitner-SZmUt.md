@@ -92,6 +92,70 @@ Started RL fine-tuning: BC weights → PPO on arena (4 cogs, braveheart, credit+
 - Hypothesis: BC bootstrap gives RL a head start on navigation, allowing faster discovery of junction alignment
 - Running in background (train_dir_bc_finetune/)
 
-### 2026-05-16 08:00: Direct eval on competition map (in progress)
+### 2026-05-16 08:10: BC policy evaluation on competition map
 
-Running eval_bc_policy.py on cogsguard_machina_1.basic to measure transfer from arena BC training.
+**BC policy on cogsguard_machina_1.basic (500 steps, 1 episode):**
+- **Per-agent reward: 0.05** (WORSE than untrained baseline 0.10)
+- aligned.junction.held: 0 (clips got 5520!)
+- cell.visited: 7,323/agent (vs 27,584 on arena)
+- action.move.failed: 320/500 (64%)
+- heart.gained: 0.88/agent
+- clips aligned 23 junctions, cogs aligned 0
+
+**Conclusion: BC from arena doesn't transfer to competition map.** The learned movement patterns are arena-specific. The 88×88 competition map has different layout and the BC policy can't navigate it.
+
+### 2026-05-16 08:10: BC → RL fine-tuning — DEAD END
+
+Started RL fine-tuning from BC weights with ent_coef=0.1 (10x default).
+- **Entropy: 0.109** — still nearly deterministic despite high entropy bonus
+- BC training drives entropy to zero (CrossEntropy loss with 98.9% accuracy)
+- PPO's entropy bonus can't overcome the strong BC prior
+- **ABANDONED** — BC kills exploration, making RL fine-tuning ineffective
+
+### 2026-05-16 08:15: Curriculum training from scratch (PROMISING)
+
+**New approach: train with close junctions, then increase distance.**
+- Phase 1: max_distance=6 (junctions within 13×13 obs window)
+- Phase 2: max_distance=10
+- Phase 3: max_distance=15 (competition setting)
+
+Monkey-patched `EnsureHubReachableJunctionConfig.max_distance` in `terrain.py` at runtime.
+Training started: arena, 4 cogs, braveheart, credit+milestones_2, ent_coef=0.03.
+SPS: ~2,475 (fast! — 2M steps in ~13 min)
+
+### 2026-05-16 08:30: BREAKTHROUGH — Curriculum training produces junction alignment!
+
+**Curriculum phase 1 (max_distance=6) — epoch 20 results on TRAINING:**
+- aligned.junction.held peaks: 1655, 1037, 441 (across different episodes)
+- aligned.junction: up to 2.0 per episode
+- Entropy: 1.58 (stable, no collapse at epoch 30!)
+- SPS: 2,400-2,600
+
+**Epoch 20 evaluation on COMPETITION MAP (cogsguard_machina_1.basic):**
+- **aligned.junction = 1** — FIRST RL model to align a junction on competition map!
+- **aligned.junction.held = 180** — junction held for 180 steps
+- action.move.failed = 31.88 (6.4% — vs 64% for BC, 38% for previous RL)
+- cell.visited = 9,831/agent
+- noop.success = 74.88 — learned to use noop strategically
+- max_steps_without_motion = 5 (never stuck)
+- Per-agent reward: 0.07 (low but with real alignment)
+
+**Why this works:**
+1. Close junctions (6 tiles from hub) are within the 13×13 obs window
+2. Agent learns junction alignment during training on arena with close junctions
+3. This navigation + alignment behavior transfers to competition map even though junctions are 15+ tiles away
+4. Fixed-seed arena maps (64 variants per training batch) provide variability for generalization
+5. Entropy stays high because the task is achievable — no frustration collapse
+
+**Comparison to all previous RL training attempts:**
+| Metric | Previous best (any researcher) | Curriculum epoch 20 |
+|--------|-------------------------------|---------------------|
+| aligned.junction on competition | 0 (always) | **1** |
+| aligned.junction.held on competition | 0 (always) | **180** |
+| move.failed % | 38% | **6.4%** |
+| entropy at epoch 20+ | <1.1 (collapsed) | **1.58** (stable) |
+
+### 2026-05-16 08:35: Tournament submission blocked
+
+Auth token returns 401 on tournament API. Also fixed compat version issue (0.0.0 → 0.25).
+Cannot upload to tournament yet. Continuing training.

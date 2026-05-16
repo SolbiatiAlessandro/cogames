@@ -27,7 +27,7 @@ def _get_installed_compat() -> str | None:
         v = Version(raw)
     except InvalidVersion:
         return None
-    if v.dev is not None:
+    if v.dev is not None or raw == "0.0.0":
         return _find_repo_compat_version()
     return f"{v.major}.{v.minor}"
 
