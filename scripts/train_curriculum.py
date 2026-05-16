@@ -24,18 +24,24 @@ from cogames.train import train
 
 
 def patch_junction_distance(max_distance: int):
-    """Monkey-patch MachinaArena.get_children to use a different max_distance."""
-    original_get_children = terrain.MachinaArena.get_children
+    """Monkey-patch both MachinaArena and SequentialMachinaArena to use a different max_distance."""
+    for cls_name in ("MachinaArena", "SequentialMachinaArena"):
+        cls = getattr(terrain, cls_name, None)
+        if cls is None:
+            continue
+        original = cls.get_children
 
-    def patched_get_children(self):
-        children = original_get_children(self)
-        for child in children:
-            if isinstance(child.scene, terrain.EnsureHubReachableJunctionConfig):
-                child.scene.max_distance = max_distance
-        return children
+        def make_patched(orig):
+            def patched_get_children(self):
+                children = orig(self)
+                for child in children:
+                    if isinstance(child.scene, terrain.EnsureHubReachableJunctionConfig):
+                        child.scene.max_distance = max_distance
+                return children
+            return patched_get_children
 
-    terrain.MachinaArena.get_children = patched_get_children
-    print(f"  [CURRICULUM] Patched junction max_distance to {max_distance}")
+        cls.get_children = make_patched(original)
+        print(f"  [CURRICULUM] Patched {cls_name}.get_children max_distance to {max_distance}")
 
 
 def main():
@@ -48,6 +54,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--reward", default="credit,milestones_2", help="Reward variants (comma-separated)")
     parser.add_argument("--mission", default="cogsguard_arena.basic", help="Mission to train on")
+    parser.add_argument("--max-steps", type=int, default=None, help="Override episode max_steps")
     parser.add_argument("--tag", default="", help="Extra tag for output dir name")
     parser.add_argument("--num-envs", type=int, default=64, help="Number of parallel envs")
     parser.add_argument("--checkpoint-interval", type=int, default=10, help="Checkpoint every N epochs")
@@ -74,6 +81,10 @@ def main():
         variants_arg=["no_vibes", "braveheart"],
         cogs=args.cogs,
     )
+
+    if args.max_steps is not None:
+        env_cfg.game.max_steps = args.max_steps
+        print(f"  Override max_steps to {args.max_steps}")
 
     reward_variants = [v.strip() for v in args.reward.split(",") if v.strip()]
     apply_reward_variants(env_cfg, variants=reward_variants)

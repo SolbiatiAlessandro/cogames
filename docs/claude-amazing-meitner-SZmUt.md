@@ -241,3 +241,33 @@ Base mission reward: `aligned_junction_held / max_steps` per tick per agent.
 - Curriculum max_distance=6 (close junctions within obs window)
 - Starting from phase 1 epoch 20 weights (best model)
 - Checkpoint every 5 epochs for finer granularity
+
+### 2026-05-16 09:15: Competition-map training completed (242 epochs)
+
+**Training config:** cogsguard_machina_1.basic, 8 cogs, max_distance=6, max_steps=1000, aligner+credit rewards, ent_coef=0.02, 16 envs, from phase 1 epoch 20 weights, 2M steps total.
+
+**Training metrics showed two peak alignment periods:**
+- Epochs 40-48: gained 3-4 junctions, held up to 2132 ticks
+- Epochs 83-100: gained up to 10 junctions(!), held up to 2632 ticks (BEST)
+- Late training (200+): sporadic alignment, declining
+
+**Checkpoint evaluation on competition map (500 steps, 5-episode avg):**
+
+| Checkpoint | Avg Reward | junction.gained | junction.held | move.failed | max_steps_without_motion |
+|-----------|-----------|----------------|--------------|------------|-------------------------|
+| Epoch 40  | 0.050     | 0              | 0            | 847 (34%)  | 253                     |
+| Epoch 85  | 0.054     | 1.4            | 99           | 273 (11%)  | 104                     |
+| **Epoch 90** | **0.072** | **1.4**    | **223**      | **347 (14%)** | **72**               |
+| Epoch 95  | 0.068     | 1.8            | 191          | —          | 184                     |
+| Epoch 100 | 0.050     | 0              | 0            | —          | 551                     |
+
+**Epoch 90 is the BEST checkpoint.** Also evaluated at 2500 steps (3-episode):
+- Per-agent reward: 0.34 avg (0.53, 0.25, 0.25)
+- junction.aligned_by_agent: 0.12-0.88
+- cogs/aligned.junction.held: 249
+- High variance — alignment happens in some episodes but not consistently
+
+### 2026-05-16 09:30: Phase 2 competition-map training started
+
+**Config:** max_distance=10 (from 6), starting from epoch 90 weights, all else same.
+**Hypothesis:** Model already learned close-junction alignment; now needs to learn medium-distance navigation to reach junctions 7-10 tiles from hub.

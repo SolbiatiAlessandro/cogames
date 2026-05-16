@@ -8,3 +8,5 @@ c96fc40	0.500000	aligned.junction.held=0 cell.visited=27584	500	keep	BC-pretrain
 654a0ac	0.050000	aligned.junction.held=0 cell.visited=16726	500	discard	Curriculum p1 epoch 30 on competition map - worse than epoch 20 (entropy rise degradation)
 654a0ac	0.050000	aligned.junction.held=199 aligned.junction=0.33	500	discard	Curriculum p2 epoch 30 (arena max_dist=10) on competition - slight improvement but transfer gap
 654a0ac	0.050000	aligned.junction.held=0	500	discard	Curriculum p2 epoch 50 (arena max_dist=10) on competition - over-specialized to arena layout
+a8b294c	0.072000	aligned.junction.held=223 aligned.junction.gained=1.4	500	keep	BEST: Curriculum p1 epoch 90 (competition-map training, max_dist=6, aligner+credit) - 5-ep avg
+a8b294c	0.343000	aligned.junction.held=249 cell.visited=551799	2500	keep	Epoch 90 at 2500 steps (3-ep avg) - reward scales with episode length
