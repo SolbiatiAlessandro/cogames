@@ -12,3 +12,5 @@ dd16ab8	0.13	aligned.junction.avg=0.13,heart.gained=1.9,heart.crafted=17	1000	it
 8fee1e9	0.18	aligned.junction.avg=0.23,heart.gained=0.7,peak=0.455	1000	fail	rl arena_strong_obj epoch22 (milestones_2:25) - alignment unstable 0-0.455, collapsed to 0 by e21-22
 8fee1e9	0.00	aligned.junction=0,heart.withdrawn=22	1000	fail	finetune balanced_e10 with aggressive alignment - catastrophic forgetting, agent only grabs hearts
 5294cfd	0.26	aligned.junction.avg=0.26,heart.amount=0,heart.gained=0.45	1000	iterate	rl arena_scarce_hearts epoch20 (initial_hearts=3) - stable alignment avg 0.29 epochs 5-18, no collapse
+d347656	0.36	aligned.junction.avg=0.36,heart.gained=1.88,heart.amount=0	1000	keep	rl competition_5act epoch20 (5-action, 15 hearts) - NO COLLAPSE! avg alignment 0.36 epochs 16-20 with self-sustaining mining
+d347656	0.15	aligned.junction.avg=0.22,heart.gained=0.55,peak=0.421	1000	fail	rl competition_5act_0hearts epoch15 (5-action, default 5 hearts) - oscillating alignment 0.05-0.42, declining by epoch 14-15. 15 hearts provides better curriculum

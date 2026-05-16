@@ -442,4 +442,58 @@ Config: `train_competition_5act.py` — competition map, 5 actions, balanced rew
 **BREAKTHROUGH**: 5-action model at epoch 10 achieves alignment 0.435 (vs 0.200 for
 12-action on same map). At epoch 14, alignment persists (0.368) even with near-zero
 hearts — heart.gained jumped to 1.8 indicating the mining→crafting chain is working.
-Training to epoch 20+ to see if alignment sustains.
+
+Extended to epoch 20:
+
+| Epoch | aligned.junction | heart.amount | heart.gained |
+|-------|-----------------|--------------|--------------|
+| 16 | **0.583** | 0.000 | 1.885 |
+| 19 | 0.462 | 0.000 | 1.875 |
+| 20 | 0.278 | 0.000 | 1.875 |
+
+**NO COLLAPSE at epoch 20!** Average alignment epochs 16-20: **0.36** with fully
+self-sustaining mining (heart.amount=0, heart.gained=1.88).
+
+## 2026-05-16: Default hearts (5) vs 15 hearts — 15 hearts wins
+
+Config: `train_competition_5act_0hearts.py` — competition map, 5 actions, default hearts.
+CvCConfig.INITIAL_HEARTS=5 × wealth=1 → hub starts with 5 hearts (not 0).
+
+| Epoch | aligned.junction | heart.gained | heart.amount |
+|-------|-----------------|--------------|--------------|
+| 2 | 0.048 | 0.470 | 1.905 |
+| 5 | 0.188 | 0.578 | 1.375 |
+| 8 | **0.421** | 0.520 | 1.789 |
+| 10 | 0.381 | 0.708 | 0.857 |
+| 12 | 0.385 | 0.587 | 1.077 |
+| 14 | 0.056 | 0.562 | 1.500 |
+| 15 | 0.125 | 0.727 | 0.438 |
+
+**FAILED**: Alignment oscillates wildly (0.05-0.42), declining by epoch 14-15.
+Hearts deplete early (4→1 by epoch 2), forcing premature mining chain reliance.
+The 15-hearts model provides a smoother learning curriculum — agents learn alignment
+with easy hearts first, then transition to self-sustaining mining.
+
+## 2026-05-16: Eval analysis — training-eval mismatch
+
+Epoch 10 eval (5-action, 15 hearts model, competition map, 1000 steps):
+- `per_episode_per_policy_avg_rewards: 0.10`
+- `cogs/aligned.junction.held: 0.0` (at episode end!)
+- `clips/aligned.junction.held: 7228.54`
+- Agents DID mine and withdraw hearts (heart.withdrawn=4.97, silicon/oxygen/carbon.withdrawn=1.98)
+- But aligned ZERO junctions that persisted to episode end
+
+**KEY ISSUE**: Eval uses default mission config (5 hub hearts) while model trained with 15.
+The 10-heart deficit means the model's early-game strategy (consume initial hearts → align)
+fails with only 5 hearts. Also, eval is only 1000 steps — competition is 10000 where the
+mining chain has much more time to dominate.
+
+**Base reward**: `aligned_junction_held` is per-tick, normalized by 1/max_steps.
+So 0.10 reward ≈ 100 junction-ticks of alignment during the 1000-step episode.
+The model briefly aligned junctions but clips scrambled them all by episode end.
+
+## 2026-05-16: Starting 2000-step + 15-hearts training
+
+Config: `train_competition_5act_2k_15h.py` — competition map, 5 actions, 15 hearts, 2000 steps.
+Hypothesis: longer episodes teach sustained alignment behavior beyond initial heart consumption.
+This better matches competition's 10000-step format and should improve eval performance.
