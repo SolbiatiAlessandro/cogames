@@ -1,0 +1,4 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+be91f19	0.100000	aligned.junction.held=0	500	keep	Untrained LSTM baseline on competition map (10 episodes)
+c96fc40	-0.780000	aligned.junction.held=0	1000	discard	RL from scratch (5 epochs braveheart arena + credit + milestones_2) - no progress
+c96fc40	0.500000	aligned.junction.held=0 cell.visited=27584	500	keep	BC-pretrained policy (arena-only 98.93% acc) on arena - 5x baseline improvement

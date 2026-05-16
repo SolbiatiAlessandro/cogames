@@ -61,3 +61,37 @@ Collected 5000 timesteps x 8 agents = 40,000 training pairs from scripted policy
 BC training epoch 1: loss=0.6492, accuracy=72.95% — fast convergence!
 
 **Hypothesis:** BC-pretrained policy will have basic navigation ability (navigate toward junctions), which RL fine-tuning can improve further. This bypasses the exploration bottleneck that pure RL faces.
+
+### 2026-05-16 07:45: BC training results (arena-only)
+
+**Arena-only BC training (5000 timesteps × 8 agents, 15 epochs):**
+- Final: loss=0.0120, accuracy=98.93%
+- Weights saved to `bc_weights.pt` (11MB)
+
+### 2026-05-16 08:00: BC policy evaluation on arena (cogames scrimmage)
+
+**BC policy on cogsguard_arena.basic (500 steps, 3 episodes):**
+- **Per-agent reward: 0.50** (5x improvement over untrained baseline 0.10)
+- aligned.junction.held: 0 (no junctions held)
+- cell.visited: 27,584/agent (good exploration)
+- action.move.failed: 1000/agent (67% failure rate — map-specific learning)
+- heart.gained: 0.88/agent
+- Elements gained: carbon=1.38, oxygen=5.62, germanium=0.50, silicon=5.50
+- max_steps_without_motion: 1225 (gets stuck sometimes)
+- 0.62 deaths/agent (some agents dying)
+
+**Key observations:**
+1. BC provides 5x reward improvement over random — confirms navigation initialization works
+2. High move failure rate (67%) suggests BC learned arena-specific wall avoidance patterns that don't generalize perfectly
+3. No junction alignment yet — BC only mimics the scripted policy's actions but the scripted policy's alignment behavior is too complex (multi-step goal-oriented)
+4. Element mining is happening but at low rates compared to scripted policy
+
+### 2026-05-16 08:00: RL fine-tuning from BC weights
+
+Started RL fine-tuning: BC weights → PPO on arena (4 cogs, braveheart, credit+milestones_2, ent_coef=0.02)
+- Hypothesis: BC bootstrap gives RL a head start on navigation, allowing faster discovery of junction alignment
+- Running in background (train_dir_bc_finetune/)
+
+### 2026-05-16 08:00: Direct eval on competition map (in progress)
+
+Running eval_bc_policy.py on cogsguard_machina_1.basic to measure transfer from arena BC training.
