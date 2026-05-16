@@ -522,3 +522,43 @@ Agents cover √2x more map area, finding more junctions.
 
 **Future direction**: Lower entropy coefficient (0.005 → 0.001) to make the model more
 decisive about movement directions. Current `ent_coef=0.01` is too high for competition.
+
+## 2026-05-16: 2k training results + 10000-step evals
+
+### 2k training (epochs 1-11):
+| Epoch | aligned.junction | heart.gained | entropy |
+|-------|-----------------|--------------|---------|
+| 1 | 0.000 | 0.225 | 1.596 |
+| 4 | 0.143 | 0.750 | 1.532 |
+| 7 | **0.300** | 0.675 | 1.417 |
+| 10 | 0.125 | 0.859 | 1.363 |
+| 11 | 0.000 | 0.562 | 1.316 |
+
+Peak alignment at epoch 7 (0.300), then collapsed. Entropy dropping faster than 1k training.
+
+### 10000-step evals (CRITICAL):
+Both the 2k model (epoch 10) and 1k model (epoch 20) scored **0 aligned junctions** at 10000 steps.
+Agents withdraw hearts (4.999) and resources (2.999 each) but never navigate to junctions.
+The mining chain works; navigation is the bottleneck.
+
+### 10k from-scratch training (64 envs, ent_coef=0.005):
+Epochs 1-20: aligned.junction=0 continuously. Stats FROZEN from epoch 12 onward.
+With 10000-step episodes and 32.8K steps per epoch, first episodes complete at epoch ~20.
+But even after completion, no alignment signal. Episodes cycle too slowly for learning.
+
+### 10k fine-tune (256 envs, pre-trained model):
+Loaded 1k epoch-20 model. Heart.gained=2.0 (mining chain preserved). But entropy INCREASED
+from 1.059→1.300 (distribution shift — model encounters unfamiliar observations after step 1000).
+Alignment still 0.
+
+### Root cause analysis:
+1. **Short episodes work** (1k): junctions findable by random exploration in ~24 tile radius
+2. **Long episodes fail** (10k): episodes cycle 10x slower → 10x fewer learning opportunities
+3. **Key insight**: episode completion rate drives learning, not total steps
+4. **Distribution shift**: models trained on 1k episodes can't handle 10k observations past step 1000
+
+### New approach: exploration reward + low entropy + 1k episodes
+- `cell.visited` reward (weight=0.001) to incentivize leaving hub area
+- `COGAMES_ENT_COEF=0.005` for decisive movement directions
+- Stronger alignment rewards (junction_aligned=2.0, aligner_gear=1.0)
+- Train for 50+ epochs to give time for exploration skills to develop
