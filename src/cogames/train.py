@@ -112,7 +112,7 @@ def train(
     vector_num_workers: Optional[int] = None,
     env_cfg_supplier: Optional[Callable[[], MettaGridConfig]] = None,
     log_outputs: bool = False,
-    checkpoint_interval: int = 200,
+    checkpoint_interval: int = int(os.environ.get("COGAMES_CHECKPOINT_INTERVAL", "200")),
 ) -> None:
     console = Console()
 
