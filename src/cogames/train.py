@@ -242,7 +242,7 @@ def train(
     env_name = "cogames.cogs_vs_clips"
 
     learning_rate = float(os.environ.get("COGAMES_LR", "0.00092"))
-    bptt_horizon = 64 if use_rnn else 1
+    bptt_horizon = int(os.environ.get("COGAMES_BPTT", "64")) if use_rnn else 1
     optimizer = "adam"
     adam_eps = 1e-8
 
