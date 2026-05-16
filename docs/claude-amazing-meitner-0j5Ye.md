@@ -492,8 +492,33 @@ mining chain has much more time to dominate.
 So 0.10 reward ≈ 100 junction-ticks of alignment during the 1000-step episode.
 The model briefly aligned junctions but clips scrambled them all by episode end.
 
+## 2026-05-16: Eval deep-dive — why training doesn't transfer
+
+Epoch 10 and 20 evals both show `aligned.junction.held = 0.0` on competition map.
+Key per-agent stats (epoch 20, default 5 hearts, 1000 steps):
+- `aligner.gained: 0.25` (2/8 agents got aligner gear)
+- `heart.gained: 0.875` (some hearts crafted)
+- `action.move.failed: 357.125` (38% of moves fail)
+- `action.noop: 60.625`
+
+**Root cause**: Policy entropy = 1.295 at epoch 15 (80% of max 1.609 for 5 actions).
+The model is nearly random at selecting movement directions. It can't consistently
+navigate to junctions on the 88×88 map within 1000 steps.
+
+**Training metric vs eval**: Training alignment (0.38) is averaged over 256 envs.
+Most individual episodes have 0 alignment — the average is pulled up by a minority of
+episodes where agents happen to reach junctions. Single-episode eval shows the majority
+outcome: 0 junctions.
+
+**Competition gap**: Competition uses 10000 steps (10x training). With 10000 steps,
+even a semi-random agent covers √6000 ≈ 77 tiles — nearly the full 88×88 map.
+So the model might work better at competition length despite poor 1000-step eval.
+
 ## 2026-05-16: Starting 2000-step + 15-hearts training
 
 Config: `train_competition_5act_2k_15h.py` — competition map, 5 actions, 15 hearts, 2000 steps.
 Hypothesis: longer episodes teach sustained alignment behavior beyond initial heart consumption.
-This better matches competition's 10000-step format and should improve eval performance.
+Agents cover √2x more map area, finding more junctions.
+
+**Future direction**: Lower entropy coefficient (0.005 → 0.001) to make the model more
+decisive about movement directions. Current `ent_coef=0.01` is too high for competition.
