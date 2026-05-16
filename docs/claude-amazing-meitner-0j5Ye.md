@@ -562,3 +562,47 @@ Alignment still 0.
 - `COGAMES_ENT_COEF=0.005` for decisive movement directions
 - Stronger alignment rewards (junction_aligned=2.0, aligner_gear=1.0)
 - Train for 50+ epochs to give time for exploration skills to develop
+
+## 2026-05-16: CRITICAL FINDING — training metric is misleading due to per-env map seeds
+
+### Map seed randomization in training
+The training code (`train.py:479`) sets `map_builder.seed = base_seed + env_index`:
+- With default seed=42 and 256 envs: seeds 42-297
+- Each training env gets a DIFFERENT randomly-generated 88×88 map
+- Junctions are placed via Poisson distribution, so each map has different junction positions
+
+### Eval uses fixed map
+The eval command uses a single map (seed from CLI or default). The `cogsguard_machina_1` map builder has `seed=None`, so the eval seed determines the map.
+
+### Consequence
+- Training metric (0.36 avg alignment) = average across 256 DIFFERENT maps
+- ~36% of random maps happen to place junctions close enough to the hub for agents to find
+- Eval with ANY specific map seed shows 0 alignment because the model can't navigate to junctions
+- The model's "learned alignment" is actually stochastic luck on favorable map layouts
+
+### Verification
+- Ran eval with 10 different map seeds (42-51): ALL showed 0 alignment
+- Ran eval with 5 different torch seeds: ALL showed identical results
+- Model has strong directional bias (55% south, 24% west, 7% north, 5% east)
+- Competition map (seed 42) has nearest junction at distance 15 from hub center
+- Despite this being reachable, model stays in hub area doing rewarded hub interactions
+
+### Map analysis (seed 42)
+- Grid: 98×98, Hub center: (48,48), Hub size: 21×21
+- 141 total junctions, nearest at Manhattan distance 15
+- Agent spawn positions: clustered at (46-52, 44-52)
+- Junctions distributed throughout map, avg distance 46 from hub
+
+### Root cause
+The CNN+LSTM model with 13×13 observation window CAN'T learn navigation because:
+1. Dense hub rewards (mining, deposits, hearts) keep agents near hub
+2. Junction alignment is too sparse — requires navigating 15+ tiles to find a junction
+3. The 13×13 observation window means agent can't "see" junctions until within 6 tiles
+4. With 5 actions (4 moves + noop), directed navigation requires sustained directional commitment
+
+### Implications for future work
+1. Training metrics CANNOT be trusted as indicators of tournament performance
+2. Need eval on FIXED maps matching tournament conditions
+3. Must solve the hub-departure problem: agents must be incentivized to LEAVE the hub
+4. Dense hub rewards are counterproductive — they trap agents near the hub
+5. Consider training on arena (50×50) where junctions are closer, then transferring
