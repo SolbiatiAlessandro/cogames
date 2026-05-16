@@ -1,19 +1,14 @@
-"""Competition map, FIXED seed 42, NO CLIPS — exploration-dominant with alignment kicker.
+"""Competition map, FIXED seed 42, NO CLIPS, 5000 steps — long episodes for junction reach.
 
-The bottleneck: 13x13 observation window on 88x88 map. Random walk range (~26
-cells) can't reach junctions (~40-50 cells from spawn). Need DIRECTED exploration.
+The math: random walk range = sqrt(steps × move_success_rate).
+- 2000 steps, 34% success: range = 26 cells. Junctions at 40-50 cells. UNREACHABLE.
+- 5000 steps, 34% success: range = 41 cells. BARELY reachable.
+- 5000 steps, 50% success (learned): range = 50 cells. REACHABLE.
 
-Strategy:
-- Massive capped exploration reward (weight=0.5, max=250) forces map coverage
-- Once agent learns to explore efficiently (visit 400+ cells), cap saturates
-- Alignment bonus (weight=20.0, uncapped) then becomes the marginal reward
-- Agent transitions from "explore everything" to "explore AND align"
+Longer episodes give agents enough time to accidentally reach junctions via random
+walk, providing the first gradient signal for learning directed navigation.
 
-Critical: start from no-clips epoch 20 checkpoint which already has partial
-navigation (max_steps=26.6). The exploration reward teaches it to use that
-navigation ability to cover more ground.
-
-Use with: COGAMES_ENT_START=0.06 COGAMES_ENT_END=0.01 COGAMES_ENT_ANNEAL_EPOCHS=50
+Use with: COGAMES_ENT_START=0.05 COGAMES_ENT_END=0.005 COGAMES_ENT_ANNEAL_EPOCHS=10
 """
 from cogames.cogs_vs_clips.missions import MISSIONS
 from cogames.cogs_vs_clips.reward_variants import apply_reward_variants
@@ -34,7 +29,7 @@ for m in MISSIONS:
 if competition_basic is None:
     raise ValueError("Could not find cogsguard_machina_1.basic mission")
 
-competition_basic.max_steps = 2000
+competition_basic.max_steps = 5000
 competition_basic.teams = {
     "cogs": CogTeam(name="cogs", num_agents=8, wealth=1, initial_hearts=15),
 }
