@@ -107,8 +107,9 @@ def main():
         seed=args.seed,
         map_seed=args.map_seed if args.map_seed is not None else args.seed,
         minibatch_size=4096,
+        vector_num_envs=64,
         log_outputs=True,
-        checkpoint_interval=50,
+        checkpoint_interval=10,
     )
 
 
