@@ -23,7 +23,7 @@ from cogames.cogs_vs_clips import terrain
 from cogames.train import train
 
 
-def patch_junction_distance(max_distance: int):
+def patch_junction_distance(max_distance: int, min_distance: int = None):
     """Monkey-patch both MachinaArena and SequentialMachinaArena to use a different max_distance."""
     for cls_name in ("MachinaArena", "SequentialMachinaArena"):
         cls = getattr(terrain, cls_name, None)
@@ -31,23 +31,26 @@ def patch_junction_distance(max_distance: int):
             continue
         original = cls.get_children
 
-        def make_patched(orig):
+        def make_patched(orig, max_d=max_distance, min_d=min_distance):
             def patched_get_children(self):
                 children = orig(self)
                 for child in children:
                     if isinstance(child.scene, terrain.EnsureHubReachableJunctionConfig):
-                        child.scene.max_distance = max_distance
+                        child.scene.max_distance = max_d
+                        if min_d is not None:
+                            child.scene.min_distance = min_d
                 return children
             return patched_get_children
 
         cls.get_children = make_patched(original)
-        print(f"  [CURRICULUM] Patched {cls_name}.get_children max_distance to {max_distance}")
+        print(f"  [CURRICULUM] Patched {cls_name}.get_children max_distance to {max_distance}, min_distance to {min_distance}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Curriculum RL training")
     parser.add_argument("--phase", type=int, default=1, choices=[1, 2, 3], help="Curriculum phase")
     parser.add_argument("--max-distance", type=int, default=None, help="Override curriculum max_distance")
+    parser.add_argument("--min-distance", type=int, default=None, help="Override curriculum min_distance")
     parser.add_argument("--steps", type=int, default=2000000, help="Steps per phase")
     parser.add_argument("--cogs", type=int, default=4, help="Number of agents")
     parser.add_argument("--ent-coef", type=float, default=0.02, help="Entropy coefficient")
@@ -63,6 +66,12 @@ def main():
     parser.add_argument("--ent-start", type=float, default=0.0, help="Entropy annealing start (0=disabled)")
     parser.add_argument("--ent-end", type=float, default=0.0, help="Entropy annealing end")
     parser.add_argument("--ent-anneal-frac", type=float, default=0.3, help="Fraction of training for annealing")
+    parser.add_argument("--obs-size", type=int, default=13, help="Observation window size (max 15)")
+    parser.add_argument("--goal-obs", action="store_true", help="Enable goal_obs for directional reward info")
+    parser.add_argument("--boost-aligner", type=float, default=0.0,
+                        help="Extra aligner_gained reward weight (no penalty for other gear)")
+    parser.add_argument("--no-hub-wall", action="store_true", help="Remove hub inner wall for easier exit")
+    parser.add_argument("--randomize-spawns", action="store_true", help="Randomize agent spawn positions in hub")
     args = parser.parse_args()
 
     phase_config = {
@@ -80,7 +89,7 @@ def main():
     print(f"  reward variants: {args.reward}")
     print(f"  initial weights: {args.weights or 'random'}")
 
-    patch_junction_distance(max_dist)
+    patch_junction_distance(max_dist, args.min_distance)
 
     _, env_cfg, _ = get_mission(
         args.mission,
@@ -88,12 +97,45 @@ def main():
         cogs=args.cogs,
     )
 
+    if args.no_hub_wall or args.randomize_spawns:
+        from mettagrid.mapgen.mapgen import MapGen
+        mb = env_cfg.game.map_builder
+        if isinstance(mb, MapGen.Config) and hasattr(mb.instance, 'hub'):
+            if args.no_hub_wall:
+                mb.instance.hub.include_inner_wall = False
+                print(f"  Removed hub inner wall")
+            if args.randomize_spawns:
+                mb.instance.hub.randomize_spawn_positions = True
+                print(f"  Randomized spawn positions")
+
+    if args.obs_size != 13:
+        env_cfg.game.obs.width = args.obs_size
+        env_cfg.game.obs.height = args.obs_size
+        print(f"  Override obs size to {args.obs_size}x{args.obs_size}")
+
+    if args.goal_obs:
+        env_cfg.game.obs.global_obs.goal_obs = True
+        print(f"  Enabled goal_obs")
+
     if args.max_steps is not None:
         env_cfg.game.max_steps = args.max_steps
         print(f"  Override max_steps to {args.max_steps}")
 
     reward_variants = [v.strip() for v in args.reward.split(",") if v.strip()]
     apply_reward_variants(env_cfg, variants=reward_variants)
+
+    if args.boost_aligner > 0:
+        from mettagrid.config.game_value import stat as game_stat
+        from mettagrid.config.reward_config import reward as make_reward
+        agent_cfgs = env_cfg.game.agents if env_cfg.game.agents else [env_cfg.game.agent]
+        for agent_cfg in agent_cfgs:
+            agent_cfg.rewards["aligner_gained"] = make_reward(
+                game_stat("aligner.gained"), weight=args.boost_aligner
+            )
+            agent_cfg.rewards["junction_aligned_by_agent"] = make_reward(
+                game_stat("junction.aligned_by_agent"), weight=args.boost_aligner * 2.5
+            )
+        print(f"  Boosted aligner_gained to {args.boost_aligner}, junction_aligned to {args.boost_aligner * 2.5}")
 
     if args.explore_weight > 0:
         from mettagrid.config.game_value import stat as game_stat
