@@ -159,3 +159,31 @@ SPS: ~2,475 (fast! — 2M steps in ~13 min)
 
 Auth token returns 401 on tournament API. Also fixed compat version issue (0.0.0 → 0.25).
 Cannot upload to tournament yet. Continuing training.
+
+### 2026-05-16 08:45: Epoch 30 competition eval — WORSE than epoch 20
+
+**Epoch 30 on cogsguard_machina_1.basic (500 steps, 1 episode):**
+- Per-agent reward: 0.05 (worse than epoch 20's 0.07, worse than baseline 0.10)
+- aligned.junction: **0** (epoch 20 had 1)
+- aligned.junction.held: **0** (epoch 20 had 180)
+- action.move.failed: 69.25 (13.8%, vs 6.4% for epoch 20)
+- cell.visited: 16,726 (more exploration but directionless)
+- max_steps_without_motion: 9.12 (epoch 20 had 5)
+
+**Training divergence analysis (62 epochs total before kill):**
+- Entropy climbed steadily from 1.27 (epoch ~25) to 1.60 (epoch 62) — approaching max 1.609
+- Junction alignment in training dropped to 0 after epoch ~35
+- ent_coef=0.03 is TOO HIGH — causes entropy explosion that destroys learned alignment
+- **Epoch 20 confirmed as best checkpoint** for this training run
+
+**Conclusion:** ent_coef=0.03 destabilizes training after ~20 epochs. Need lower ent_coef for sustained learning.
+
+### 2026-05-16 08:50: New experiments — lower entropy + curriculum phase 2
+
+**Experiment A: Phase 1 retrain with ent_coef=0.01 (default)**
+- Hypothesis: lower entropy bonus prevents the explosion that destroyed epoch 30-60
+- May produce more sustained junction alignment over longer training
+
+**Experiment B: Phase 2 (max_distance=10) from epoch 20 weights**
+- Hypothesis: best phase 1 model can learn to navigate slightly further junctions
+- If successful, chain to phase 3 (max_distance=15 = competition setting)

@@ -5,3 +5,4 @@ c96fc40	0.500000	aligned.junction.held=0 cell.visited=27584	500	keep	BC-pretrain
 39bedda	0.050000	aligned.junction.held=0 clips.aligned=5520	500	discard	BC policy on competition map - worse than baseline (arena BC doesnt transfer)
 39bedda	0.000000	aligned.junction.held=0	500	discard	BC→RL fine-tune (ent_coef=0.1) - entropy stuck at 0.109 - dead end
 39bedda	0.070000	aligned.junction.held=180 aligned.junction=1	500	keep	BREAKTHROUGH: Curriculum p1 (max_dist=6) epoch 20 on competition map - first RL junction alignment ever!
+654a0ac	0.050000	aligned.junction.held=0 cell.visited=16726	500	discard	Curriculum p1 epoch 30 on competition map - worse than epoch 20 (entropy rise degradation)
