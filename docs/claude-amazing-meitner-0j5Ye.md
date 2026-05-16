@@ -392,3 +392,54 @@ Hypothesis: with only 3 hearts for 8 agents, agents MUST learn mining→crafting
 early. Balanced rewards identical to balanced config.
 
 Training started, monitoring to epoch 10+.
+
+## 2026-05-15T23:55: Scarce hearts results
+
+| Epoch | aligned.junction | heart.amount | heart.gained |
+|-------|-----------------|--------------|--------------|
+| 5 | 0.214 | 0.500 | 0.451 |
+| 6 | **0.500** | 0.714 | 0.375 |
+| 10 | 0.375 | 0.938 | 0.375 |
+| 14 | **0.500** | 0.500 | 0.455 |
+| 19 | 0.000 | 0.000 | 0.409 |
+| 23 | 0.000 | - | - |
+
+Average alignment epochs 5-18: **0.29** (more stable than balanced, no sharp collapse).
+But alignment collapsed to 0 by epoch 19-23 — same pattern as all other approaches.
+Mining chain barely produced new hearts (heart.withdrawn never exceeded initial 3).
+
+## 2026-05-16T00:07: Competition map training (12-action, initial_hearts=15)
+
+Config: `train_competition_scarce.py` (later renamed, competition map with 15 hearts).
+Trained directly on cogsguard_machina_1.basic (88×88). SPS: 3.8K on CPU.
+
+| Epoch | aligned.junction | heart.amount |
+|-------|-----------------|--------------|
+| 5 | 0.111 | 8.444 |
+| 8 | 0.174 | 9.478 |
+| 10 | 0.200 | 10.400 |
+
+Container restart killed training at epoch 10. Checkpoint saved.
+
+## 2026-05-16: KEY INSIGHT — 5-action space
+
+**Discovery**: Top RL policies (#1 Softy:v103 at 45.29) use ONLY 5 movement actions
+(noop + 4 moves) with ZERO change_vibe calls. Our training used 12 actions.
+Reducing to 5 actions with `NoVibesVariant` should simplify learning.
+
+Config: `train_competition_5act.py` — competition map, 5 actions, balanced rewards.
+
+| Epoch | aligned.junction | heart.amount | heart.gained | Notes |
+|-------|-----------------|--------------|--------------|-------|
+| 2 | 0.083 | 11.333 | 0.479 | |
+| 5 | 0.059 | 10.000 | 0.662 | |
+| 8 | **0.261** | 9.870 | 0.668 | surpassed 12-action |
+| 10 | **0.435** | 9.348 | 0.739 | **2x better than 12-action!** |
+| 13 | 0.176 | 2.294 | 1.610 | hearts depleting, mining kicks in |
+| 14 | **0.368** | 0.737 | **1.809** | alignment with near-zero hearts! |
+| 15 | 0.062 | 1.125 | 1.773 | |
+
+**BREAKTHROUGH**: 5-action model at epoch 10 achieves alignment 0.435 (vs 0.200 for
+12-action on same map). At epoch 14, alignment persists (0.368) even with near-zero
+hearts — heart.gained jumped to 1.8 indicating the mining→crafting chain is working.
+Training to epoch 20+ to see if alignment sustains.

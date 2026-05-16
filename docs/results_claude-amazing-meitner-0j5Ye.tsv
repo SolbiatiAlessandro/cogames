@@ -11,3 +11,4 @@ b82e10c	0.00	aligned.junction=0,aligner.amount=0,heart.gained=1.9	1000	fail	rl a
 dd16ab8	0.13	aligned.junction.avg=0.13,heart.gained=1.9,heart.crafted=17	1000	iterate	rl arena_balanced epoch20 - capped deposits+alignment bonus, alignment noisy but mining chain works
 8fee1e9	0.18	aligned.junction.avg=0.23,heart.gained=0.7,peak=0.455	1000	fail	rl arena_strong_obj epoch22 (milestones_2:25) - alignment unstable 0-0.455, collapsed to 0 by e21-22
 8fee1e9	0.00	aligned.junction=0,heart.withdrawn=22	1000	fail	finetune balanced_e10 with aggressive alignment - catastrophic forgetting, agent only grabs hearts
+5294cfd	0.26	aligned.junction.avg=0.26,heart.amount=0,heart.gained=0.45	1000	iterate	rl arena_scarce_hearts epoch20 (initial_hearts=3) - stable alignment avg 0.29 epochs 5-18, no collapse
