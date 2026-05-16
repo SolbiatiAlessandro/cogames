@@ -325,9 +325,16 @@ def train(
 
     training_diverged = False
 
+    ent_start = float(os.environ.get("COGAMES_ENT_START", "0"))
+    ent_end = float(os.environ.get("COGAMES_ENT_END", "0"))
+    ent_anneal_epochs = int(os.environ.get("COGAMES_ENT_ANNEAL_EPOCHS", "0"))
+
     with DeferSigintContextManager():
         try:
             while trainer.global_step < num_steps:
+                if ent_anneal_epochs > 0 and ent_start > 0:
+                    progress = min(trainer.epoch / ent_anneal_epochs, 1.0)
+                    trainer.config["ent_coef"] = ent_start + (ent_end - ent_start) * progress
                 eval_stats = trainer.evaluate()
                 if log_outputs and eval_stats:
                     console.log(f"Evaluation: {datetime.now(UTC)}")
