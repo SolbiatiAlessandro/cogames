@@ -46,6 +46,11 @@ def main():
     parser.add_argument("--ent-coef", type=float, default=0.02, help="Entropy coefficient")
     parser.add_argument("--weights", default=None, help="Initial weights (for continuation)")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--reward", default="credit,milestones_2", help="Reward variants (comma-separated)")
+    parser.add_argument("--mission", default="cogsguard_arena.basic", help="Mission to train on")
+    parser.add_argument("--tag", default="", help="Extra tag for output dir name")
+    parser.add_argument("--num-envs", type=int, default=64, help="Number of parallel envs")
+    parser.add_argument("--checkpoint-interval", type=int, default=10, help="Checkpoint every N epochs")
     args = parser.parse_args()
 
     phase_config = {
@@ -58,17 +63,20 @@ def main():
     print(f"=== CURRICULUM PHASE {args.phase}: {phase['desc']} ===")
     print(f"  max_distance: {phase['max_distance']}")
     print(f"  steps: {args.steps}")
+    print(f"  mission: {args.mission}")
+    print(f"  reward variants: {args.reward}")
     print(f"  initial weights: {args.weights or 'random'}")
 
     patch_junction_distance(phase["max_distance"])
 
     _, env_cfg, _ = get_mission(
-        "cogsguard_arena.basic",
+        args.mission,
         variants_arg=["no_vibes", "braveheart"],
         cogs=args.cogs,
     )
 
-    apply_reward_variants(env_cfg, variants=["credit", "milestones_2"])
+    reward_variants = [v.strip() for v in args.reward.split(",") if v.strip()]
+    apply_reward_variants(env_cfg, variants=reward_variants)
 
     if args.ent_coef:
         os.environ["COGAMES_ENT_COEF"] = str(args.ent_coef)
@@ -76,7 +84,8 @@ def main():
     from mettagrid.policy.loader import resolve_policy_class_path
     class_path = resolve_policy_class_path("tutorial")
 
-    checkpoint_dir = Path(f"./train_dir_curriculum_p{args.phase}")
+    tag = f"_{args.tag}" if args.tag else ""
+    checkpoint_dir = Path(f"./train_dir_curriculum_p{args.phase}{tag}")
 
     train(
         env_cfg=env_cfg,
@@ -88,9 +97,9 @@ def main():
         seed=args.seed,
         map_seed=args.seed,
         minibatch_size=4096,
-        vector_num_envs=64,
+        vector_num_envs=args.num_envs,
         log_outputs=True,
-        checkpoint_interval=10,
+        checkpoint_interval=args.checkpoint_interval,
     )
 
 

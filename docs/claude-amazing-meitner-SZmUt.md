@@ -187,3 +187,57 @@ Cannot upload to tournament yet. Continuing training.
 **Experiment B: Phase 2 (max_distance=10) from epoch 20 weights**
 - Hypothesis: best phase 1 model can learn to navigate slightly further junctions
 - If successful, chain to phase 3 (max_distance=15 = competition setting)
+
+**Experiment A killed at epoch 8** — too slow starting from scratch, CPU needed for experiment B.
+
+### 2026-05-16 09:00: Phase 2 training — SIGNIFICANT IMPROVEMENT
+
+**Phase 2 (max_distance=10, ent_coef=0.02, from epoch 20 weights) — epoch 20-23:**
+- Junction alignment consistently improving!
+- junction.gained per episode: from [1.0] early → [2.0, 3.0] at epoch 15 → [1.0, 2.0] at epoch 20
+- Junction held ticks: 7 (epoch 5) → 432 (epoch 13) → **1053** (epoch 23)
+- Entropy: 1.59 → 1.47 (slow, healthy decrease)
+- SPS: ~340 (with 2 processes) → 2669 (after killing experiment A)
+
+**Comparison: Phase 1 vs Phase 2 training metrics (arena, max training):**
+| Metric | Phase 1 (max_dist=6, epoch 20) | Phase 2 (max_dist=10, epoch 23) |
+|--------|-------------------------------|--------------------------------|
+| Max junction.gained/ep | 2.0 | **3.0** |
+| Max junction.held/ep | ~400 | **1053** |
+| Entropy at epoch 20 | 1.58 (rising) | **1.47** (slowly falling) |
+| Entropy trend | Unstable (collapse risk) | Stable decrease |
+
+**Key finding:** Curriculum phase 2 from good phase 1 weights produces MUCH better alignment than training from scratch with closer junctions. The model transfers its close-junction alignment ability and improves it for medium-distance junctions.
+
+### 2026-05-16 09:00: Reward structure analysis
+
+Base mission reward: `aligned_junction_held / max_steps` per tick per agent.
+- max_steps = 10000 for competition map (baked into reward weight at mission creation)
+- At 500 eval steps: holding N junctions for T ticks = N×T/10000 reward/agent
+- Target: 10.0/agent offline requires ~10 junctions held for all 10000 steps
+- Scripted policy at 500 steps: 0.18/agent (3 junctions, 1326 held)
+- Our best P1 epoch 20 at 500 steps: 0.07/agent (1 junction, 180 held)
+- Phase 2 epoch 30 at 500 steps: 0.05/agent (0.33 junctions, 199 held)
+- Phase 2 epoch 50 at 500 steps: 0.05/agent (0 junctions, 0 held — over-specialized!)
+
+### 2026-05-16 09:10: Phase 2 eval — ARENA TRAINING DOESN'T TRANSFER
+
+**Phase 2 epoch 30 on competition map (500 steps, 3-episode avg):**
+- Per-agent reward: 0.05
+- cogs/aligned.junction: 0.33 (1 junction in 1 out of 3 episodes)
+- cogs/aligned.junction.held: 199.33
+
+**Phase 2 epoch 50 on competition map (500 steps, 3-episode avg):**
+- Per-agent reward: 0.05
+- cogs/aligned.junction: **0** (despite 5+ during arena training!)
+- cogs/aligned.junction.held: **0**
+
+**Key insight: Arena training over-specializes.** Phase 2 improved arena alignment from 1→5 junctions but DEGRADED competition map performance. The model learned arena-specific navigation patterns that don't transfer to the 88×88 competition map.
+
+**Original Phase 1 epoch 20 remains the BEST model on competition map.**
+
+**New approach: Train directly on competition map (cogsguard_machina_1.basic)**
+- Using 16 parallel envs (fewer due to larger map, 88×88 with 8 cogs)
+- Curriculum max_distance=6 (close junctions within obs window)
+- Starting from phase 1 epoch 20 weights (best model)
+- Checkpoint every 5 epochs for finer granularity
