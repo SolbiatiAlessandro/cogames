@@ -61,6 +61,18 @@ for agent_cfg in config.game.agents:
         stat("aligner.gained"),
         weight=10.0,
     )
+    rewards["wrong_gear_penalty_scrambler"] = reward(
+        stat("scrambler.gained"),
+        weight=-5.0,
+    )
+    rewards["wrong_gear_penalty_miner"] = reward(
+        stat("miner.gained"),
+        weight=-5.0,
+    )
+    rewards["wrong_gear_penalty_scout"] = reward(
+        stat("scout.gained"),
+        weight=-5.0,
+    )
     rewards["heart_bonus"] = reward(
         stat("heart.gained"),
         weight=2.0,
