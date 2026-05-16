@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing
+import os
 import platform
 from datetime import UTC, datetime
 from pathlib import Path
@@ -240,7 +241,8 @@ def train(
 
     env_name = "cogames.cogs_vs_clips"
 
-    learning_rate = 0.00092
+    learning_rate = float(os.environ.get("COGAMES_LR", "0.00092"))
+    ent_coef = float(os.environ.get("COGAMES_ENT_COEF", "0.01"))
     bptt_horizon = 64 if use_rnn else 1
     optimizer = "adam"
     adam_eps = 1e-8
@@ -303,7 +305,7 @@ def train(
         vf_coef=2.0,
         vf_clip_coef=0.2,
         max_grad_norm=1.5,
-        ent_coef=0.01,
+        ent_coef=ent_coef,
         adam_beta1=0.95,
         adam_beta2=0.999,
         adam_eps=adam_eps,

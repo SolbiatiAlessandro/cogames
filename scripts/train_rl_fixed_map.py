@@ -41,6 +41,9 @@ def main():
     parser.add_argument("--checkpoints", default="./train_dir_custom", help="Checkpoint directory")
     parser.add_argument("--no-vibes", action="store_true", default=True, help="Disable change_vibe (5-action)")
     parser.add_argument("--difficulty", default=None, help="Difficulty level")
+    parser.add_argument("--max-steps", type=int, default=None, help="Override episode max_steps")
+    parser.add_argument("--num-envs", type=int, default=64, help="Number of parallel envs")
+    parser.add_argument("--checkpoint-interval", type=int, default=10, help="Checkpoint every N epochs")
     args = parser.parse_args()
 
     mission_name = "cogsguard_arena.basic" if args.map == "arena" else "cogsguard_machina_1.basic"
@@ -55,6 +58,10 @@ def main():
         cogs=args.cogs,
         difficulty=args.difficulty,
     )
+
+    if args.max_steps is not None:
+        env_cfg.game.max_steps = args.max_steps
+        print(f"Override max_steps to {args.max_steps}")
 
     if args.rewards:
         apply_reward_variants(env_cfg, variants=args.rewards)
@@ -107,9 +114,9 @@ def main():
         seed=args.seed,
         map_seed=args.map_seed if args.map_seed is not None else args.seed,
         minibatch_size=4096,
-        vector_num_envs=64,
+        vector_num_envs=args.num_envs,
         log_outputs=True,
-        checkpoint_interval=10,
+        checkpoint_interval=args.checkpoint_interval,
     )
 
 

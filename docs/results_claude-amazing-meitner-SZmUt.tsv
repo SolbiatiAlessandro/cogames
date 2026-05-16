@@ -10,3 +10,8 @@ c96fc40	0.500000	aligned.junction.held=0 cell.visited=27584	500	keep	BC-pretrain
 654a0ac	0.050000	aligned.junction.held=0	500	discard	Curriculum p2 epoch 50 (arena max_dist=10) on competition - over-specialized to arena layout
 a8b294c	0.072000	aligned.junction.held=223 aligned.junction.gained=1.4	500	keep	BEST: Curriculum p1 epoch 90 (competition-map training, max_dist=6, aligner+credit) - 5-ep avg
 a8b294c	0.343000	aligned.junction.held=249 cell.visited=551799	2500	keep	Epoch 90 at 2500 steps (3-ep avg) - reward scales with episode length
+b855825	1.000000	aligned.junction.held=5.67 cell.visited=2519894	10000	keep	Epoch 90 at 10000 steps (3-ep) - reward=1.0 but from hearts not junctions
+b855825	0.050000	aligned.junction.held=0	500	discard	Lowent (seed100 ent=0.005) epoch 30 on competition - doesn't transfer to natural maps
+b855825	0.050000	aligned.junction.held=0	500	discard	Lowent epoch 55 on competition - also no transfer
+b855825	0.050000	aligned.junction.held=0	500	discard	Lowent epoch 30 eval seed 100 - not seed-specific, curriculum close junctions dont generalize
+b855825	0.050000	aligned.junction.held=0	500	discard	Highent (seed200 ent=0.03) epoch 90 on competition - same as lowent, fine-tuning from e90 doesnt transfer
