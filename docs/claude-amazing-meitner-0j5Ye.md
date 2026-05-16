@@ -707,4 +707,40 @@ during exploration.
 - Arena map (50×50), 5-action space, 15 hearts
 - milestones_2 + aligner variant (penalizes wrong gear, strong alignment rewards)
 - cell.visited weight=0.05 (moderate exploration)
+
+### Config: `train_arena_5act_balanced.py` (arena + credit, ent=0.02)
+- milestones_2 + credit, alignment_bonus=3.0, exploration=0.01, aligner_gear=1.0
+
+| Epoch | alignment | heart.gained | entropy |
+|-------|-----------|-------------|---------|
+| 1 | 0.000 | 0.347 | 1.600 |
+| 4 | 0.188 | 0.641 | 1.357 |
+| 7 | 0.263 | 0.566 | 1.178 |
+| 8 | 0.167 | 0.556 | 1.097 |
+| 11 | **0.312** | 0.750 | 1.048 |
+| 14 | 0.071 | 0.554 | 1.085 |
+
+**FAILED**: Peak alignment 0.312 at epoch 11, collapsed to 0.071 by epoch 14.
+Credit variant's dense hub rewards accelerated entropy collapse even with ent=0.02.
+
+### Competition scrimmage eval (best 5-action model, model_000020.pt)
+**Result: ZERO alignment on competition map (machina_1)**
+- 0 junctions aligned (vs 43 by clips)
+- 141 total junctions on map
+- heart.gained: 0.875/agent, heart.withdrawn: 5 (only initial hearts used)
+- cell.visited: 4321/agent (decent exploration)
+- move.failed: 378/agent (38% — wall bumping)
+- **Per-episode reward: 0.10** (vs scripted baseline 41.85 online)
+
+### Key insight: 35x35 map has NO junctions
+Tried curriculum with tiny (35×35) map to put junctions within observation window.
+Map generator produces 0 junctions on maps this small — building placement needs
+minimum map area. Killed after epoch 2.
+
+### Current: `train_arena_highent.py` (arena, no credit, ent=0.05, milestones_2:25)
+- milestones_2:25 = 5x higher compounding factor for per-tick objective
+- alignment_bonus=10.0, aligner_gear=3.0, exploration=0.01, heart=0.3
+- COGAMES_ENT_COEF=0.05 — much higher to prevent collapse
+- No credit variant — avoids dense hub reward that accelerates collapse
+- Hypothesis: high entropy + dominant per-tick objective = sustained alignment
 - COGAMES_ENT_COEF=0.02 (high entropy to prevent collapse)
