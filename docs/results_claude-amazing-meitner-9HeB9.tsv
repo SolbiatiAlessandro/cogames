@@ -70,3 +70,6 @@ tightclip	0.096100	aligned.junction.held=~530	500	keep	Tightclip e65 avg @500 (1
 tightclip	0.511000	aligned.junction.held=~3800	2000	keep	Tightclip e65 avg @2000 - EXCELLENT
 tightclip	0.954400	aligned.junction.held=~7500	2000	keep	Tightclip e65 PEAK @2000 - near perfect! ALL-TIME BEST 2000-step!
 tightclip	1.000000	aligned.junction.held=~1200	10000	keep	Tightclip e65 @10000 (1 ep) - competition length
+het	0.087000	aligned.junction.held=~450	500	keep	Highent_tightclip e40 avg @500 - ent=0.06 too high, slows learning
+het	0.082000	aligned.junction.held=~420	500	discard	Highent_tightclip e45 avg @500 - worse than tightclip at same epoch
+het	0.070000	aligned.junction.held=~350	500	discard	Highent_tightclip e50 avg @500 - declining; experiment FAILED

@@ -394,6 +394,12 @@ Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000
 - **Conclusion**: Stochastic sampling is essential for exploration on 88×88 map with 13×13 obs window
 - The policy hasn't learned deterministic pathfinding — it relies on random walk + learned preferences
 
-### Active experiment: highent_tightclip
+### FAILED experiment: highent_tightclip
 - clip_coef=0.1 + ent_start=0.06→0.015 over 60% (vs 0.04→0.01 over 50%)
-- Hypothesis: higher entropy floor + tighter clipping could push 500-step avg above 0.12
+- **Result**: Worse than tightclip at every epoch (@500: 0.087 at e40 vs tightclip 0.072 at e40)
+- Higher entropy slows learning without benefit — ent_start=0.04 is the sweet spot
+
+### Active experiment: sprint_from_tc65
+- 500-step episodes from tightclip e65 (best checkpoint)
+- clip_coef=0.1, ent_start=0.03→0.01
+- Hypothesis: short-episode fine-tuning optimizes directly for 500-step eval
