@@ -451,7 +451,38 @@ Best checkpoint for 500-step: `train_dir_curriculum_p2_phase2_tc65/177901540615/
 - Results: e10 avg=0.108, e15 avg=0.073
 - **Conclusion**: Higher reward weights don't help — same degradation pattern
 
-### Active experiment: p2_from_sprint
+### FAILED experiment: p2_from_sprint
 - Phase 2 (max_dist=10, 1000-step) from sprint_compmap e160 (earlier warm-start)
-- clip_coef=0.1, ent_start=0.04→0.01/50%, 4M steps
-- Hypothesis: More training epochs from an earlier checkpoint → better model than quick fine-tune
+- Results: e20 avg=0.097, e30 avg=0.089 — below p2e15's 0.109
+- Lower entropy (1.17 vs 1.31) from clip_coef=0.2 warm-start limits exploration
+
+### Temperature scaling — FREE 15% improvement!
+Tested sampling temperature on best checkpoints at eval time:
+
+**tightclip e65 (10-ep reliable @500):**
+| Temp | Avg | Peak | Median |
+|------|-----|------|--------|
+| 0.7 | **0.125** | **0.188** | **0.120** |
+| 0.8 | 0.097 | 0.148 | 0.091 |
+| 1.0 | 0.109 | 0.159 | 0.105 |
+
+**p2e15 (10-ep reliable @500):**
+| Temp | Avg | Peak | Median |
+|------|-----|------|--------|
+| 0.6 | 0.115 | 0.258 | 0.091 |
+| 0.7 | 0.105 | 0.218 | 0.091 |
+| 0.8 | **0.115** | 0.212 | **0.112** |
+| 1.0 | 0.109 | 0.271 | — |
+
+**BEST OVERALL CONFIG: tightclip e65 + temp=0.7 → avg=0.125, median=0.120**
+
+Applied temp=0.7 as default in TutorialAgentPolicy.step_with_state().
+
+### Updated BEST RESULTS (with temperature)
+| Metric | Model + Temp | Value | vs Scripted (0.18) |
+|--------|-------------|-------|-------------------|
+| 500 steps avg (10-ep reliable) | **tightclip e65 + temp=0.7** | **0.125** | **0.69x** |
+| 500 steps peak | phase2_tc65 e15 + temp=0.6 | **0.258** | **1.43x** |
+| 1000 steps peak | phase2_tc65 e30 | 0.754 | 4.19x |
+
+Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000065.pt`

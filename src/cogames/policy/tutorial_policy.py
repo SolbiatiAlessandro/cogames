@@ -171,10 +171,11 @@ class TutorialPolicyNet(nn.Module):
 class TutorialAgentPolicy(StatefulPolicyImpl[LSTMState]):
     """Per-agent policy for inference."""
 
-    def __init__(self, net: TutorialPolicyNet, device: torch.device, policy_env_info: PolicyEnvInterface):
+    def __init__(self, net: TutorialPolicyNet, device: torch.device, policy_env_info: PolicyEnvInterface, temperature: float = 0.7):
         self._net = net
         self._device = device
         self._policy_env_info = policy_env_info
+        self._temperature = temperature
 
     def initial_agent_state(self) -> LSTMState:
         h = torch.zeros((1, self._net.hidden_size), device=self._device)
@@ -189,7 +190,7 @@ class TutorialAgentPolicy(StatefulPolicyImpl[LSTMState]):
             logits, _ = self._net(obs_tensor, state_dict)
 
         new_state = LSTMState(hidden=state_dict["lstm_h"].detach(), cell=state_dict["lstm_c"].detach())
-        action_idx = int(torch.distributions.Categorical(logits=logits).sample().item())
+        action_idx = int(torch.distributions.Categorical(logits=logits / self._temperature).sample().item())
         return Action(name=self._policy_env_info.action_names[action_idx]), new_state
 
     def _obs_to_tensor(self, obs: AgentObservation) -> torch.Tensor:

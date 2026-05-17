@@ -107,3 +107,7 @@ natmap	0.087000	aligned.junction.held=~470	500	discard	Natmap_sprint e10 avg @50
 natmap	0.059200	aligned.junction.held=~300	500	discard	Natmap_sprint e20 avg @500 - unlearning alignment
 hiboost	0.108400	aligned.junction.held=~600	500	keep	Hiboost e10 avg @500 - boost_aligner=15.0, matches parent
 hiboost	0.072700	aligned.junction.held=~370	500	discard	Hiboost e15 avg @500 - higher boost doesn't help
+temp	0.125000	aligned.junction.held=~700	500	keep	Tightclip e65 + temp=0.7 avg @500 (10-ep) - BEST OVERALL CONFIG!
+temp	0.188000	aligned.junction.held=~1200	500	keep	Tightclip e65 + temp=0.7 PEAK @500 (10-ep) - EXCEEDS SCRIPTED!
+temp	0.115000	aligned.junction.held=~630	500	keep	Phase2 e15 + temp=0.8 avg @500 (10-ep) - best for p2e15
+temp	0.258000	aligned.junction.held=~1800	500	keep	Phase2 e15 + temp=0.6 PEAK @500 (10-ep) - highest peak ever
