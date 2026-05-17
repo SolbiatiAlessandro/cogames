@@ -153,3 +153,11 @@ withclips_e20	1.104300	aligned.junction.held=~7900	10000	keep	Withclips e20 avg 
 withclips_e25	1.005300	aligned.junction.held=~7200	10000	discard	Withclips e25 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.016) - nearly base alive reward
 withclips_e30	1.106300	aligned.junction.held=~8000	10000	keep	Withclips e30 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.307) - late recovery
 withclips_e10	1.052600	aligned.junction.held=~7600	10000	keep	Withclips e10 VALIDATED avg @10000 (5-ep, seed=3000, temp=0.7, peak=1.096, std=0.025) - initial 1.371 was seed-inflated
+p2lr_e20_h2h	1.075000	aligned.junction.held=~7800	10000	keep	p2lr_e20 HEAD-TO-HEAD VALIDATED avg @10K (5-ep, seed=3000, temp=0.7, peak=1.181, std=0.067) - CONFIRMED BEST
+withclips_e10_h2h	1.052600	aligned.junction.held=~7600	10000	keep	withclips_e10 HEAD-TO-HEAD (5-ep, seed=3000, temp=0.7, peak=1.096, std=0.025) - 2nd best
+tightclip_e80_h2h	1.037800	aligned.junction.held=~7500	10000	keep	tightclip_e80 HEAD-TO-HEAD (5-ep, seed=3000, temp=0.7, peak=1.089, std=0.039) - 3rd, Phase 1 only
+fresh_tc_e10	1.000000	aligned.junction.held=0	10000	discard	fresh_tc e10 @10K (3-ep) - no alignment at all, too early Phase 1
+fresh_tc_e20	1.000000	aligned.junction.held=0	10000	discard	fresh_tc e20 @10K (3-ep) - no alignment, Phase 1 only
+fresh_tc_e30	1.018033	aligned.junction.held=~200	10000	discard	fresh_tc e30 @10K (3-ep) - barely starting alignment, Phase 1 only
+goalobs_e05	1.026533	aligned.junction.held=~300	10000	discard	goalobs e05 @10K (3-ep) - early Phase 2 with goal_obs
+goalobs_e10	1.071160	aligned.junction.held=~7700	10000	keep	goalobs_e10 VALIDATED @10K (5-ep, seed=3000, temp=0.7, peak=1.149, std=0.046) - ties p2lr_e20 at 1.071 vs 1.075

@@ -715,3 +715,47 @@ The initial 3-episode eval (seed=2500) produced avg=1.371 because seed 2501 gene
 This means all our models (withclips_e10, p2lr_e20, tightclip_e80) are performing similarly at ~1.05 avg, and the apparent superiority of certain models in initial evals was driven by lucky seed sampling.
 
 Running head-to-head 5-episode validation of p2lr_e20 and tightclip_e80 on the SAME seeds (3000-3004) for a fair comparison.
+
+### Head-to-head validated results (seeds 3000-3004, 10K steps, temp=0.7)
+
+| Model | Avg | Std | Peak | Median |
+|-------|-----|-----|------|--------|
+| **p2lr_e20** | **1.075** | **0.067** | **1.181** | **1.079** |
+| withclips_e10 | 1.053 | 0.025 | 1.096 | 1.038 |
+| tightclip_e80 | 1.038 | 0.039 | 1.089 | 1.021 |
+
+**p2lr_e20 confirmed as best model** — wins on avg, peak, and median. The gap is small (~2-4%) but consistent. All models produce ~1.0 on "bad" seeds (3001, 3004) and 1.05-1.18 on "good" seeds.
+
+**Best competition checkpoint**: `train_dir_curriculum_p2_p2_longrun/177902249993/model_000020.pt`
+
+---
+
+## Session 3: Phase 3 Training and New Experiments (2026-05-17)
+
+**2026-05-17 17:05**: Daily spawn continuing issue #75. Head-to-head validation complete — p2lr_e20 confirmed best at avg=1.075. All training processes died in container restart. Key next steps:
+1. Start Phase 3 training (max_dist=15) from p2lr_e20 — extend junction range to full competition distance
+2. Evaluate fresh_tc checkpoints (e10/e20/e30) — different training trajectory might beat p2lr
+3. Try longer p2 training (continue p2_longrun beyond e25)
+4. Experiment with higher entropy or different reward shaping
+
+**2026-05-17 17:20**: Evaluated fresh_tc (e10/e20/e30) and goalobs (e05/e10) at 10K:
+- fresh_tc e10/e20: completely flat at 1.000 (Phase 1 only, can't find competition-distance junctions)
+- fresh_tc e30: barely starting at 1.018
+- goalobs e05: 1.027 (early)
+- **goalobs e10: 1.071 avg (5-ep validated) — essentially ties p2lr_e20 at 1.075!**
+
+goalobs was trained with goal_obs enabled (directional reward info) from tightclip_e65. Despite eval running WITHOUT goal_obs (zeroed channels), it matches p2lr_e20. This suggests goal_obs helps learning efficiency but isn't needed at inference.
+
+**All models plateau at ~1.07 avg at 10K steps.** The alive reward is 1.0, so actual alignment contribution is only ~0.07. Top online policies score 40+/agent. We need to break this ceiling.
+
+Phase 3 training started (max_dist=15, from p2lr_e20). Also planning experiments to address the 1.07 ceiling.
+
+### Analysis: Why are we stuck at 1.07?
+
+The 1.07 ceiling means agents align ~1-2 junctions per 10K-step episode. Top policies align 224 junctions. The gap is:
+1. **Navigation efficiency**: our agents probably wander randomly after getting gear
+2. **Heart management**: with only 5 hub hearts, agents need to be efficient
+3. **Training episode length**: we train on 1000-step episodes but eval at 10K — agent never learns long-horizon behavior
+4. **Max distance**: Phase 2 max_dist=10 means training maps have closer junctions than competition (15+)
+
+Phase 3 addresses point 4. For point 3, I should try training with longer episodes.
