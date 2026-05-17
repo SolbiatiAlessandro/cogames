@@ -379,3 +379,34 @@ ent 0.08→0.02/80%, boost-aligner=5.0, boost-heart=5.0, explore-weight=0.005
 
 **Competition discovery**: Tournament uses max_steps=10000 (not 2000). Longer episodes
 give agents much more time for gear acquisition + junction navigation.
+
+### Flat terrain learnheart: from flat_v3 e50, start-aligner only
+**Config**: flat competition map, start-aligner (NO start-heart), max_dist=6, clip_coef=0.1,
+ent 0.08→0.02/80%, boost-aligner=5.0, boost-heart=3.0, explore-weight=0.001
+
+**Junction held trajectory (growing per cycle):**
+| Epoch | held | heart.gained | Note |
+|-------|------|-------------|------|
+| 3 | 312 | 0.75 | First alignment (same env base) |
+| 14 | 737 | - | After first entropy cycle recovery |
+| 27 | 1068 | - | Second peak |
+| 32 | **1957** | - | **BEST** — growing with each cycle |
+
+**Entropy cycles**: 1.10→0.82→1.38→0.70→recovering
+Each entropy cycle produces a junction alignment event, with magnitude growing.
+
+**Learnheart e20 (old session) eval results — key comparison:**
+| Environment | Steps | Avg | Peak | junc_aligned |
+|------------|-------|-----|------|-------------|
+| Standard (no gear) | 1000 | 0.100 | 0.100 | 0/5 ep |
+| start-aligner | 1000 | **0.119** | **0.152** | 2/5 ep |
+| start-aligner | 2000 | **0.236** | **0.381** | 2/5 ep |
+
+**Key insight**: learnheart e20 with start-aligner at 2000 steps exceeds Phase 2b!
+The graduated approach (start-aligner only, learn heart acquisition) works better
+than Phase 2b (start with both, try to learn full pipeline).
+
+### Learncraft experiment: NO gear + resource rewards (IN PROGRESS)
+**Config**: flat terrain, NO starting gear, resource collection rewards (weight=2.0)
+for germanium/carbon/oxygen/silicon to guide agents toward extractors and aligner crafting.
+Hypothesis: resource rewards create intermediate reward signal for aligner crafting pipeline.

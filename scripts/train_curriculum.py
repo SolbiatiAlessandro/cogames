@@ -78,6 +78,10 @@ def main():
     parser.add_argument("--start-aligner", action="store_true", help="Start agents with aligner gear")
     parser.add_argument("--start-heart", action="store_true", help="Start agents with heart")
     parser.add_argument("--no-explore", action="store_true", help="Disable cell.visited reward entirely")
+    parser.add_argument("--boost-resources", type=float, default=0.0,
+                        help="Reward weight for resource collection (germanium, carbon, oxygen, silicon)")
+    parser.add_argument("--start-resources", action="store_true",
+                        help="Start agents with crafting resources (germanium=1, carbon=3, oxygen=1, silicon=1)")
     parser.add_argument("--no-clips", action="store_true", help="Remove clips ships from map")
     parser.add_argument("--clip-coef", type=float, default=0.2, help="PPO clip coefficient")
     parser.add_argument("--lr", type=float, default=0.00092, help="Learning rate")
@@ -126,17 +130,24 @@ def main():
             mb.instance.asteroid_mask = None
             print(f"  Flat map (no biomes/dungeons/obstacles/asteroid)")
 
-    if args.start_aligner or args.start_heart:
+    if args.start_aligner or args.start_heart or args.start_resources:
         agent_cfgs = env_cfg.game.agents if env_cfg.game.agents else [env_cfg.game.agent]
         for agent_cfg in agent_cfgs:
             if args.start_aligner:
                 agent_cfg.inventory.initial["aligner"] = 1
             if args.start_heart:
                 agent_cfg.inventory.initial["heart"] = 1
+            if args.start_resources:
+                agent_cfg.inventory.initial["germanium"] = 1
+                agent_cfg.inventory.initial["carbon"] = 3
+                agent_cfg.inventory.initial["oxygen"] = 1
+                agent_cfg.inventory.initial["silicon"] = 1
         if args.start_aligner:
             print(f"  Agents start with aligner gear")
         if args.start_heart:
             print(f"  Agents start with heart")
+        if args.start_resources:
+            print(f"  Agents start with crafting resources (ge=1, c=3, o=1, si=1)")
 
     if args.obs_size != 13:
         env_cfg.game.obs.width = args.obs_size
@@ -186,6 +197,17 @@ def main():
                 game_stat("cell.visited"), weight=args.explore_weight
             )
         print(f"  Added cell.visited exploration reward: weight={args.explore_weight}")
+
+    if args.boost_resources > 0:
+        from mettagrid.config.game_value import stat as game_stat
+        from mettagrid.config.reward_config import reward as make_reward
+        agent_cfgs = env_cfg.game.agents if env_cfg.game.agents else [env_cfg.game.agent]
+        for agent_cfg in agent_cfgs:
+            for resource in ["germanium", "carbon", "oxygen", "silicon"]:
+                agent_cfg.rewards[f"{resource}_gained"] = make_reward(
+                    game_stat(f"{resource}.gained"), weight=args.boost_resources
+                )
+        print(f"  Added resource collection rewards: weight={args.boost_resources} for germanium/carbon/oxygen/silicon")
 
     if args.ent_start > 0 and args.ent_end > 0:
         os.environ["COGAMES_ENT_START"] = str(args.ent_start)

@@ -17,3 +17,6 @@ HEAD	3.985000	junc_aligned=1/3ep	2000	keep	Phase1 v2 e25 @2000 matching env (fla
 HEAD	0.133200	junc_aligned=2/5ep	1000	keep	Phase2a flat_v3 e20 @1000 matching env (flat compmap, gear)
 HEAD	0.183000	junc_aligned=4/5ep	1000	keep	Phase2b natural_from_p1 e20 @1000 matching env (natural compmap, gear)
 HEAD	0.059600	junc_aligned=1/5ep	500	keep	Phase2b natural_from_p1 e20 @500 STANDARD eval (no gear, 8 cogs) — FIRST non-zero standard!
+HEAD	0.200000	heart=0-5,aligner=0-2	2000	keep	Phase2b natural_from_p1_cont e40 @2000 STANDARD — gets gear but 0 junctions
+HEAD	0.119000	junc_aligned=2/5ep	1000	keep	learnheart e20 @1000 start-aligner only — 2/5 episodes junction aligned
+HEAD	0.236200	junc_aligned=2/5ep,peak=0.381	2000	keep	learnheart e20 @2000 start-aligner only — BEST graduated model
