@@ -44,3 +44,23 @@ but can't be done from this environment. Tournament submission remains blocked.
 
 Running eval_rl.py on epoch 60 checkpoint at 500 steps. Eval competing with
 training for CPU resources — runs slowly.
+
+## 2026-05-17 17:35 UTC: CRITICAL FINDING — 8-agent training produces broken model
+
+Evaluated epoch 80 (trained with 8 agents):
+- @500 steps: avg=0.065, peak=0.075 (4/5 episodes dead at 0.050)
+- @1000 steps: avg=0.100 (all episodes at base survival, zero junction alignment)
+- cogs/aligned.junction.held = 0.0 — model NEVER aligns junctions
+- aligner.gained = 1.625 (picks up gear) but heart.gained = 0.125 (never withdraws hearts)
+
+Previous session's tightclip_e80 (trained with 4 agents): avg=0.123 @500, avg=0.375 @1000
+
+Root cause: Training with 8 agents on competition map prevents learning the alignment pipeline.
+With 8 agents, there's too much congestion at hub, reward signal is too sparse per agent.
+
+Fix: Restarted training with 4 agents (matching previous session's successful config).
+
+## 2026-05-17 17:38 UTC: Restarted Phase 1 training with 4 agents
+
+Config: Same tightclip config but --cogs 4 instead of 8.
+This matches the previous session's successful training pipeline.

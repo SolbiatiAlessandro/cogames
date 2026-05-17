@@ -1,1 +1,3 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+bbfe8f7	0.065000	junction.held=50.8	500	discard	Phase1 tightclip 8-agent e80 @500 steps — broken (no alignment)
+bbfe8f7	0.100000	junction.held=0.0	1000	discard	Phase1 tightclip 8-agent e80 @1000 steps — zero alignment
