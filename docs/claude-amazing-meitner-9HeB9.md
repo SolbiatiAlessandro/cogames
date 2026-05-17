@@ -677,6 +677,21 @@ The "withclips" variant trains Phase 2 (max_dist=10) from tightclip_e65 but with
 
 The peak of 1.957 per agent means agents scored nearly 2x the base survival reward, indicating extensive junction alignment and mining. This is by far the highest single-episode score seen.
 
-Now running a full withclips epoch sweep (e05, e15, e20, e25, e30) at 10K to find the optimal epoch.
+### Full withclips epoch sweep at 10K steps (COMPLETED)
+
+| Epoch | 10K avg | 10K peak |
+|-------|---------|----------|
+| e05 | 1.066 | 1.109 |
+| **e10** | **1.371** | **1.957** |
+| e15 | 1.026 | 1.043 |
+| e20 | 1.104 | 1.187 |
+| e25 | 1.005 | 1.016 |
+| e30 | 1.106 | 1.307 |
+
+**e10 confirmed as best epoch.** Interesting W-shaped curve: peaks at e10, dips at e15/e25, recovers at e20/e30. High variance driven by single outlier episodes (seed-dependent map layouts).
+
+Note: withclips_e10's 1.957 peak may be inflated by lucky seed 2501. Running 5-episode validation with new seeds + temperature sweep.
 
 **Best checkpoint for competition (10K steps)**: `train_dir_curriculum_p2_p2_withclips/177902508005/model_000010.pt`
+
+**New training launched:** withclips_e80 — same recipe (Phase 2, clip_coef=0.2, max_dist=10) but from tightclip_e80 (which is better at 500 steps). Expecting further gains.

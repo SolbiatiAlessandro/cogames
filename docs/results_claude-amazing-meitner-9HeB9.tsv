@@ -147,3 +147,8 @@ p2lr_e10	1.046200	aligned.junction.held=~7500	10000	keep	P2lr e10 avg @10000 (3-
 p2lr_e15	1.034400	aligned.junction.held=~7400	10000	keep	P2lr e15 avg @10000 (3-ep, seed=2400, temp=0.7, peak=1.103)
 p2lr_e25	1.019700	aligned.junction.held=~7300	10000	keep	P2lr e25 avg @10000 (3-ep, seed=2400, temp=0.7, peak=1.045) - declining
 withclips_e10	1.371400	aligned.junction.held=~9800	10000	keep	Withclips e10 avg @10000 (3-ep, seed=2500, temp=0.7, peak=1.957!) - NEW BEST! 22% over p2lr_e20!
+withclips_e05	1.066400	aligned.junction.held=~7700	10000	keep	Withclips e05 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.109) - early epoch baseline
+withclips_e15	1.026400	aligned.junction.held=~7400	10000	keep	Withclips e15 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.043) - dip after e10
+withclips_e20	1.104300	aligned.junction.held=~7900	10000	keep	Withclips e20 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.187) - secondary peak
+withclips_e25	1.005300	aligned.junction.held=~7200	10000	discard	Withclips e25 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.016) - nearly base alive reward
+withclips_e30	1.106300	aligned.junction.held=~8000	10000	keep	Withclips e30 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.307) - late recovery
