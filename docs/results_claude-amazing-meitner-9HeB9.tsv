@@ -73,3 +73,26 @@ tightclip	1.000000	aligned.junction.held=~1200	10000	keep	Tightclip e65 @10000 (
 het	0.087000	aligned.junction.held=~450	500	keep	Highent_tightclip e40 avg @500 - ent=0.06 too high, slows learning
 het	0.082000	aligned.junction.held=~420	500	discard	Highent_tightclip e45 avg @500 - worse than tightclip at same epoch
 het	0.070000	aligned.junction.held=~350	500	discard	Highent_tightclip e50 avg @500 - declining; experiment FAILED
+sprint_tc65	0.101000	aligned.junction.held=~550	500	keep	Sprint_tc65 e30 avg @500 - rising trajectory
+sprint_tc65	0.099300	aligned.junction.held=~550	500	keep	Sprint_tc65 e35 avg @500 - plateau
+sprint_tc65	0.133600	aligned.junction.held=~750	500	keep	Sprint_tc65 e35 PEAK @500
+sprint_tc65	0.089500	aligned.junction.held=~500	500	discard	Sprint_tc65 e40 avg @500 - DECLINED, sprint fine-tune NOT beating parent
+sprint_tc65	0.183200	aligned.junction.held=~1200	500	keep	Sprint_tc65 e40 PEAK @500
+phase2	0.098900	aligned.junction.held=~550	500	keep	Phase2_tc65 e10 avg @500 - max_dist=10 curriculum
+phase2	0.209800	aligned.junction.held=~1400	500	keep	Phase2_tc65 e10 PEAK @500
+phase2	0.246200	aligned.junction.held=~1700	1000	keep	Phase2_tc65 e10 avg @1000
+phase2	0.126500	aligned.junction.held=~700	500	keep	Phase2_tc65 e15 avg @500 - NEW BEST 500-step avg!
+phase2	0.171400	aligned.junction.held=~1000	500	keep	Phase2_tc65 e15 PEAK @500
+phase2	0.297100	aligned.junction.held=~2000	1000	keep	Phase2_tc65 e15 avg @1000
+phase2	0.422400	aligned.junction.held=~3000	1000	keep	Phase2_tc65 e15 PEAK @1000
+phase2	0.106100	aligned.junction.held=~600	500	keep	Phase2_tc65 e20 avg @500
+phase2	0.394100	aligned.junction.held=~2800	1000	keep	Phase2_tc65 e20 avg @1000 - NEW BEST 1000-step avg!
+phase2	0.503200	aligned.junction.held=~3700	1000	keep	Phase2_tc65 e20 PEAK @1000
+phase2	0.109400	aligned.junction.held=~600	500	keep	Phase2_tc65 e15 avg @500 (10-ep reliable) - NEW BEST RELIABLE!
+phase2	0.271300	aligned.junction.held=~1900	500	keep	Phase2_tc65 e15 PEAK @500 (10-ep) - ALL-TIME BEST 500-step peak!
+phase2	0.254900	aligned.junction.held=~1700	1000	keep	Phase2_tc65 e15 avg @1000 (5-ep)
+phase2	0.481800	aligned.junction.held=~3500	1000	keep	Phase2_tc65 e15 PEAK @1000
+phase2	0.119800	aligned.junction.held=~650	500	keep	Phase2_tc65 e25 avg @500 - still strong
+phase2	0.098200	aligned.junction.held=~550	500	keep	Phase2_tc65 e30 avg @500 - declining at 500 steps
+phase2	0.753700	aligned.junction.held=~5500	1000	keep	Phase2_tc65 e30 PEAK @1000 - ALL-TIME BEST 1000-step peak!
+phase2	0.087300	aligned.junction.held=~480	500	discard	Phase2_tc65 e35 avg @500 - below tightclip, overfitting to 1000-step

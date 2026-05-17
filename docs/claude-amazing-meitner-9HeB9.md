@@ -399,7 +399,34 @@ Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000
 - **Result**: Worse than tightclip at every epoch (@500: 0.087 at e40 vs tightclip 0.072 at e40)
 - Higher entropy slows learning without benefit — ent_start=0.04 is the sweet spot
 
-### Active experiment: sprint_from_tc65
+### FAILED experiment: sprint_from_tc65
 - 500-step episodes from tightclip e65 (best checkpoint)
-- clip_coef=0.1, ent_start=0.03→0.01
-- Hypothesis: short-episode fine-tuning optimizes directly for 500-step eval
+- clip_coef=0.1, ent_start=0.03→0.01/40%
+- Results: e30 avg=0.101, e35 avg=0.099, e40 avg=0.090 — plateau then decline
+- **Conclusion**: Sprint fine-tuning does NOT beat parent model. 500-step horizon is too short for the agent to explore and align on 88×88 maps.
+
+### Phase 2 curriculum results — NEW BEST!
+- Phase 2: max_distance=10 (vs 6 in Phase 1), 1000-step episodes, from tightclip e65
+- clip_coef=0.1, ent_start=0.03→0.01/40%, entropy stable ~1.35
+
+| Epoch | @500 avg | @500 peak | @1000 avg | @1000 peak | Notes |
+|-------|---------|----------|----------|-----------|-------|
+| e10 | 0.099 | 0.210 | 0.246 | 0.351 | Good early signal |
+| **e15** | **0.127** / **0.109** (10-ep) | **0.271** | 0.255 (5-ep) | 0.482 | **NEW BEST 500-step avg!** |
+| e20 | 0.106 | 0.159 | **0.394** | **0.503** | 1000-step improving |
+| e25 | 0.120 | 0.207 | 0.213 | 0.246 | Variance |
+| e30 | 0.098 | 0.149 | 0.346 | **0.754** | ALL-TIME BEST 1000-step peak! |
+| e35 | 0.087 | 0.112 | 0.226 | 0.314 | 500-step declining |
+
+**Key finding**: Phase 2 curriculum (max_dist=10) with clip_coef=0.1 produces the best 500-step performance yet. e15 is the sweet spot for 500-step eval — training longer causes the model to specialize for 1000-step episodes.
+
+### Updated BEST RESULTS
+| Metric | Model | Value | vs Scripted (0.18) |
+|--------|-------|-------|-------------------|
+| 500 steps best avg (reliable) | **phase2_tc65 e15** | **0.109** | 0.61x |
+| 500 steps best avg (5-ep) | **phase2_tc65 e15** | **0.127** | 0.70x |
+| 500 steps best peak | **phase2_tc65 e15** | **0.271** | **1.51x — BEATS TARGET** |
+| 1000 steps best avg | phase2_tc65 e20 | **0.394** | 2.19x |
+| 1000 steps best peak | **phase2_tc65 e30** | **0.754** | **4.19x — ALL-TIME BEST** |
+
+Best checkpoint for 500-step: `train_dir_curriculum_p2_phase2_tc65/177901540615/model_000015.pt`
