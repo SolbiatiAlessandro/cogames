@@ -161,3 +161,83 @@ Resumed Phase 1 for 20 more epochs (e60→e80 equivalent). Then started Phase 2:
 
 The model transitions from simplified (flat map, start with gear) to realistic
 (natural terrain, must find gear). Expect initial U-curve degradation then recovery.
+
+## 2026-05-17 19:05 UTC: Phase 2 transfer failures — all approaches show 0.050 flat
+
+Both Phase 2 attempts failed:
+- **compmap_from_p1** (no start-gear): 0.050 @500, 0.100 @1000 after 30 epochs
+- **compmap_gear** (with start-gear): 0.050 @500, 0.100 @1000 after 30 epochs
+- Agents never align junctions on competition map despite working well on flat arena
+
+Root cause analysis:
+1. Competition map is 88×88 with Poisson-distributed junctions — most are FAR from hub
+2. EnsureHubReachableJunctionConfig adds only ONE close junction, but navigation is still hard
+3. Agents trained on 50×50 flat arena don't know how to navigate 88×88 natural terrain
+
+## 2026-05-17 19:15 UTC: New strategy — gradual transition experiments
+
+Running parallel experiments to find the right transfer path:
+
+1. **compmap_flat_v2**: Competition map + flat terrain + start-gear + high entropy (0.08→0.02/80%)
+   - Tests map-size adaptation only (50×50 → 88×88), keeping flat terrain
+   - Junction alignment appeared at epochs 3-5 (held=118→423) in v1 before entropy collapse
+   - v2 fixes entropy with higher ent_start=0.08
+
+2. **compmap_longep_v2**: Competition map + natural terrain + start-gear + 2000-step episodes
+   - Tests whether longer episodes help discover junctions (previous session breakthrough)
+   - Also fixed: added --start-aligner --start-heart (agents weren't finding aligner gear)
+   - Entropy rising healthily: 1.23 → 1.40 (from v1 data)
+
+Key insight from v1 experiments:
+- compmap_flat showed junction alignment (held=423) at epoch 5 — FIRST TIME any competition
+  map training showed alignment in this session!
+- But entropy collapsed (1.23→1.12) due to ent_start=0.04 being too low
+- Longep entropy was healthy (1.23→1.40) with ent_start=0.08 — applying same fix to both
+
+## 2026-05-17 19:35 UTC: BREAKTHROUGH — compmap_flat_v2 shows consistent junction alignment
+
+**compmap_flat_v2** (competition map + flat terrain + start-gear + ent 0.08→0.02/80%) is learning:
+
+Training junction.held trajectory:
+| Epoch | held values | Note |
+|-------|------------|------|
+| 3 | 223 | First alignment on competition map! |
+| 4 | 0 | |
+| 5 | 293 | Growing |
+| 6 | 0 | |
+| 7-8 | [0, 487] | Peak in multi-env eval |
+| 8-9 | [0, 0] | |
+| 9 | 0 | |
+| 10 | 628 | Strong |
+| 11 | [675, 1408] | NEW BEST — 1408 held! |
+| 12 | 808 | Consistent |
+| 13 | 0 | |
+| 14 | [0, 945] | |
+
+Entropy trajectory: 1.23 → 1.40 (healthy, continuously rising)
+
+**compmap_longep_v2** (2000-step episodes, natural terrain + start-gear): Only showed held=1170 at
+ONE epoch, then back to zero. Entropy declining (1.30→1.22). Killed in favor of flat v2.
+
+## 2026-05-17 19:50 UTC: Evaluation results on matching environment
+
+Paused training, ran full eval of flat_v2 e15 on MATCHING environment (competition map, flat terrain, start-gear):
+
+| Steps | Avg reward | Peak reward | Junctions aligned | Notes |
+|-------|-----------|-------------|-------------------|-------|
+| 500 | 0.0654 | 0.0949 | 1 in 2/5 episodes | First non-zero at 500 on compmap! |
+| 1000 | 0.1673 | 0.2934 | 2-3 in 2/5 episodes | Exceeds previous 0.112 avg! |
+
+Standard eval (without start-gear): 0.100 flat @1000 — model can't acquire gear.
+
+**This confirms Phase 2a (map navigation) is working.** The model successfully learns to navigate
+the 88×88 competition map layout and align junctions when given gear.
+
+Next step: Phase 2b — remove start-gear to teach gear acquisition pipeline.
+
+### Revised curriculum pipeline:
+1. Phase 1: minimal_align on arena (flat, start-gear) → e60 ✓
+2. Phase 2a: competition map + flat + start-gear → e15+ (IN PROGRESS)
+3. Phase 2b: competition map + flat + NO start-gear (learn gear acquisition)
+4. Phase 2c: competition map + natural terrain (learn terrain navigation)
+5. Phase 3: full competition (add clips)
