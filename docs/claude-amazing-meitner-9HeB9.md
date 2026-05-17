@@ -518,11 +518,37 @@ Performance ceiling ~0.105-0.112 avg @500 steps is architecture limit.
 - **p2_explore** (cell.visited reward): entropy collapsed to 0.88, avg=0.061
 - **p2_lowlr** (lr=0.0003): avg=0.107 — same ceiling, slower learning
 
-### Final recommendation
-**Best submission config**: tightclip e65 + temp=0.7
-- Checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000065.pt`
-- 20-ep reliable: avg=0.108, median=0.101, std=0.031
+### Final recommendation (UPDATED)
+**Best submission config**: tightclip e80 + temp=0.7
+- Checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000080.pt`
+- 30-ep definitive: avg=0.1233, peak=0.2616, median=0.1188, std=0.0588
+- 14% improvement over previous best (e65 avg=0.108)
 - Applied: temp=0.7 in TutorialAgentPolicy.step_with_state()
+
+**Previous best was e65 — e80 is better because continued Phase 1 training with tight clipping
+allowed the policy to refine navigation skills further without entropy collapse.**
+
+## 2026-05-17 15:55 UTC: Later checkpoint sweep + temperature grid
+
+Evaluated tightclip e70-e80 which we hadn't tested before. Surprise: e80 beats e65.
+
+**30-episode definitive eval @500 steps (seed=500, all same seeds):**
+| Config | Avg | Peak | Median | Std |
+|--------|-----|------|--------|-----|
+| e80_t07 | **0.1233** | **0.2616** | 0.1188 | 0.0588 |
+| e65_t06 | 0.1170 | 0.2239 | 0.1145 | 0.0454 |
+| e80_t06 | 0.1162 | 0.2215 | 0.1144 | 0.0368 |
+| e80_t05 | 0.1119 | 0.2049 | 0.1079 | 0.0448 |
+| e65_t07 | 0.1085 | 0.2049 | 0.1046 | 0.0390 |
+
+**Key insight**: e80 with temp=0.7 is the sweet spot. Lower temperatures (0.5, 0.6) don't help e80
+as much as they helped e65. The later checkpoint has learned more diverse behaviors that benefit
+from the higher stochasticity.
+
+**New experiments running:**
+1. goal-obs: Phase 2 training with goal_obs enabled (directional junction info in obs)
+2. evalfit500: Phase 2 training with max_steps=500 to match eval conditions exactly
+3. fresh_tc: Phase 1 from scratch with clip_coef=0.1 (paused at e22, to be resumed)
 
 **To break the ceiling** (future work):
 1. Larger network: add 3rd conv layer, wider channels (128→256)

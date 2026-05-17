@@ -120,3 +120,13 @@ mixdist	0.092400	aligned.junction.held=~510	500	discard	Mixdist e15 avg @500 (10
 mixdist	0.075200	aligned.junction.held=~400	500	discard	Mixdist e35 avg @500 (10-ep reliable) - declining
 withclips	0.112300	aligned.junction.held=~620	500	keep	Withclips e10 avg @500 (15-ep reliable, temp=0.7) - trains with clips ships
 withclips	0.346700	aligned.junction.held=~2500	1000	keep	Withclips e10 avg @1000 (temp=0.7)
+tightclip_e80	0.123300	aligned.junction.held=~670	500	keep	Tightclip e80 avg @500 (30-ep definitive, temp=0.7) - NEW BEST, 14% over e65
+tightclip_e80	0.293000	aligned.junction.held=~2100	1000	keep	Tightclip e80 avg @1000 (5-ep, temp=0.7)
+tightclip_e70	0.097300	aligned.junction.held=~530	500	discard	Tightclip e70 avg @500 (10-ep, temp=0.7) - dip between e65 and e80
+tightclip_e75	0.091900	aligned.junction.held=~500	500	discard	Tightclip e75 avg @500 (10-ep, temp=0.7) - dip between e65 and e80
+tightclip_e80	0.121400	aligned.junction.held=~660	500	keep	Tightclip e80 definitive head-to-head (30-ep, seed=900, temp=0.7) - CONFIRMED BEST @500
+p2lr_e15	0.098900	aligned.junction.held=~540	500	keep	P2 longrun e15 head-to-head (30-ep, seed=900, temp=0.7) - good @1000 but not @500
+p2lr_e05	0.093700	aligned.junction.held=~510	500	keep	P2 longrun e05 head-to-head (30-ep, seed=900, temp=0.7)
+p2lr_e20	0.108500	aligned.junction.held=~590	500	keep	P2 longrun e20 head-to-head (30-ep, seed=900, temp=0.7) - most consistent
+p2lr_e05	0.355900	aligned.junction.held=~2600	1000	keep	P2 longrun e05 avg @1000 (10-ep, temp=0.7) - BEST @1000
+p2lr_e20	0.356300	aligned.junction.held=~2600	1000	keep	P2 longrun e20 avg @1000 (10-ep, temp=0.7) - tied BEST @1000
