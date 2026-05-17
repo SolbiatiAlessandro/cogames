@@ -804,3 +804,23 @@ This confirms: **training episode length is a critical hyperparameter** for 10K 
 - Conclusion: boost_aligner=10 is too aggressive, destroys learning. Stick with 5.0.
 
 Best competition checkpoint: `train_dir_curriculum_p2_longep3k/177903850621/model_000020.pt`
+
+### longep3k full epoch curve (3-ep @10K except e15/e20 which are 5-ep validated)
+
+| Epoch | Avg | Peak | Notes |
+|-------|-----|------|-------|
+| e05 | 1.049 | 1.148 | High variance |
+| e10 | 1.093 | 1.201 | Beats p2lr_e20 |
+| e15 | 1.126 | 1.176 | Validated 5-ep |
+| **e20** | **1.394** | **1.713** | **PEAK — validated 5-ep** |
+| e25 | 1.095 | 1.278 | Sharp decline |
+| e30 | 1.034 | 1.058 | Continuing decline |
+| e35 | 1.011 | 1.033 | Near-collapsed |
+| e40 | 1.095 | 1.171 | Partial recovery |
+
+Clear inverted-U curve peaking at e20. The model learns long-horizon behavior through e20, then entropy collapses. This matches the pattern seen in earlier experiments.
+
+### Next experiments
+1. Phase 3 (max_dist=15) from longep3k_e20 with 3000-step episodes
+2. Even longer episodes (5000 steps) from p2lr_e20
+3. Try training with 3000-step episodes + clip_coef=0.1 (tighter clip might extend the useful training window)

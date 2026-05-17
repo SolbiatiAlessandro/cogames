@@ -168,3 +168,7 @@ longep3k_e20	1.393940	aligned.junction.held=~12000	10000	keep	longep3k_e20 VALID
 p3_agg_e05	1.059267	aligned.junction.held=~5500	10000	discard	p3_aggressive e05 @10K (3-ep) - early promising but collapsed later
 p3_agg_e10	1.000000	aligned.junction.held=0	10000	discard	p3_aggressive e10 @10K (3-ep) - COLLAPSED to baseline, boost=10 too aggressive
 p3_agg_e15	1.054100	aligned.junction.held=~5000	10000	discard	p3_aggressive e15 @10K (3-ep) - partial recovery but still bad
+longep3k_e25	1.094600	aligned.junction.held=~8000	10000	discard	longep3k e25 @10K (3-ep) - sharp decline from e20 peak
+longep3k_e30	1.034400	aligned.junction.held=~3500	10000	discard	longep3k e30 @10K (3-ep) - continuing decline
+longep3k_e35	1.011067	aligned.junction.held=~1500	10000	discard	longep3k e35 @10K (3-ep) - near-collapsed
+longep3k_e40	1.095033	aligned.junction.held=~8000	10000	discard	longep3k e40 @10K (3-ep) - partial recovery
