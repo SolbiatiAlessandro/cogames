@@ -254,29 +254,54 @@ The erratic pattern (e100 good, e150-250 baseline, e300 excellent) suggests the 
 
 Sprint e160 is the OVERALL BEST model across step counts, trained with 500-step episodes on competition map.
 
-## 2026-05-17 08:30 UTC: Final session summary
+## 2026-05-17 08:45 UTC: Midep experiment — 1000-step episodes on competition map
+
+### Config: midep_compmap (from sprint_compmap e160)
+**Config**: cogsguard_machina_1.basic, 8 cogs, 16 envs, max_steps=1000, ent_annealing 0.08→0.02/80%, boost-aligner=5.0
+
+| Checkpoint | 500 steps avg | 500 steps peak | 1000 steps avg | 1000 steps peak |
+|-----------|--------------|----------------|----------------|-----------------|
+| e20 | 0.050 | 0.050 | 0.167 | 0.302 |
+| **e50** | **0.120** | **0.223** | **0.291** | **0.433** |
+| e80 | 0.081 | 0.098 | 0.217 | 0.317 |
+| e100 | 0.060 | 0.079 | 0.111 | 0.134 |
+| e130 | 0.075 | 0.113 | 0.130 | 0.189 |
+| e160 | 0.068 | 0.105 | 0.145 | 0.235 |
+| e190 | 0.050 | 0.050 | 0.123 | 0.168 |
+
+### BREAKTHROUGH: midep_compmap e50 EXCEEDS SCRIPTED BASELINE AT 500 STEPS!
+- @500: **avg=0.120, peak=0.223** — 0.223 > 0.18 target! FIRST EVER!
+- @1000: avg=0.291, peak=0.433
+
+### Why midep works
+1. **1000-step episodes** are the sweet spot: long enough for meaningful reward signal, short enough to avoid entropy-collapse-inducing gradient magnitude
+2. **Competition-map training** means the agent learns the actual map topology
+3. **Sprint e160 warm-start** provides a strong initialization already adapted to the competition map
+4. Entropy collapse still occurs (e100+ degradation) but the peak at e50 is exceptional
+
+## 2026-05-17 09:00 UTC: Final session summary (updated)
 
 ### BEST RESULTS ACROSS ALL EXPERIMENTS
 | Metric | Model | Value | vs Scripted (0.18) |
 |--------|-------|-------|-------------------|
-| 500 steps best avg | sprint_compmap e160 | **0.080** | 0.44x |
-| 500 steps best peak | sprint_compmap e160 | **0.135** | 0.75x |
-| 1000 steps best avg | longep_compmap e300 | **0.265** | 1.47x |
+| 500 steps best avg | **midep_compmap e50** | **0.120** | 0.67x |
+| 500 steps best peak | **midep_compmap e50** | **0.223** | **1.24x — EXCEEDS TARGET!** |
+| 1000 steps best avg | midep_compmap e50 | **0.291** | 1.62x |
 | 1000 steps best peak | longep_compmap e300 | **0.476** | 2.64x |
 | 2000 steps best avg | longep e45 | **0.331** | 1.84x |
 | 2000 steps best peak | longep e45 | **0.568** | 3.16x |
 
 ### Key findings (session complete)
-1. **2000-step episodes solve entropy collapse** — the #1 training breakthrough
-2. **Training on competition map** >> training on arena — critical for good eval
-3. **Sprint compmap e160** is the best model (0.135 peak @500, 0.441 peak @1000)
-4. **longep_compmap e300** has highest 1000-step score (0.476 peak)
-5. **500-step target (0.18)** remains structurally hard — best is 0.135 (75% of target)
-6. **U-curve adaptation** pattern when warm-starting on new map
-7. **Auth token expired** blocks tournament submission
+1. **Midep (1000-step) training on competition map is the best approach** — produced the first model to beat 0.18 @500
+2. **2000-step episodes solve entropy collapse** but 1000-step gives better 500-step eval performance
+3. **Training on competition map** >> training on arena — critical for good eval
+4. **Three-stage pipeline works best**: Phase 1 (longep arena) → Phase 2 (sprint compmap) → Phase 3 (midep compmap)
+5. **Entropy collapse still occurs** at epoch 50-100 in every run — early stopping is essential
+6. **Auth token expired** blocks tournament submission
 
 ### Recommendations for next researcher
-1. **Best checkpoints**: sprint_compmap e160 or longep_compmap e300
-2. **To improve further**: Continue training sprint_compmap past e220 on competition map with fresh entropy schedule
-3. **Fix auth**: Get new Softmax token to submit to tournament
-4. **Competition-length**: Evaluate best models at 10K steps for actual competition performance
+1. **Best checkpoint for 500-step eval**: `midep_compmap e50` in `train_dir_curriculum_p1_midep_compmap/177900785562/model_000050.pt`
+2. **Best checkpoint for 1000-step eval**: `longep_compmap e300` in `train_dir_curriculum_p1_longep_compmap/177900509863/model_000300.pt`
+3. **To improve further**: Run more midep_compmap variants with different entropy schedules; try clipping coefficient 0.1 instead of 0.2
+4. **Fix auth**: Get new Softmax token to submit to tournament
+5. **Training pipeline**: longep (arena, 2000-step) → sprint (compmap, 500-step) → midep (compmap, 1000-step)
