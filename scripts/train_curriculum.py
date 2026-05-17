@@ -79,6 +79,7 @@ def main():
     parser.add_argument("--start-heart", action="store_true", help="Start agents with heart")
     parser.add_argument("--no-explore", action="store_true", help="Disable cell.visited reward entirely")
     parser.add_argument("--no-clips", action="store_true", help="Remove clips ships from map")
+    parser.add_argument("--clip-coef", type=float, default=0.2, help="PPO clip coefficient")
     args = parser.parse_args()
 
     phase_config = {
@@ -193,6 +194,10 @@ def main():
         print(f"  Entropy annealing: {args.ent_start} → {args.ent_end} over {args.ent_anneal_frac*100}% of training")
     elif args.ent_coef:
         os.environ["COGAMES_ENT_COEF"] = str(args.ent_coef)
+
+    if args.clip_coef != 0.2:
+        os.environ["COGAMES_CLIP_COEF"] = str(args.clip_coef)
+        print(f"  PPO clip_coef: {args.clip_coef}")
 
     from mettagrid.policy.loader import resolve_policy_class_path
     class_path = resolve_policy_class_path("tutorial")

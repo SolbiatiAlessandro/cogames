@@ -38,3 +38,6 @@ midep	0.223200	aligned.junction.held=~1500	500	keep	Midep compmap e50 PEAK @500 
 midep	0.080500	aligned.junction.held=~450	500	keep	Midep compmap e80 avg @500 - entropy starting to collapse
 midep	0.291000	aligned.junction.held=~2000	1000	keep	Midep compmap e50 avg @1000 - matches compmap_v1 e20 at 2000 steps
 midep	0.432900	aligned.junction.held=~3500	1000	keep	Midep compmap e50 PEAK @1000 - near longep_compmap BEST
+midep	0.234300	aligned.junction.held=~1600	2000	keep	Midep compmap e50 avg @2000 - solid but shorter-horizon optimized
+midep	0.244900	aligned.junction.held=~1700	2000	keep	Midep compmap e50 PEAK @2000 - below longep models at 2000
+midep	1.012000	aligned.junction.held=~1100	10000	keep	Midep compmap e50 @10000 (1 ep) - competition length baseline

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing
+import os
 import platform
 from datetime import UTC, datetime
 from pathlib import Path
@@ -299,7 +300,7 @@ def train(
         gamma=0.995,
         gae_lambda=0.90,
         update_epochs=1,
-        clip_coef=0.2,
+        clip_coef=float(os.environ.get("COGAMES_CLIP_COEF", "0.2")),
         vf_coef=2.0,
         vf_clip_coef=0.2,
         max_grad_norm=1.5,
