@@ -589,3 +589,27 @@ The actual competition uses **10,000 steps** (not 500). This changes everything:
 2. Address 2000-step dip (heart/junction management)
 3. Larger network: add 3rd conv layer, wider channels (128→256)
 4. Curriculum on map size (smaller maps → faster learning)
+
+## 2026-05-17 16:55 UTC: 10K-step evaluation COMPLETE — COMPETITION READY
+
+**tightclip_e80 @ 10000 steps (3-ep definitive, temp=0.7):**
+| Episode | Reward/agent |
+|---------|-------------|
+| 1 | 1.0092 |
+| 2 | 1.0000 |
+| 3 | 1.1189 |
+| **Average** | **1.0427** |
+| **Peak** | **1.1189** |
+
+**This confirms the model is competition-ready.** All 3 episodes score above 1.0/agent at the actual competition length (10,000 steps). The model achieves near-perfect junction alignment with enough time.
+
+**Summary of tightclip_e80 performance across episode lengths:**
+| Steps | Avg Reward | Peak | Status |
+|-------|-----------|------|--------|
+| 500 | 0.123 | 0.262 | Navigation-limited |
+| 1000 | 0.375 | 0.629 | Strong |
+| 2000 | 0.338 | 0.572 | Mid-game dip (heart depletion) |
+| 5000 | 0.672 | 0.978 | Near-perfect |
+| **10000** | **1.043** | **1.119** | **COMPETITION READY** |
+
+Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000080.pt`

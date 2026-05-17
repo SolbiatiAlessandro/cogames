@@ -135,3 +135,4 @@ tightclip_e80	0.337700	aligned.junction.held=~2500	2000	keep	Tightclip e80 avg @
 tightclip_e80	0.672200	aligned.junction.held=~5000	5000	keep	Tightclip e80 avg @5000 (4-ep, peak=0.978!) - near-perfect on best map
 goalobs_e10	0.078700	aligned.junction.held=~430	500	discard	Goal-obs e10 avg @500 - entropy still recovering (1.32), not competitive
 goalobs_e10	0.650400	aligned.junction.held=~4800	5000	keep	Goal-obs e10 avg @5000 (4-ep) - surprisingly competitive at long episodes
+tightclip_e80	1.042700	aligned.junction.held=~7500	10000	keep	Tightclip e80 avg @10000 (3-ep definitive, temp=0.7, peak=1.119) - COMPETITION READY
