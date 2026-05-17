@@ -648,3 +648,35 @@ Fresh_tc needs ~60+ more epochs to converge (following original tightclip patter
 - fresh_tc: From-scratch training at epoch 30 (continuing)
 - p2_from_e80: Phase 2 from tightclip_e80 (early epochs)
 - goal-obs: Phase 2 with goal_obs (epoch 10)
+
+## 2026-05-17 16:20 UTC: Full P2lr 10K sweep + WITHCLIPS BREAKTHROUGH
+
+Completed full epoch sweep of p2lr checkpoints at 10K steps:
+
+| Model | 10K avg | 10K peak | Notes |
+|-------|---------|----------|-------|
+| p2lr_e05 | 1.012 | 1.026 | Baseline |
+| p2lr_e10 | 1.046 | 1.107 | |
+| p2lr_e15 | 1.034 | 1.103 | |
+| **p2lr_e20** | **1.124** | **1.285** | Previous best (from earlier eval) |
+| p2lr_e25 | 1.020 | 1.045 | Declining |
+
+P2lr shows an inverted-U curve peaking at e20. The differences between e05-e25 are modest (1.01-1.12).
+
+### WITHCLIPS_E10 IS THE NEW BEST MODEL
+
+| Model | 10K avg | 10K peak |
+|-------|---------|----------|
+| **withclips_e10** | **1.371** | **1.957** |
+| p2lr_e20 | 1.124 | 1.285 |
+| tightclip_e80 | 1.043 | 1.119 |
+
+**Withclips_e10 beats p2lr_e20 by 22% on average and 52% on peak!**
+
+The "withclips" variant trains Phase 2 (max_dist=10) from tightclip_e65 but with standard PPO clip_coef=0.2 (not the tightclip=0.1). Key insight: tighter clipping (0.1) was essential for Phase 1 convergence, but at Phase 2, allowing larger policy updates (0.2) helps the agent explore more diverse navigation strategies.
+
+The peak of 1.957 per agent means agents scored nearly 2x the base survival reward, indicating extensive junction alignment and mining. This is by far the highest single-episode score seen.
+
+Now running a full withclips epoch sweep (e05, e15, e20, e25, e30) at 10K to find the optimal epoch.
+
+**Best checkpoint for competition (10K steps)**: `train_dir_curriculum_p2_p2_withclips/177902508005/model_000010.pt`
