@@ -26,3 +26,9 @@ cc35f18	0.050000	aligned.junction.held=0	500	discard	Sprint arena (max_dist=4 50
 cc35f18	0.077600	aligned.junction.held=~400	500	keep	Sprint compmap e160 avg at 500 steps - NEW BEST avg via U-curve recovery
 cc35f18	0.133100	aligned.junction.held=~750	500	keep	Sprint compmap e160 PEAK at 500 steps - NEW ALL-TIME BEST at 500 steps!
 cc35f18	1.124200	aligned.junction.held=~1200	10000	keep	LONGEP e45 at 10000 steps (1 episode) - higher than compmap_fast e30
+526c47f	0.080000	aligned.junction.held=~450	500	keep	Sprint compmap e160 avg @500 - BEST model overall
+526c47f	0.135000	aligned.junction.held=~750	500	keep	Sprint compmap e160 PEAK @500 - 75% of scripted target!
+526c47f	0.191400	aligned.junction.held=~1200	1000	keep	Sprint compmap e160 avg @1000 - exceeds scripted 0.18!
+526c47f	0.440500	aligned.junction.held=~3500	1000	keep	Sprint compmap e160 PEAK @1000 - 2.4x scripted baseline!
+526c47f	0.265400	aligned.junction.held=~2200	1000	keep	Longep compmap e300 avg @1000 - trained on actual compmap
+526c47f	0.476100	aligned.junction.held=~4000	1000	keep	Longep compmap e300 PEAK @1000 - ALL-TIME BEST 1000-step! 2.6x scripted!
