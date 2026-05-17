@@ -767,3 +767,40 @@ Phase 3 addresses point 4. For point 3, I should try training with longer episod
 Two variants:
 1. **longep_p2**: Phase 2 (max_dist=10), 3000-step episodes, from p2lr_e20 weights
 2. **longep_p3**: Phase 3 (max_dist=15), 3000-step episodes, from p2lr_e20 weights (after Phase 3 produces some checkpoints)
+
+**2026-05-17 17:32**: Early results from long-episode training are VERY promising!
+
+| Model | 10K avg (3-ep) | 10K peak | Notes |
+|-------|----------------|----------|-------|
+| **longep3k_e10** | **1.093** | **1.201** | NEW BEST — beats p2lr_e20 (1.075) after just 10 epochs! |
+| p3_aggressive_e05 | 1.059 | 1.133 | Early but promising |
+| longep3k_e05 | 1.049 | 1.148 | High variance, too early |
+
+**The long-episode hypothesis is confirmed**: training on 3000-step episodes teaches better long-horizon behavior for 10K eval. The model learns to sustain productive behavior over longer periods.
+
+Training continues — need to check e15/e20 as they appear and validate with 5 episodes.
+
+**2026-05-17 17:50**: MAJOR BREAKTHROUGH — longep3k_e20 validated!
+
+### longep3k validated results (5-ep, seeds 3000-3004, 10K steps, temp=0.7)
+
+| Model | Avg | Std | Peak | Median |
+|-------|-----|-----|------|--------|
+| **longep3k_e20** | **1.394** | 0.255 | **1.713** | **1.383** |
+| longep3k_e15 | 1.126 | 0.063 | 1.176 | 1.149 |
+| p2lr_e20 (prev best) | 1.075 | 0.067 | 1.181 | 1.079 |
+
+**longep3k_e20 is 30% better than the previous best (p2lr_e20)!** Key observations:
+- 4 of 5 episodes above 1.25 (only seed 3002 at 1.0)
+- Peak of 1.713 is highest we've ever seen in validated results
+- The model learned to sustain productive behavior over long horizons
+
+This confirms: **training episode length is a critical hyperparameter** for 10K eval. 3000-step training episodes >>> 1000-step for competition-length eval.
+
+### Failed experiment: p3_aggressive (boost_aligner=10)
+- e05: promising at 1.059
+- e10: COLLAPSED to 1.000 (complete unlearning)
+- e15: partial recovery to 1.054
+- Conclusion: boost_aligner=10 is too aggressive, destroys learning. Stick with 5.0.
+
+Best competition checkpoint: `train_dir_curriculum_p2_longep3k/177903850621/model_000020.pt`

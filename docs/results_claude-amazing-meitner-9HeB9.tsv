@@ -161,3 +161,10 @@ fresh_tc_e20	1.000000	aligned.junction.held=0	10000	discard	fresh_tc e20 @10K (3
 fresh_tc_e30	1.018033	aligned.junction.held=~200	10000	discard	fresh_tc e30 @10K (3-ep) - barely starting alignment, Phase 1 only
 goalobs_e05	1.026533	aligned.junction.held=~300	10000	discard	goalobs e05 @10K (3-ep) - early Phase 2 with goal_obs
 goalobs_e10	1.071160	aligned.junction.held=~7700	10000	keep	goalobs_e10 VALIDATED @10K (5-ep, seed=3000, temp=0.7, peak=1.149, std=0.046) - ties p2lr_e20 at 1.071 vs 1.075
+longep3k_e05	1.049433	aligned.junction.held=~5000	10000	discard	longep3k e05 @10K (3-ep) - high variance early
+longep3k_e10	1.092900	aligned.junction.held=~7800	10000	keep	longep3k e10 @10K (3-ep, peak=1.201) - already beats p2lr_e20
+longep3k_e15	1.125620	aligned.junction.held=~8200	10000	keep	longep3k_e15 VALIDATED @10K (5-ep, seed=3000, temp=0.7, peak=1.176, std=0.063) - solid improvement over p2lr_e20
+longep3k_e20	1.393940	aligned.junction.held=~12000	10000	keep	longep3k_e20 VALIDATED @10K (5-ep, seed=3000, temp=0.7, peak=1.713, std=0.255) - NEW BEST 30% over p2lr_e20!
+p3_agg_e05	1.059267	aligned.junction.held=~5500	10000	discard	p3_aggressive e05 @10K (3-ep) - early promising but collapsed later
+p3_agg_e10	1.000000	aligned.junction.held=0	10000	discard	p3_aggressive e10 @10K (3-ep) - COLLAPSED to baseline, boost=10 too aggressive
+p3_agg_e15	1.054100	aligned.junction.held=~5000	10000	discard	p3_aggressive e15 @10K (3-ep) - partial recovery but still bad
