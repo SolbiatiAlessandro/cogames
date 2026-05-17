@@ -172,3 +172,9 @@ longep3k_e25	1.094600	aligned.junction.held=~8000	10000	discard	longep3k e25 @10
 longep3k_e30	1.034400	aligned.junction.held=~3500	10000	discard	longep3k e30 @10K (3-ep) - continuing decline
 longep3k_e35	1.011067	aligned.junction.held=~1500	10000	discard	longep3k e35 @10K (3-ep) - near-collapsed
 longep3k_e40	1.095033	aligned.junction.held=~8000	10000	discard	longep3k e40 @10K (3-ep) - partial recovery
+p3_longep_e05	1.181833	aligned.junction.held=~9000	10000	discard	P3 from longep3k_e20 e05 @10K (3-ep) - OK but P3 declining pattern
+p3_longep_e10	1.084033	aligned.junction.held=~7500	10000	discard	P3 from longep3k_e20 e10 @10K (3-ep) - declined from e05 confirms P3 hurts
+longep5k_e05	1.006833	aligned.junction.held=~500	10000	discard	5000-step episodes e05 @10K - near dead
+longep5k_e10	1.000000	aligned.junction.held=0	10000	discard	5000-step episodes e10 @10K - COLLAPSED. 5K episodes too long
+tc_longep3k_e05	1.225100	aligned.junction.held=~10000	10000	keep	Tightclip longep3k e05 @10K (3-ep, peak=1.468) - strong start
+tc_longep3k_e10	1.109100	aligned.junction.held=~8500	10000	keep	Tightclip longep3k e10 @10K (3-ep, peak=1.284) - declining from e05

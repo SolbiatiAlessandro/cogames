@@ -824,3 +824,27 @@ Clear inverted-U curve peaking at e20. The model learns long-horizon behavior th
 1. Phase 3 (max_dist=15) from longep3k_e20 with 3000-step episodes
 2. Even longer episodes (5000 steps) from p2lr_e20
 3. Try training with 3000-step episodes + clip_coef=0.1 (tighter clip might extend the useful training window)
+
+### Results from follow-up experiments (2026-05-17 18:53)
+
+| Experiment | e05 avg | e10 avg | Verdict |
+|------------|---------|---------|---------|
+| P3 from longep3k_e20 | 1.182 | 1.084 | DECLINING — P3 hurts AGAIN |
+| 5000-step episodes | 1.007 | 1.000 | COLLAPSED — too long |
+| **tc_longep3k (clip=0.1)** | **1.225** | 1.109 | Strong start but declining |
+
+**5000-step episodes confirmed too long** — sparse gradient signal causes unlearning.
+**Phase 3 (max_dist=15) consistently hurts** — even from the best model, it degrades performance.
+**3000-step episodes are the sweet spot** for 10K eval.
+
+The tc_longep3k (tightclip + 3000-step) started strong but is already declining at e10, unlike the original longep3k which peaked at e20. The tight clip might be preventing the model from exploring enough in early training.
+
+### The fundamental pattern
+
+Looking across ALL experiments, the same pattern repeats:
+- Models improve rapidly for 10-20 epochs then entropy collapses
+- clip_coef=0.1 delays collapse but reduces peak performance
+- clip_coef=0.2 allows higher peaks but earlier collapse
+- 3000-step episodes produce the best models (longep3k_e20 = 1.394 avg)
+- Phase 3 (max_dist=15) consistently HURTS performance — the model unlearns close-range alignment
+- Episode length at training time is the #1 hyperparameter for long eval
