@@ -382,3 +382,18 @@ Sprint e160 is the OVERALL BEST model across step counts, trained with 500-step 
 | 1000 steps best peak | **tightclip e70** | **0.572** | **3.18x — ALL-TIME BEST** |
 
 Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000065.pt`
+
+### Tightclip e65 extended evaluation
+- @500 (10-ep reliable): avg=0.096, peak=0.140
+- @2000 (3 ep): avg=0.511, peak=**0.954** — near perfect!
+- @10000 (1 ep): 1.000
+
+### Deterministic vs stochastic actions
+- Deterministic (argmax): @500 avg=0.050, @1000 avg=0.100 — agents survive but never align junctions
+- Stochastic (sampling): normal performance
+- **Conclusion**: Stochastic sampling is essential for exploration on 88×88 map with 13×13 obs window
+- The policy hasn't learned deterministic pathfinding — it relies on random walk + learned preferences
+
+### Active experiment: highent_tightclip
+- clip_coef=0.1 + ent_start=0.06→0.015 over 60% (vs 0.04→0.01 over 50%)
+- Hypothesis: higher entropy floor + tighter clipping could push 500-step avg above 0.12
