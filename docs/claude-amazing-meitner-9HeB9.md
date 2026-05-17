@@ -759,3 +759,11 @@ The 1.07 ceiling means agents align ~1-2 junctions per 10K-step episode. Top pol
 4. **Max distance**: Phase 2 max_dist=10 means training maps have closer junctions than competition (15+)
 
 Phase 3 addresses point 4. For point 3, I should try training with longer episodes.
+
+### Experiment: Long-episode training (3000 steps)
+
+**2026-05-17 17:25**: Starting experiment with longer training episodes. Hypothesis: training on 3000-step episodes (vs current 1000) will teach the agent to sustain productive behavior over longer horizons, breaking the 1.07 ceiling at 10K eval.
+
+Two variants:
+1. **longep_p2**: Phase 2 (max_dist=10), 3000-step episodes, from p2lr_e20 weights
+2. **longep_p3**: Phase 3 (max_dist=15), 3000-step episodes, from p2lr_e20 weights (after Phase 3 produces some checkpoints)
