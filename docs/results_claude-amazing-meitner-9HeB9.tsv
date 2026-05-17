@@ -7,3 +7,10 @@ baseline	0.134900	aligned.junction.held=~700	1000	keep	compmap_fast epoch 30 at 
 baseline	0.189700	aligned.junction.held=~900	1000	keep	compmap_fast epoch 30 peak episode at 1000 steps - MATCHES scripted baseline!
 baseline	0.291000	aligned.junction.held=~2400	2000	keep	compmap_v1 epoch 20 at 2000 steps - 1.5x scripted baseline
 baseline	0.374300	aligned.junction.held=~3000	2000	keep	compmap_v1 epoch 20 peak episode at 2000 steps - 2x scripted baseline!
+fd532db	0.050000	aligned.junction.held=0	500	discard	Phase 3 goal_obs (max_dist=15) - no improvement; goal_obs breaks warm-start
+fd532db	0.078100	aligned.junction.held=~400	500	keep	highent (max_dist=6 ent=0.08->0.02/80%) epoch 20 PEAK at 500 steps
+fd532db	0.137500	aligned.junction.held=~700	1000	keep	highent epoch 20 avg at 1000 steps - entropy stable but still collapses at epoch 50
+fd532db	0.050000	aligned.junction.held=0	500	discard	large-obs 15x15 + low reward (boost=2.0) - stable entropy but zero alignment
+fd532db	0.071400	aligned.junction.held=~350	500	keep	finetune junction-only (milestones_2) epoch 30 PEAK at 500 steps
+fd532db	1.058100	aligned.junction.held=~580	10000	keep	compmap_fast e30 at FULL competition length (10000 steps) - mostly base alive reward
+fd532db	1.174300	aligned.junction.held=~1740	10000	keep	compmap_fast e30 PEAK episode at 10000 steps - highest RL competition-length reward
