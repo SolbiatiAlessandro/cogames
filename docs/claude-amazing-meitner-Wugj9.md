@@ -450,3 +450,24 @@ gear is a smaller step. Higher ent_start prevents collapse.
 
 **Insight**: First model to craft an aligner from scratch in standard eval!
 No junction alignment yet at 1K steps — need longer eval or more training.
+
+**Training progress (133 epochs):**
+- 8 aligner crafting events total (accelerating: every ~15 epochs at end)
+- Carbon collection peaked at 3.0-4.0/epoch during descent phases
+- Entropy cycling healthy: 3 full cycles completed (0.84→1.42→0.94→1.31→0.84→1.15)
+- Heart and aligner never co-occur in same reading → need simultaneous behavior
+
+**e130 eval (2000 steps, standard, 5 episodes):**
+| Episode | avg_reward | aligner.gained | heart.gained | junc_aligned |
+|---------|-----------|----------------|-------------|-------------|
+| 0 | 0.200 | **1** | 0 | 0 |
+| 1 | 0.200 | 0 | 0 | 0 |
+| 2 | 0.200 | 0 | **4** | 0 |
+| 3 | 0.200 | 0 | **1** | 0 |
+| 4 | 0.200 | 0 | **8** | 0 |
+
+avg=0.200 (double baseline). Crafts aligner (1/5 ep) OR gets hearts (3/5 ep, up to 8!), but never both in same episode. Heart acquisition improved dramatically vs e10.
+
+### Learncraft v3: Boost heart reward (IN PROGRESS)
+**Config**: from v2 e130, boost-heart=8.0 (up from 3.0), boost-resources=2.0 (down from 5.0).
+**Hypothesis**: Higher heart reward will make heart acquisition consistent enough to co-occur with aligner crafting. Reduced resource reward to rebalance toward hearts.

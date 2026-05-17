@@ -23,3 +23,5 @@ HEAD	0.236200	junc_aligned=2/5ep,peak=0.381	2000	keep	learnheart e20 @2000 start
 HEAD	0.300000	junc_aligned=1/3ep	3000	keep	learnheart e20 @3000 start-aligner only — partial eval (3/5 ep)
 HEAD	0.100000	aligner=1,heart=1 in 1/5ep	1000	keep	learncraft_v2 e10 @1000 STANDARD — FIRST aligner crafting from scratch!
 HEAD	0.100000	flat_e50 heart=1/2ep	1000	discard	flat_learnheart e50 @1000 start-aligner — flat→natural transfer poor
+HEAD	0.200000	aligner=1/5ep,heart=3/5ep(max8)	2000	keep	learncraft_v2 e130 @2000 STANDARD — crafts aligner OR gets hearts, not both
+HEAD	0.100000	aligner=1,heart=1 in ep1	1000	keep	learncraft_v2 e10 @1000 STANDARD — first model to craft aligner from scratch
