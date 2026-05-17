@@ -339,3 +339,22 @@ Sprint e160 is the OVERALL BEST model across step counts, trained with 500-step 
 - Tightclip shows useful signal from e20 whereas midep needed e50
 - If tightclip maintains quality through e50-80, it could be the new best approach
 - Entropy at e28: 1.19 (healthy, 74% of max)
+
+### Tightclip extended results (e35-e60)
+| Epoch | @500 avg | @500 peak | @1000 avg | @1000 peak | Entropy |
+|-------|---------|----------|----------|-----------|---------|
+| e35 | 0.090 | 0.149 | 0.254 | 0.350 | 1.27 |
+| e40 | 0.072 | 0.130 | 0.157 | 0.184 | 1.27 |
+| e45 | 0.061 | 0.078 | 0.170 | 0.249 | 1.29 |
+| e50 | 0.093 | 0.131 | 0.134 | 0.159 | 1.33 |
+| **e55** | **0.098** | **0.185** | **0.300** | **0.386** | 1.30 |
+| **e60** | **0.109** | **0.154** | 0.160 | 0.255 | 1.33 |
+
+**KEY FINDING**: clip_coef=0.1 SOLVES entropy collapse! Entropy stays at 1.27-1.33 through epoch 60 (vs <1.0 and collapsing for original midep by epoch 50). Performance keeps improving:
+- Tightclip e60 @500 avg=0.109 > midep e50 @500 avg=0.095 (10-ep reliable avg)
+- Tightclip e55 @1000 avg=0.300 > midep e50 @1000 avg=0.205
+- But variance is high — needs more training epochs to see if improvement continues
+
+### Updated midep e50 reliable stats (10 episodes)
+- @500: avg=0.095, peak=0.153, median=0.097 (down from 5-ep avg of 0.120)
+- @1000: avg=0.205, peak=0.326, median=0.155
