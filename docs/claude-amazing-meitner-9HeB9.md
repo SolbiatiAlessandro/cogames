@@ -848,3 +848,17 @@ Looking across ALL experiments, the same pattern repeats:
 - 3000-step episodes produce the best models (longep3k_e20 = 1.394 avg)
 - Phase 3 (max_dist=15) consistently HURTS performance — the model unlearns close-range alignment
 - Episode length at training time is the #1 hyperparameter for long eval
+
+### Temperature sweep for longep3k_e20 (3-ep @10K)
+
+| Temp | Avg | Std | Peak | Median |
+|------|-----|-----|------|--------|
+| 0.3 | 1.062 | 0.063 | 1.150 | 1.026 |
+| 0.5 | 1.312 | 0.256 | 1.664 | 1.207 |
+| 0.6 | 1.139 | 0.117 | 1.304 | 1.069 |
+| **0.7** | **1.253** | **0.066** | **1.337** | **1.248** |
+| 0.8 | 1.361 | 0.075 | 1.455 | 1.356 |
+| 1.0 | 1.475 | 0.418 | 2.052 | 1.294 |
+| 1.5 | 1.091 | 0.115 | 1.253 | 1.018 |
+
+5-ep validation at temp=0.8: avg=1.281, median=1.065 — inflated by 2.134 outlier. **temp=0.7 is optimal** (avg=1.394, median=1.383).
