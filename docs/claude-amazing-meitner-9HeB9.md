@@ -358,3 +358,27 @@ Sprint e160 is the OVERALL BEST model across step counts, trained with 500-step 
 ### Updated midep e50 reliable stats (10 episodes)
 - @500: avg=0.095, peak=0.153, median=0.097 (down from 5-ep avg of 0.120)
 - @1000: avg=0.205, peak=0.326, median=0.155
+
+### Tightclip e65-e80 results — CONTINUED IMPROVEMENT
+| Epoch | @500 avg | @500 peak | @1000 avg | @1000 peak | Entropy |
+|-------|---------|----------|----------|-----------|---------|
+| **e65** | **0.111** | 0.173 | **0.370** | **0.511** | 1.31 |
+| e70 | 0.106 | 0.175 | 0.295 | **0.572** | 1.31 |
+| e75 | 0.099 | 0.151 | 0.324 | 0.409 | 1.31 |
+| e80 | 0.094 | 0.130 | 0.242 | 0.396 | 1.29 |
+
+**Highlights**:
+- **tightclip e65 is the new overall best**: @500 avg=0.111, @1000 avg=0.370
+- **tightclip e70 sets ALL-TIME BEST 1000-step peak**: 0.572 (exceeds longep e45's 0.568!)
+- Performance plateaued e65-e75, slight decline at e80 — but NOT due to entropy collapse (entropy=1.29)
+- The model hit its capacity limit at 2.8M parameters with clip_coef=0.1
+
+### Updated BEST RESULTS
+| Metric | Model | Value | vs Scripted (0.18) |
+|--------|-------|-------|-------------------|
+| 500 steps best avg | **tightclip e65** | **0.111** | 0.62x |
+| 500 steps best peak | tightclip e55 | **0.185** | **1.03x — MATCHES TARGET** |
+| 1000 steps best avg | **tightclip e65** | **0.370** | 2.06x |
+| 1000 steps best peak | **tightclip e70** | **0.572** | **3.18x — ALL-TIME BEST** |
+
+Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000065.pt`
