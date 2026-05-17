@@ -96,3 +96,14 @@ phase2	0.119800	aligned.junction.held=~650	500	keep	Phase2_tc65 e25 avg @500 - s
 phase2	0.098200	aligned.junction.held=~550	500	keep	Phase2_tc65 e30 avg @500 - declining at 500 steps
 phase2	0.753700	aligned.junction.held=~5500	1000	keep	Phase2_tc65 e30 PEAK @1000 - ALL-TIME BEST 1000-step peak!
 phase2	0.087300	aligned.junction.held=~480	500	discard	Phase2_tc65 e35 avg @500 - below tightclip, overfitting to 1000-step
+phase3	0.096800	aligned.junction.held=~530	500	discard	Phase3 e10 avg @500 - max_dist=15 from p2e15
+phase3	0.101700	aligned.junction.held=~560	500	discard	Phase3 e15 avg @500
+phase3	0.071600	aligned.junction.held=~360	500	discard	Phase3 e20 avg @500 - DECLINING
+phase3	0.299900	aligned.junction.held=~2000	1000	keep	Phase3 e30 avg @1000 - decent but below p2 best
+phase3	0.101600	aligned.junction.held=~560	500	discard	Phase3 e35 avg @500 - Phase 3 NOT beneficial for 500-step
+ultrasprint	0.080300	aligned.junction.held=~420	500	discard	Ultrasprint e10 avg @500 - 300-step episodes too short
+ultrasprint	0.059800	aligned.junction.held=~300	500	discard	Ultrasprint e20 avg @500 - degrading rapidly
+natmap	0.087000	aligned.junction.held=~470	500	discard	Natmap_sprint e10 avg @500 - max_dist=15 + 500 steps too hard
+natmap	0.059200	aligned.junction.held=~300	500	discard	Natmap_sprint e20 avg @500 - unlearning alignment
+hiboost	0.108400	aligned.junction.held=~600	500	keep	Hiboost e10 avg @500 - boost_aligner=15.0, matches parent
+hiboost	0.072700	aligned.junction.held=~370	500	discard	Hiboost e15 avg @500 - higher boost doesn't help

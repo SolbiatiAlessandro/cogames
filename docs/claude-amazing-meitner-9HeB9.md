@@ -430,3 +430,28 @@ Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000
 | 1000 steps best peak | **phase2_tc65 e30** | **0.754** | **4.19x — ALL-TIME BEST** |
 
 Best checkpoint for 500-step: `train_dir_curriculum_p2_phase2_tc65/177901540615/model_000015.pt`
+
+### FAILED experiment: Phase 3 (max_dist=15) from p2e15
+- 1000-step episodes, full competition distance
+- Results: e10 avg=0.097, e15 avg=0.102, e20 avg=0.072, e35 avg=0.102
+- **Conclusion**: Phase 3 curriculum HURTS 500-step performance. max_dist=15 junctions are too far for 1000-step training
+
+### FAILED experiment: ultrasprint (300-step) from p2e15
+- 300-step episodes, max_dist=6
+- Results: e10 avg=0.080, e15 avg=0.065, e20 avg=0.060
+- **Conclusion**: 300 steps too short for meaningful alignment on 88×88 maps
+
+### FAILED experiment: natmap_sprint (500-step, max_dist=15) from p2e15
+- 500-step episodes on full-distance maps
+- Results: e10 avg=0.087, e15 avg=0.066, e20 avg=0.059
+- **Conclusion**: 500 steps + max_dist=15 = too hard, agent unlearns alignment
+
+### FAILED experiment: hiboost (boost-aligner=15.0) from p2e15
+- 3x higher aligner reward weights
+- Results: e10 avg=0.108, e15 avg=0.073
+- **Conclusion**: Higher reward weights don't help — same degradation pattern
+
+### Active experiment: p2_from_sprint
+- Phase 2 (max_dist=10, 1000-step) from sprint_compmap e160 (earlier warm-start)
+- clip_coef=0.1, ent_start=0.04→0.01/50%, 4M steps
+- Hypothesis: More training epochs from an earlier checkpoint → better model than quick fine-tune
