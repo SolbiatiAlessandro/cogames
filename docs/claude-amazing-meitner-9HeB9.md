@@ -547,11 +547,45 @@ from the higher stochasticity.
 
 **New experiments running:**
 1. goal-obs: Phase 2 training with goal_obs enabled (directional junction info in obs)
-2. evalfit500: Phase 2 training with max_steps=500 to match eval conditions exactly
-3. fresh_tc: Phase 1 from scratch with clip_coef=0.1 (paused at e22, to be resumed)
+2. p2_from_e80: Phase 2 from new best checkpoint e80 (instead of e65)
+3. fresh_tc: Phase 1 from scratch with clip_coef=0.1 (at e27, entropy healthy at 1.46)
+
+## 2026-05-17 16:30 UTC: Multi-length episode evaluation
+
+Evaluated tightclip_e80 (best), p2lr_e15, p2lr_e05, and goalobs_e10 at 500, 1000, 2000, and 5000 steps.
+
+**Results (temp=0.7):**
+| Steps | tightclip_e80 | p2lr_e15 | p2lr_e05 | goalobs_e10 |
+|-------|-------------|----------|----------|-------------|
+| 500 | **0.127** | 0.111 | 0.114 | 0.079 |
+| 1000 | **0.375** | 0.203 | 0.251 | 0.205 |
+| 2000 | 0.334 | 0.332 | **0.376** | 0.278 |
+| 5000 | **0.672** | 0.557 | 0.546 | 0.650 |
+
+**Key insights:**
+1. tightclip_e80 dominates at 500, 1000, and 5000 steps
+2. 2000-step dip (0.334 vs 0.375 at 1000) — agents lose hearts/junctions mid-game, then recover
+3. p2lr_e05 wins at 2000 steps but loses at 5000 — Phase 2 training helps medium-length episodes
+4. goalobs_e10 surprisingly strong at 5000 steps (0.650 vs 0.672) despite being weak at short episodes
+5. tightclip_e80 peak at 5000 steps: **0.978** — near perfect!
+
+**Dead episode analysis (50 episodes):**
+- 7/50 episodes are "dead" (reward ≤ 0.055)
+- Action distributions nearly identical between dead and alive episodes
+- Dead episodes caused by map layout (hard junction positions), NOT policy behavior
+- Navigation speed is the bottleneck, not wrong actions
+
+## 2026-05-17 16:45 UTC: Competition length discovery
+
+The actual competition uses **10,000 steps** (not 500). This changes everything:
+- At 10000 steps, navigation bottleneck disappears — agents have plenty of time
+- tightclip_e80 already gets 0.672 at 5000 steps with peak 0.978
+- Phase 2 training may be unnecessary for 10000-step competition
+
+10000-step evaluation in progress.
 
 **To break the ceiling** (future work):
-1. Larger network: add 3rd conv layer, wider channels (128→256)
-2. Larger observation window (15×15 vs 13×13)
-3. Start from scratch with new architecture + clip_coef=0.1
+1. Train with max_steps=10000 to match actual competition length
+2. Address 2000-step dip (heart/junction management)
+3. Larger network: add 3rd conv layer, wider channels (128→256)
 4. Curriculum on map size (smaller maps → faster learning)

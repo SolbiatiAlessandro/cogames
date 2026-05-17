@@ -130,3 +130,8 @@ p2lr_e05	0.093700	aligned.junction.held=~510	500	keep	P2 longrun e05 head-to-hea
 p2lr_e20	0.108500	aligned.junction.held=~590	500	keep	P2 longrun e20 head-to-head (30-ep, seed=900, temp=0.7) - most consistent
 p2lr_e05	0.355900	aligned.junction.held=~2600	1000	keep	P2 longrun e05 avg @1000 (10-ep, temp=0.7) - BEST @1000
 p2lr_e20	0.356300	aligned.junction.held=~2600	1000	keep	P2 longrun e20 avg @1000 (10-ep, temp=0.7) - tied BEST @1000
+tightclip_e80	0.375100	aligned.junction.held=~2700	1000	keep	Tightclip e80 avg @1000 (10-ep, seed=1400, temp=0.7)
+tightclip_e80	0.337700	aligned.junction.held=~2500	2000	keep	Tightclip e80 avg @2000 (10-ep) - mid-game dip from heart depletion
+tightclip_e80	0.672200	aligned.junction.held=~5000	5000	keep	Tightclip e80 avg @5000 (4-ep, peak=0.978!) - near-perfect on best map
+goalobs_e10	0.078700	aligned.junction.held=~430	500	discard	Goal-obs e10 avg @500 - entropy still recovering (1.32), not competitive
+goalobs_e10	0.650400	aligned.junction.held=~4800	5000	keep	Goal-obs e10 avg @5000 (4-ep) - surprisingly competitive at long episodes
