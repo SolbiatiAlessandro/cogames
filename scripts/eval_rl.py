@@ -22,11 +22,31 @@ def main():
     parser.add_argument("--episodes", type=int, default=5)
     parser.add_argument("--seed", type=int, default=100)
     parser.add_argument("--temp", type=float, default=0.7, help="Sampling temperature")
+    parser.add_argument("--max-distance", type=int, default=None, help="Patch junction max_distance (match training)")
     args = parser.parse_args()
 
     from cogames.cli.mission import get_mission
     from mettagrid.policy.policy import PolicySpec
     from mettagrid.runner.rollout import run_episode_local
+
+    if args.max_distance is not None:
+        from cogames.cogs_vs_clips import terrain
+        for cls_name in ("MachinaArena", "SequentialMachinaArena"):
+            cls = getattr(terrain, cls_name, None)
+            if cls is None:
+                continue
+            original = cls.get_children
+            max_d = args.max_distance
+            def make_patched(orig, md=max_d):
+                def patched(self):
+                    children = orig(self)
+                    for child in children:
+                        if isinstance(child.scene, terrain.EnsureHubReachableJunctionConfig):
+                            child.scene.max_distance = md
+                    return children
+                return patched
+            cls.get_children = make_patched(original)
+        print(f"[EVAL] Patched junction max_distance to {args.max_distance}")
 
     _, env_cfg, _ = get_mission(
         args.mission,

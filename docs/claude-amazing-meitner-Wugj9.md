@@ -93,3 +93,71 @@ Pivoting to arena-first approach. Config:
 - Patching confirmed working: "Patched MachinaArena.get_children max_distance to 6"
 
 Plan: Train arena to ~e60-80, eval, then warm-start Phase 2 on competition map.
+
+## 2026-05-17 18:20 UTC: Arena training ALSO fails — no alignment after 80 epochs
+
+Evaluated arena-trained checkpoints (e30-e80) on both arena and competition map.
+Results: ALL 0.500 (arena baseline) or 0.050 (competition baseline), ZERO junction alignment.
+
+Detailed stats show agents explore (cell.visited up to 49K), pick up random gear (solar,
+carbon, aligner, miner), but NEVER withdraw hearts and NEVER align junctions.
+
+Root cause: training without simplifications (start-aligner, start-heart, flat-map, no-clips)
+requires agents to discover a 3-step sequence through random exploration:
+1. Pick up aligner gear from station
+2. Withdraw heart from hub
+3. Navigate to junction and align
+
+This is too sparse for RL to discover from scratch.
+
+## 2026-05-17 18:25 UTC: KEY DISCOVERY — Original Phase 1 used --start-aligner --start-heart
+
+Re-read previous session's (claude/amazing-meitner-9HeB9) experiment log. Phase 1 was
+"minimal_align" config: --start-aligner --start-heart --flat-map --no-clips.
+
+This eliminates the discovery problem: agents START with gear, just need to navigate to
+junctions. Much easier for random exploration to stumble upon alignment.
+
+The full successful pipeline was:
+1. Phase 1: minimal_align on arena (flat, no clips, start with gear)
+2. Phase 2a: natural terrain on competition map from P1 weights
+3. Phase 2b (compmap_v1): max_dist=6 on competition map
+4. longep: 2000-step episodes from compmap_v1 (entropy breakthrough)
+5. sprint_compmap → midep_compmap → midep_tightclip (best model)
+
+Restarted training with correct minimal_align config. Training running.
+
+## 2026-05-17 18:40 UTC: MODEL IS LEARNING — eval was wrong
+
+Evaluated minimal_p1 e60 on MATCHING environment (flat arena, start-gear, max_dist=6):
+
+| Steps | Avg reward | Peak reward | Junctions aligned |
+|-------|-----------|-------------|-------------------|
+| 500   | 0.940     | 1.393       | 1-2/episode       |
+| 1000  | 1.649     | 1.979       | 0-1/episode       |
+| 2000  | 4.549     | 7.715       | 1-3/episode       |
+
+Previous evals showed 0.050/0.500 because they evaluated on DIFFERENT environments
+(non-flat arena without start-gear, or competition map). The model IS learning alignment.
+
+The peak of 7.72 @2000 steps matches previous session's Phase 1 peak of 7.78!
+
+Resumed training from e60 weights for continued improvement.
+
+Plan:
+1. Let Phase 1 train to e80+ equivalent
+2. Start Phase 2: warm-start on competition map (natural terrain, no clips)
+3. Phase 3: full competition map with clips
+4. Eval at each stage
+
+## 2026-05-17 18:50 UTC: Phase 2 started on competition map
+
+Resumed Phase 1 for 20 more epochs (e60→e80 equivalent). Then started Phase 2:
+- Competition map (cogsguard_machina_1.basic), natural terrain
+- max_dist=6, no clips, NO start-gear (full pipeline learning)
+- Warm-start from Phase 1 e80 equivalent checkpoint
+- clip_coef=0.1, ent 0.04→0.01, boost_aligner=5.0
+- 1000-step episodes, 4 cogs, 16 envs
+
+The model transitions from simplified (flat map, start with gear) to realistic
+(natural terrain, must find gear). Expect initial U-curve degradation then recovery.
