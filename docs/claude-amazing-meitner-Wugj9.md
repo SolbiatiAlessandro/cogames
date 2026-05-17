@@ -406,7 +406,47 @@ Each entropy cycle produces a junction alignment event, with magnitude growing.
 The graduated approach (start-aligner only, learn heart acquisition) works better
 than Phase 2b (start with both, try to learn full pipeline).
 
-### Learncraft experiment: NO gear + resource rewards (IN PROGRESS)
+### Learncraft v1: NO gear + resource rewards (FAILED)
 **Config**: flat terrain, NO starting gear, resource collection rewards (weight=2.0)
-for germanium/carbon/oxygen/silicon to guide agents toward extractors and aligner crafting.
-Hypothesis: resource rewards create intermediate reward signal for aligner crafting pipeline.
+for germanium/carbon/oxygen/silicon. Base: flat_v3 e50 (never saw alignment behavior).
+**Result**: Entropy collapsed (0.84 at epoch 10). Killed at epoch 10. The base model
+didn't know alignment behavior, so removing gear left it with no useful policy.
+
+### Flat learnheart training (KILLED)
+**Config**: flat terrain, start-aligner, from flat_v3 e50. 65 epochs.
+**Result**: Junction.held up to 82080 (max), but junction alignment events sporadic
+(9/290 readings non-zero). On natural terrain eval: avg=0.100, zero junctions.
+**Conclusion**: Flat→natural terrain transfer is poor. Natural terrain training is better.
+
+### Learncraft v2: Graduated from learnheart — ALIGNER CRAFTING BREAKTHROUGH
+**Config**: natural terrain, NO starting gear, resource rewards=5.0, from learnheart e20 base.
+Higher entropy start (0.10→0.02 over 80%). boost-aligner=5.0, boost-heart=3.0.
+**Key difference from v1**: Base model knows alignment behavior (learnheart), so removing
+gear is a smaller step. Higher ent_start prevents collapse.
+
+**Resource collection progress (by epoch):**
+| Resource | Needed for Craft | e5 | e10 | e25 | e42 | Trend |
+|----------|-----------------|-----|------|------|------|-------|
+| Oxygen | 1 | 3-4 | 4-12 | 3-4 | 2-12 | Consistent ✅ |
+| Germanium | 1 | 0 | 0.25 | 0.5-1.5 | 0-0.75 | Sporadic ↗ |
+| Carbon | 3 | 0 | 0.25 | 0.5-1.0 | 0-0.5 | Bottleneck ⚠️ |
+| Silicon | 1 | 0 | 1.0 | 0-0.75 | 0-0.75 | Sporadic |
+| Heart | (for alignment) | 0.25 | 0.25 | 0-0.5 | 0-1.25 | From base model |
+
+**Milestones:**
+- e7-8: **First aligner crafting event** (aligner.gained=0.25) — agent collected resources and crafted!
+- e10: Standard eval shows aligner=1, heart=1 in 1/5 episodes
+- e42: Entropy cycling (trough 0.925, recovered to 1.06) — healthy
+- e59: Training ongoing
+
+**Standard eval (learncraft_v2 e10, no gear, 8 cogs):**
+| Episode | avg_reward | aligner.gained | heart.gained | junc_aligned |
+|---------|-----------|----------------|-------------|-------------|
+| 0 | 0.100 | 0 | 0 | 0 |
+| 1 | 0.100 | **1** | **1** | 0 |
+| 2 | 0.100 | 0 | 0 | 0 |
+| 3 | 0.100 | 0 | 0 | 0 |
+| 4 | 0.100 | 0 | 0 | 0 |
+
+**Insight**: First model to craft an aligner from scratch in standard eval!
+No junction alignment yet at 1K steps — need longer eval or more training.
