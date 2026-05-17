@@ -23,6 +23,9 @@ def main():
     parser.add_argument("--seed", type=int, default=100)
     parser.add_argument("--temp", type=float, default=0.7, help="Sampling temperature")
     parser.add_argument("--max-distance", type=int, default=None, help="Patch junction max_distance (match training)")
+    parser.add_argument("--start-aligner", action="store_true", help="Start agents with aligner gear")
+    parser.add_argument("--start-heart", action="store_true", help="Start agents with heart")
+    parser.add_argument("--flat-map", action="store_true", help="Flat terrain (no biomes)")
     args = parser.parse_args()
 
     from cogames.cli.mission import get_mission
@@ -55,6 +58,28 @@ def main():
     )
     env_cfg.game.max_steps = args.steps
 
+    if args.start_aligner or args.start_heart:
+        agent_cfgs = env_cfg.game.agents if env_cfg.game.agents else [env_cfg.game.agent]
+        for agent_cfg in agent_cfgs:
+            if args.start_aligner:
+                agent_cfg.inventory.initial["aligner"] = 1
+            if args.start_heart:
+                agent_cfg.inventory.initial["heart"] = 1
+        if args.start_aligner:
+            print("[EVAL] Agents start with aligner gear")
+        if args.start_heart:
+            print("[EVAL] Agents start with heart")
+
+    if args.flat_map:
+        from mettagrid.mapgen.mapgen import MapGen
+        mb = env_cfg.game.map_builder
+        if isinstance(mb, MapGen.Config) and hasattr(mb.instance, 'hub'):
+            mb.instance.biome_weights = {"none": 1.0}
+            mb.instance.dungeon_weights = {"none": 1.0}
+            mb.instance.base_biome_config = {"cluster_prob": 0.0}
+            mb.instance.asteroid_mask = None
+            print("[EVAL] Flat map (no biomes/dungeons)")
+
     policy_class = "cogames.policy.tutorial_policy.TutorialPolicy"
     checkpoint = str(Path(args.checkpoint).resolve())
 
@@ -86,7 +111,10 @@ def main():
 
         jh = totals.get("aligned.junction.held", 0)
         jg = totals.get("aligned.junction.gained", 0)
-        print(f"Episode {ep} (seed={seed}): avg_reward={avg_r:.4f} steps={result.steps} junction.gained={jg:.0f} junction.held={jh:.0f}")
+        ja = totals.get("junction.aligned_by_agent", 0)
+        hg = totals.get("heart.gained", 0)
+        ag = totals.get("aligner.gained", 0)
+        print(f"Episode {ep} (seed={seed}): avg_reward={avg_r:.4f} steps={result.steps} junc_aligned={ja:.0f} junction.held={jh:.0f} heart.gained={hg:.0f} aligner.gained={ag:.0f}")
 
     avg_all = sum(results_list) / len(results_list)
     peak = max(results_list)

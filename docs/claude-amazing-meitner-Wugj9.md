@@ -256,10 +256,47 @@ Next step: Phase 2b — remove start-gear to teach gear acquisition pipeline.
 - Zero junction alignment after 25 epochs — can't get both gear pieces consistently
 - Killed in favor of more gradual approaches
 
-### Current: standard longep (competition map, natural terrain, 2000-step episodes)
+### Standard longep — FAILED (39 epochs, zero alignment)
 - From flat_v2 e80, directly on standard competition map (no simplifications)
-- 2000-step episodes give time for exploration
-- Entropy 0.08→0.02/80%, boost_aligner=5.0
-- Early signs: heart.gained=0.5, aligner.gained=0.25 at epoch 2
-- Expected to take 30-50 epochs (matching previous session's longep timeline)
-- Training ongoing at ~140 SPS (2 min/epoch)
+- 2000-step episodes, ent 0.08→0.02/80%, boost_aligner=5.0
+- Zero junction alignment after 39 epochs. Entropy collapsed to 1.31.
+- Root cause: model trained on flat terrain can't navigate natural terrain to find gear/junctions
+
+## 2026-05-17 20:40 UTC: BREAKTHROUGH — Natural terrain with gear from flat_v2
+
+### compmap_natural_gear (natural terrain + start-gear, 2000-step, from flat_v2 e115)
+**Config**: cogsguard_machina_1.basic, natural terrain, max_dist=6, start-aligner, start-heart,
+clip_coef=0.1, ent 0.08→0.02/80%, boost-aligner=5.0, boost-heart=2.0, explore-weight=0.001
+
+**Junction alignment trajectory (held per epoch):**
+| Epoch | held | entropy |
+|-------|------|---------|
+| 1 | 0 | - |
+| 2 | 0 | 1.36 |
+| 3 | 254 | 1.24 |
+| 4 | 190 | 1.15 |
+| 5 | 519 | 1.10 |
+| 6 | 1811 | 1.08 |
+| 7-8 | 319-1533 | 1.07-1.10 |
+| 10 | 1269 | 1.17 |
+| 15 | 2605 | 1.30 |
+
+**FIRST sustained junction alignment on NATURAL terrain competition map!**
+- Entropy recovered from 1.07 to 1.40 then dropped to 0.92 before recovering again
+- Training ran 38 epochs before container restart killed the process
+- All checkpoints lost in restart
+
+### Key findings from this session:
+1. **Graduated terrain transfer works**: flat_v2 (flat+gear) → natural+gear transitions smoothly
+2. **Entropy 0.08→0.02/80% prevents collapse** through terrain adaptation
+3. **Aligner station is IN the hub** (4 cells from center) — not scattered on map
+4. **The pipeline**: arena flat→compmap flat→compmap natural→remove gear
+5. **Arena natural from minimal_p1 FAILS** — weak model can't adapt to terrain
+
+## 2026-05-18 — Container restart, all checkpoints lost
+
+Restarting full pipeline from scratch with proven recipe:
+1. Phase 1: minimal_align on arena (flat, start-gear, 2000-step, clip_coef=0.1)
+2. Phase 2a: competition map + flat + start-gear
+3. Phase 2b: competition map + natural terrain + start-gear
+4. Phase 2c: remove gear, full competition
