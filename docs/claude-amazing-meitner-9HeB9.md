@@ -305,3 +305,37 @@ Sprint e160 is the OVERALL BEST model across step counts, trained with 500-step 
 3. **To improve further**: Run more midep_compmap variants with different entropy schedules; try clipping coefficient 0.1 instead of 0.2
 4. **Fix auth**: Get new Softmax token to submit to tournament
 5. **Training pipeline**: longep (arena, 2000-step) → sprint (compmap, 500-step) → midep (compmap, 1000-step)
+
+## 2026-05-17 09:10 UTC: Extended evaluation + new experiments
+
+### midep_compmap e50 extended evaluation
+| Steps | Avg | Peak | Notes |
+|-------|-----|------|-------|
+| 2000 | 0.234 | 0.245 | Solid but below longep models (shorter-horizon optimized) |
+| 10000 | 1.012 | 1.012 | Competition length baseline |
+
+### Tournament auth status
+- Token works for reads (seasons endpoint) but 401 on submit endpoint
+- `X-Auth-Token` header confirmed as correct mechanism
+- Submit endpoint: `https://api.observatory.softmax-research.net/stats/policies/submit/presigned-url`
+- Needs proper OAuth flow (not possible in headless container)
+
+### New experiments launched
+1. **midep_tightclip** (running): clip_coef=0.1 (vs default 0.2), same warm-start from sprint_compmap e160
+   - Hypothesis: Tighter clipping → more conservative updates → delayed entropy collapse → wider useful training window
+   - If successful, peak quality may extend beyond epoch 50
+2. **midep_highent** (planned after tightclip): ent_start=0.06→0.015 over 60% (vs 0.04→0.01 over 50%)
+   - Hypothesis: Higher entropy floor keeps exploration alive longer
+
+### Tightclip early results (e20-e30)
+| Epoch | @500 avg | @500 peak | @1000 avg | @1000 peak |
+|-------|---------|----------|----------|-----------|
+| e20 | 0.078 | 0.118 | 0.120 | 0.157 |
+| e25 | 0.086 | 0.121 | 0.106 | 0.109 |
+| e30 | 0.072 | 0.101 | 0.176 | 0.250 |
+
+**Key observation**: Tightclip converges faster than original midep at 500 steps:
+- tightclip e20 @500 avg=0.078 vs midep e20 @500 avg=0.050
+- Tightclip shows useful signal from e20 whereas midep needed e50
+- If tightclip maintains quality through e50-80, it could be the new best approach
+- Entropy at e28: 1.19 (healthy, 74% of max)
