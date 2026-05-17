@@ -510,4 +510,22 @@ Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000
 | tightclip e65 | **0.108** | 0.101 | **0.031** | 0.090-0.125 |
 | p2e15 | 0.105 | 0.102 | 0.043 | 0.070-0.135 |
 
-Performance ceiling ~0.105-0.108 avg @500 steps appears to be architecture limit.
+Performance ceiling ~0.105-0.112 avg @500 steps is architecture limit.
+
+### Additional experiments (all at ceiling or below)
+- **mixdist** (min_dist=3, max_dist=10): 10-ep reliable avg=0.092 @500 — added variance hurts
+- **withclips** (clips ships present): 15-ep reliable avg=0.112 @500 at e10, then declining
+- **p2_explore** (cell.visited reward): entropy collapsed to 0.88, avg=0.061
+- **p2_lowlr** (lr=0.0003): avg=0.107 — same ceiling, slower learning
+
+### Final recommendation
+**Best submission config**: tightclip e65 + temp=0.7
+- Checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000065.pt`
+- 20-ep reliable: avg=0.108, median=0.101, std=0.031
+- Applied: temp=0.7 in TutorialAgentPolicy.step_with_state()
+
+**To break the ceiling** (future work):
+1. Larger network: add 3rd conv layer, wider channels (128→256)
+2. Larger observation window (15×15 vs 13×13)
+3. Start from scratch with new architecture + clip_coef=0.1
+4. Curriculum on map size (smaller maps → faster learning)
