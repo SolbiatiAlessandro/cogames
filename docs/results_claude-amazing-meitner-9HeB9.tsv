@@ -136,3 +136,9 @@ tightclip_e80	0.672200	aligned.junction.held=~5000	5000	keep	Tightclip e80 avg @
 goalobs_e10	0.078700	aligned.junction.held=~430	500	discard	Goal-obs e10 avg @500 - entropy still recovering (1.32), not competitive
 goalobs_e10	0.650400	aligned.junction.held=~4800	5000	keep	Goal-obs e10 avg @5000 (4-ep) - surprisingly competitive at long episodes
 tightclip_e80	1.042700	aligned.junction.held=~7500	10000	keep	Tightclip e80 avg @10000 (3-ep definitive, temp=0.7, peak=1.119) - COMPETITION READY
+fresh_tc_e20	0.050000	aligned.junction.held=~270	500	discard	Fresh_tc e20 @500 (10-ep, temp=0.7) - not converged yet
+fresh_tc_e20	0.104400	aligned.junction.held=~760	1000	discard	Fresh_tc e20 @1000 (5-ep, temp=0.7)
+fresh_tc_e30	0.057700	aligned.junction.held=~315	500	discard	Fresh_tc e30 @500 (10-ep, temp=0.7) - improving slowly
+fresh_tc_e30	0.150500	aligned.junction.held=~1100	1000	keep	Fresh_tc e30 @1000 (5-ep, temp=0.7) - decent 1K performance
+goalobs_e10	1.044600	aligned.junction.held=~7500	10000	keep	Goal-obs e10 avg @10000 (3-ep, temp=0.7, peak=1.109) - matches tightclip at competition length
+p2lr_e20	1.123900	aligned.junction.held=~8100	10000	keep	P2lr e20 avg @10000 (3-ep, temp=0.7, peak=1.285) - NEW BEST at competition length!

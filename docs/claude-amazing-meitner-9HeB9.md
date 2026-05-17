@@ -612,4 +612,39 @@ The actual competition uses **10,000 steps** (not 500). This changes everything:
 | 5000 | 0.672 | 0.978 | Near-perfect |
 | **10000** | **1.043** | **1.119** | **COMPETITION READY** |
 
-Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000080.pt`
+Best checkpoint for short episodes: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000080.pt`
+
+## 2026-05-17 17:15 UTC: Cross-model 10K comparison — P2lr_e20 is BEST for competition
+
+Evaluated all promising models at actual competition length (10,000 steps):
+
+| Model | 10K avg | 10K peak | 500 avg | 1000 avg | Training |
+|-------|---------|----------|---------|----------|----------|
+| **p2lr_e20** | **1.124** | **1.285** | 0.109 | 0.356 | Phase 2 max_dist=10, 4M steps |
+| goalobs_e10 | 1.045 | 1.109 | 0.079 | 0.205 | Phase 2 with goal_obs |
+| tightclip_e80 | 1.043 | 1.119 | **0.123** | **0.375** | Phase 1 clip_coef=0.1 |
+
+**Key insight**: Phase 2 training (max_dist=10) matters for competition! While tightclip_e80 is best
+at short episodes (500-1000 steps), **p2lr_e20 wins at competition length (10K)** by 8%.
+
+This makes intuitive sense: Phase 2 trains with junctions 10 tiles away (vs 6 in Phase 1), teaching
+the agent to navigate further. At 10K steps, the agent has time to reach distant junctions, so the
+Phase 2 navigation skill pays off.
+
+**Fresh_tc (from-scratch training with clip_coef=0.1) progress:**
+| Checkpoint | @500 avg | @1000 avg |
+|-----------|---------|----------|
+| e10 | 0.052 | 0.109 |
+| e20 | 0.050 | 0.104 |
+| e30 | 0.058 | 0.151 |
+
+Fresh_tc needs ~60+ more epochs to converge (following original tightclip pattern).
+
+**Best checkpoint for competition (10K steps)**: `train_dir_curriculum_p2_p2_longrun/177902249993/model_000020.pt`
+**Best checkpoint for short episodes**: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000080.pt`
+
+**Active training:**
+- longep5k: 5000-step episodes from tightclip_e80 (just started)
+- fresh_tc: From-scratch training at epoch 30 (continuing)
+- p2_from_e80: Phase 2 from tightclip_e80 (early epochs)
+- goal-obs: Phase 2 with goal_obs (epoch 10)
