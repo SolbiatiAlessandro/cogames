@@ -64,3 +64,32 @@ Fix: Restarted training with 4 agents (matching previous session's successful co
 
 Config: Same tightclip config but --cogs 4 instead of 8.
 This matches the previous session's successful training pipeline.
+
+## 2026-05-17 18:00 UTC: CRITICAL — From-scratch competition map training TOTAL FAILURE
+
+Evaluated all 4-agent checkpoints (e40, e60, e80, e100, e105):
+- ALL produce 0.050 @500 steps (pure survival)
+- ALL produce 0.100 @1000 steps (pure survival)
+- ZERO junction alignment across 25+ episodes
+- Model learns hub interactions (heart withdrawal, aligner pickup) but never navigates to junctions
+
+Root cause: `patch_junction_distance(max_dist=6)` doesn't control junction PLACEMENT on competition
+maps. The `EnsureHubReachableJunctionConfig` only guarantees at least one junction reachable
+within max_distance, but the main junction distribution (Poisson across 88×88 map) still scatters
+junctions far from hub. The reward signal for junction alignment is too sparse for random
+exploration to discover.
+
+Previous sessions' success came from the arena-first pipeline:
+1. Train on arena (where close junctions ARE the only junctions) — agent learns alignment
+2. Warm-start on competition map — agent already knows alignment, just adapts navigation
+
+## 2026-05-17 18:05 UTC: Started Phase 1 arena training
+
+Pivoting to arena-first approach. Config:
+- mission: cogsguard_arena.basic (NOT competition map)
+- max_dist=6, clip_coef=0.1, ent 0.04→0.01, boost_aligner=5.0
+- 1000-step episodes, 4 cogs, 16 envs
+- 4M steps total, checkpoint every 5 epochs
+- Patching confirmed working: "Patched MachinaArena.get_children max_distance to 6"
+
+Plan: Train arena to ~e60-80, eval, then warm-start Phase 2 on competition map.
