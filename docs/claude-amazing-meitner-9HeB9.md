@@ -862,3 +862,53 @@ Looking across ALL experiments, the same pattern repeats:
 | 1.5 | 1.091 | 0.115 | 1.253 | 1.018 |
 
 5-ep validation at temp=0.8: avg=1.281, median=1.065 — inflated by 2.134 outlier. **temp=0.7 is optimal** (avg=1.394, median=1.383).
+
+## 2026-05-17 20:30 UTC: Session 4 — Completing epoch sweeps and new experiments
+
+### tc_longep3k full epoch sweep (clip=0.1, 3000-step eps, 3-ep @10K, temp=0.7)
+
+| Epoch | Avg | Std | Peak | Median |
+|-------|-----|-----|------|--------|
+| e5 | 1.225 | — | 1.468 | — |
+| e10 | 1.109 | — | 1.284 | — |
+| e15 | 1.194 | 0.150 | 1.365 | 1.217 |
+| e20 | 1.248 | 0.161 | 1.438 | 1.262 |
+| e25 | 1.161 | 0.183 | 1.417 | 1.066 |
+| **e30** | **1.300** | **0.252** | **1.636** | **1.236** |
+| e40 | 1.123 | 0.110 | 1.270 | 1.097 |
+| e50 | 1.091 | 0.067 | 1.158 | 1.115 |
+| e60 | 1.003 | 0.004 | 1.009 | 1.000 |
+| e65 | 1.215 | 0.166 | 1.414 | 1.223 |
+
+**Finding**: Tighter clip (0.1) peaks later (e30 vs e20) but lower (1.300 vs 1.394). Anomalous e60 collapse with e65 recovery suggests instability. High variance throughout (std 0.25 at peak). Does NOT beat longep3k_e20.
+
+### longep3k full epoch curve (clip=0.2, 3000-step eps, 3-ep @10K, temp=0.7)
+
+| Epoch | Avg | Peak |
+|-------|-----|------|
+| e20 | **1.394** (5-ep validated) | **1.713** |
+| e25 | 1.061 | 1.115 |
+| e30 | 1.153 | 1.303 |
+| e35 | 1.052 | 1.084 |
+| e40 | 1.108 | 1.249 |
+| e45 | 1.033 | 1.099 |
+| e50 | 1.022 | 1.066 |
+
+**Finding**: Extremely sharp peak at e20 — drops 24% to e25. Oscillates slightly (e30, e40 small recoveries) but overall monotonic decline to near-baseline by e50. The 3000-step episode training window is very narrow with clip=0.2.
+
+### Early checkpoints for alternative base experiments
+
+| Model | Avg @10K |
+|-------|----------|
+| slowent_e5 | 1.020 |
+| from_tc80_e5 | 1.017 |
+
+Both still warming up — too early to judge.
+
+### New experiments launched (Session 4)
+
+1. **longep3k_bptt128**: BPTT horizon 128 + GAE lambda 0.95 (from p2lr_e20 base). Hypothesis: longer BPTT improves credit assignment for navigation on 88×88 map.
+2. **longep3k_finetune**: Fine-tune from longep3k_e20 (our best) with LR=0.0005 and lower entropy (0.02→0.005). Hypothesis: lower LR can extract more from the best checkpoint.
+3. **longep4k**: 4000-step episodes (between 3000 sweet spot and 5000 collapse). Hypothesis: 4000 steps may extend the training signal without collapsing.
+
+Code changes: Added COGAMES_BPTT_HORIZON and COGAMES_GAE_LAMBDA environment variable support to train.py.

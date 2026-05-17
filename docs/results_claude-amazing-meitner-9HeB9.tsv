@@ -179,3 +179,19 @@ longep5k_e10	1.000000	aligned.junction.held=0	10000	discard	5000-step episodes e
 tc_longep3k_e05	1.225100	aligned.junction.held=~10000	10000	keep	Tightclip longep3k e05 @10K (3-ep, peak=1.468) - strong start
 tc_longep3k_e10	1.109100	aligned.junction.held=~8500	10000	keep	Tightclip longep3k e10 @10K (3-ep, peak=1.284) - declining from e05
 longep3k_e20_t08	1.281040	aligned.junction.held=~11000	10000	keep	longep3k_e20 temp=0.8 VALIDATED @10K (5-ep, peak=2.134, std=0.427, median=1.065) - outlier-inflated, temp=0.7 better
+tc_longep3k_e15	1.193967	aligned.junction.held=~9500	10000	discard	tc_longep3k e15 @10K (3-ep, peak=1.365) - good but below longep3k_e20
+tc_longep3k_e20	1.248267	aligned.junction.held=~10500	10000	discard	tc_longep3k e20 @10K (3-ep, peak=1.438) - improving
+tc_longep3k_e25	1.160900	aligned.junction.held=~9000	10000	discard	tc_longep3k e25 @10K (3-ep, peak=1.417) - declined
+tc_longep3k_e30	1.299833	aligned.junction.held=~11000	10000	keep	tc_longep3k e30 @10K (3-ep, peak=1.636) - PEAK of tightclip variant
+tc_longep3k_e40	1.123433	aligned.junction.held=~8500	10000	discard	tc_longep3k e40 @10K (3-ep, peak=1.270) - declining
+tc_longep3k_e50	1.091000	aligned.junction.held=~7500	10000	discard	tc_longep3k e50 @10K (3-ep, peak=1.158) - continuing decline
+tc_longep3k_e60	1.003000	aligned.junction.held=~300	10000	discard	tc_longep3k e60 @10K (3-ep, peak=1.009) - COLLAPSED
+tc_longep3k_e65	1.214667	aligned.junction.held=~9500	10000	discard	tc_longep3k e65 @10K (3-ep, peak=1.414) - anomalous recovery
+longep3k_e25_v2	1.060500	aligned.junction.held=~5000	10000	discard	longep3k e25 @10K (3-ep, peak=1.115) - confirmed sharp drop from e20
+longep3k_e30_v2	1.153133	aligned.junction.held=~8000	10000	discard	longep3k e30 @10K (3-ep, peak=1.303) - brief recovery
+longep3k_e35_v2	1.051900	aligned.junction.held=~4000	10000	discard	longep3k e35 @10K (3-ep, peak=1.084) - declining
+longep3k_e40_v2	1.107967	aligned.junction.held=~8000	10000	discard	longep3k e40 @10K (3-ep, peak=1.249) - fluctuating
+longep3k_e45	1.032833	aligned.junction.held=~3000	10000	discard	longep3k e45 @10K (3-ep, peak=1.099) - near baseline
+longep3k_e50	1.022100	aligned.junction.held=~2000	10000	discard	longep3k e50 @10K (3-ep, peak=1.066) - effectively dead
+slowent_e5	1.019500	aligned.junction.held=~1500	10000	discard	Slow entropy e5 @10K (3-ep) - too early, warming up
+from_tc80_e5	1.017100	aligned.junction.held=~1300	10000	discard	From tc80 e5 @10K (3-ep) - too early, warming up

@@ -242,7 +242,8 @@ def train(
     env_name = "cogames.cogs_vs_clips"
 
     learning_rate = float(os.environ.get("COGAMES_LR", "0.00092"))
-    bptt_horizon = 64 if use_rnn else 1
+    default_bptt = 64 if use_rnn else 1
+    bptt_horizon = int(os.environ.get("COGAMES_BPTT_HORIZON", str(default_bptt)))
     optimizer = "adam"
     adam_eps = 1e-8
 
@@ -297,8 +298,8 @@ def train(
         anneal_lr=True,
         precision="float32",
         learning_rate=learning_rate,
-        gamma=0.995,
-        gae_lambda=0.90,
+        gamma=float(os.environ.get("COGAMES_GAMMA", "0.995")),
+        gae_lambda=float(os.environ.get("COGAMES_GAE_LAMBDA", "0.90")),
         update_epochs=1,
         clip_coef=float(os.environ.get("COGAMES_CLIP_COEF", "0.2")),
         vf_coef=2.0,
