@@ -152,3 +152,4 @@ withclips_e15	1.026400	aligned.junction.held=~7400	10000	keep	Withclips e15 avg 
 withclips_e20	1.104300	aligned.junction.held=~7900	10000	keep	Withclips e20 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.187) - secondary peak
 withclips_e25	1.005300	aligned.junction.held=~7200	10000	discard	Withclips e25 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.016) - nearly base alive reward
 withclips_e30	1.106300	aligned.junction.held=~8000	10000	keep	Withclips e30 avg @10000 (3-ep, seed=2600, temp=0.7, peak=1.307) - late recovery
+withclips_e10	1.052600	aligned.junction.held=~7600	10000	keep	Withclips e10 VALIDATED avg @10000 (5-ep, seed=3000, temp=0.7, peak=1.096, std=0.025) - initial 1.371 was seed-inflated

@@ -695,3 +695,23 @@ Note: withclips_e10's 1.957 peak may be inflated by lucky seed 2501. Running 5-e
 **Best checkpoint for competition (10K steps)**: `train_dir_curriculum_p2_p2_withclips/177902508005/model_000010.pt`
 
 **New training launched:** withclips_e80 — same recipe (Phase 2, clip_coef=0.2, max_dist=10) but from tightclip_e80 (which is better at 500 steps). Expecting further gains.
+
+## 2026-05-17 17:30 UTC: IMPORTANT — Withclips_e10 validated at 1.053, not 1.371
+
+The initial 3-episode eval (seed=2500) produced avg=1.371 because seed 2501 generated a "jackpot" map layout yielding 1.957. A 5-episode validation (seed=3000, temp=0.7) gives the true average: **1.053 ± 0.025**.
+
+### Temperature sweep for withclips_e10 at 10K
+
+| Temp | Avg | Std | Peak | Median |
+|------|-----|-----|------|--------|
+| 0.5 | 1.103 | 0.143 | 1.306 | 1.004 |
+| 0.6 | 1.139 | 0.143 | 1.335 | 1.081 |
+| **0.7 (5-ep)** | **1.053** | **0.025** | **1.096** | **1.038** |
+| 0.8 | 1.048 | 0.054 | 1.124 | 1.016 |
+| 1.0 | 1.332 | 0.433 | 1.943 | 1.051 |
+
+**Key insight**: Seed 3101 (= seed+1 for all bases) consistently produces 1.3-1.9+ scores regardless of temperature. Map layout variance dominates model/temperature differences at 10K steps. The median across all temps on non-outlier seeds is ~1.0-1.05.
+
+This means all our models (withclips_e10, p2lr_e20, tightclip_e80) are performing similarly at ~1.05 avg, and the apparent superiority of certain models in initial evals was driven by lucky seed sampling.
+
+Running head-to-head 5-episode validation of p2lr_e20 and tightclip_e80 on the SAME seeds (3000-3004) for a fair comparison.
