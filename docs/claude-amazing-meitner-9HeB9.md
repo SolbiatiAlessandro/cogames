@@ -194,3 +194,41 @@ Longer episodes give agents more time to reach distant junctions within each rol
 2. **To hit 0.18 at 500 steps**: Try training directly with 500-step evaluation loops but 2000-step episodes for learning, or hierarchical navigation
 3. **Best warm-start available**: `longep epoch 45` in `train_dir_curriculum_p1_longep/177899846325/model_000045.pt`
 4. **Don't bother with**: 1000-step episodes (entropy collapses), flat-map (no transfer), goal_obs (breaks warm-start)
+
+## 2026-05-17 07:30 UTC: Additional experiments
+
+### Phase 3 (max_distance=15, 2000-step) from longep e45
+- 340 epochs (1.37M steps) on arena map
+- **Result**: 0.050 @500, 0.100 @1000 — WORSE than input checkpoint
+- Full-distance training is counterproductive for 500/1000-step eval (agents learn to wander far)
+
+### Sprint 500 on arena (max_distance=4, 500-step episodes) from longep e45
+- 60 epochs on arena map (cogsguard_arena.basic)
+- **Result**: 0.054 peak @500 — arena training does NOT transfer to competition map
+- Confirms arena→compmap transfer failure
+
+### Sprint 500 on competition map (max_distance=6, 500-step episodes) from longep e45
+**Config**: cogsguard_machina_1.basic, 8 cogs, 16 envs, max_steps=500, ent annealing 0.06→0.02/80%
+
+| Checkpoint | 500 steps avg | 500 steps peak |
+|-----------|--------------|----------------|
+| e10 | 0.061 | 0.081 |
+| e20 | 0.050 | 0.050 |
+| e30 | 0.050 | 0.050 |
+| e50 | 0.050 | 0.050 |
+| e80 | 0.052 | 0.058 |
+| e100 | 0.061 | 0.078 |
+| e130 | 0.066 | 0.125 |
+| **e160** | **0.078** | **0.133** |
+| e190 | 0.071 | 0.130 |
+
+**Key finding**: U-curve pattern! Model degrades at e20-e50 (forgetting arena behavior) then recovers at e80+ as it relearns on competition map. Peak at e160: **0.078 avg / 0.133 peak** — NEW BEST at 500 steps!
+
+### 10K evaluation of longep e45
+- Episode 0: 1.1242/agent (higher than previous best 1.058)
+- Remaining episodes interrupted by resource reallocation
+
+### Longep on competition map (max_distance=6, 2000-step episodes, 8 cogs) — IN PROGRESS
+- Training on actual competition map with 2000-step episodes
+- Currently at ~33% (1.3M of 4M steps)
+- Early results: e50 baseline (0.050/0.100) — still in adaptation phase

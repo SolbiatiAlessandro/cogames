@@ -21,3 +21,8 @@ fd532db	1.174300	aligned.junction.held=~1740	10000	keep	compmap_fast e30 PEAK ep
 2aaa3cc	0.273300	aligned.junction.held=~1800	1000	keep	LONGEP e45 PEAK at 1000 steps - 44% above previous best, EXCEEDS scripted
 2aaa3cc	0.330900	aligned.junction.held=~2700	2000	keep	LONGEP e45 avg at 2000 steps - 14% above compmap_v1 e20
 2aaa3cc	0.567800	aligned.junction.held=~4500	2000	keep	LONGEP e45 PEAK at 2000 steps - ALL-TIME BEST, 3.2x scripted baseline!
+cc35f18	0.050000	aligned.junction.held=0	500	discard	Phase 3 (max_dist=15 2000-step) from longep e45 - counterproductive for short eval
+cc35f18	0.050000	aligned.junction.held=0	500	discard	Sprint arena (max_dist=4 500-step) - arena does NOT transfer to compmap
+cc35f18	0.077600	aligned.junction.held=~400	500	keep	Sprint compmap e160 avg at 500 steps - NEW BEST avg via U-curve recovery
+cc35f18	0.133100	aligned.junction.held=~750	500	keep	Sprint compmap e160 PEAK at 500 steps - NEW ALL-TIME BEST at 500 steps!
+cc35f18	1.124200	aligned.junction.held=~1200	10000	keep	LONGEP e45 at 10000 steps (1 episode) - higher than compmap_fast e30
