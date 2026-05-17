@@ -66,3 +66,7 @@ tightclip	0.098600	aligned.junction.held=~550	500	keep	Tightclip e75 avg @500 - 
 tightclip	0.324000	aligned.junction.held=~2300	1000	keep	Tightclip e75 avg @1000
 tightclip	0.094400	aligned.junction.held=~520	500	keep	Tightclip e80 avg @500 - slight decline but entropy still 1.29
 tightclip	0.242300	aligned.junction.held=~1700	1000	keep	Tightclip e80 avg @1000
+tightclip	0.096100	aligned.junction.held=~530	500	keep	Tightclip e65 avg @500 (10-ep reliable) - consistent best
+tightclip	0.511000	aligned.junction.held=~3800	2000	keep	Tightclip e65 avg @2000 - EXCELLENT
+tightclip	0.954400	aligned.junction.held=~7500	2000	keep	Tightclip e65 PEAK @2000 - near perfect! ALL-TIME BEST 2000-step!
+tightclip	1.000000	aligned.junction.held=~1200	10000	keep	Tightclip e65 @10000 (1 ep) - competition length
