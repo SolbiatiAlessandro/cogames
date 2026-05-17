@@ -1,0 +1,9 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+baseline	0.050000	aligned.junction.held=0	500	keep	Flat-map Phase 1 checkpoints (epochs 60-110) on standard competition map - no transfer
+baseline	0.050000	aligned.junction.held=0	500	keep	Phase 2a (max_dist=10 natural) epoch 20 on standard competition map
+baseline	0.057900	aligned.junction.held=~238	500	keep	Phase 2b compmap_v1 (max_dist=6 natural ent_anneal) epoch 20 - slight improvement
+baseline	0.060000	aligned.junction.held=~300	500	keep	Phase 2c compmap_fast (max_dist=6 natural 500-step) epoch 30 - BEST at 500 steps
+baseline	0.134900	aligned.junction.held=~700	1000	keep	compmap_fast epoch 30 at 1000 steps - approaching scripted baseline
+baseline	0.189700	aligned.junction.held=~900	1000	keep	compmap_fast epoch 30 peak episode at 1000 steps - MATCHES scripted baseline!
+baseline	0.291000	aligned.junction.held=~2400	2000	keep	compmap_v1 epoch 20 at 2000 steps - 1.5x scripted baseline
+baseline	0.374300	aligned.junction.held=~3000	2000	keep	compmap_v1 epoch 20 peak episode at 2000 steps - 2x scripted baseline!
