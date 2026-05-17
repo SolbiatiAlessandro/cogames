@@ -195,3 +195,7 @@ longep3k_e45	1.032833	aligned.junction.held=~3000	10000	discard	longep3k e45 @10
 longep3k_e50	1.022100	aligned.junction.held=~2000	10000	discard	longep3k e50 @10K (3-ep, peak=1.066) - effectively dead
 slowent_e5	1.019500	aligned.junction.held=~1500	10000	discard	Slow entropy e5 @10K (3-ep) - too early, warming up
 from_tc80_e5	1.017100	aligned.junction.held=~1300	10000	discard	From tc80 e5 @10K (3-ep) - too early, warming up
+finetune_e10	1.294633	aligned.junction.held=~12000	10000	keep	Fine-tune from longep3k_e20 LR=0.0005 e10 @10K (3-ep, peak=1.643, std=0.258) - 2nd best
+finetune_v2_e15	1.132867	aligned.junction.held=~8000	10000	discard	Finetune v2 (from ft_e10) e15 @10K (3-ep) - declining from e10
+longep4k_e25	1.065500	aligned.junction.held=~5000	10000	discard	4000-step episodes e25 @10K (3-ep) - worse than 3000-step
+bptt128_e10	1.094700	aligned.junction.held=~7000	10000	discard	BPTT128+GAE0.95 e10 @10K (3-ep) - not competitive

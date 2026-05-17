@@ -22,6 +22,9 @@ def _find_repo_compat_version() -> str | None:
 
 
 def _get_installed_compat() -> str | None:
+    repo_compat = _find_repo_compat_version()
+    if repo_compat is not None:
+        return repo_compat
     raw = importlib.metadata.version("cogames")
     try:
         v = Version(raw)

@@ -912,3 +912,38 @@ Both still warming up — too early to judge.
 3. **longep4k**: 4000-step episodes (between 3000 sweet spot and 5000 collapse). Hypothesis: 4000 steps may extend the training signal without collapsing.
 
 Code changes: Added COGAMES_BPTT_HORIZON and COGAMES_GAE_LAMBDA environment variable support to train.py.
+
+## 2026-05-17 23:35 UTC: Session 4b — Comprehensive hyperparameter sweep results
+
+### Validated 3-ep+ results (all @10K, temp=0.7)
+
+| Model | Avg | Peak | Note |
+|-------|-----|------|------|
+| **longep3k_e20** | **1.394** | **1.713** | **BEST (5-ep validated)** |
+| tc_longep3k_e30 | 1.300 | 1.636 | clip=0.1, peaks later |
+| finetune_e10 | 1.295 | 1.643 | from longep3k_e20, LR=0.0005 |
+| 32envs_e15 | 1.248 | 1.454 | 32 envs, peak at e15 |
+| highgamma_e55 | 1.114 | 1.219 | gamma=0.998, peaks late |
+| highgamma_e50 | 1.100 | 1.283 | gamma=0.998 |
+| bptt128_e10 | 1.095 | 1.248 | BPTT=128, GAE=0.95 |
+| longep4k_e25 | 1.066 | 1.197 | 4000-step, too long |
+
+### Key conclusions from hyperparameter sweep
+
+1. **Episode length (3000) is THE key hyperparameter** — nothing else moves the needle comparably
+2. **The peak at e20 with standard LR/clip is extremely fragile** — drops 24% by e25
+3. **Lower LR doesn't help** — peaks later but lower (max ~1.23)
+4. **Higher gamma (0.998) doesn't help** — erratic results, max ~1.11 on 3-ep
+5. **BPTT 128 doesn't help** — extra computation without benefit
+6. **32 envs provides modest improvement** — 1.248 avg at e15, potentially useful for stability
+7. **Fine-tuning from peak destroys it** — even with LR=0.0005
+8. **Tighter clip (0.1) peaks later (e30) but lower (1.300)**
+9. **boost_aligner=10 collapses** — 7.0 being tested
+10. **1-episode evaluations are extremely unreliable** — highgamma_e50 scored 1.65 on 1-ep but only 1.10 on 3-ep
+
+### Experiments still running
+
+- **longep3k_combined**: lowlr + highgamma + slow entropy (5M steps)
+- **longep3k_boost7**: boost_aligner=7.0
+- **longep3k_32envs_v2**: 32 envs (restarted)
+- **longep3k_seed123**: Exact same config as original longep3k but seed=123 (reproducibility test)
