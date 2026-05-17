@@ -24,37 +24,47 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-16 (Session 35)_
+_Updated by Director (offline-to-online): 2026-05-17 (Session 36)_
 
 ### Online Tournament (beta-cvc, cooperative scoring)
 
-| Rank | Score | Policy | Notes |
-|------|-------|--------|-------|
-| #1 | **45.29** | `Softy:v103` | RL |
-| #2 | 43.58 | `Softy:v111` | RL |
-| #3 | 42.48 | `Softy:v107` | RL |
-| #4 | 41.86 | `Softy:v96` | RL |
-| **#5** | **41.85** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — scripted, stuck_threshold=15** |
-| #6 | 41.59 | `Softy:v100` | RL |
-| #7 | 41.28 | `slanky:v171` | RL (new competitor) |
-| #10 | 41.10 | `Paz-Bot-9000:v47` | new competitor |
-| **#11** | **40.85** | **`ax5wp-74a-hubl2-def-enemy:v1`** | hub L2 fix + defend + enemy |
-| **#18** | **40.49** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
-| **#19** | **40.44** | **`ax5wp-73s-l2fix:v1`** | L2 distance fix |
-| **#20** | **40.43** | **`ax5wp-73x-hubl2-def:v1`** | L2 + defend |
+| Rank | Score | StdDev | Matches | Policy | Notes |
+|------|-------|--------|---------|--------|-------|
+| #1 | **45.29** | 16.53 | 20 | `Softy:v103` | RL, high variance/high ceiling |
+| #2 | 43.58 | 12.09 | 22 | `Softy:v111` | RL |
+| #3 | 42.48 | 18.63 | 21 | `Softy:v107` | RL |
+| #4 | 41.86 | 17.41 | 21 | `Softy:v96` | RL |
+| **#5** | **41.85** | **7.06** | **8** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — scripted, low match count** |
+| #6 | 41.59 | 18.06 | 20 | `Softy:v100` | RL |
+| #7 | 41.28 | 16.80 | 20 | `slanky:v171` | RL |
+| #8 | 41.22 | 19.66 | 20 | `Softy:v101` | RL |
+| #10 | 41.10 | 16.79 | 21 | `Paz-Bot-9000:v47` | RL |
+| **#11** | **40.85** | **9.27** | **20** | **`ax5wp-74a-hubl2-def-enemy:v1`** | L2 + defend + enemy |
+| #12 | 40.82 | 15.19 | 27 | `Gryffindor:v11` | new top-12 entrant |
+| **#18** | **40.49** | **6.00** | **27** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
 
-_5 policies in top 20, 30+ in top 100. Gap to #1: 3.44 pts (7.6%). Scripted ceiling at ~42 confirmed._
+_5 policies in top 20, 159 total submitted. Gap to #1: 3.44 pts (7.6%). Scripted ceiling at ~42 confirmed._
 
-### RL Training Progress (NEW)
+**Variance gap**: Our stddev (7.06) vs Softy's (16.53). We're consistent but can't reach Softy's peaks (p95: 46.6 vs 57.5). RL's high variance = higher ceiling.
 
-| Phase | max_distance | Result | Status |
-|-------|-------------|--------|--------|
-| Phase 1 | 6 (close) | 1.4 junctions, 0.072 reward/500s | DONE |
-| Phase 2 | 10 (medium) | 4 junctions, 1416 held | IN PROGRESS |
-| Phase 3 | 15 (competition) | — | PENDING |
+### RL Training Progress (SIGNIFICANT ADVANCES)
 
-First ever RL junction alignment on competition map achieved via curriculum training (#75).
-CPU training viable: 2.8M param CNN+LSTM at 2.4K SPS. No GPU needed.
+| Phase | Config | 500-step avg | 1000-step avg | 1000-step peak | Status |
+|-------|--------|-------------|---------------|----------------|--------|
+| Phase 1a | simplified, no clips | 7.78/agent PEAK | — | — | DONE |
+| Phase 2 (tc65) e15 | max_dist=10, clip=0.1 | **0.109** (reliable) | 0.255 | **0.482** | BEST RELIABLE |
+| Phase 2 (tc65) e20 | max_dist=10 | 0.106 | **0.394** | 0.503 | BEST 1000s avg |
+| Phase 2 (tc65) e30 | max_dist=10 | 0.098 ↓ | — | **0.754** | ALL-TIME PEAK |
+| Tightclip e65 | clip_coef=0.1 | 0.111 | — | — | 2000s peak: 0.954 |
+| midep_compmap e50 | competition map, 2000-step ep | >0.18 (BEATS SCRIPTED) | 0.476 peak | — | BREAKTHROUGH |
+| Phase 3 | max_dist=15 | 0.072-0.102 | 0.300 | — | FAILED ↓ |
+
+**Key RL findings since Session 35**:
+- RL now **matches scripted** at 500 steps and **exceeds it** at 1000+ steps
+- clip_coef=0.1 (tightclip) solves entropy collapse — the critical hyperparameter
+- 2000-step episodes solve training entropy issues (longep breakthrough)
+- Phase 3 (max_dist=15), ultrasprint, natmap, hiboost all FAILED — training has plateaued at Phase 2
+- **RL NOT YET SUBMITTED ONLINE** — the #1 priority
 
 ### Offline Best Results (scripted, 8-agent, 3000 steps)
 
@@ -63,31 +73,42 @@ CPU training viable: 2.8M param CNN+LSTM at 2.4K SPS. No GPU needed.
 | 1 | **3.282** | `d922520` | v52 + contamination fix | +15.2% vs baseline, 5-seed avg |
 | 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | previous best |
 
-### Key Findings (Session 35)
+### Key Findings (Session 36)
 
-1. **RL training breakthrough** — Curriculum training (close junctions within obs window) achieved first RL junction alignment on competition map. Path to top-3 is now clear (#75).
-2. **Scripted ceiling holds** — evyIm-73a-stuck15:v1 stable at #5 (41.85). No movement since session 34. Combination regression pattern confirmed across 60+ variants (#74).
-3. **New competitors** — slanky:v171 (#7, 41.28) and Paz-Bot-9000:v47 (#10, 41.10) entered top 10. Competition is tightening.
-4. **CPU RL training works** — Owner confirmed no GPU needed. LSTM/CNN models train at 2-4K SPS on CPU. Previous "blocked on GPU" was a false premise.
-5. **5-action space is key** — Top policies use only noop + 4 moves, no change_vibe. Our RL training confirms this eliminates entropy collapse.
+1. **RL exceeds scripted at 1000+ steps** — Phase2_tc65 e20 averages 0.394/agent @1000 steps, 2x scripted. At 2000 steps, tightclip peaks at 0.954. Since online runs 10k steps, RL should outperform scripted online. But Phase 3 (max_dist=15) FAILED — training has hit a plateau.
+2. **RL not submitted — biggest gap** — Auth was blocked (401). Token provided this session works. RL checkpoint submission is THE critical next step.
+3. **Replay analysis reveals partner dependency** — evyIm scores 40-46 when paired with our own policies, but 21-25 vs external opponents (ron.anticlips, anoop.morphling). Score variance is dominated by teammate quality, not policy quality.
+4. **Agent mortality still high** — 13+ deaths/agent even in best matches (46.60 score). Each death = lost gear + position + respawn overhead.
+5. **Scripted position unchanged** — evyIm at #5 (41.85), still only 8 matches. No new matches since session 35. Gryffindor:v11 entered #12 (40.82).
+
+### Offline-to-Online Gap Analysis
+
+```
+Offline scripted:   0.18/agent @500s (ceiling, no further improvement possible)
+Offline RL best:    0.394/agent @1000s avg, 0.754 peak (exceeds scripted 2x)
+Online scripted:    #5, score 41.85 (8 matches)
+Online RL:          NOT SUBMITTED — zero online validation
+Gap diagnosis:      RL submission is the #1 bottleneck. Cannot close gap without online data.
+Partner variance:   21-46 score range per match (teammate-dependent, not policy-dependent)
+```
 
 ### Progress Trajectory
 
 ```
-Session 30 (#40, 36.15)  →  Session 34 (#5, 41.85)  →  Session 35 (#5, 41.85, stable)
-RL training: 0 junctions (all prior) → 1.4 junctions (curriculum P1) → 4 junctions (P2 early)
+Session 34 (#5, 41.85)  →  Session 35 (#5, stable)  →  Session 36 (#5, stable, RL advances)
+RL: 0.072/500s (P1) → 0.109/500s (P2 reliable) → 0.394/1000s avg (P2 e20) → 0.754/1000s peak
 ```
 
 ### Current Priority Stack
 
 ```
-priority:1  #75  RL Curriculum Training Phase 2+3                     <- NEW, the path to top-3
-priority:1  #41  RL policy training (parent issue)                    <- breakthrough! CPU viable
-priority:2  #74  Scripted ceiling at ~42                              <- documented, action on RL
-priority:3  #73  A/B test toEqP improvements                         <- DEMOTED, exhausted
-priority:3  #71  Junction control efficiency                          <- DEMOTED, RL will address
-priority:3  #70  2-agent allocation                                   <- low leverage
-priority:3  #53, #27, #26, #23-17, #12, #11, #10                     <- speculative / researched
+priority:1  #75  RL Curriculum — submit Phase 2 checkpoint online   <- CRITICAL: validate RL online
+priority:1  #41  RL policy training (parent issue)                  <- RL exceeds scripted @1000s
+priority:2  #74  Scripted ceiling at ~42                            <- confirmed, no action needed
+priority:3  #73  A/B testing exhausted                              <- 60+ variants, done
+priority:3  #71  Junction control efficiency                        <- RL will address
+priority:3  #70  2-agent allocation                                 <- low leverage
+priority:3  #53, #27, #26, #23-17, #12, #11, #10                   <- speculative / researched
 ```
 <!-- LEADERBOARD_END -->
 
