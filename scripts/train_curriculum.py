@@ -80,6 +80,7 @@ def main():
     parser.add_argument("--no-explore", action="store_true", help="Disable cell.visited reward entirely")
     parser.add_argument("--no-clips", action="store_true", help="Remove clips ships from map")
     parser.add_argument("--clip-coef", type=float, default=0.2, help="PPO clip coefficient")
+    parser.add_argument("--lr", type=float, default=0.00092, help="Learning rate")
     args = parser.parse_args()
 
     phase_config = {
@@ -198,6 +199,10 @@ def main():
     if args.clip_coef != 0.2:
         os.environ["COGAMES_CLIP_COEF"] = str(args.clip_coef)
         print(f"  PPO clip_coef: {args.clip_coef}")
+
+    if args.lr != 0.00092:
+        os.environ["COGAMES_LR"] = str(args.lr)
+        print(f"  Learning rate: {args.lr}")
 
     from mettagrid.policy.loader import resolve_policy_class_path
     class_path = resolve_policy_class_path("tutorial")

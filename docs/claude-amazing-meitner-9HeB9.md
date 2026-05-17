@@ -486,3 +486,28 @@ Applied temp=0.7 as default in TutorialAgentPolicy.step_with_state().
 | 1000 steps peak | phase2_tc65 e30 | 0.754 | 4.19x |
 
 Best checkpoint: `train_dir_curriculum_p1_midep_tightclip/177900909753/model_000065.pt`
+
+## 2026-05-17 13:00 UTC: Performance ceiling investigation
+
+### FAILED: p2_longrun (ent=0.05, 4M steps)
+- Higher entropy (0.05→0.01) from tightclip e65
+- e25 avg=0.111 (temp=0.7), then declining (e45 avg=0.065)
+
+### FAILED: p2_explore (cell.visited reward=0.5)
+- Entropy collapsed to 0.88, performance 0.061-0.075
+
+### FAILED: p2_lowlr (lr=0.0003)
+- e15 avg=0.107, same ceiling
+
+### Agent behavior diagnostic
+- Reward rate ACCELERATES: 0.005/50-steps early → 0.020/50-steps at step 400-450
+- 500-step cutoff catches agents mid-acceleration
+- Action distribution: 5% noop, 31% north, 19% south, 23% west, 22% east
+
+### Definitive 20-episode evaluation (temp=0.7 @500 steps)
+| Checkpoint | Avg | Median | Std | p25-p75 |
+|-----------|-----|--------|-----|---------|
+| tightclip e65 | **0.108** | 0.101 | **0.031** | 0.090-0.125 |
+| p2e15 | 0.105 | 0.102 | 0.043 | 0.070-0.135 |
+
+Performance ceiling ~0.105-0.108 avg @500 steps appears to be architecture limit.

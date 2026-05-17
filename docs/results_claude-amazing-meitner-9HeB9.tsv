@@ -111,3 +111,6 @@ temp	0.125000	aligned.junction.held=~700	500	keep	Tightclip e65 + temp=0.7 avg @
 temp	0.188000	aligned.junction.held=~1200	500	keep	Tightclip e65 + temp=0.7 PEAK @500 (10-ep) - EXCEEDS SCRIPTED!
 temp	0.115000	aligned.junction.held=~630	500	keep	Phase2 e15 + temp=0.8 avg @500 (10-ep) - best for p2e15
 temp	0.258000	aligned.junction.held=~1800	500	keep	Phase2 e15 + temp=0.6 PEAK @500 (10-ep) - highest peak ever
+p2_longrun	0.102700	aligned.junction.held=~560	500	keep	P2_longrun e10 avg @500 (temp=0.7)
+p2_longrun	0.111200	aligned.junction.held=~610	500	keep	P2_longrun e25 avg @500 (temp=0.7) - improving, matches parent
+p2_longrun	0.334500	aligned.junction.held=~2400	1000	keep	P2_longrun e25 avg @1000 (temp=0.7)
