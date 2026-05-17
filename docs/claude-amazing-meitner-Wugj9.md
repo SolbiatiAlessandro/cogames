@@ -300,3 +300,43 @@ Restarting full pipeline from scratch with proven recipe:
 2. Phase 2a: competition map + flat + start-gear
 3. Phase 2b: competition map + natural terrain + start-gear
 4. Phase 2c: remove gear, full competition
+
+## 2026-05-18 ~21:00 UTC: Full pipeline rebuilt from scratch
+
+### Phase 1 v2 (flat arena, start-gear, 2000-step)
+- Trained 35 epochs, junction alignment from epoch 3
+- Junction held grew to 4576 by epoch 28
+- Phase 1 e25 eval: avg=3.985 @2000 matching env (but junction stats show aligned_by_agent=1)
+
+### Phase 2a: compmap_flat_v3 (flat competition map, start-gear, from P1 e35)
+- Trained 50 epochs at 1200 SPS (fast on flat terrain)
+- Junction held trajectory: appeared at e2 (114-332), peaked at e15 (2799)
+- Two entropy collapses: 0.99→0.82 (e1-5) and 1.37→0.52 (e17-39), both recovered
+- Eval e20 matching env: avg=0.133, peak=0.183 @1000 steps
+
+### Phase 2b: compmap_natural_from_p1 (natural terrain, start-gear, from P1 e35)
+**Config**: cogsguard_machina_1.basic, natural terrain, max_dist=6, start-aligner, start-heart,
+clip_coef=0.1, ent 0.08→0.02/80%, boost-aligner=5.0, boost-heart=2.0, explore-weight=0.001
+
+**Junction held trajectory:**
+| Epoch | held |
+|-------|------|
+| 3 | 169 |
+| 4 | 325 |
+| 8-9 | 515, 328 |
+| 10 | 1995, 827 |
+| 11 | 1195 |
+| latest | 1021 |
+
+**Eval results (natural_from_p1 e20):**
+| Environment | Steps | Avg | Peak | junc_aligned |
+|------------|-------|-----|------|-------------|
+| Matching (natural, gear) | 1000 | **0.183** | **0.226** | 4/5 episodes |
+| STANDARD (no gear, 8 cogs) | 500 | **0.060** | **0.098** | 1/5 episodes! |
+
+**BREAKTHROUGH: First non-zero junction alignment on standard competition eval!**
+- Agents learn to find aligner station (3/5 episodes)
+- Agents learn heart withdrawal (4/5 episodes)
+- 1/5 episodes achieve full pipeline (gear + heart + navigate + align)
+
+Training continuing from e25 for further improvement.

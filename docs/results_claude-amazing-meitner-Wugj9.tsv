@@ -13,3 +13,7 @@ bc870f1	4.549000	junc_aligned=1-3	2000	keep	minimal_p1 e60 @2000 on matching env
 HEAD	0.065400	junc_aligned=1/5ep	500	keep	compmap_flat_v2 e15 @500 on matching env (flat+gear) — FIRST compmap alignment
 HEAD	0.167300	junc_aligned=2-3/5ep	1000	keep	compmap_flat_v2 e15 @1000 on matching env — peak 0.293
 HEAD	0.100000	junction.held=0	1000	discard	compmap_flat_v2 e15 @1000 standard eval (no gear) — needs Phase 2b
+HEAD	3.985000	junc_aligned=1/3ep	2000	keep	Phase1 v2 e25 @2000 matching env (flat arena, gear) — high reward
+HEAD	0.133200	junc_aligned=2/5ep	1000	keep	Phase2a flat_v3 e20 @1000 matching env (flat compmap, gear)
+HEAD	0.183000	junc_aligned=4/5ep	1000	keep	Phase2b natural_from_p1 e20 @1000 matching env (natural compmap, gear)
+HEAD	0.059600	junc_aligned=1/5ep	500	keep	Phase2b natural_from_p1 e20 @500 STANDARD eval (no gear, 8 cogs) — FIRST non-zero standard!
