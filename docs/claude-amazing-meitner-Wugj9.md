@@ -340,3 +340,42 @@ clip_coef=0.1, ent 0.08→0.02/80%, boost-aligner=5.0, boost-heart=2.0, explore-
 - 1/5 episodes achieve full pipeline (gear + heart + navigate + align)
 
 Training continuing from e25 for further improvement.
+
+## 2026-05-18 ~21:30 UTC: Phase 2c FAILED — Pivoting to graduated gear removal
+
+### Phase 2c: compmap_natural_nostart (NO gear, from natural_from_p1_cont e40)
+**Config**: natural terrain, NO start-gear, max_dist=6, clip_coef=0.1,
+ent 0.08→0.02/80%, boost-aligner=5.0, boost-heart=3.0, explore-weight=0.001
+
+**Result: FAILED after 68 epochs**
+- Junction alignment: ZERO across all 68 epochs
+- Gear acquisition: sporadic 0-1.5/epoch (agents occasionally find gear but never use it)
+- Entropy oscillates 0.77-1.26 (classic policy instability — cycling)
+- Model can't learn full gear acquisition pipeline from scratch
+
+**Root cause**: Credit assignment chain too long — agents must: find hub → find aligner station →
+get resources → craft aligner → find heart station → withdraw heart → navigate to junction → align.
+With only 2000 steps and sparse rewards, impossible to discover from random exploration.
+
+### Phase 2c-alignonly: start-aligner, learn heart + navigation (PROMISING!)
+**Config**: natural terrain, start-aligner (NO start-heart), max_dist=6, clip_coef=0.1,
+ent 0.08→0.02/80%, boost-aligner=5.0, boost-heart=5.0, explore-weight=0.005
+
+**Junction held trajectory:**
+| Epoch | held | heart.gained | entropy |
+|-------|------|-------------|---------|
+| 0 | [0, 0] | [0, 2.0] | - |
+| 1 | [60, 0] | [0.25, 0] | - |
+| 5 | 0 | 0 | 0.94 |
+| 6 | 0 | 2.0 | 0.91 |
+| 10 | **592** | **1.0** | 0.89 |
+| 11-15 | 0 | 0 | 0.91-0.98 |
+
+**BREAKTHROUGH at epoch 10: junction.held=592 without start-heart!**
+- First time agents align junctions by acquiring hearts from scratch
+- Model learns: start with aligner → withdraw heart → navigate to junction → align
+- Credit assignment chain halved vs full no-gear: only 3 steps instead of 6
+- Sporadic (not every epoch) but REAL alignment events
+
+**Competition discovery**: Tournament uses max_steps=10000 (not 2000). Longer episodes
+give agents much more time for gear acquisition + junction navigation.
