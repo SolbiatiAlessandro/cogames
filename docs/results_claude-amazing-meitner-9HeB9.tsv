@@ -114,3 +114,9 @@ temp	0.258000	aligned.junction.held=~1800	500	keep	Phase2 e15 + temp=0.6 PEAK @5
 p2_longrun	0.102700	aligned.junction.held=~560	500	keep	P2_longrun e10 avg @500 (temp=0.7)
 p2_longrun	0.111200	aligned.junction.held=~610	500	keep	P2_longrun e25 avg @500 (temp=0.7) - improving, matches parent
 p2_longrun	0.334500	aligned.junction.held=~2400	1000	keep	P2_longrun e25 avg @1000 (temp=0.7)
+p2_explore	0.061400	aligned.junction.held=~310	500	discard	P2_explore e10 avg @500 - cell.visited collapsed entropy to 0.88
+p2_lowlr	0.106700	aligned.junction.held=~580	500	discard	P2_lowlr e15 avg @500 - lr=0.0003, same ceiling
+mixdist	0.092400	aligned.junction.held=~510	500	discard	Mixdist e15 avg @500 (10-ep reliable) - min_dist=3 max_dist=10
+mixdist	0.075200	aligned.junction.held=~400	500	discard	Mixdist e35 avg @500 (10-ep reliable) - declining
+withclips	0.112300	aligned.junction.held=~620	500	keep	Withclips e10 avg @500 (15-ep reliable, temp=0.7) - trains with clips ships
+withclips	0.346700	aligned.junction.held=~2500	1000	keep	Withclips e10 avg @1000 (temp=0.7)
