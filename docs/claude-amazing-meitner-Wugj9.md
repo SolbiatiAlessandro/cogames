@@ -237,7 +237,29 @@ Next step: Phase 2b — remove start-gear to teach gear acquisition pipeline.
 
 ### Revised curriculum pipeline:
 1. Phase 1: minimal_align on arena (flat, start-gear) → e60 ✓
-2. Phase 2a: competition map + flat + start-gear → e15+ (IN PROGRESS)
-3. Phase 2b: competition map + flat + NO start-gear (learn gear acquisition)
-4. Phase 2c: competition map + natural terrain (learn terrain navigation)
-5. Phase 3: full competition (add clips)
+2. Phase 2a: competition map + flat + start-gear → e80 ✓ (avg=0.0882/0.1911 @500/1000)
+3. Phase 2b: competition map + flat + start-aligner → e20 (heart withdrawal learned, held=2543)
+4. Phase 2b-standard: competition map + standard (2000-step longep) → IN PROGRESS
+5. Phase 3: full competition (add clips) → pending
+
+## 2026-05-17 20:10 UTC: Phase 2b experiments — gear acquisition
+
+### learnheart (flat + start-aligner, from flat_v2 e80)
+- Agents learn heart withdrawal within 4 epochs (first junction held=156 at e4)
+- Peak held=2543 at epoch 17, sustained 1000-2000 held through epochs 15-30
+- BUT: after ~epoch 50, alignment disappears as entropy stabilizes
+- Standard eval: 0.100 flat (agents never find aligner on standard map)
+- Conclusion: Heart acquisition works, aligner acquisition is the bottleneck
+
+### Full nogear (flat + no start-gear, from flat_v2 e80)
+- Agents learn some heart withdrawal (0-2.25/ep) but very sparse aligner (0-0.25/ep)
+- Zero junction alignment after 25 epochs — can't get both gear pieces consistently
+- Killed in favor of more gradual approaches
+
+### Current: standard longep (competition map, natural terrain, 2000-step episodes)
+- From flat_v2 e80, directly on standard competition map (no simplifications)
+- 2000-step episodes give time for exploration
+- Entropy 0.08→0.02/80%, boost_aligner=5.0
+- Early signs: heart.gained=0.5, aligner.gained=0.25 at epoch 2
+- Expected to take 30-50 epochs (matching previous session's longep timeline)
+- Training ongoing at ~140 SPS (2 min/epoch)
