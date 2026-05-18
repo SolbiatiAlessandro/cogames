@@ -751,7 +751,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 return spread - travel + threat
             if current_abs in state.known_friendly_junctions:
                 state.defend_station_steps += 1
-                if state.defend_station_steps >= 20 and len(state.known_friendly_junctions) > 1:
+                patrol_interval = 10 if enemy_junctions else 20
+                if state.defend_station_steps >= patrol_interval and len(state.known_friendly_junctions) > 1:
                     other_junctions = state.known_friendly_junctions - {current_abs}
                     sm = self._shared_map
                     other_positions = set()
