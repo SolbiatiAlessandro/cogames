@@ -646,9 +646,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 sm.agents_getting_hearts.discard(obs.agent_id)
             _RETREAT_STUCK_LIMIT = 50
             if state.steps_since_last_move >= _RETREAT_STUCK_LIMIT:
-                state.retreating = False
-                self._event(state, f"retreat cancelled: stuck for {state.steps_since_last_move} steps")
-                logger.info("agent=%s RETREAT_CANCELLED stuck=%d", obs.agent_id, state.steps_since_last_move)
+                state.move_cooldowns.clear()
+                state.move_blocked_cells.clear()
+                state.steps_since_last_move = 0
+                self._event(state, f"retreat stuck: cleared cooldowns after {_RETREAT_STUCK_LIMIT} steps")
+                logger.info("agent=%s RETREAT_CLEAR_COOLDOWNS stuck=%d", obs.agent_id, _RETREAT_STUCK_LIMIT)
             elif state.steps_since_last_move >= 5 and state.steps_since_last_move % 3 == 0:
                 action, state = self._unstuck(state)
                 state.skill_steps += 1
@@ -656,10 +658,27 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             else:
                 _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
                 retreat_targets = _retreat_hubs | state.known_friendly_junctions
+                has_heart = self._inventory_count(obs, "heart") > 0
+                has_aligner_gear = self._current_gear(obs) == "aligner"
+                alignable = self._known_alignable_junctions(state) if has_heart and has_aligner_gear else set()
+                if alignable:
+                    nearest_alignable = self._nearest_known(current_abs, alignable)
+                    alignable_dist = abs(nearest_alignable[0] - current_abs[0]) + abs(nearest_alignable[1] - current_abs[1])
+                    safe_dist = min(
+                        (abs(t[0] - current_abs[0]) + abs(t[1] - current_abs[1]) for t in retreat_targets),
+                        default=9999,
+                    ) if retreat_targets else 9999
+                    if alignable_dist < safe_dist and alignable_dist <= 10:
+                        direction = self._navigate_to_station(state, current_abs, nearest_alignable, avoid_hazards=False)
+                        if direction:
+                            action = self._starter._action(f"move_{direction}")
+                        else:
+                            action, state = self._move_to(state, current_abs, nearest_alignable)
+                        state.skill_steps += 1
+                        return action, state
                 if retreat_targets:
                     target = self._nearest_known(current_abs, retreat_targets)
                     dist_to_target = abs(current_abs[0] - target[0]) + abs(current_abs[1] - target[1])
-                    has_heart = self._inventory_count(obs, "heart") > 0
                     if target in _retreat_hubs and not has_heart and dist_to_target <= 2:
                         if dist_to_target <= 1:
                             dr = target[0] - current_abs[0]

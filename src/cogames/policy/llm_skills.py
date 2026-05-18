@@ -897,6 +897,20 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
     _BASE_HP = 100
 
+    def _miner_dist_to_safe(self, current_abs: Coord, state: MinerSkillState) -> int:
+        min_dist = 9999
+        for hub in state.known_hubs:
+            d = abs(current_abs[0] - hub[0]) + abs(current_abs[1] - hub[1])
+            if d < min_dist:
+                min_dist = d
+        sm = self._shared_map
+        if sm is not None:
+            for fj in sm.known_friendly_junctions:
+                d = abs(current_abs[0] - fj[0]) + abs(current_abs[1] - fj[1])
+                if d < min_dist:
+                    min_dist = d
+        return min_dist
+
     def _check_miner_hp(self, obs: AgentObservation, state: MinerSkillState) -> bool:
         hp = self._read_hp(obs)
         if hp is None:
@@ -907,10 +921,17 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if state.max_hp_seen <= 0:
             return False
         hp_fraction = hp / state.max_hp_seen
-        if hp_fraction < self._MINER_HP_RETREAT_THRESHOLD and not state.retreating_to_hub:
+        current_abs = self._current_abs(obs)
+        dist_to_safe = self._miner_dist_to_safe(current_abs, state)
+        effective_threshold = self._MINER_HP_RETREAT_THRESHOLD
+        if dist_to_safe > 30:
+            effective_threshold = max(effective_threshold, 0.50)
+        elif dist_to_safe > 15:
+            effective_threshold = max(effective_threshold, 0.35)
+        if hp_fraction < effective_threshold and not state.retreating_to_hub:
             inv = self._read_all_inv(obs)
-            logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) inv=%s retreating to hub",
-                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, inv)
+            logger.info("agent=%s MINER_HP_LOW hp=%d/%d (%.0f%%) dist_safe=%d inv=%s retreating to hub",
+                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, dist_to_safe, inv)
             state.retreating_to_hub = True
         elif state.retreating_to_hub and hp_fraction >= 0.85:
             logger.info("agent=%s MINER_HP_OK hp=%d/%d resuming mining",
@@ -962,10 +983,17 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if hp is not None:
             if hp > state.max_hp_seen:
                 state.max_hp_seen = min(hp, self._BASE_HP)
-            if state.max_hp_seen > 0 and hp < state.max_hp_seen * self._MINER_HP_RETREAT_THRESHOLD:
+            current_abs = self._current_abs(obs)
+            dist_to_safe = self._miner_dist_to_safe(current_abs, state)
+            effective_threshold = self._MINER_HP_RETREAT_THRESHOLD
+            if dist_to_safe > 30:
+                effective_threshold = max(effective_threshold, 0.50)
+            elif dist_to_safe > 15:
+                effective_threshold = max(effective_threshold, 0.35)
+            if state.max_hp_seen > 0 and hp < state.max_hp_seen * effective_threshold:
                 if not state.retreating_to_hub:
-                    logger.info("agent=%s MINER_HP_LOW hp=%d/%d retreating",
-                                obs.agent_id, hp, state.max_hp_seen)
+                    logger.info("agent=%s MINER_HP_LOW hp=%d/%d dist_safe=%d retreating",
+                                obs.agent_id, hp, state.max_hp_seen, dist_to_safe)
                     state.retreating_to_hub = True
                 action, state = self._deposit_to_hub(obs, state)
                 self._record_move_target(action, obs, state)
