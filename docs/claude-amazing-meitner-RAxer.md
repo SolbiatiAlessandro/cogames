@@ -199,6 +199,30 @@ the most spread-out target relative to other agents). This provides:
 - Earlier detection of enemy activity or new neutral junctions
 - More adaptive behavior (the online performance insight says adaptiveness > aggressiveness)
 
+## 2026-05-18T15:00: CRITICAL — HP retreat was completely dead (commits 3925e4d, fdcf930)
+
+### Bug found: `_read_hp` inherited from parent returned None
+
+`AlignerPolicyImpl._read_hp()` intentionally returns None (disabled due to oscillation).
+`LLMAlignerPolicyImpl` inherits this but added HP retreat code (`_check_hp`, `_dist_to_nearest_safe`,
+distance-aware thresholds) that all depend on `_read_hp` returning actual HP values.
+Result: ALL HP retreat code was dead — agents had zero HP awareness.
+
+**Impact**: This is likely a MAJOR contributor to the agent lifespan variance (our 2000-7500 vs
+Softy's 5200-6200). Without HP awareness, agents walk into dangerous areas, die unpredictably,
+and create highly variable lifespans. The director's replay analysis specifically identified
+"consistent agent lifespans" as the root cause of the junction efficiency gap.
+
+**Two-part fix**:
+1. **HP retreat oscillation** (commit 3925e4d): Recovery threshold was 0.70, same as retreat
+   threshold 0.70. This was the REASON the parent class disabled HP reading. Fixed by raising
+   recovery to 0.85, creating proper hysteresis.
+2. **Enable HP reading** (commit fdcf930): Override `_read_hp` in `LLMAlignerPolicyImpl` to
+   actually read HP from observation tokens. The distance-aware retreat system now functions:
+   - Retreat at 0.70 (0.75 if >25 cells from safety, 0.85 if >40)
+   - Resume at 0.85 or when in friendly territory
+   - No oscillation due to hysteresis gap
+
 ### Key learnings for this session:
 1. **Always check online evidence before making offline-inspired changes**
 2. **The offline-online gap is massive** — up to -9 points for changes that improve offline by +2.7%

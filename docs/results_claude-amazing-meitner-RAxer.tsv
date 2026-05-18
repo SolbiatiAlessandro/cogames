@@ -10,3 +10,6 @@ e76016b	0.000000	bug_fix	0	keep	fix: same progress tracking bug in cross_role_po
 002e564	0.000000	bug_fix	0	keep	fix: _bfs_without_cooldowns corrupting SharedMap via in-place set mutation
 99e9677	0.000000	bug_fix	0	keep	fix: junction blacklist removing targets from SharedMap, hiding from all agents
 6ffee00	0.000000	structural_only	0	keep	defend patrol: cycle between junctions instead of sitting idle
+b1f88b9	0.000000	structural_only	0	keep	defend navigation: prefer hazard-avoiding paths
+3925e4d	0.000000	bug_fix	0	keep	fix: HP retreat oscillation — recovery threshold was same as retreat
+fdcf930	0.000000	critical_bug_fix	0	keep	fix: HP retreat was completely dead — _read_hp returned None
