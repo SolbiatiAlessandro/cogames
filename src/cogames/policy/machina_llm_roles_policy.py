@@ -88,6 +88,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         self._unstuck_horizon = unstuck_horizon
         self._scripted = scripted
 
+    def _read_hp(self, obs: AgentObservation) -> int | None:
+        center = self._starter._center
+        for token in obs.tokens:
+            if token.location != center:
+                continue
+            if token.feature.name == "inv:hp":
+                return int(token.value)
+        return None
+
     def initial_agent_state(self) -> LLMAlignerState:
         base = super().initial_agent_state()
         state = LLMAlignerState(
