@@ -35,3 +35,6 @@ dfae4c1	0.000000	bug_fix	0	keep	fix: aligner removes own stations from shared ha
 33b33e6	0.000000	bug_fix	0	keep	fix: miner removes own stations from shared hazard set
 d77c2a5	0.000000	structural_only	0	keep	improve: miner hub tethering prevents distant deaths and cargo loss
 0e5c771	0.000000	structural_only	0	keep	improve: aligner hub tether + enemy recapture priority + contamination cap
+f4c17b3	0.000000	structural_only	0	keep	improve: lower team scarce element threshold 5→3 for faster heart production
+ce85c3c	0.000000	bug_fix	0	keep	fix: share depleted_extractors via SharedMap to prevent duplicate mining
+162414c	0.000000	structural_only	0	keep	improve: goal-directed BFS expansion for miner navigation
