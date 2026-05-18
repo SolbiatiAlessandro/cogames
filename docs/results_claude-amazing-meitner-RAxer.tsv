@@ -60,3 +60,5 @@ c9e9671	0.000000	bug_fix	0	keep	fix: agent_gears never populated + spread-aware 
 c120dee	0.000000	bug_fix	0	keep	fix: miner move tracking on HP retreat and hub tether paths
 33f4ab9	0.000000	bug_fix	0	keep	fix: aligner move tracking on all early return paths
 de4e34f	0.000000	critical_bug_fix	0	keep	fix: aligners navigate to enemy junctions they can't align + heart-before-gear on respawn
+048d496	0.000000	bug_fix	0	keep	fix: cleanup stale enemy junction references after alignment target fix
+b6235b8	0.000000	critical_bug_fix	0	keep	fix: cross_role_policy same enemy junction alignment bug
