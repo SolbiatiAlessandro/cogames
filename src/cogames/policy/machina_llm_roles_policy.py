@@ -315,7 +315,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                     for h in _vh
                 )
-                if heart_count < 4 and near_hub:
+                plan_accum_target = min(5, max(3, len(known_alignable_junctions)))
+                if heart_count < plan_accum_target and near_hub:
                     pass
                 else:
                     reason = f"overrode get_heart to align_neutral ({heart_count} hearts, not near hub)"
@@ -328,7 +329,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             reason = "overrode align_neutral to unstuck after stuck exit (escape navigation deadlock near junction)"
             skill = "unstuck"
         # Prevent immediate-completion loops: get_heart already done if has_heart=True
-        # Exception: near hub with <3 hearts, allow accumulation
         if has_aligner and has_heart and skill == "get_heart":
             heart_count = self._inventory_count(obs, "heart")
             current_abs = self._spawn_offset(obs)
@@ -337,7 +337,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh2
             )
-            if heart_count < 4 and near_hub:
+            accum_target2 = min(5, max(3, len(known_alignable_junctions)))
+            if heart_count < accum_target2 and near_hub:
                 pass
             elif known_alignable_junctions:
                 reason = f"overrode get_heart to align_neutral ({heart_count} hearts held)"
@@ -416,7 +417,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
+            alignable_count = len(self._known_alignable_junctions(state))
+            accumulation_target = min(5, max(3, alignable_count))
+            if heart_count < accumulation_target and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
                 newly_withdrawn = max(0, heart_count - state.get_heart_start_count)
