@@ -437,8 +437,12 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill == "defend":
             _enemy_or_neutral = self._known_alignable_junctions(state)
             if _enemy_or_neutral and has_heart and has_aligner:
-                self._event(state, f"defend ended: {len(_enemy_or_neutral)} alignable junction(s) detected")
-                state.current_skill = None
+                current_abs = self._spawn_offset(obs)
+                nearest_alignable = self._nearest_known(current_abs, _enemy_or_neutral)
+                alignable_dist = abs(nearest_alignable[0] - current_abs[0]) + abs(nearest_alignable[1] - current_abs[1]) if nearest_alignable else 9999
+                if alignable_dist <= 25 or any(j in state.known_enemy_junctions for j in _enemy_or_neutral):
+                    self._event(state, f"defend ended: alignable junction at dist={alignable_dist}")
+                    state.current_skill = None
             elif has_heart and not state.last_has_heart:
                 self._event(state, "defend ended: acquired heart while defending")
                 state.get_heart_timeouts = 0
@@ -803,7 +807,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 return spread - travel + threat
             if current_abs in state.known_friendly_junctions:
                 state.defend_station_steps += 1
-                patrol_interval = 10 if enemy_junctions else 20
+                patrol_interval = 10 if enemy_junctions else 40
                 if state.defend_station_steps >= patrol_interval and len(state.known_friendly_junctions) > 1:
                     other_junctions = state.known_friendly_junctions - {current_abs}
                     sm = self._shared_map
