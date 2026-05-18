@@ -1018,8 +1018,29 @@ P3v2: Fine-tune from longep3k_e20 with LR=0.0003, lower entropy:
 
 Phase 3 training at competition distance maintains performance (~1.1-1.2) but hasn't improved upon the P2 peak (1.394). The model sometimes fails to navigate the longer distances (max_dist=15 vs 10).
 
-### Active experiments
-- **map42_seed7**: continuing past e30 (training seed=7 on lucky map)
-- **map42_seed123**: continuing past e30 (training seed=123 on lucky map)
-- **p3v2**: Phase 3 continuing past e30
-- **p3_from_map42s7**: NEW — Phase 3 fine-tune from map42_seed7_e20
+### Population-based training on map_seed=42
+
+Ran 5 different training seeds on map_seed=42:
+
+| Seed | Best Epoch | Best Avg (validated) | Peak |
+|---|---|---|---|
+| **42** | **e20** | **1.394 (5-ep)** | **1.713** |
+| 7 | e20 | 1.283 (5-ep) | 1.601 |
+| 123 | e30 | 1.197 (3-ep) | 1.384 |
+| 13 | e15 | 1.165 (5-ep) | 1.338 |
+| 31 | e30 | 1.141 (1-ep) | — |
+
+Seed=42 remains the best optimizer trajectory. All seeds learn alignment on map_seed=42 but with varying quality and timing.
+
+### Temperature sweep (re-validated)
+
+| Temp | Avg | Std | Episodes |
+|---|---|---|---|
+| 0.0 | 1.000 | 0.000 | 3 | 
+| 0.3 | 1.160 | 0.204 | 3 |
+| 0.5 | 1.253 | 0.125 | 7 |
+| 0.6 | 1.187 | 0.122 | 5 |
+| **0.7** | **1.394** | **0.190** | **5** |
+| 1.0 | 1.004 | 0.003 | 3 |
+
+temp=0.7 confirmed optimal.

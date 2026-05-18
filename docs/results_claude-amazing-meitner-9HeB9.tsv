@@ -218,3 +218,8 @@ map42_seed123_e15	1.054200	aligned.junction.held=~3000	10000	discard	map42+seed1
 map42_seed123_e30	1.196667	aligned.junction.held=~9000	10000	keep	map42+seed123 e30 @10K (3-ep, peak=1.384, std=0.145) - learns late
 p3v2_e5	1.136940	aligned.junction.held=~8000	10000	keep	P3 max_dist=15 from longep3k_e20 @10K (5-ep, peak=1.257, std=0.115)
 p3v2_e20	1.166160	aligned.junction.held=~8000	10000	keep	P3 e20 @10K (5-ep, peak=1.327, std=0.108) - best P3 so far
+map42_seed13_e15	1.165420	aligned.junction.held=~8000	10000	discard	map42+seed13 e15 @10K (5-ep, peak=1.338, std=0.125) - population test
+map42_seed13_e10	1.100900	aligned.junction.held=~7000	10000	discard	map42+seed13 e10 @10K (3-ep, peak=1.219)
+map42_seed31_e30	1.140500	aligned.junction.held=~8000	10000	discard	map42+seed31 e30 @10K (1-ep) - slow learner
+temp05_longep3k_e20	1.252929	aligned.junction.held=~10000	10000	discard	longep3k_e20 temp=0.5 @10K (7-ep, peak=1.483) - temp=0.7 still best
+temp06_longep3k_e20	1.187240	aligned.junction.held=~8000	10000	discard	longep3k_e20 temp=0.6 @10K (5-ep) - worse than 0.7
