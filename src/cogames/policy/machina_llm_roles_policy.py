@@ -492,8 +492,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         hp = self._read_hp(obs)
         if hp is None:
             return False
+        _BASE_HP = 100
         if hp > state.max_hp_seen:
-            state.max_hp_seen = hp
+            state.max_hp_seen = min(hp, _BASE_HP)
         if state.max_hp_seen <= 0:
             return False
         hp_fraction = hp / state.max_hp_seen
