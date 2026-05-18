@@ -21,7 +21,7 @@ _DIRECTION_DELTAS: tuple[tuple[str, Coord], ...] = (
 )
 _DIRECTION_DELTA_MAP: dict[str, Coord] = {name: delta for name, delta in _DIRECTION_DELTAS}
 _HUB_SEARCH_DISTANCE = 20
-_HUB_ALIGN_DISTANCE = 25
+_HUB_ALIGN_DISTANCE = 30
 _JUNCTION_ALIGN_DISTANCE = 25
 
 # HP retreat: retreat to friendly territory when HP drops below this fraction of max
@@ -731,10 +731,24 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
         if hub is None:
             return self._nearest_known(current_abs, candidates)
+        enemy_junctions = state.known_enemy_junctions
+        sm = self._shared_map
+        other_aligner_positions = set()
+        if sm is not None:
+            for aid, pos in sm.agent_positions.items():
+                if aid != self._agent_id:
+                    other_aligner_positions.add(pos)
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            return travel + hub_dist * 0.2
+            enemy_bonus = -8.0 if j in enemy_junctions else 0.0
+            spread = 0.0
+            if other_aligner_positions:
+                min_aligner_dist = min(
+                    abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_aligner_positions
+                )
+                spread = -0.05 * min(min_aligner_dist, 30)
+            return travel + hub_dist * 0.2 + enemy_bonus + spread
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:

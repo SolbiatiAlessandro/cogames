@@ -337,7 +337,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             sm = self._shared_map
             available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
-            if already_getting >= max(3, available_hearts):
+            if already_getting >= max(4, available_hearts):
                 skill = "explore"
                 reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
@@ -643,7 +643,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             na_str = str(num_aligners).lower()
             self._static_aligner_ids = None
             if na_str == "auto":
-                self._aligner_fraction = 0.5
+                self._aligner_fraction = 0.6
             else:
                 self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
         self._assigned_roles: dict[int, str] = {}
