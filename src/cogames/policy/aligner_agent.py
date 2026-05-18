@@ -745,6 +745,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if hub is None:
             return self._nearest_known(current_abs, candidates)
         not_yet_alignable = (state.known_neutral_junctions | state.known_enemy_junctions) - candidates
+        enemy_junctions = state.known_enemy_junctions
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
@@ -752,7 +753,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 1 for t in not_yet_alignable
                 if abs(t[0] - j[0]) + abs(t[1] - j[1]) <= _JUNCTION_ALIGN_DISTANCE
             )
-            return travel + hub_dist * 0.2 - unlocks * 3.0
+            recapture = 5.0 if j in enemy_junctions else 0.0
+            return travel + hub_dist * 0.2 - unlocks * 3.0 - recapture
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:

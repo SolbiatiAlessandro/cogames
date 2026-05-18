@@ -265,6 +265,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if not has_aligner and skill == "gear_up" and was_stuck:
             reason = "overrode gear_up to explore after stuck exit (find alternate path to aligner station)"
             skill = "explore"
+        # After 4+ gear contaminations: explore near hub to find safer path to aligner station
+        if not has_aligner and skill == "gear_up" and state.gear_contamination_count >= 4:
+            reason = f"overrode gear_up to explore after {state.gear_contamination_count} contaminations (seeking safer route)"
+            skill = "explore"
         # Allow explore/unstuck after stuck exit even without aligner (find alternate path to station)
         if not has_aligner and skill not in {"gear_up", "unstuck", "explore"}:
             if was_stuck:
@@ -421,7 +425,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 self._event(state, f"defend ended: new hearts available (crafted {self._shared_map.hearts_crafted_estimate} > {state.defend_start_hearts_estimate} at defend start)")
                 state.get_heart_timeouts = 0
                 state.current_skill = None
-            elif state.skill_steps >= self._stuck_threshold * 50:
+            elif state.skill_steps >= self._stuck_threshold * 25:
                 self._event(state, "defend ended: trying get_heart again")
                 state.get_heart_timeouts = 0
                 state.current_skill = None
@@ -439,8 +443,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"explore completed after discovering {new_total} new alignable junction(s)")
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
-            # Cap explore duration to prevent long idle periods when no junctions nearby
             self._event(state, f"explore capped after {state.skill_steps} steps without finding junctions")
+            if state.gear_contamination_count >= 4:
+                state.gear_contamination_count = 0
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
@@ -617,6 +622,41 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     action, state = self._safe_wander(state, current_abs)
                 state.skill_steps += 1
                 return action, state
+
+        # ── Aligner hub tether: prevent stranding far from hub ──
+        _MAX_ALIGNER_HUB_DISTANCE = 35
+        has_aligner_gear = self._current_gear(obs) == "aligner"
+        if (
+            has_aligner_gear
+            and not state.retreating
+            and state.current_skill == "explore"
+            and state.known_hubs
+        ):
+            hub_abs = self._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if hub_dist > _MAX_ALIGNER_HUB_DISTANCE:
+                    has_heart = self._inventory_count(obs, "heart") > 0
+                    alignable = self._known_alignable_junctions(state)
+                    if has_heart and alignable:
+                        state.current_skill = "align_neutral"
+                    elif not has_heart and state.known_hubs:
+                        state.current_skill = "get_heart"
+                        if sm is not None:
+                            sm.agents_getting_hearts.add(obs.agent_id)
+                    state.skill_steps = 0
+                    state.no_move_steps = 0
+                    state.no_progress_on_target_steps = 0
+                    self._event(state, f"aligner hub tether: dist {hub_dist} > {_MAX_ALIGNER_HUB_DISTANCE}, redirecting to {state.current_skill}")
+                    direction = self._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction:
+                        action = self._starter._action(f"move_{direction}")
+                        state.skill_steps += 1
+                        state.last_move_target = self._move_target(current_abs, direction)
+                        return action, state
+                    action, state = self._move_to(state, current_abs, hub_abs)
+                    state.skill_steps += 1
+                    return action, state
 
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:
