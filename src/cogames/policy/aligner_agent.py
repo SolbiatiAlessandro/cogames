@@ -234,7 +234,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return self._starter._fallback_action_name
         if goal not in state.known_free_cells:
             return None
-        avoid = (state.known_hazard_stations - {goal}) if avoid_hazards else set()
+        avoid = ((state.known_hazard_stations | state.contamination_avoid_cells) - {goal}) if avoid_hazards else set()
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier:
@@ -275,7 +275,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         Useful when the path to goal goes through unexplored territory."""
         if start == goal:
             return self._starter._fallback_action_name
-        avoid = (state.known_hazard_stations - {goal}) if avoid_hazards else set()
+        avoid = ((state.known_hazard_stations | state.contamination_avoid_cells) - {goal}) if avoid_hazards else set()
         frontier: deque[Coord] = deque([start])
         parents: dict[Coord, tuple[Coord, str] | None] = {start: None}
         while frontier and len(parents) < max_cells:
@@ -352,7 +352,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _safe_wander(self, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         """Wander avoiding hazard stations and blocked cells (hard walls)."""
-        hard_avoid = state.known_hazard_stations | state.blocked_cells
+        hard_avoid = state.known_hazard_stations | state.blocked_cells | state.contamination_avoid_cells
         # First pass: avoid both hard blocks and move-blocked cells
         for i in range(4):
             idx = (state.wander_direction_index + i) % 4
@@ -396,7 +396,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
             neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
             dist = abs(neighbor[0] - target_abs[0]) + abs(neighbor[1] - target_abs[1])
-            is_hazard = neighbor in state.known_hazard_stations if avoid_hazards else False
+            is_hazard = (neighbor in state.known_hazard_stations or neighbor in state.contamination_avoid_cells) if avoid_hazards else False
             hard_blocked = neighbor in state.blocked_cells
             soft_blocked = neighbor in state.move_blocked_cells
             candidates.append((is_hazard, hard_blocked, soft_blocked, dist, dir_name))

@@ -60,6 +60,8 @@ class LLMAlignerState(AlignerState):
     # HP monitoring
     max_hp_seen: int = 0
     retreating: bool = False
+    # Contamination tracking
+    _prev_gear: str = ""
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -483,6 +485,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
     def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+
+        # ── Contamination tracking: remember cells that switched our gear ──
+        gear = self._current_gear(obs)
+        if hasattr(state, '_prev_gear') and state._prev_gear == "aligner" and gear != "aligner":
+            state.contamination_avoid_cells.add(current_abs)
+            state.gear_contamination_count += 1
+            logger.info("agent=%s GEAR_CONTAMINATED at %s (now %s, count=%d)",
+                        obs.agent_id, current_abs, gear, state.gear_contamination_count)
+        state._prev_gear = gear
 
         # ── Team coordination: sync shared state ──
         sm = self._shared_map
