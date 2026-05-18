@@ -160,8 +160,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         return self._starter._closest_tag_location(obs, self._hub_tags) is not None
 
     def _known_alignable_junctions(self, state: LLMAlignerState) -> set[tuple[int, int]]:
-        # Combine neutral and enemy junctions — recapturing enemy is a +2 swing
-        return {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+        return {j for j in state.known_neutral_junctions
                 if self._is_alignable(j, state) and j not in state.blacklisted_junctions}
 
     def _update_progress(self, obs: AgentObservation, state: LLMAlignerState) -> None:
@@ -257,11 +256,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if not has_aligner:
                 current_abs = self._spawn_offset(obs)
                 _vh_plan = state.verified_hubs if state.verified_hubs else state.known_hubs
-                near_hub_start = state.global_step <= 5 and any(
+                near_hub = any(
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                     for h in _vh_plan
                 ) if _vh_plan else False
-                if near_hub_start and not has_heart:
+                if near_hub and not has_heart:
                     skill = "get_heart"
                 else:
                     skill = "explore" if was_stuck else "gear_up"
@@ -281,9 +280,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             reason = f"overrode gear_up to explore after {state.gear_contamination_count} contaminations (seeking safer route)"
             skill = "explore"
         # Allow explore/unstuck after stuck exit even without aligner (find alternate path to station)
-        # Also allow get_heart at game start when near hub (grab hearts before gear to save round trip)
-        early_heart_grab = skill == "get_heart" and state.global_step <= 5
-        if not has_aligner and skill not in {"gear_up", "unstuck", "explore"} and not early_heart_grab:
+        # Also allow get_heart when near hub (grab hearts before gear to save round trip)
+        hub_heart_grab = skill == "get_heart" and not has_heart
+        if not has_aligner and skill not in {"gear_up", "unstuck", "explore"} and not hub_heart_grab:
             if was_stuck:
                 reason = f"overrode {skill} to explore after stuck exit (seeking new path to aligner station)"
                 skill = "explore"
@@ -435,12 +434,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     sm.agents_getting_hearts.discard(obs.agent_id)
                 state.current_skill = None
         elif state.current_skill == "defend":
-            _enemy_or_neutral = self._known_alignable_junctions(state)
-            if _enemy_or_neutral and has_heart and has_aligner:
+            _alignable_neutral = self._known_alignable_junctions(state)
+            _reachable_enemy = {j for j in state.known_enemy_junctions
+                                if self._is_alignable(j, state)}
+            _actionable = _alignable_neutral or _reachable_enemy
+            if _alignable_neutral and has_heart and has_aligner:
                 current_abs = self._spawn_offset(obs)
-                nearest_alignable = self._nearest_known(current_abs, _enemy_or_neutral)
+                nearest_alignable = self._nearest_known(current_abs, _alignable_neutral)
                 alignable_dist = abs(nearest_alignable[0] - current_abs[0]) + abs(nearest_alignable[1] - current_abs[1]) if nearest_alignable else 9999
-                if alignable_dist <= 25 or any(j in state.known_enemy_junctions for j in _enemy_or_neutral):
+                if alignable_dist <= 25 or _reachable_enemy:
                     self._event(state, f"defend ended: alignable junction at dist={alignable_dist}")
                     state.current_skill = None
             elif has_heart and not state.last_has_heart:
@@ -450,8 +452,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             elif not has_aligner:
                 self._event(state, "defend ended: lost aligner gear")
                 state.current_skill = None
-            elif not has_heart and has_aligner and _enemy_or_neutral and any(j in state.known_enemy_junctions for j in _enemy_or_neutral):
-                self._event(state, f"defend ended: heartless but enemy junctions detected — rushing to get heart for recapture")
+            elif not has_heart and has_aligner and _reachable_enemy:
+                self._event(state, f"defend ended: enemy junctions detected — rushing to get heart for recapture")
                 state.get_heart_timeouts = 0
                 state.current_skill = None
             elif not has_heart and has_aligner and self._shared_map is not None and self._shared_map.hearts_crafted_estimate > state.defend_start_hearts_estimate:

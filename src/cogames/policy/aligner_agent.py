@@ -755,7 +755,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 1 for t in not_yet_alignable
                 if abs(t[0] - j[0]) + abs(t[1] - j[1]) <= _JUNCTION_ALIGN_DISTANCE
             )
-            recapture = 5.0 if j in enemy_junctions else 0.0
+            nearby_enemy = sum(
+                1 for e in enemy_junctions
+                if abs(e[0] - j[0]) + abs(e[1] - j[1]) <= _JUNCTION_ALIGN_DISTANCE
+            )
+            recapture = nearby_enemy * 3.0
             cluster = sum(
                 1 for f in friendly_junctions
                 if abs(f[0] - j[0]) + abs(f[1] - j[1]) <= _JUNCTION_ALIGN_DISTANCE
@@ -775,7 +779,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
-        alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+        alignable = {j for j in state.known_neutral_junctions
                      if self._is_alignable(j, state) and j not in bl}
         target_abs = self._cascade_priority_target(current_abs, alignable, state)
         if target_abs is None:

@@ -387,9 +387,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         return self._aligner._spawn_offset(obs)
 
     def _known_alignable_junctions(self, state: CrossRoleState) -> set[Coord]:
-        # v14: include both neutral AND enemy junctions so aligners re-align captured ones
-        # without waiting until all neutral junctions are exhausted.
-        return (state.known_neutral_junctions | state.known_enemy_junctions) - state.blacklisted_junctions
+        return state.known_neutral_junctions - state.blacklisted_junctions
 
     def _update_map_memory(self, obs: AgentObservation, state: CrossRoleState) -> Coord:
         """Update map from both aligner and miner perspectives."""
