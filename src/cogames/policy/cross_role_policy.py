@@ -747,14 +747,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 self._set_skill_fast(obs, state, "deposit_to_hub",
                     f"fast-path: cargo full ({carried}/{self._return_load})")
                 return
-            if state.known_extractors and carried < self._return_load:
+            active_extractors = state.known_extractors - state.depleted_extractors
+            if active_extractors and carried < self._return_load:
                 self._set_skill_fast(obs, state, "mine_until_full",
-                    f"fast-path: have {len(state.known_extractors)} extractors, cargo {carried}/{self._return_load}")
+                    f"fast-path: have {len(active_extractors)} active extractors, cargo {carried}/{self._return_load}")
                 return
-            # Issue-36: fast-path explore when miner has no known extractors
-            if not state.known_extractors and carried < self._return_load:
+            if not active_extractors and carried < self._return_load:
                 self._set_skill_fast(obs, state, "explore",
-                    "fast-path: miner has no known extractors, exploring to discover some")
+                    "fast-path: miner has no active extractors, exploring to discover some")
                 return
 
         # Skip LLM call when planner is None (scripted_miners mode)
@@ -770,7 +770,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 known_neutral_junctions=len(state.known_neutral_junctions),
                 known_friendly_junctions=len(state.known_friendly_junctions),
                 known_enemy_junctions=len(state.known_enemy_junctions),
-                known_extractors=len(state.known_extractors),
+                known_extractors=len(state.known_extractors - state.depleted_extractors),
                 current_skill=state.current_skill,
                 no_move_steps=state.no_move_steps,
                 recent_events=state.recent_events,

@@ -62,3 +62,4 @@ c120dee	0.000000	bug_fix	0	keep	fix: miner move tracking on HP retreat and hub t
 de4e34f	0.000000	critical_bug_fix	0	keep	fix: aligners navigate to enemy junctions they can't align + heart-before-gear on respawn
 048d496	0.000000	bug_fix	0	keep	fix: cleanup stale enemy junction references after alignment target fix
 b6235b8	0.000000	critical_bug_fix	0	keep	fix: cross_role_policy same enemy junction alignment bug
+de82ebe	0.000000	bug_fix	0	keep	fix: visual extractor depletion — remove stale extractors immediately

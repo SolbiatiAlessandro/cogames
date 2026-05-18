@@ -379,7 +379,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 has_miner=has_miner,
                 hub_visible=self._hub_visible(obs),
                 remembered_hub=(state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn),
-                known_extractors=len(state.known_extractors),
+                known_extractors=len(self._active_extractors(state)),
                 frontier_count=self._frontier_count(state),
                 current_skill=state.current_skill,
                 no_move_steps=state.no_move_steps,
@@ -404,7 +404,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 skill = "gear_up"
             elif carried_total >= self._effective_return_load:
                 skill = "deposit_to_hub"
-            elif state.known_extractors:
+            elif self._active_extractors(state):
                 skill = "mine_until_full"
             else:
                 skill = "explore"
