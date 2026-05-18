@@ -16,11 +16,14 @@ from pathlib import Path
 
 
 def eval_checkpoint(checkpoint: str, mission: str, cogs: int, episodes: int,
-                    steps: int, seed: int, variants: list[str]) -> dict:
+                    steps: int, seed: int, variants: list[str], temperature: float = 0.7) -> dict:
+    player_cfg = f"class=tutorial,data={checkpoint}"
+    if temperature != 1.0:
+        player_cfg += f",temperature={temperature}"
     cmd = [
         sys.executable, "-m", "cogames", "run",
         "-m", mission,
-        "-p", f"class=tutorial,data={checkpoint}",
+        "-p", player_cfg,
         "-c", str(cogs),
         "-e", str(episodes),
         "-s", str(steps),
@@ -67,6 +70,7 @@ def main():
     parser.add_argument("--mission", type=str, default="cogsguard_machina_1.basic")
     parser.add_argument("--seed", type=int, default=3000)
     parser.add_argument("--variant", type=str, nargs="*", default=["no_vibes"])
+    parser.add_argument("--temperature", type=float, default=0.7)
     args = parser.parse_args()
 
     # Expand globs
@@ -98,7 +102,7 @@ def main():
 
         for s in args.steps:
             result = eval_checkpoint(cp, args.mission, args.cogs, args.episodes,
-                                     s, args.seed, args.variant)
+                                     s, args.seed, args.variant, temperature=args.temperature)
             if result["success"]:
                 row += f"  {result['avg']:>10.4f}  {result['peak']:>10.4f}  {result['junction_held']:>8.0f}"
             else:

@@ -71,3 +71,15 @@ New experiment plan:
 Added --map-seed CLI arg to train_curriculum_v2.py (maps to train.py's map_seed parameter).
 
 Base objective weight analysis: 1.0/max_steps per tick. With m2_factor=5 on 3000-step episodes: 5/3000=0.00167/tick. The _apply_milestones_2 function scales this and subtracts 1 from junction count (removes home base).
+
+## 2026-05-18 06:09 UTC: Stage 1b complete, Stage 1c starting
+
+Stage 1b (ent=0.02, 50 epochs, 3.2M steps) completed in 23.2 min.
+- Best checkpoint: `train_dir_p1_anneal_m2x5_s42/stage1b/177908317592/model_000782.pt`
+- Entropy dropped from 1.609 → ~1.58 (still high, policy exploring)
+- Junction.held: first half 17% nonzero avg=1321, second half 9% nonzero avg=1418
+  → Policy specializing: fewer but longer alignment episodes
+
+Stage 1c (ent=0.01, 30 epochs, 1.92M steps) now running. ETA ~13 min.
+
+Also added temperature support to TutorialPolicy (default 0.7 for eval, matching previous sessions).

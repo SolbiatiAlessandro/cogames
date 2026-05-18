@@ -16,11 +16,14 @@ import sys
 
 
 def run_eval(checkpoint: str, mission: str, cogs: int, episodes: int,
-             steps: int, seed: int, variants: list[str]) -> dict:
+             steps: int, seed: int, variants: list[str], temperature: float = 1.0) -> dict:
+    player_cfg = f"class=tutorial,data={checkpoint}"
+    if temperature != 1.0:
+        player_cfg += f",temperature={temperature}"
     cmd = [
         sys.executable, "-m", "cogames", "run",
         "-m", mission,
-        "-p", f"class=tutorial,data={checkpoint}",
+        "-p", player_cfg,
         "-c", str(cogs),
         "-e", str(episodes),
         "-s", str(steps),
@@ -65,16 +68,18 @@ def main():
     parser.add_argument("--mission", type=str, default="cogsguard_machina_1.basic")
     parser.add_argument("--seed", type=int, default=3000)
     parser.add_argument("--variant", type=str, nargs="*", default=["no_vibes"])
+    parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
 
     print(f"Evaluating {args.checkpoint}")
     print(f"  Mission: {args.mission}, Cogs: {args.cogs}, Steps: {args.steps}, Episodes: {args.episodes}")
+    print(f"  Temperature: {args.temperature}")
 
     result = run_eval(
         args.checkpoint, args.mission, args.cogs, args.episodes,
-        args.steps, args.seed, args.variant,
+        args.steps, args.seed, args.variant, temperature=args.temperature,
     )
 
     print(f"\n=== Results ({args.episodes} episodes, {args.steps} steps) ===")
