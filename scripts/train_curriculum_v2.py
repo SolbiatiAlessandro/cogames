@@ -242,11 +242,62 @@ def pipeline_compmap(args):
     return weights_p2
 
 
+def pipeline_compmap_graduated(args):
+    """Phase 2 with intermediate 1000-step step (matching Session 2's successful pipeline)."""
+    map_seed = getattr(args, 'map_seed', None)
+    ms_label = f"_ms{map_seed}" if map_seed is not None else ""
+
+    if not args.weights:
+        logger.error("Graduated pipeline requires --weights (Phase 1 checkpoint)")
+        sys.exit(1)
+
+    # Phase 2a: Competition map, 1000-step episodes (learn map navigation)
+    p2a_dir = f"./train_dir_p2a_1kep_m2x{int(args.m2_factor)}_s{args.seed}{ms_label}"
+    steps_per_batch_1k = args.parallel_envs * 1000 * args.cogs
+    p2a_steps = 20 * steps_per_batch_1k
+
+    logger.info("=" * 60)
+    logger.info("PHASE 2a: Competition map, 1000-step episodes (map navigation)")
+    logger.info(f"  map_seed={map_seed}")
+    logger.info("=" * 60)
+    weights_p2a = run_training_phase(
+        phase=2, steps_total=p2a_steps, seed=args.seed,
+        cogs=args.cogs, parallel_envs=args.parallel_envs, max_steps=1000,
+        m2_factor=args.m2_factor, ent_coef=0.02, clip_coef=0.2,
+        lr=0.00092, gamma=0.995, gae_lambda=0.90,
+        weights=args.weights, checkpoint_dir=p2a_dir,
+        map_seed=map_seed,
+    )
+
+    # Phase 2b: Competition map, 3000-step episodes (extend horizon)
+    p2b_dir = f"./train_dir_p2b_3kep_m2x{int(args.m2_factor)}_s{args.seed}{ms_label}"
+    steps_per_batch_3k = args.parallel_envs * 3000 * args.cogs
+    p2b_steps = 30 * steps_per_batch_3k
+
+    logger.info("=" * 60)
+    logger.info("PHASE 2b: Competition map, 3000-step episodes (horizon extension)")
+    logger.info(f"  From: {weights_p2a}")
+    logger.info("=" * 60)
+    weights_p2b = run_training_phase(
+        phase=2, steps_total=p2b_steps, seed=args.seed,
+        cogs=args.cogs, parallel_envs=args.parallel_envs, max_steps=3000,
+        m2_factor=args.m2_factor, ent_coef=0.01, clip_coef=0.2,
+        lr=0.00092, gamma=0.995, gae_lambda=0.90,
+        weights=weights_p2a, checkpoint_dir=p2b_dir,
+        map_seed=map_seed,
+    )
+
+    logger.info("=" * 60)
+    logger.info(f"GRADUATED PIPELINE COMPLETE. Best checkpoint: {weights_p2b}")
+    logger.info("=" * 60)
+    return weights_p2b
+
+
 def main():
     parser = argparse.ArgumentParser(description="Curriculum RL training for CogsGuard")
 
     # Pipeline mode
-    parser.add_argument("--pipeline", type=str, choices=["arena_anneal", "compmap"],
+    parser.add_argument("--pipeline", type=str, choices=["arena_anneal", "compmap", "compmap_graduated"],
                         help="Run full pipeline")
 
     # Single phase mode
@@ -276,6 +327,8 @@ def main():
         pipeline_arena_anneal(args)
     elif args.pipeline == "compmap":
         pipeline_compmap(args)
+    elif args.pipeline == "compmap_graduated":
+        pipeline_compmap_graduated(args)
     elif args.phase:
         if args.max_steps is None:
             args.max_steps = 1000 if args.phase == 1 else 3000

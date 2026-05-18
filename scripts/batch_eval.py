@@ -19,7 +19,7 @@ def eval_checkpoint(checkpoint: str, mission: str, cogs: int, episodes: int,
                     steps: int, seed: int, variants: list[str], temperature: float = 0.7) -> dict:
     player_cfg = f"class=tutorial,data={checkpoint}"
     if temperature != 1.0:
-        player_cfg += f",temperature={temperature}"
+        player_cfg += f",kw.temperature={temperature}"
     cmd = [
         sys.executable, "-m", "cogames", "run",
         "-m", mission,
