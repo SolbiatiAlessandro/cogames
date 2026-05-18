@@ -278,8 +278,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     sm.known_neutral_junctions.discard(abs_cell)
                     sm.known_friendly_junctions.discard(abs_cell)
                 else:
-                    if abs_cell not in sm.known_friendly_junctions and abs_cell not in sm.known_enemy_junctions:
-                        sm.known_neutral_junctions.add(abs_cell)
+                    sm.known_neutral_junctions.add(abs_cell)
+                    sm.known_friendly_junctions.discard(abs_cell)
+                    sm.known_enemy_junctions.discard(abs_cell)
 
         blocked_now.update(extractors_now)
         blocked_now.update(hubs_now)
