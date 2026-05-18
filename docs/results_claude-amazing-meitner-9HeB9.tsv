@@ -211,3 +211,10 @@ seed7_e10	1.105300	aligned.junction.held=~7000	10000	discard	seed=7 e10 @10K (1-
 seed7_e15	1.075900	aligned.junction.held=~5000	10000	discard	seed=7 e15 @10K (1-ep) - declining
 seed7_e20	1.000000	aligned.junction.held=~0	10000	discard	seed=7 e20 @10K (1-ep) - collapsed to baseline
 seed7_e25-e40	1.000000	aligned.junction.held=~0	10000	discard	seed=7 e25-e40 all at baseline - another failed seed
+map42_seed7_e20	1.283140	aligned.junction.held=~10000	10000	keep	map_seed=42+seed=7 e20 @10K (5-ep, peak=1.601, std=0.205) - confirms map_seed matters
+map42_seed7_e25	1.088500	aligned.junction.held=~6000	10000	discard	map42+seed7 e25 @10K (1-ep) - declining from e20 peak
+map42_seed7_e30	1.122000	aligned.junction.held=~7000	10000	discard	map42+seed7 e30 @10K (1-ep) - oscillating
+map42_seed123_e15	1.054200	aligned.junction.held=~3000	10000	discard	map42+seed123 e15 @10K (1-ep) - slow learner
+map42_seed123_e30	1.196667	aligned.junction.held=~9000	10000	keep	map42+seed123 e30 @10K (3-ep, peak=1.384, std=0.145) - learns late
+p3v2_e5	1.136940	aligned.junction.held=~8000	10000	keep	P3 max_dist=15 from longep3k_e20 @10K (5-ep, peak=1.257, std=0.115)
+p3v2_e20	1.166160	aligned.junction.held=~8000	10000	keep	P3 e20 @10K (5-ep, peak=1.327, std=0.108) - best P3 so far

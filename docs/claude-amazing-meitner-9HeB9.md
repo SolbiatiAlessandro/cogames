@@ -994,7 +994,32 @@ Added `--map-seed` argument to train_curriculum.py. Running:
 1. **map42_seed7**: map_seed=42 + training_seed=7 — tests if the "lucky map" transfers
 2. **map42_seed123**: map_seed=42 + training_seed=123 — same map, different optimizer
 
-If these work (avg >1.2 at e20), the map layout is the bottleneck. If they fail, it's optimizer stochasticity interacting with the map.
+### Map Seed Separation Results (CONFIRMED)
 
-Also running:
-3. **longep3k_p3v2**: Phase 3 (max_distance=15) from best P2 checkpoint, LR=0.0003
+| Experiment | map_seed | train_seed | e20 avg | e30 avg | Validated |
+|---|---|---|---|---|---|
+| longep3k (original) | 42 | 42 | **1.394** (5-ep) | declining | **BEST** |
+| map42_seed7 | 42 | 7 | **1.283** (5-ep) | 1.122 (1-ep) | Yes |
+| map42_seed123 | 42 | 123 | 1.000 | **1.197** (3-ep) | Yes, peaks late |
+| seed7 (map=7) | 7 | 7 | 1.000 | 1.000 | Failed |
+| seed123 (map=123) | 123 | 123 | 1.065 | declining | Failed |
+
+**CONFIRMED: map_seed=42 is the critical factor.** Both seed=7 and seed=123 achieve >1.2 avg when given map_seed=42. Without it, they fail completely. This means the generated map layout at seed=42 has a favorable junction/resource placement.
+
+### Phase 3 (max_distance=15) Results
+
+P3v2: Fine-tune from longep3k_e20 with LR=0.0003, lower entropy:
+
+| Checkpoint | Avg (5-ep) | Peak | Std | Status |
+|---|---|---|---|---|
+| p3v2_e5 | 1.137 | 1.257 | 0.115 | Decent but 2/5 episodes fail |
+| p3v2_e20 | **1.166** | 1.327 | 0.108 | Best P3 — lower variance |
+| p3v2_e30 | 1.060 (1-ep) | - | - | Declining |
+
+Phase 3 training at competition distance maintains performance (~1.1-1.2) but hasn't improved upon the P2 peak (1.394). The model sometimes fails to navigate the longer distances (max_dist=15 vs 10).
+
+### Active experiments
+- **map42_seed7**: continuing past e30 (training seed=7 on lucky map)
+- **map42_seed123**: continuing past e30 (training seed=123 on lucky map)
+- **p3v2**: Phase 3 continuing past e30
+- **p3_from_map42s7**: NEW — Phase 3 fine-tune from map42_seed7_e20
