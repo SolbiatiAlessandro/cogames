@@ -1074,7 +1074,25 @@ Averaged weights from multiple models in hopes of improving generalization. All 
 
 **Conclusion**: Weight averaging creates a "compromised" policy that's mediocre on all maps instead of good on some. Lower variance is expected but lower average makes it strictly worse. SWA is NOT a viable approach for this task.
 
-### Constant LR + Finetune Sweep (in progress)
+### Constant LR + Finetune Sweep — COMPLETED
 - **constlr**: Training from p2_longrun base with NO LR annealing (constant LR=0.00092), map_seed=42
-- Evaluating unexplored finetune checkpoints (e5, e15, e20, e25, e30) to find the finetune peak
 - Added --no-anneal-lr and --min-lr-ratio CLI args to train_curriculum.py
+
+### Constant LR Fine-tune from Best Model (ft_constlr) — Session 8
+Fine-tuned longep3k_e20 with constant LR=0.0003, fixed entropy=0.01, seed=42, map_seed=42.
+
+| Checkpoint | Avg (3-ep) | Std | Peak | Note |
+|---|---|---|---|---|
+| ft_constlr_e5 | 1.179 | 0.192 | 1.445 | Warming up |
+| ft_constlr_e10 | **1.612 (3-ep)** → **1.144 (5-ep)** | 0.149 | 1.403 | **3-ep was lucky outlier!** |
+| ft_constlr_e15 | 1.129 | 0.097 | 1.262 | Declining |
+| ft_constlr_e20 | 1.016 | 0.017 | 1.040 | Collapsed |
+| ft_constlr_e25 | 1.106 | 0.072 | 1.206 | Slight recovery |
+| ft_constlr_e30 | 1.008 | 0.004 | 1.013 | Collapsed |
+| ft_constlr_e35 | 1.043 | 0.046 | 1.106 | Near-random |
+
+**Key finding**: Constant LR does NOT help fine-tuning. Same peak-at-e10-then-collapse pattern as regular fine-tune. The 3-ep eval of 1.612 was unreliable — validated at only 1.144 with 5 episodes. This confirms: **always validate with 5+ episodes**.
+
+Training diagnostics: clipfrac drops to 0 by epoch ~4, entropy stabilizes at ~1.5, policy barely updates after e10. The model effectively stops learning, then slowly degrades.
+
+**Conclusion**: Fine-tuning from longep3k_e20 (with any LR schedule) cannot beat the base model. The base model is already well-trained for its reward structure.

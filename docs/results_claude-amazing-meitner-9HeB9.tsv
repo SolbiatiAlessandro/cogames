@@ -232,3 +232,10 @@ constlr_e5	1.013967	aligned.junction.held=~500	10000	discard	Constant LR from p2
 constlr_e10	1.076900	aligned.junction.held=~5000	10000	discard	Constant LR from p2_longrun e10 @10K (3-ep, peak=1.216) - improving
 finetune_e5	1.253167	aligned.junction.held=~10000	10000	keep	Finetune from longep3k_e20 LR=0.0005 e5 @10K (3-ep, peak=1.311, std=0.050)
 finetune_e15	1.031500	aligned.junction.held=~3000	10000	discard	Finetune e15 @10K (3-ep, peak=1.062) - sharp decline from e10
+ft_constlr_e5	1.178500	aligned.junction.held=~8000	10000	discard	Constant LR fine-tune from longep3k_e20 LR=0.0003 e5 @10K (3-ep, peak=1.445, std=0.192)
+ft_constlr_e10	1.143520	aligned.junction.held=~8000	10000	discard	Constant LR fine-tune e10 @10K (5-ep validated, peak=1.403, std=0.149) - 3-ep was 1.612 outlier
+ft_constlr_e15	1.129067	aligned.junction.held=~7000	10000	discard	Constant LR fine-tune e15 @10K (3-ep, peak=1.262, std=0.097)
+ft_constlr_e20	1.015733	aligned.junction.held=~500	10000	discard	Constant LR fine-tune e20 @10K (3-ep, peak=1.040) - collapsed
+ft_constlr_e25	1.105800	aligned.junction.held=~6000	10000	discard	Constant LR fine-tune e25 @10K (3-ep, peak=1.206, std=0.072)
+ft_constlr_e30	1.007767	aligned.junction.held=~500	10000	discard	Constant LR fine-tune e30 @10K (3-ep, peak=1.013) - collapsed
+ft_constlr_e35	1.043133	aligned.junction.held=~2000	10000	discard	Constant LR fine-tune e35 @10K (3-ep, peak=1.106, std=0.046)
