@@ -441,14 +441,14 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         cooldown_cells = set(state.move_cooldowns.keys())
         if not cooldown_cells:
             return None
-        # Temporarily restore cooldown cells as free
-        original_blocked = set(state.blocked_cells)
-        original_free = set(state.known_free_cells)
-        state.blocked_cells -= cooldown_cells
-        state.known_free_cells |= cooldown_cells
+        # Temporarily swap in views without cooldown blocks (avoids mutating shared sets)
+        saved_blocked = state.blocked_cells
+        saved_free = state.known_free_cells
+        state.blocked_cells = saved_blocked - cooldown_cells
+        state.known_free_cells = saved_free | cooldown_cells
         direction = self._bfs_first_direction(state, start, goal)
-        state.blocked_cells = original_blocked
-        state.known_free_cells = original_free
+        state.blocked_cells = saved_blocked
+        state.known_free_cells = saved_free
         return direction
 
     def _move_to(self, state: MinerSkillState, current_abs: Coord, target_abs: Coord | None) -> tuple[Action, MinerSkillState]:
