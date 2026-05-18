@@ -34,7 +34,7 @@ CROSS_ROLE_SKILLS = {
     "gear_up_aligner": "Route to the aligner station and acquire aligner gear.",
     "gear_up_miner": "Route to the miner station and acquire miner gear.",
     "get_heart": "Route to the hub and obtain a heart (requires aligner gear).",
-    "align_neutral": "Route to a neutral or enemy junction and align it (requires aligner gear + heart).",
+    "align_neutral": "Route to a neutral junction and align it (requires aligner gear + heart).",
     "mine_until_full": "Route to extractors and mine until cargo full (requires miner gear).",
     "deposit_to_hub": "Route to hub and deposit carried resources (requires miner gear + carried resources).",
     "explore": "Explore the map to discover new junctions, extractors, and routes.",
@@ -192,7 +192,7 @@ def build_cross_role_prompt(
         f"- known_friendly_junctions: {known_friendly_junctions}\n"
         f"- known_enemy_junctions: {known_enemy_junctions}\n"
         f"- known_extractors: {known_extractors}\n"
-        f"- known_alignable_junctions: {known_neutral_junctions + known_enemy_junctions}\n"
+        f"- known_alignable_junctions: {known_neutral_junctions}\n"
         f"- hub_depleted: {hub_depleted}\n"
         f"- current_skill: {current_skill or 'none'}\n"
         f"- no_move_steps: {no_move_steps}\n"
@@ -1055,10 +1055,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 if state.align_neutral_timeouts >= 1:
                     current_abs = self._current_abs(obs)
                     non_bl_neutral = state.known_neutral_junctions - state.blacklisted_junctions
-                    non_bl_enemy = state.known_enemy_junctions - state.blacklisted_junctions
-                    targets = non_bl_neutral or non_bl_enemy
-                    if targets:
-                        stuck = self._aligner._nearest_known(current_abs, targets)
+                    if non_bl_neutral:
+                        stuck = self._aligner._nearest_known(current_abs, non_bl_neutral)
                         if stuck:
                             state.blacklisted_junctions.add(stuck)
                             state.align_neutral_timeouts = 0
@@ -1667,31 +1665,35 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             ))
 
         elif skill == "align_neutral":
-            # v14: merge enemy junctions into neutral pool so aligner routes to nearest
-            # of (neutral ∪ enemy) instead of neutral-first-then-enemy-as-fallback.
-            # This makes aligners defend recaptured junctions immediately rather than
-            # continuing to chase new neutral ones, increasing average hold time.
-            merged_neutral = state.known_neutral_junctions | state.known_enemy_junctions
-            # Issue-36 v16: aligner junction coordination — prefer junctions not already
-            # targeted by another aligner to avoid wasting hearts on simultaneous attempts.
-            if self._shared_map is not None:
-                targeted_by_others = {
-                    t for aid, t in self._shared_map.aligner_targets.items()
-                    if aid != obs.agent_id and t is not None
-                }
-                available = merged_neutral - targeted_by_others - state.blacklisted_junctions
-                if available:
-                    # Filter available to only alignable junctions
-                    alignable_available = {j for j in available if self._aligner._is_alignable(j, state)}
-                    if alignable_available:
-                        merged_neutral = alignable_available
-                # Record predicted target (nearest alignable in merged set)
+            # Only navigate to neutral junctions — enemy junctions have a team tag and
+            # can't be aligned directly (isNot(hasTagPrefix("team:")) filter).
+            sm = self._shared_map
+            if sm is not None:
+                yield_targets = set()
+                for aid, t in sm.aligner_targets.items():
+                    if aid == obs.agent_id or t is None:
+                        continue
+                    other_pos = sm.agent_positions.get(aid)
+                    if other_pos is None:
+                        yield_targets.add(t)
+                        continue
+                    their_dist = abs(t[0] - other_pos[0]) + abs(t[1] - other_pos[1])
+                    my_dist = abs(t[0] - current_abs[0]) + abs(t[1] - current_abs[1])
+                    if their_dist <= my_dist:
+                        yield_targets.add(t)
+                if yield_targets:
+                    saved_bl = set(state.blacklisted_junctions)
+                    state.blacklisted_junctions |= yield_targets
+                    action, base_state = self._aligner._align_neutral(obs, state, current_abs)
+                    state.blacklisted_junctions = saved_bl
+                else:
+                    action, base_state = self._aligner._align_neutral(obs, state, current_abs)
                 bl = state.blacklisted_junctions
-                predict_alignable = {j for j in merged_neutral if self._aligner._is_alignable(j, state) and j not in bl}
-                predicted_target = self._aligner._nearest_known(current_abs, predict_alignable)
-                self._shared_map.aligner_targets[obs.agent_id] = predicted_target
-            align_state = replace(state, known_neutral_junctions=merged_neutral)
-            action, base_state = self._aligner._align_neutral(obs, align_state, current_abs)
+                predict_alignable = {j for j in state.known_neutral_junctions
+                                     if self._aligner._is_alignable(j, state) and j not in bl and j not in yield_targets}
+                sm.aligner_targets[obs.agent_id] = self._aligner._cascade_priority_target(current_abs, predict_alignable, state)
+            else:
+                action, base_state = self._aligner._align_neutral(obs, state, current_abs)
             state = self._copy_with_shared(replace(state,
                 wander_direction_index=base_state.wander_direction_index,
                 wander_steps_remaining=base_state.wander_steps_remaining,
