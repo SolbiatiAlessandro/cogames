@@ -618,7 +618,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         target = self._nearest_known(current_abs, other_junctions)
                     state.defend_last_junction = current_abs
                     state.defend_station_steps = 0
-                    direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                    direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=True)
+                    if direction is None:
+                        direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                     if direction:
                         action = self._starter._action(f"move_{direction}")
                         state.last_move_target = self._move_target(current_abs, direction)
@@ -642,7 +644,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     )
                 else:
                     target = self._nearest_known(current_abs, state.known_friendly_junctions)
-                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=True)
+                if direction is None:
+                    direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                 if direction:
                     action = self._starter._action(f"move_{direction}")
                     state.last_move_target = self._move_target(current_abs, direction)
