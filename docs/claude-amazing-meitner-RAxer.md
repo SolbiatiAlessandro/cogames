@@ -139,9 +139,29 @@ Token is effectively expired for write operations.
 - The scripted ceiling is confirmed at ~42 (issue #74)
 - RL training (issues #75, #76) is the only path to top-3
 
+## 2026-05-18T13:00: critical bug fix — progress tracking (commits faa6433, e76016b)
+
+### Bug found: `made_progress` was ALWAYS False for get_heart and align_neutral
+
+In `_update_progress()`, `state.last_has_heart = has_heart` was executed BEFORE
+`made_progress = (has_heart and not state.last_has_heart)`, making the condition
+evaluate as `has_heart and not has_heart` = always False. Same for `friendly_count`.
+
+**Impact**: `no_progress_on_target_steps` never reset for these skills, causing
+premature "stale on target" exits at 15 steps even when agents were acquiring hearts
+or aligning junctions. This could explain some "stuck" behavior where agents abandon
+get_heart prematurely.
+
+**Fix**: Moved `state.last_has_heart = has_heart` and `state.last_friendly_junctions`
+AFTER the `made_progress` computation. Fixed in both `machina_llm_roles_policy.py`
+and `cross_role_policy.py`.
+
+The miner's `llm_miner_policy.py` was already correct (state updates after checks).
+
 ### Key learnings for this session:
 1. **Always check online evidence before making offline-inspired changes**
 2. **The offline-online gap is massive** — up to -9 points for changes that improve offline by +2.7%
 3. **Structural/behavioral changes** (contamination avoidance, phase-aware defense) are the
    unexplored frontier — parameter tuning is exhausted after 100+ experiments
 4. **Auth blocker persists** — the token only has public read access
+5. **Bug fixes > parameter tuning** — the progress tracking bug could have more impact than any parameter change

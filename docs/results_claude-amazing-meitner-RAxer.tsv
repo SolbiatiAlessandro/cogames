@@ -5,3 +5,5 @@ f26807b	0.000000	cannot_test_offline	0	discard	early-game heart dispatch — rev
 f693106	0.000000	cannot_test_offline	0	keep	contamination avoidance: track gear-switch cells, avoid in BFS
 98e69b8	41.850000	structural_only	10000	keep	reverted parameter changes, kept structural improvements
 d186121	0.000000	cannot_test_offline	0	keep	distance-aware retreat + phase-aware defense + step counter
+faa6433	0.000000	bug_fix	0	keep	fix: progress tracking was always False for get_heart/align_neutral
+e76016b	0.000000	bug_fix	0	keep	fix: same progress tracking bug in cross_role_policy.py
