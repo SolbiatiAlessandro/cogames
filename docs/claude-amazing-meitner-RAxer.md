@@ -376,3 +376,52 @@ saving potentially many steps of wasted navigation.
   crowding, not actual depletion)
 - **Multi-heart alignment**: aligners with 2+ hearts continue align_neutral until all used —
   efficient batching, no unnecessary hub trips between junctions
+
+## 2026-05-18T20:00: Continued deep code review + 2 more fixes
+
+### Fix 6: Deposit tracking counts cargo lost on death as deposits (045a8aa)
+**Problem**: When a miner dies, all cargo is lost (goes to 0). The deposit tracking code
+in `_update_progress` attributed ANY cargo decrease to hub deposits, incrementing
+`total_deposits` and inflating `hearts_crafted_estimate`. This made aligners think more
+hearts were available than actually existed.
+
+**Fix**: Only count cargo decreases as deposits when the miner is within 2 cells of a hub
+(where actual depositing occurs). Cargo lost from death, contamination, or other causes
+at non-hub locations is correctly ignored.
+
+**File**: `llm_miner_policy.py` line 273+
+
+### Improvement 7: Defend patrol prioritizes junctions near enemy territory (c80aabd)
+**Problem**: Defend patrol selected patrol targets based on spread from other agents and
+travel cost. It didn't consider WHERE enemy threats were most likely — junctions near
+enemy-controlled territory are at highest risk of being flipped.
+
+**Fix**: Added enemy proximity factor to defend scoring: `threat = max(0, 30 - nearest_enemy_dist) * 0.5`.
+Friendly junctions within 30 cells of enemy junctions get a bonus, concentrating defenders
+where the threat is highest. Score: `spread - travel*0.3 + threat`.
+
+**File**: `machina_llm_roles_policy.py` defend branch (~line 661+)
+
+### Areas verified correct (continued from previous review)
+- **_check_extractor_depletion in base MinerSkillImpl**: Only called from base `step_with_state`,
+  NOT from LLM miner path. LLM miner uses `no_progress_on_target_steps >= stuck_threshold`
+  for depletion detection (line 504-511), which is intentionally different
+- **SharedMap blocked_cells pollution from miner cooldowns**: Known architectural trade-off.
+  Each agent's per-agent cooldowns get added to shared blocked_cells, but get cleaned up
+  when any agent's visible_cells sweep passes through. BFS fallback chain handles edge cases
+- **_navigate_to_station greedy fallback**: Doesn't respect avoid_hazards flag, but is
+  unreachable when BFS succeeds. Acceptable last-resort behavior
+- **_best_approach_cell**: Returns None only when all 4 adjacent cells are blocked (surrounded
+  by walls). _navigate_to_station returns a direction in all other cases
+- **Junction coordination window**: 1-step delay between alignment action and observation update
+  is handled by aligner_targets deconfliction in SharedMap
+- **LLMAlignerState _copy_with**: All fields correctly preserved via replace() semantics.
+  SharedMap references re-bound. contamination_avoid_cells shared by reference (correct)
+- **_update_progress move tracking**: correctly prioritized — stationary_on_valid_target check
+  comes before blocked-move detection. defend-on-junction case correctly resets no_move_steps
+- **Explore interrupts**: considered porting cross_role's "cooldown expired → get_heart"
+  interrupt but determined it would cause loops (stuck → unstuck → explore → interrupt →
+  stuck). Current 30-step explore cap is a better balance
+- **cascade_priority_target scoring**: travel + hub_dist * 0.2 is reasonable. _is_alignable
+  pre-filters to cascade-reachable junctions. More complex cascade-graph scoring adds
+  complexity without clear benefit
