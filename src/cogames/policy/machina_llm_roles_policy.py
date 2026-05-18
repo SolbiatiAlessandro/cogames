@@ -64,6 +64,9 @@ class LLMAlignerState(AlignerState):
     _prev_gear: str = ""
     # Global step counter for phase-aware behavior
     global_step: int = 0
+    # Defend patrol: steps spent sitting on current junction
+    defend_station_steps: int = 0
+    defend_last_junction: tuple[int, int] | None = None
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -361,6 +364,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
+        state.defend_station_steps = 0
+        state.defend_last_junction = None
         self._event(state, f"planner selected {skill}: {reason}")
 
     def _maybe_finish_skill(self, obs: AgentObservation, state: LLMAlignerState) -> None:
@@ -593,7 +598,34 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill == "defend":
             current_abs = self._spawn_offset(obs)
             if current_abs in state.known_friendly_junctions:
-                action = self._starter._action("noop")
+                state.defend_station_steps += 1
+                if state.defend_station_steps >= 20 and len(state.known_friendly_junctions) > 1:
+                    other_junctions = state.known_friendly_junctions - {current_abs}
+                    sm = self._shared_map
+                    other_positions = set()
+                    if sm is not None:
+                        for aid, pos in sm.agent_positions.items():
+                            if aid != obs.agent_id:
+                                other_positions.add(pos)
+                    if other_positions:
+                        target = max(
+                            other_junctions,
+                            key=lambda j: min(
+                                abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
+                            ) - abs(j[0] - current_abs[0]) - abs(j[1] - current_abs[1]) * 0.3,
+                        )
+                    else:
+                        target = self._nearest_known(current_abs, other_junctions)
+                    state.defend_last_junction = current_abs
+                    state.defend_station_steps = 0
+                    direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                    if direction:
+                        action = self._starter._action(f"move_{direction}")
+                        state.last_move_target = self._move_target(current_abs, direction)
+                    else:
+                        action = self._starter._action("noop")
+                else:
+                    action = self._starter._action("noop")
             elif state.known_friendly_junctions:
                 sm = self._shared_map
                 other_positions = set()
