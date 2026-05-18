@@ -62,6 +62,8 @@ class LLMAlignerState(AlignerState):
     retreating: bool = False
     # Contamination tracking
     _prev_gear: str = ""
+    # Global step counter for phase-aware behavior
+    global_step: int = 0
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -344,11 +346,14 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
-        # Late-game defense: when aligner has heart but all junctions are friendly,
-        # patrol near junctions instead of exploring aimlessly
+        # Phase-aware defense: in late game (>7000 steps), defend territory to hold
+        # score. In early/mid game, only defend if enemy activity detected.
         if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and len(state.known_friendly_junctions) >= 5:
-            skill = "defend"
-            reason = f"late-game patrol: {len(state.known_friendly_junctions)} friendly junctions, none alignable"
+            late_game = state.global_step > 7000
+            enemy_active = bool(state.known_enemy_junctions)
+            if late_game or enemy_active:
+                skill = "defend"
+                reason = f"{'late-game' if late_game else 'enemy-active'} patrol: {len(state.known_friendly_junctions)} friendly, step={state.global_step}"
         if skill == "explore":
             state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
         state.current_skill = skill
@@ -458,6 +463,19 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.wander_direction_index = (state.wander_direction_index + 1) % len(self._UNSTUCK_DIRECTIONS)
         return self._starter._action(f"move_{direction}"), state
 
+    def _dist_to_nearest_safe(self, current_abs, state: LLMAlignerState) -> int:
+        """Manhattan distance to nearest hub or friendly junction."""
+        min_dist = 9999
+        for hub in state.known_hubs:
+            d = abs(current_abs[0] - hub[0]) + abs(current_abs[1] - hub[1])
+            if d < min_dist:
+                min_dist = d
+        for fj in state.known_friendly_junctions:
+            d = abs(current_abs[0] - fj[0]) + abs(current_abs[1] - fj[1])
+            if d < min_dist:
+                min_dist = d
+        return min_dist
+
     def _check_hp(self, obs: AgentObservation, state: LLMAlignerState, current_abs) -> bool:
         """Check HP and update retreat state. Returns True if agent should retreat."""
         hp = self._read_hp(obs)
@@ -469,7 +487,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             return False
         hp_fraction = hp / state.max_hp_seen
         in_friendly = self._in_friendly_territory(current_abs, state)
-        if hp_fraction < _HP_RETREAT_THRESHOLD and not in_friendly:
+        dist_to_safe = self._dist_to_nearest_safe(current_abs, state)
+        effective_threshold = _HP_RETREAT_THRESHOLD
+        if dist_to_safe > 40:
+            effective_threshold = min(0.85, _HP_RETREAT_THRESHOLD + 0.15)
+        elif dist_to_safe > 25:
+            effective_threshold = _HP_RETREAT_THRESHOLD + 0.05
+        if hp_fraction < effective_threshold and not in_friendly:
             if not state.retreating:
                 logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) retreating to friendly territory",
                             obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
@@ -492,6 +516,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
     def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+        state.global_step += 1
 
         # ── Contamination tracking: remember cells that switched our gear ──
         gear = self._current_gear(obs)
