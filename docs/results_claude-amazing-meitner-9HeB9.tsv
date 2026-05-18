@@ -225,3 +225,10 @@ temp05_longep3k_e20	1.252929	aligned.junction.held=~10000	10000	discard	longep3k
 temp06_longep3k_e20	1.187240	aligned.junction.held=~8000	10000	discard	longep3k_e20 temp=0.6 @10K (5-ep) - worse than 0.7
 p3_from_map42s7_e5	1.172167	aligned.junction.held=~8000	10000	discard	P3 from map42_seed7_e20 e5 @10K (3-ep, peak=1.512, std=0.240)
 p3_from_map42s7_e10	1.243200	aligned.junction.held=~9000	10000	keep	P3 from map42_seed7_e20 e10 @10K (3-ep, peak=1.553, std=0.231) - improving
+swa_top3	1.298020	aligned.junction.held=~10000	10000	discard	SWA avg of 3 models @10K (5-ep, peak=1.415, std=0.091) - lower variance but lower avg than base
+swa_top2	1.127920	aligned.junction.held=~7000	10000	discard	SWA avg of 2 models @10K (5-ep, peak=1.226, std=0.066) - too conservative
+swa_base_ft_60_40	1.139260	aligned.junction.held=~8000	10000	discard	60/40 blend longep3k_e20+finetune_e10 @10K (5-ep, peak=1.288, std=0.126) - weight averaging hurts
+constlr_e5	1.013967	aligned.junction.held=~500	10000	discard	Constant LR from p2_longrun e5 @10K (3-ep, peak=1.025) - still learning
+constlr_e10	1.076900	aligned.junction.held=~5000	10000	discard	Constant LR from p2_longrun e10 @10K (3-ep, peak=1.216) - improving
+finetune_e5	1.253167	aligned.junction.held=~10000	10000	keep	Finetune from longep3k_e20 LR=0.0005 e5 @10K (3-ep, peak=1.311, std=0.050)
+finetune_e15	1.031500	aligned.junction.held=~3000	10000	discard	Finetune e15 @10K (3-ep, peak=1.062) - sharp decline from e10

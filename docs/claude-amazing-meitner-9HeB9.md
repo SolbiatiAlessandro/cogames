@@ -1061,3 +1061,20 @@ Trajectory improving but still below P2 longep3k_e20 (1.394). Phase 3 consistent
 1. **ft_32env**: Fine-tune longep3k_e20 with 32 envs (more map diversity), LR=0.0003, ent 0.02→0.005
 2. **ft_hiboost**: Fine-tune longep3k_e20 with boost_aligner=7.5, LR=0.0002, fixed ent=0.01
 3. Killed obs15_goal and explore runs — they started from weaker p2_longrun base, not longep3k_e20
+
+### Weight Averaging (SWA) Results — NEGATIVE
+Averaged weights from multiple models in hopes of improving generalization. All underperform the base model.
+
+| SWA Model | Avg (5-ep) | Std | Peak | vs Base |
+|-----------|-----------|-----|------|---------|
+| swa_top3 (3 runs avg) | 1.298 | 0.091 | 1.415 | -7% |
+| swa_top2 (2 runs avg) | 1.128 | 0.066 | 1.226 | -19% |
+| swa_base_ft_60_40 (60% base + 40% ft) | 1.139 | 0.126 | 1.288 | -18% |
+| **longep3k_e20 (base)** | **1.394** | **0.255** | **1.713** | **baseline** |
+
+**Conclusion**: Weight averaging creates a "compromised" policy that's mediocre on all maps instead of good on some. Lower variance is expected but lower average makes it strictly worse. SWA is NOT a viable approach for this task.
+
+### Constant LR + Finetune Sweep (in progress)
+- **constlr**: Training from p2_longrun base with NO LR annealing (constant LR=0.00092), map_seed=42
+- Evaluating unexplored finetune checkpoints (e5, e15, e20, e25, e30) to find the finetune peak
+- Added --no-anneal-lr and --min-lr-ratio CLI args to train_curriculum.py

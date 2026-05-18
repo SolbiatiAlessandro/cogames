@@ -82,6 +82,8 @@ def main():
     parser.add_argument("--no-clips", action="store_true", help="Remove clips ships from map")
     parser.add_argument("--clip-coef", type=float, default=0.2, help="PPO clip coefficient")
     parser.add_argument("--lr", type=float, default=0.00092, help="Learning rate")
+    parser.add_argument("--no-anneal-lr", action="store_true", help="Disable LR annealing (constant LR)")
+    parser.add_argument("--min-lr-ratio", type=float, default=0.0, help="Min LR ratio for annealing (0=anneal to 0)")
     args = parser.parse_args()
 
     phase_config = {
@@ -204,6 +206,14 @@ def main():
     if args.lr != 0.00092:
         os.environ["COGAMES_LR"] = str(args.lr)
         print(f"  Learning rate: {args.lr}")
+
+    if args.no_anneal_lr:
+        os.environ["COGAMES_ANNEAL_LR"] = "false"
+        print(f"  LR annealing DISABLED (constant LR)")
+
+    if args.min_lr_ratio > 0:
+        os.environ["COGAMES_MIN_LR_RATIO"] = str(args.min_lr_ratio)
+        print(f"  Min LR ratio: {args.min_lr_ratio}")
 
     from mettagrid.policy.loader import resolve_policy_class_path
     class_path = resolve_policy_class_path("tutorial")

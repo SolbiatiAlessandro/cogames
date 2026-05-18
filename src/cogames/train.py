@@ -295,7 +295,7 @@ def train(
         torch_deterministic=True,
         cpu_offload=False,
         optimizer=optimizer,
-        anneal_lr=True,
+        anneal_lr=os.environ.get("COGAMES_ANNEAL_LR", "true").lower() in ("true", "1", "yes"),
         precision="float32",
         learning_rate=learning_rate,
         gamma=float(os.environ.get("COGAMES_GAMMA", "0.995")),
@@ -315,7 +315,7 @@ def train(
         vtrace_c_clip=1.0,
         prio_alpha=0.8,
         prio_beta0=0.2,
-        min_lr_ratio=0.0,
+        min_lr_ratio=float(os.environ.get("COGAMES_MIN_LR_RATIO", "0.0")),
     )
 
     trainer = pufferl.PuffeRL(train_args, vecenv, policy.network())
