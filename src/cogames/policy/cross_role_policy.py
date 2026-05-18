@@ -462,12 +462,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         obs.agent_id, new_estimate, self._shared_map.total_deposits,
                     )
 
-        state.last_has_heart = has_heart
-        state.last_friendly_junctions = friendly_count
-        state.last_carried_total = carried_total
-        if gear == "miner":
-            state.last_inventory_counts = {e: current_inv.get(e, 0) for e in ("carbon", "oxygen", "germanium", "silicon")}
-
         last_action_move = self._feature_value(obs, "last_action_move")
         gear = self._current_gear(obs)
 
@@ -483,9 +477,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             abs(current_abs[0] - s[0]) + abs(current_abs[1] - s[1]) <= 1
             for s in state.known_miner_stations
         )
-        # Issue-36 v12: track near_extractor for mine_until_full stale detection.
-        # Previously used near_hub, which is always False at extractors.
-        # This made the depleted-extractor removal code unreachable.
         near_extractor = any(
             abs(current_abs[0] - e[0]) + abs(current_abs[1] - e[1]) <= 1
             for e in state.known_extractors
@@ -499,6 +490,11 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             or (state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total)
             or (state.current_skill == "mine_until_full" and carried_total > state.last_carried_total)
         )
+        state.last_has_heart = has_heart
+        state.last_friendly_junctions = friendly_count
+        state.last_carried_total = carried_total
+        if gear == "miner":
+            state.last_inventory_counts = {e: current_inv.get(e, 0) for e in ("carbon", "oxygen", "germanium", "silicon")}
         stationary_on_valid_target = (
             (state.current_skill == "get_heart" and near_hub)
             or (state.current_skill == "align_neutral" and current_abs in self._known_alignable_junctions(state))
