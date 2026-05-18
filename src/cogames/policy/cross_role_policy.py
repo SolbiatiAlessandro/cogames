@@ -1063,8 +1063,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         stuck = self._aligner._nearest_known(current_abs, targets)
                         if stuck:
                             state.blacklisted_junctions.add(stuck)
-                            state.known_neutral_junctions.discard(stuck)
-                            state.known_enemy_junctions.discard(stuck)
                             state.align_neutral_timeouts = 0
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1

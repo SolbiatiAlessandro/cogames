@@ -435,15 +435,12 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_neutral)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
-                            state.known_neutral_junctions.discard(stuck_junction)
                             self._event(state, f"blacklisted stuck neutral junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
                             state.align_neutral_timeouts = 0
                     elif non_blacklisted_enemy:
-                        # Also blacklist stuck enemy junctions
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_enemy)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
-                            state.known_enemy_junctions.discard(stuck_junction)
                             self._event(state, f"blacklisted stuck enemy junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
                             state.align_neutral_timeouts = 0
             elif state.current_skill == "get_heart":
