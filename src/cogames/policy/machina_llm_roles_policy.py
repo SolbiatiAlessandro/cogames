@@ -665,6 +665,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             elif state.steps_since_last_move >= 5 and state.steps_since_last_move % 3 == 0:
                 action, state = self._unstuck(state)
                 state.skill_steps += 1
+                action_name = action.name if hasattr(action, "name") else ""
+                if action_name.startswith("move_"):
+                    state.last_move_target = self._move_target(current_abs, action_name[len("move_"):])
                 return action, state
             else:
                 _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
@@ -683,8 +686,12 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         direction = self._navigate_to_station(state, current_abs, nearest_alignable, avoid_hazards=False)
                         if direction:
                             action = self._starter._action(f"move_{direction}")
+                            state.last_move_target = self._move_target(current_abs, direction)
                         else:
                             action, state = self._move_to(state, current_abs, nearest_alignable)
+                            action_name = action.name if hasattr(action, "name") else ""
+                            if action_name.startswith("move_"):
+                                state.last_move_target = self._move_target(current_abs, action_name[len("move_"):])
                         state.skill_steps += 1
                         return action, state
                 if retreat_targets:
@@ -710,6 +717,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 else:
                     action, state = self._safe_wander(state, current_abs)
                 state.skill_steps += 1
+                action_name = action.name if hasattr(action, "name") else ""
+                if action_name.startswith("move_"):
+                    state.last_move_target = self._move_target(current_abs, action_name[len("move_"):])
                 return action, state
 
         # ── Aligner tether: prevent stranding far from friendly territory ──
@@ -746,6 +756,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         return action, state
                     action, state = self._move_to(state, current_abs, hub_abs)
                     state.skill_steps += 1
+                    action_name = action.name if hasattr(action, "name") else ""
+                    if action_name.startswith("move_"):
+                        state.last_move_target = self._move_target(current_abs, action_name[len("move_"):])
                     return action, state
 
         self._maybe_finish_skill(obs, state)
@@ -757,6 +770,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck(state)
             state.skill_steps += 1
+            action_name = action.name if hasattr(action, "name") else ""
+            if action_name.startswith("move_"):
+                state.last_move_target = self._move_target(current_abs, action_name[len("move_"):])
             return action, state
 
         if state.current_skill == "gear_up":
