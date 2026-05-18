@@ -677,24 +677,32 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             action, base_state = self._get_heart(obs, state, current_abs)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "align_neutral":
-            # Junction coordination: avoid targeting same junction as other aligner
+            # Junction coordination: yield to closer aligner for same target
             sm = self._shared_map
             if sm is not None:
-                targeted_by_others = {
-                    t for aid, t in sm.aligner_targets.items()
-                    if aid != obs.agent_id and t is not None
-                }
-                if targeted_by_others:
+                yield_targets = set()
+                for aid, t in sm.aligner_targets.items():
+                    if aid == obs.agent_id or t is None:
+                        continue
+                    other_pos = sm.agent_positions.get(aid)
+                    if other_pos is None:
+                        yield_targets.add(t)
+                        continue
+                    their_dist = abs(t[0] - other_pos[0]) + abs(t[1] - other_pos[1])
+                    my_dist = abs(t[0] - current_abs[0]) + abs(t[1] - current_abs[1])
+                    if their_dist <= my_dist:
+                        yield_targets.add(t)
+                if yield_targets:
                     saved_bl = set(state.blacklisted_junctions)
-                    state.blacklisted_junctions |= targeted_by_others
+                    state.blacklisted_junctions |= yield_targets
                     action, base_state = self._align_neutral(obs, state, current_abs)
                     state.blacklisted_junctions = saved_bl
                 else:
                     action, base_state = self._align_neutral(obs, state, current_abs)
-                # Record our predicted target (excluding others' targets)
+                # Record our predicted target
                 bl = state.blacklisted_junctions
                 alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
-                            if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
+                            if self._is_alignable(j, state) and j not in bl and j not in yield_targets}
                 sm.aligner_targets[obs.agent_id] = self._cascade_priority_target(current_abs, alignable, state)
             else:
                 action, base_state = self._align_neutral(obs, state, current_abs)
