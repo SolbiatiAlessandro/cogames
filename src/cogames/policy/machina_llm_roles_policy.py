@@ -660,6 +660,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state = self._copy_with(state, base_state)
         elif state.current_skill == "defend":
             current_abs = self._spawn_offset(obs)
+            enemy_junctions = state.known_enemy_junctions
+            def _defend_score(j, other_positions, current_abs, enemy_junctions):
+                spread = min(abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions)
+                travel = (abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])) * 0.3
+                threat = 0.0
+                if enemy_junctions:
+                    nearest_enemy = min(abs(j[0] - e[0]) + abs(j[1] - e[1]) for e in enemy_junctions)
+                    threat = max(0, 30 - nearest_enemy) * 0.5
+                return spread - travel + threat
             if current_abs in state.known_friendly_junctions:
                 state.defend_station_steps += 1
                 if state.defend_station_steps >= 20 and len(state.known_friendly_junctions) > 1:
@@ -673,9 +682,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     if other_positions:
                         target = max(
                             other_junctions,
-                            key=lambda j: min(
-                                abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
-                            ) - (abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])) * 0.3,
+                            key=lambda j: _defend_score(j, other_positions, current_abs, enemy_junctions),
                         )
                     else:
                         target = self._nearest_known(current_abs, other_junctions)
@@ -694,9 +701,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 if other_positions and len(state.known_friendly_junctions) > 1:
                     target = max(
                         state.known_friendly_junctions,
-                        key=lambda j: min(
-                            abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
-                        ) - (abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])) * 0.3,
+                        key=lambda j: _defend_score(j, other_positions, current_abs, enemy_junctions),
                     )
                 else:
                     target = self._nearest_known(current_abs, state.known_friendly_junctions)
