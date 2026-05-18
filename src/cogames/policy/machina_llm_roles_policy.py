@@ -530,6 +530,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         self._update_progress(obs, state)
         state.global_step += 1
 
+        # ── Periodic blacklist expiry: retry previously-unreachable junctions ──
+        _BLACKLIST_EXPIRY_INTERVAL = 500
+        if state.global_step % _BLACKLIST_EXPIRY_INTERVAL == 0 and state.blacklisted_junctions:
+            count = len(state.blacklisted_junctions)
+            state.blacklisted_junctions.clear()
+            self._event(state, f"blacklist expired: cleared {count} junctions for retry")
+
         # ── Contamination tracking: remember cells that switched our gear ──
         gear = self._current_gear(obs)
         _CONTAMINATION_GEARS = {"miner", "scrambler", "scout"}
