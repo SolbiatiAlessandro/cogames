@@ -448,7 +448,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         gear = self._current_gear(obs)
         current_inv = self._miner._inventory_counts(obs) if gear == "miner" else {}
         if gear == "miner" and carried_total < state.last_carried_total:
-            if self._shared_map is not None:
+            near_deposit = any(
+                abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+                for h in state.known_hubs
+            )
+            if not near_deposit and self._shared_map is not None:
+                near_deposit = any(
+                    abs(current_abs[0] - j[0]) + abs(current_abs[1] - j[1]) <= 1
+                    for j in self._shared_map.known_friendly_junctions
+                )
+            if near_deposit and self._shared_map is not None:
                 for elem in ("carbon", "oxygen", "germanium", "silicon"):
                     prev = state.last_inventory_counts.get(elem, 0)
                     curr = current_inv.get(elem, 0)
