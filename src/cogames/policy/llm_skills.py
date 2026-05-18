@@ -310,6 +310,17 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if miner_stations_now:
             state.known_hazard_stations.difference_update(miner_stations_now)
         self._remember_static_objects(state.known_extractors, extractors_now)
+        visually_gone = (state.known_extractors & visible_cells) - extractors_now
+        if visually_gone:
+            state.depleted_extractors |= visually_gone
+            state.known_extractors -= visually_gone
+            for element in state.extractors_by_element:
+                state.extractors_by_element[element] -= visually_gone
+            state.verified_extractors -= visually_gone
+            for element in state.verified_extractors_by_element:
+                state.verified_extractors_by_element[element] -= visually_gone
+            logger.info("EXTRACTOR_VISUAL_DEPLETION removed=%d total_depleted=%d",
+                        len(visually_gone), len(state.depleted_extractors))
         if extractors_now:
             state.verified_extractors.update(extractors_now)
             for element, etags in self._extractor_tags_by_element.items():

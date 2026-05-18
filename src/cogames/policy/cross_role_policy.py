@@ -230,6 +230,9 @@ class CrossRoleState:
     # Miner-specific structures
     known_miner_stations: set[Coord] = field(default_factory=set)
     known_extractors: set[Coord] = field(default_factory=set)
+    depleted_extractors: set[Coord] = field(default_factory=set)
+    verified_extractors: set[Coord] = field(default_factory=set)
+    verified_extractors_by_element: dict[str, set[Coord]] = field(default_factory=lambda: {e: set() for e in ("carbon", "oxygen", "germanium", "silicon")})
     # Issue-16: per-element extractor locations for diverse mining
     extractors_by_element: dict[str, set[Coord]] = field(default_factory=lambda: {e: set() for e in ("carbon", "oxygen", "germanium", "silicon")})
     remembered_hub_row_from_spawn: int | None = None
@@ -333,6 +336,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.known_miner_stations = sm.known_miner_stations
         state.known_hazard_stations = sm.known_hazard_stations
         state.known_extractors = sm.known_extractors
+        state.depleted_extractors = sm.depleted_extractors
         state.known_neutral_junctions = sm.known_neutral_junctions
         state.known_friendly_junctions = sm.known_friendly_junctions
         state.known_enemy_junctions = sm.known_enemy_junctions
@@ -354,6 +358,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             known_miner_stations=sm.known_miner_stations,
             known_hazard_stations=sm.known_hazard_stations,
             known_extractors=sm.known_extractors,
+            depleted_extractors=sm.depleted_extractors,
             known_neutral_junctions=sm.known_neutral_junctions,
             known_friendly_junctions=sm.known_friendly_junctions,
             known_enemy_junctions=sm.known_enemy_junctions,
