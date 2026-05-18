@@ -223,6 +223,35 @@ and create highly variable lifespans. The director's replay analysis specificall
    - Resume at 0.85 or when in friendly territory
    - No oscillation due to hysteresis gap
 
+## 2026-05-18T15:30: contamination false positive on death (commit 88a8a64)
+
+### Bug found: death triggers contamination tracking
+
+When an aligner dies and respawns with no gear (`gear=None`), the contamination
+check `state._prev_gear == "aligner" and gear != "aligner"` evaluated as True.
+The spawn location was permanently added to `contamination_avoid_cells`, progressively
+restricting BFS around hub after every death.
+
+**Fix**: Only track contamination when gear changes TO a wrong type (miner/scrambler/scout),
+not when it becomes None (death).
+
+Also in this commit:
+- **Defend patrol navigation fix**: replaced `_navigate_to_station` with direct BFS
+  for junction targets (junctions are free cells, not blocked). Saves 1+ steps per
+  junction transition.
+- **HP retreat navigation fix**: check if retreat target is a free cell (junction) vs
+  blocked (hub) and use appropriate navigation method.
+
+## 2026-05-18T15:45: retreat stuck detection (commit f3b411d)
+
+### Pattern ported from cross_role_policy
+
+The cross_role policy found agents spending 8827 steps stuck against walls during retreat.
+Ported the stuck detection:
+- After 50 steps without movement during retreat, cancel retreat entirely
+- After 5+ stuck steps, use unstuck moves every 3rd step to break free
+- Uses existing `steps_since_last_move` counter (no new state field needed)
+
 ### Key learnings for this session:
 1. **Always check online evidence before making offline-inspired changes**
 2. **The offline-online gap is massive** — up to -9 points for changes that improve offline by +2.7%
@@ -233,3 +262,5 @@ and create highly variable lifespans. The director's replay analysis specificall
    could have more impact than any parameter change
 6. **SharedMap is fragile** — in-place mutations break shared references, and removing from
    shared sets affects all agents
+7. **Cross-pollinate from cross_role_policy** — it has battle-tested patterns (retreat stuck
+   detection, hub interaction during retreat, SharedMap cleanup) that the machina policy lacks

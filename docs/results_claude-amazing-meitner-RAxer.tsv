@@ -13,3 +13,6 @@ e76016b	0.000000	bug_fix	0	keep	fix: same progress tracking bug in cross_role_po
 b1f88b9	0.000000	structural_only	0	keep	defend navigation: prefer hazard-avoiding paths
 3925e4d	0.000000	bug_fix	0	keep	fix: HP retreat oscillation — recovery threshold was same as retreat
 fdcf930	0.000000	critical_bug_fix	0	keep	fix: HP retreat was completely dead — _read_hp returned None
+85cffcd	0.000000	structural_only	0	keep	improve: _move_to uses full BFS fallback chain for exploration
+88a8a64	0.000000	bug_fix	0	keep	fix: contamination false positive on death + defend/retreat navigation for junctions
+f3b411d	0.000000	structural_only	0	keep	fix: retreat stuck detection — cancel retreat after 50 stuck steps
