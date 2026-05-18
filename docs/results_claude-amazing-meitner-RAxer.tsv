@@ -51,3 +51,4 @@ b567a03	0.000000	structural_only	0	keep	improve: early heart grab — aligners c
 36a5f52	0.000000	structural_only	0	keep	improve: dynamic heart accumulation based on alignable junction count
 1a40daa	0.000000	structural_only	0	keep	improve: adaptive defend patrol — faster cycling under enemy threat
 111df1e	0.000000	structural_only	0	keep	improve: explore exits when territory expansion reveals alignable junctions
+a76ca6b	0.000000	structural_only	0	keep	improve: spread-aware explore — aligners avoid exploring same direction
