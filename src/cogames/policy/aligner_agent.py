@@ -780,6 +780,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is None:
             direction = self._bfs_without_cooldowns(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._bfs_without_cooldowns(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         # BFS failed: try optimistic BFS (treat unknown cells as traversable)
