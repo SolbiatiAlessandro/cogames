@@ -467,9 +467,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.current_skill = None
         elif state.current_skill == "explore" and (
             len(state.known_neutral_junctions) + len(state.known_enemy_junctions) > state.explore_start_junctions
+            or (self._known_alignable_junctions(state) and has_heart and has_aligner)
         ):
             new_total = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) - state.explore_start_junctions
-            self._event(state, f"explore completed after discovering {new_total} new alignable junction(s)")
+            self._event(state, f"explore completed: {max(new_total, 0)} new junction(s), {len(self._known_alignable_junctions(state))} alignable")
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
             self._event(state, f"explore capped after {state.skill_steps} steps without finding junctions")
