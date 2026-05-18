@@ -203,3 +203,11 @@ seed123_e10	1.286267	aligned.junction.held=~10000	10000	discard	Seed123 repro te
 seed123_e35	1.072000	aligned.junction.held=~5000	10000	discard	Seed123 e35 @10K (5-ep, peak=1.156, std=0.049) - seed dependent ceiling ~1.07
 seed123_e40	1.065000	aligned.junction.held=~5000	10000	discard	Seed123 e40 @10K (5-ep, peak=1.162, std=0.070) - confirms seed123 plateaus low
 seed123_e45	1.023000	aligned.junction.held=~3000	10000	discard	Seed123 e45 @10K (5-ep, peak=1.117, std=0.047) - declining
+m2x10_e10	1.023567	aligned.junction.held=~2000	10000	discard	milestones_2:10 e10 @10K (3-ep) - compounding factor 10 too aggressive
+m2x10_e15	1.062800	aligned.junction.held=~4000	10000	discard	milestones_2:10 e15 @10K (3-ep) - slightly better than baseline
+m2x10_e20	1.102600	aligned.junction.held=~7000	10000	discard	milestones_2:10 e20 @10K (5-ep, peak=1.339, std=0.125) - worse than default m2:5
+aligner_m2x10_e25	1.030300	aligned.junction.held=~2000	10000	discard	aligner+milestones_2:10 e25 @10K (1-ep) - aligner variant fails, gear penalty disrupts
+seed7_e10	1.105300	aligned.junction.held=~7000	10000	discard	seed=7 e10 @10K (1-ep) - brief spike, not sustained
+seed7_e15	1.075900	aligned.junction.held=~5000	10000	discard	seed=7 e15 @10K (1-ep) - declining
+seed7_e20	1.000000	aligned.junction.held=~0	10000	discard	seed=7 e20 @10K (1-ep) - collapsed to baseline
+seed7_e25-e40	1.000000	aligned.junction.held=~0	10000	discard	seed=7 e25-e40 all at baseline - another failed seed

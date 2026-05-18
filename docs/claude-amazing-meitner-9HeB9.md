@@ -960,5 +960,41 @@ The alive_reward (~1.0 per agent per timestep) dominates the reward signal. Alig
 
 ### Experiments launched
 1. **longep3k_m2x10**: milestones_2 compounding_factor=10 (2x default) — does stronger alignment signal help?
-2. **longep3k_m2x25**: milestones_2 compounding_factor=25 (5x default) — aggressive alignment pressure
-3. **longep3k_seed7**: seed=7 with default config — another seed test for robustness
+2. **longep3k_m2x25**: milestones_2 compounding_factor=25 (5x default) — KILLED: m2x10 already worse
+3. **longep3k_aligner_m2x10**: aligner variant + milestones_2:10 — KILLED: gear penalty disrupts learning
+4. **longep3k_seed7**: seed=7 with default config — robustness test (running)
+5. **longep3k_seed99**: seed=99 with default config — robustness test (running)
+6. **longep3k_p3**: Phase 3 (max_distance=15) from best checkpoint with LR=0.0005 — competition distance (running)
+
+### Reward shaping results (NEGATIVE)
+
+| Experiment | Config | e20 avg (validated) | vs. default |
+|---|---|---|---|
+| m2x10_e20 | milestones_2:10 | 1.103 (5-ep) | -21% |
+| aligner_m2x10_e25 | aligner+m2:10 | 1.030 (1-ep) | -26% |
+| **longep3k_e20** | **milestones_2:5 (default)** | **1.394 (5-ep)** | **baseline** |
+
+**Conclusion**: The default milestones_2 compounding_factor=5.0 is already well-tuned. Increasing it (10x, 25x) distorts the reward landscape — agents overspecialize on alignment at the expense of the full task chain (mining, hearts, exploration). The `aligner` variant's gear penalty (-1.0 for non-aligner gear) prevents agents from mining resources needed for hearts.
+
+### Multi-seed robustness test results
+
+| Seed | e10 | e15 | e20 | e25+ | Status |
+|------|-----|-----|-----|------|--------|
+| 42 (original) | ~1.0 | ~1.0 | **1.394** | declining | **ONLY WINNER** |
+| 123 | 1.286* | 1.072 | 1.065 | declining | Failed (high var at e10) |
+| 7 | 1.105* | 1.076 | 1.000 | 1.000 | Failed (collapsed) |
+
+*1-episode scores, unreliable
+
+**Critical finding**: 3/3 training seeds tested. Only seed=42 achieves meaningful alignment. The map_seed=seed (same value), so different seeds → different maps. Hypothesis: map layout is the key factor, not optimizer stochasticity.
+
+### Map vs. Optimizer Seed Separation Test
+
+Added `--map-seed` argument to train_curriculum.py. Running:
+1. **map42_seed7**: map_seed=42 + training_seed=7 — tests if the "lucky map" transfers
+2. **map42_seed123**: map_seed=42 + training_seed=123 — same map, different optimizer
+
+If these work (avg >1.2 at e20), the map layout is the bottleneck. If they fail, it's optimizer stochasticity interacting with the map.
+
+Also running:
+3. **longep3k_p3v2**: Phase 3 (max_distance=15) from best P2 checkpoint, LR=0.0003

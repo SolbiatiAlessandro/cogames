@@ -56,6 +56,7 @@ def main():
     parser.add_argument("--ent-coef", type=float, default=0.02, help="Entropy coefficient")
     parser.add_argument("--weights", default=None, help="Initial weights (for continuation)")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--map-seed", type=int, default=None, help="Map seed (defaults to --seed)")
     parser.add_argument("--reward", default="credit,milestones_2", help="Reward variants (comma-separated)")
     parser.add_argument("--mission", default="cogsguard_arena.basic", help="Mission to train on")
     parser.add_argument("--max-steps", type=int, default=None, help="Override episode max_steps")
@@ -218,7 +219,7 @@ def main():
         num_steps=args.steps,
         checkpoints_path=checkpoint_dir,
         seed=args.seed,
-        map_seed=args.seed,
+        map_seed=args.map_seed if args.map_seed is not None else args.seed,
         minibatch_size=4096,
         vector_num_envs=args.num_envs,
         log_outputs=True,
