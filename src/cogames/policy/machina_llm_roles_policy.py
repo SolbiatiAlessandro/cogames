@@ -568,7 +568,18 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 retreat_targets = _retreat_hubs | state.known_friendly_junctions
                 if retreat_targets:
                     target = self._nearest_known(current_abs, retreat_targets)
-                    if target in state.known_free_cells:
+                    dist_to_target = abs(current_abs[0] - target[0]) + abs(current_abs[1] - target[1])
+                    has_heart = self._inventory_count(obs, "heart") > 0
+                    if target in _retreat_hubs and not has_heart and dist_to_target <= 2:
+                        if dist_to_target <= 1:
+                            dr = target[0] - current_abs[0]
+                            dc = target[1] - current_abs[1]
+                            direction = ("south" if dr > 0 else "north") if abs(dr) >= abs(dc) else ("east" if dc > 0 else "west")
+                            action = self._starter._action(f"move_{direction}")
+                        else:
+                            direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                            action = self._starter._action(f"move_{direction}") if direction else self._starter._action("noop")
+                    elif target in state.known_free_cells:
                         action, state = self._move_to(state, current_abs, target)
                     else:
                         direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
