@@ -1098,9 +1098,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     if abs(current_abs[0] - e[0]) + abs(current_abs[1] - e[1]) <= 1
                 }
                 for e in nearby_extractors:
+                    state.depleted_extractors.add(e)
                     state.known_extractors.discard(e)
-                    # Also remove from per-element tracking
                     for elem_set in state.extractors_by_element.values():
+                        elem_set.discard(e)
+                    state.verified_extractors.discard(e)
+                    for elem_set in state.verified_extractors_by_element.values():
                         elem_set.discard(e)
                     self._event(state, f"removed depleted extractor at {e}")
             if state.current_skill == "deposit_to_hub":
