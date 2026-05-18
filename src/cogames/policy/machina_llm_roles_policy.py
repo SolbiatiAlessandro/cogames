@@ -550,6 +550,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
         # ── HP safety: retreat to hub/friendly territory if HP is low ──
         if self._check_hp(obs, state, current_abs):
+            if sm is not None:
+                sm.aligner_targets.pop(obs.agent_id, None)
+                sm.agents_getting_hearts.discard(obs.agent_id)
             # Retreat to nearest hub or friendly junction
             _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
             retreat_targets = _retreat_hubs | state.known_friendly_junctions
