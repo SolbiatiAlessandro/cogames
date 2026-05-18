@@ -565,11 +565,12 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         obs.agent_id, current_abs, gear, state.gear_contamination_count)
         state._prev_gear = gear
 
-        # ── Proactive hazard avoidance: gear auto-equip triggers from adjacent cells ──
-        if state.known_hazard_stations and state.global_step % 100 == 1:
-            for hs in state.known_hazard_stations:
-                for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                    state.contamination_avoid_cells.add((hs[0] + dr, hs[1] + dc))
+        # ── Periodic contamination cell expiry: prevent navigation degradation ──
+        _CONTAMINATION_EXPIRY_INTERVAL = 500
+        if state.global_step % _CONTAMINATION_EXPIRY_INTERVAL == 0 and state.contamination_avoid_cells:
+            count = len(state.contamination_avoid_cells)
+            state.contamination_avoid_cells.clear()
+            self._event(state, f"contamination cells expired: cleared {count} cells")
 
         # ── Team coordination: sync shared state ──
         sm = self._shared_map

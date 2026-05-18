@@ -268,6 +268,11 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         carried_total = sum(carried_elements.values())
         made_progress = False
         cargo_decreased = carried_total < state.last_carried_total
+        has_miner = self._starter._current_gear(self._starter._inventory_items(obs)) == "miner"
+        if cargo_decreased and not has_miner:
+            state.last_carried_total = carried_total
+            state.last_carried_elements = carried_elements
+            return
         if state.current_skill == "deposit_to_hub" and cargo_decreased:
             self._event(state, f"deposited cargo from {state.last_carried_total} to {carried_total}")
             made_progress = True
