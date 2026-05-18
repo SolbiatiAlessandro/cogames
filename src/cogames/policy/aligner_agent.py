@@ -543,6 +543,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if hubs_now:
             state.verified_hubs.update(hubs_now)
         self._remember_static_objects(state.known_aligner_stations, stations_now)
+        if stations_now:
+            state.known_hazard_stations.difference_update(stations_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         if self._shared_map is not None and extractors_now:
             self._shared_map.known_extractors.update(extractors_now)
