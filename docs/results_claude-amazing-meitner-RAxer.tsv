@@ -1,2 +1,7 @@
 commit	mission_reward	secondary_rewards	steps	status	description
 4531257	41.850000	online_rank=#5	10000	keep	baseline: evyIm-73a-stuck15 online score (132 comp matches)
+14f5686	0.000000	cannot_test_offline	0	discard	toEqP integration: HUB=30, 5A+3M, spread, enemy — ALL proven to hurt online
+f26807b	0.000000	cannot_test_offline	0	discard	early-game heart dispatch — reverted, similar to patience=10 which hurt online
+f693106	0.000000	cannot_test_offline	0	keep	contamination avoidance: track gear-switch cells, avoid in BFS
+98e69b8	41.850000	structural_only	10000	keep	reverted parameter changes, kept structural improvements
+d186121	0.000000	cannot_test_offline	0	keep	distance-aware retreat + phase-aware defense + step counter
