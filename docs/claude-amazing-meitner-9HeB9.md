@@ -1044,3 +1044,20 @@ Seed=42 remains the best optimizer trajectory. All seeds learn alignment on map_
 | 1.0 | 1.004 | 0.003 | 3 |
 
 temp=0.7 confirmed optimal.
+
+## Session 7: Fine-tuning from Best Model + P3 Continuation
+
+### P3 from map42_seed7_e20
+Phase 3 (max_dist=15) fine-tune from our second-best model. Uses LR=0.0003.
+
+| Checkpoint | Avg (3-ep) | Peak | Std |
+|-----------|-----------|------|-----|
+| e5 | 1.172 | 1.512 | 0.240 |
+| e10 | 1.243 | 1.553 | 0.231 |
+
+Trajectory improving but still below P2 longep3k_e20 (1.394). Phase 3 consistently underperforms P2 — full distance (15) is harder than medium (10).
+
+### New Experiments (Session 7)
+1. **ft_32env**: Fine-tune longep3k_e20 with 32 envs (more map diversity), LR=0.0003, ent 0.02→0.005
+2. **ft_hiboost**: Fine-tune longep3k_e20 with boost_aligner=7.5, LR=0.0002, fixed ent=0.01
+3. Killed obs15_goal and explore runs — they started from weaker p2_longrun base, not longep3k_e20

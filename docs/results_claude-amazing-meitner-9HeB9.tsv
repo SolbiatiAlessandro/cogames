@@ -223,3 +223,5 @@ map42_seed13_e10	1.100900	aligned.junction.held=~7000	10000	discard	map42+seed13
 map42_seed31_e30	1.140500	aligned.junction.held=~8000	10000	discard	map42+seed31 e30 @10K (1-ep) - slow learner
 temp05_longep3k_e20	1.252929	aligned.junction.held=~10000	10000	discard	longep3k_e20 temp=0.5 @10K (7-ep, peak=1.483) - temp=0.7 still best
 temp06_longep3k_e20	1.187240	aligned.junction.held=~8000	10000	discard	longep3k_e20 temp=0.6 @10K (5-ep) - worse than 0.7
+p3_from_map42s7_e5	1.172167	aligned.junction.held=~8000	10000	discard	P3 from map42_seed7_e20 e5 @10K (3-ep, peak=1.512, std=0.240)
+p3_from_map42s7_e10	1.243200	aligned.junction.held=~9000	10000	keep	P3 from map42_seed7_e20 e10 @10K (3-ep, peak=1.553, std=0.231) - improving
