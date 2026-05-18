@@ -49,3 +49,5 @@ a0077ea	0.000000	structural_only	0	keep	improve: heartless defenders react to en
 b567a03	0.000000	structural_only	0	keep	improve: early heart grab — aligners collect hearts before gear-up
 658a621	0.000000	structural_only	0	keep	improve: cascade priority considers friendly junction clustering
 36a5f52	0.000000	structural_only	0	keep	improve: dynamic heart accumulation based on alignable junction count
+1a40daa	0.000000	structural_only	0	keep	improve: adaptive defend patrol — faster cycling under enemy threat
+111df1e	0.000000	structural_only	0	keep	improve: explore exits when territory expansion reveals alignable junctions
