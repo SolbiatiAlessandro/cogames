@@ -367,15 +367,19 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             skill = "explore"
             reason = f"overrode unstuck to explore after {state.consecutive_unstuck} consecutive unstuck calls"
             state.consecutive_unstuck = 0
-        # Heart queue management: avoid too many aligners rushing to hub when few hearts available
-        # Allow at least 2 aligners simultaneously to reduce idle time
+        # Heart queue management: limit aligners rushing to hub based on estimated availability
         if skill == "get_heart" and self._shared_map is not None:
             sm = self._shared_map
             available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
-            if already_getting >= max(3, available_hearts):
-                skill = "explore"
-                reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
+            max_queue = max(1, min(available_hearts, 4))
+            if already_getting >= max_queue:
+                if has_aligner and len(state.known_friendly_junctions) >= 3:
+                    skill = "defend"
+                    reason = f"heart queue full: {already_getting}/{max_queue} en route, ~{available_hearts} avail — defending instead"
+                else:
+                    skill = "explore"
+                    reason = f"heart queue full: {already_getting}/{max_queue} en route, ~{available_hearts} avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
         # Phase-aware defense: defend territory when nothing to align.
