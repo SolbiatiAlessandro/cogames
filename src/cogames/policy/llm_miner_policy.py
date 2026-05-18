@@ -538,9 +538,14 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         if inv is not None:
             logger.info("agent=%s step=%d inv=%s skill=%s", aid, step_num, inv, state.current_skill)
 
+        was_retreating = state.retreating_to_hub
         if self._check_miner_hp(obs, state):
+            if not was_retreating:
+                state.current_skill = None
             action, base_state = self._deposit_to_hub(obs, state)
             return action, self._copy_with(state, base_state)
+        elif was_retreating:
+            state.current_skill = None
 
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:

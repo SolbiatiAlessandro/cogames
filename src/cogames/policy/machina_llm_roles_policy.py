@@ -669,7 +669,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                             other_junctions,
                             key=lambda j: min(
                                 abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
-                            ) - abs(j[0] - current_abs[0]) - abs(j[1] - current_abs[1]) * 0.3,
+                            ) - (abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])) * 0.3,
                         )
                     else:
                         target = self._nearest_known(current_abs, other_junctions)
@@ -690,7 +690,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         state.known_friendly_junctions,
                         key=lambda j: min(
                             abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
-                        ) - abs(j[0] - current_abs[0]) - abs(j[1] - current_abs[1]) * 0.3,
+                        ) - (abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])) * 0.3,
                     )
                 else:
                     target = self._nearest_known(current_abs, state.known_friendly_junctions)
