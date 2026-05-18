@@ -814,7 +814,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 if was_stuck or was_stale:
                     skill = "explore"
                 else:
-                    skill = "gear_up_aligner" if len(known_alignable) >= len(state.known_extractors) else "gear_up_miner"
+                    active_ext_count = len(state.known_extractors - state.depleted_extractors)
+                    skill = "gear_up_aligner" if len(known_alignable) >= active_ext_count else "gear_up_miner"
             elif gear == "aligner":
                 if was_stuck or was_stale:
                     skill = "explore"
@@ -834,7 +835,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     skill = "explore"
                 elif was_stuck:
                     skill = "explore"
-                elif state.known_extractors:
+                elif state.known_extractors - state.depleted_extractors:
                     skill = "mine_until_full"
                 else:
                     skill = "explore"
@@ -873,14 +874,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             skill = "gear_up_miner"
             reason = f"overrode to gear_up_miner: need miner gear for mining (current={gear})"
         # Issue-36: prevent mine_until_full with no known extractors — wastes 400 steps on predicted positions
-        if skill == "mine_until_full" and gear == "miner" and not state.known_extractors:
+        if skill == "mine_until_full" and gear == "miner" and not (state.known_extractors - state.depleted_extractors):
             skill = "explore"
             reason = "overrode mine_until_full to explore: no known extractors (discover some first)"
         if skill == "deposit_to_hub" and gear != "miner":
             skill = "gear_up_miner"
             reason = f"overrode to gear_up_miner: need miner gear for deposit (current={gear})"
         if skill == "deposit_to_hub" and gear == "miner" and carried == 0:
-            skill = "mine_until_full" if state.known_extractors else "explore"
+            skill = "mine_until_full" if (state.known_extractors - state.depleted_extractors) else "explore"
             reason = "overrode to mine: no cargo to deposit"
         if skill == "gear_up_aligner" and gear == "aligner":
             if has_heart and known_alignable:
@@ -899,7 +900,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             if carried >= self._return_load:
                 skill = "deposit_to_hub"
                 reason = "overrode: already have miner gear, cargo full"
-            elif state.known_extractors:
+            elif state.known_extractors - state.depleted_extractors:
                 skill = "mine_until_full"
                 reason = "overrode: already have miner gear"
             else:

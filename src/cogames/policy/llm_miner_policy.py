@@ -421,11 +421,11 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             if self._carried_total(obs) >= self._effective_return_load:
                 reason = "overrode gear_up to deposit_to_hub because miner gear is already equipped and cargo is full"
                 skill = "deposit_to_hub"
-            elif state.known_extractors:
+            elif self._active_extractors(state):
                 reason = "overrode gear_up to mine_until_full because miner gear is already equipped"
                 skill = "mine_until_full"
             else:
-                reason = "overrode gear_up to explore because miner gear is already equipped and no extractor is known"
+                reason = "overrode gear_up to explore because miner gear is already equipped and no active extractor is known"
                 skill = "explore"
         if has_miner and self._carried_total(obs) >= self._effective_return_load and skill == "mine_until_full":
             reason = "overrode mine_until_full to deposit_to_hub because cargo is full"
