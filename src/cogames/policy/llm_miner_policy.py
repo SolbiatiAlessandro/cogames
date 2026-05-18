@@ -312,7 +312,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         def _adjacent_to(targets: set) -> bool:
             return any(abs(current_abs[0] - t[0]) + abs(current_abs[1] - t[1]) <= 1 for t in targets)
         stationary_on_valid_target = (
-            (state.current_skill == "mine_until_full" and _adjacent_to(state.known_extractors))
+            (state.current_skill == "mine_until_full" and _adjacent_to(self._active_extractors(state)))
             or (state.current_skill == "deposit_to_hub" and _adjacent_to(state.known_hubs))
             or (state.current_skill == "gear_up" and _adjacent_to(state.known_miner_stations))
         )

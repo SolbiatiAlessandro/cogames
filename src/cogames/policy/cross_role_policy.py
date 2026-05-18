@@ -480,9 +480,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             abs(current_abs[0] - s[0]) + abs(current_abs[1] - s[1]) <= 1
             for s in state.known_miner_stations
         )
+        active_ext = state.known_extractors - state.depleted_extractors
         near_extractor = any(
             abs(current_abs[0] - e[0]) + abs(current_abs[1] - e[1]) <= 1
-            for e in state.known_extractors
+            for e in active_ext
         )
 
         made_progress = (
