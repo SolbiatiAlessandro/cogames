@@ -545,6 +545,9 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         sm = self._shared_map
         if sm is not None and hasattr(sm, 'agent_positions'):
             sm.agent_positions[obs.agent_id] = self._current_abs(obs)
+            gear = self._starter._current_gear(self._starter._inventory_items(obs))
+            if gear:
+                sm.agent_gears[obs.agent_id] = gear
 
         aid = obs.agent_id
         state._debug_aid = aid

@@ -553,7 +553,23 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             pick = safe_dir if safe_dir is not None else any_dir
             if pick is not None:
                 return self._starter._action(f"move_{pick}"), replace(state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, frontier_cells)
+        sm = self._shared_map
+        other_miner_positions = []
+        if sm is not None:
+            for aid, pos in sm.agent_positions.items():
+                if aid != obs.agent_id and sm.agent_gears.get(aid) == "miner":
+                    other_miner_positions.append(pos)
+        if other_miner_positions and len(frontier_cells) > 1:
+            def _spread_score(cell):
+                own_dist = abs(cell[0] - current_abs[0]) + abs(cell[1] - current_abs[1])
+                nearest_other = min(
+                    (abs(cell[0] - p[0]) + abs(cell[1] - p[1]) for p in other_miner_positions),
+                    default=9999,
+                )
+                return own_dist - nearest_other * 0.3
+            target_abs = min(frontier_cells, key=lambda c: (_spread_score(c), c))
+        else:
+            target_abs = self._nearest_known(current_abs, frontier_cells)
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
