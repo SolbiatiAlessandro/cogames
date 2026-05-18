@@ -411,6 +411,10 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return self._safe_wander(state, current_abs)
         direction = self._bfs_first_direction(state, current_abs, target_abs)
         if direction is None:
+            direction = self._bfs_without_cooldowns(state, current_abs, target_abs)
+        if direction is None:
+            direction = self._bfs_optimistic_direction(state, current_abs, target_abs)
+        if direction is None:
             return self._safe_wander(state, current_abs)
         return self._starter._action(f"move_{direction}"), state
 
