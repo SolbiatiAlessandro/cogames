@@ -46,3 +46,5 @@ dfd0e4a	0.000000	structural_only	0	keep	improve: miner extractor selection consi
 a0077ea	0.000000	structural_only	0	keep	improve: heartless defenders react to enemy junctions + single-junction explore
 93ab1cc	0.000000	structural_only	0	keep	improve: territory-aware aligner tether + multi-enemy defend scoring
 2828173	0.000000	bug_fix	0	keep	fix: heart withdrawal overcount + faster blacklist expiry + earlier defense
+b567a03	0.000000	structural_only	0	keep	improve: early heart grab — aligners collect hearts before gear-up
+658a621	0.000000	structural_only	0	keep	improve: cascade priority considers friendly junction clustering
