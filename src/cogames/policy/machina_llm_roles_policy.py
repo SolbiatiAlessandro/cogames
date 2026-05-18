@@ -532,7 +532,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
         # ── Contamination tracking: remember cells that switched our gear ──
         gear = self._current_gear(obs)
-        if hasattr(state, '_prev_gear') and state._prev_gear == "aligner" and gear != "aligner":
+        _CONTAMINATION_GEARS = {"miner", "scrambler", "scout"}
+        if hasattr(state, '_prev_gear') and state._prev_gear == "aligner" and gear in _CONTAMINATION_GEARS:
             state.contamination_avoid_cells.add(current_abs)
             state.gear_contamination_count += 1
             logger.info("agent=%s GEAR_CONTAMINATED at %s (now %s, count=%d)",
@@ -558,12 +559,16 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             retreat_targets = _retreat_hubs | state.known_friendly_junctions
             if retreat_targets:
                 target = self._nearest_known(current_abs, retreat_targets)
-                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
-                if direction:
-                    action = self._starter._action(f"move_{direction}")
-                    state.last_move_target = self._move_target(current_abs, direction)
-                    state.skill_steps += 1
-                    return action, state
+                if target in state.known_free_cells:
+                    action, state = self._move_to(state, current_abs, target)
+                else:
+                    direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                    if direction:
+                        action = self._starter._action(f"move_{direction}")
+                    else:
+                        action, state = self._safe_wander(state, current_abs)
+                state.skill_steps += 1
+                return action, state
             # No known retreat target: wander safely
             action, state = self._safe_wander(state, current_abs)
             return action, state
@@ -631,14 +636,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         target = self._nearest_known(current_abs, other_junctions)
                     state.defend_last_junction = current_abs
                     state.defend_station_steps = 0
-                    direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=True)
-                    if direction is None:
-                        direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
-                    if direction:
-                        action = self._starter._action(f"move_{direction}")
-                        state.last_move_target = self._move_target(current_abs, direction)
-                    else:
-                        action = self._starter._action("noop")
+                    action, state = self._move_to(state, current_abs, target)
                 else:
                     action = self._starter._action("noop")
             elif state.known_friendly_junctions:
@@ -657,15 +655,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     )
                 else:
                     target = self._nearest_known(current_abs, state.known_friendly_junctions)
-                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=True)
-                if direction is None:
-                    direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
-                if direction:
-                    action = self._starter._action(f"move_{direction}")
-                    state.last_move_target = self._move_target(current_abs, direction)
-                else:
-                    action, base_state = self._explore(obs, state)
-                    state = self._copy_with(state, base_state)
+                action, state = self._move_to(state, current_abs, target)
             else:
                 action, base_state = self._explore(obs, state)
                 state = self._copy_with(state, base_state)
