@@ -24,3 +24,5 @@ d3d0530	0.000000	structural_only	0	keep	improve: defend exits early when miners 
 a179d78	0.000000	bug_fix	0	keep	fix: abort get_heart/align_neutral immediately on aligner gear loss
 3d133f0	0.000000	bug_fix	0	keep	fix: cancel current skill on HP retreat start and recovery
 6df3b52	0.000000	bug_fix	0	keep	fix: miner junction tracking fails to detect friendly→neutral flips
+18d4b8d	0.000000	bug_fix	0	keep	fix: defend patrol precedence + miner HP retreat skill cancellation
+3008f37	0.000000	bug_fix	0	keep	fix: gear_up ignores shared aligner station knowledge from team

@@ -341,3 +341,38 @@ Additional deep review found no further bugs in:
 8. **Always check gear state transitions**: skills that assume aligner gear must detect gear loss
 9. **Junction state tracking differs between agents**: miners use add-if-absent, aligners use
    refresh-visible-range. The former can miss state flips; the latter is always correct.
+
+## 2026-05-18T18:00: continued code review — 3 more fixes (commits 18d4b8d, 3008f37)
+
+### 1. Defend patrol spread scoring precedence (18d4b8d)
+Operator precedence bug in defend patrol junction selection. The formula:
+```
+min_dist_to_others - abs(row_diff) - abs(col_diff) * 0.3
+```
+Applied `* 0.3` only to column distance due to missing parentheses. Row distance was
+penalized at 1.0 weight instead of 0.3. Fixed to `(row_dist + col_dist) * 0.3`.
+
+### 2. Miner HP retreat skill cancellation (18d4b8d)
+Same bug as aligner fix (3d133f0) — miner's `_check_miner_hp` didn't cancel `current_skill`
+on retreat start or recovery. After HP recovery, miner resumed stale skill (e.g., trying
+mine_until_full from hub position). Now clears current_skill on both transitions.
+
+### 3. Gear-up uses shared aligner station knowledge (3008f37)
+When an aligner needed to gear up but hadn't personally seen a station, it ignored the
+shared `known_aligner_stations` set (populated by other aligners' observations) and fell
+back to a hardcoded position offset from hub. Now uses shared knowledge as fallback,
+saving potentially many steps of wasted navigation.
+
+### Verified correct (no fix needed):
+- **BFS not polluted by cooldowns across agents**: per-agent cooldowns added to shared
+  `blocked_cells` but cleared on visual refresh — accepted design tradeoff, not a bug
+- **Defend can't be killed by generic stuck/stale**: `elif` chain ensures defend-specific
+  checks run first, generic checks never reached for defend skill
+- **Progress tracking resets on skill plan**: `no_move_steps` and `no_progress_on_target_steps`
+  both zeroed when `_plan_skill` assigns new skill
+- **Heart queue `available_hearts` formula**: conservative estimate (min deposits // 7) with
+  floor of 3 concurrent aligners — prevents deadlock while limiting hub congestion
+- **Miner depleted_extractors per-agent**: correct — depletion detection is local (might be
+  crowding, not actual depletion)
+- **Multi-heart alignment**: aligners with 2+ hearts continue align_neutral until all used —
+  efficient batching, no unnecessary hub trips between junctions
