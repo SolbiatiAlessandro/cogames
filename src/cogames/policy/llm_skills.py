@@ -478,6 +478,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if direction is None:
             direction = self._bfs_without_cooldowns(state, current_abs, target_abs)
         if direction is None:
+            direction = self._bfs_optimistic_direction(state, current_abs, target_abs)
+        if direction is None:
             return self._safe_wander(state)
         return self._starter._action(f"move_{direction}"), state
 
