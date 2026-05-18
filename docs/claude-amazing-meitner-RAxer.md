@@ -453,3 +453,28 @@ where the threat is highest. Score: `spread - travel*0.3 + threat`.
   No false positive. Previous fix (88a8a64) handled this correctly.
 
 ### Total commits on branch: 42 ahead of main
+
+## 2026-05-18T23:00: Cross-role hazard station contamination bug
+
+### Critical discovery
+**SharedMap hazard station pollution**: When miners see aligner stations, they classify them as
+hazard stations (correct from miner perspective) and add to `SharedMap.known_hazard_stations`.
+Since all agents share the same map, aligners then AVOID their own gear stations during BFS
+navigation. The same bug affects miners: aligners see miner stations as hazards, and miners
+then avoid their own station.
+
+This causes:
+- Slower gear_up for both roles (convoluted paths to avoid own station)
+- Proactive hazard adjacency (every 100 steps) marks cells adjacent to own station as hazardous
+- BFS fallback chain mitigates but doesn't eliminate the issue
+
+### Fixes applied
+1. **Aligner hazard cleanup** (dfae4c1): When aligner sees an aligner station in
+   `_update_map_memory`, remove it from `known_hazard_stations`. This ensures aligners don't
+   avoid their own stations even if a miner previously classified them as hazards.
+2. **Miner hazard cleanup** (33b33e6): Same fix for miners — remove miner stations from the
+   shared hazard set when the miner sees them.
+3. **BFS fallback for align_neutral** (1c57455): Added missing `_bfs_without_cooldowns` with
+   `avoid_hazards=False` variant in the BFS fallback chain.
+
+### Total commits on branch: 46 ahead of main

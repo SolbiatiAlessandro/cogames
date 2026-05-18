@@ -30,3 +30,6 @@ a179d78	0.000000	bug_fix	0	keep	fix: abort get_heart/align_neutral immediately o
 c80aabd	0.000000	structural_only	0	keep	improve: defend patrol prioritizes junctions near enemy territory
 473fd86	0.000000	bug_fix	0	keep	fix: _JUNCTION_ALIGN_DISTANCE 25→15 to match game engine cascade range
 e58e5b8	0.000000	structural_only	0	keep	improve: cascade priority scoring considers junction unlock potential
+1c57455	0.000000	structural_only	0	keep	improve: align_neutral BFS fallback adds without-cooldowns+no-hazard-avoid
+dfae4c1	0.000000	bug_fix	0	keep	fix: aligner removes own stations from shared hazard set
+33b33e6	0.000000	bug_fix	0	keep	fix: miner removes own stations from shared hazard set
