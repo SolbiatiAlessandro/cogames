@@ -425,3 +425,31 @@ where the threat is highest. Score: `spread - travel*0.3 + threat`.
 - **cascade_priority_target scoring**: travel + hub_dist * 0.2 is reasonable. _is_alignable
   pre-filters to cascade-reachable junctions. More complex cascade-graph scoring adds
   complexity without clear benefit
+
+## 2026-05-18T22:00: Junction cascade distance fix + cascade scoring improvement
+
+### Fixes applied
+1. **_JUNCTION_ALIGN_DISTANCE 25→15** (473fd86): The policy used 25 for junction-to-junction
+   cascade distance, but the game engine (config.py:40) uses 15. Agents were wasting turns
+   trying to align junctions outside cascade range. This also affected explore radius
+   (_alignment_frontier_cells) and the is_alignable check. A previous researcher found this
+   was "+0.6% marginal" offline, but it's a correctness fix that prevents wasted actions.
+2. **Cascade priority scoring with unlock potential** (e58e5b8): _cascade_priority_target now
+   considers how many additional junctions would become newly alignable after aligning each
+   candidate. Junctions on the cascade frontier that extend the network are preferred over
+   dead-end junctions. Weight: -3.0 per unlocked junction (equivalent to 3 travel steps saved).
+
+### Deep review findings (continued from previous section)
+- **Miner verified_hubs/verified_extractors**: NOT shared via SharedMap — each miner maintains
+  private sets. This is by design: `verified_` tracks personally confirmed structures, with
+  fallback to shared `known_` sets. Not a bug.
+- **Heart estimation accuracy**: `5 + hearts_crafted_estimate - hub_hearts_withdrawn` correctly
+  models hub stock. Aligner deaths with hearts reduce real stock but were already counted as
+  withdrawn. Deposit tracking fix (045a8aa) improves hearts_crafted_estimate accuracy.
+- **Miner HP retreat threshold 0.25**: Miners are more aggressive than aligners (0.70).
+  At 25% HP, miners have ~25 steps before death. Hub distance is typically <25 for active
+  miners near extractors. Acceptable tradeoff.
+- **Contamination tracking on death**: On death, gear=None which is not in contamination set.
+  No false positive. Previous fix (88a8a64) handled this correctly.
+
+### Total commits on branch: 42 ahead of main

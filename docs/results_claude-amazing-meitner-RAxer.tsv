@@ -28,3 +28,5 @@ a179d78	0.000000	bug_fix	0	keep	fix: abort get_heart/align_neutral immediately o
 3008f37	0.000000	bug_fix	0	keep	fix: gear_up ignores shared aligner station knowledge from team
 045a8aa	0.000000	bug_fix	0	keep	fix: deposit tracking counts cargo lost on death as deposits
 c80aabd	0.000000	structural_only	0	keep	improve: defend patrol prioritizes junctions near enemy territory
+473fd86	0.000000	bug_fix	0	keep	fix: _JUNCTION_ALIGN_DISTANCE 25→15 to match game engine cascade range
+e58e5b8	0.000000	structural_only	0	keep	improve: cascade priority scoring considers junction unlock potential
