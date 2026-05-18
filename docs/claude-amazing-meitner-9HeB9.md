@@ -1096,3 +1096,20 @@ Fine-tuned longep3k_e20 with constant LR=0.0003, fixed entropy=0.01, seed=42, ma
 Training diagnostics: clipfrac drops to 0 by epoch ~4, entropy stabilizes at ~1.5, policy barely updates after e10. The model effectively stops learning, then slowly degrades.
 
 **Conclusion**: Fine-tuning from longep3k_e20 (with any LR schedule) cannot beat the base model. The base model is already well-trained for its reward structure.
+
+### Complete Finetune Curve (LR=0.0005 from longep3k_e20)
+| Epoch | Avg | Note |
+|---|---|---|
+| e5 | 1.253 | Warming up |
+| **e10** | **1.295** | **Peak** |
+| e15 | 1.032 | Collapsed |
+| e20 | 1.000 | Dead |
+| e25 | 1.043 | Dead |
+| e30 | 1.052 | Dead |
+
+### New Training Experiments — Session 8
+Fine-tuning is exhausted. Trying new from-scratch training approaches:
+
+1. **longep3k_6M**: Same config as longep3k but 6M steps (double) — tests more gradual LR annealing
+2. **longep3k_higamma**: gamma=0.998 (from 0.995), gae_lambda=0.95 (from 0.90) — longer reward horizon
+3. **longep3k_bptt128**: bptt_horizon=128 (from 64) — longer LSTM context for temporal patterns

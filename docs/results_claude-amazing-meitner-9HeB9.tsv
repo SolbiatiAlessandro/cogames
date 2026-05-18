@@ -239,3 +239,11 @@ ft_constlr_e20	1.015733	aligned.junction.held=~500	10000	discard	Constant LR fin
 ft_constlr_e25	1.105800	aligned.junction.held=~6000	10000	discard	Constant LR fine-tune e25 @10K (3-ep, peak=1.206, std=0.072)
 ft_constlr_e30	1.007767	aligned.junction.held=~500	10000	discard	Constant LR fine-tune e30 @10K (3-ep, peak=1.013) - collapsed
 ft_constlr_e35	1.043133	aligned.junction.held=~2000	10000	discard	Constant LR fine-tune e35 @10K (3-ep, peak=1.106, std=0.046)
+ft_constlr_e5_5ep	1.072580	aligned.junction.held=~5000	10000	discard	Constant LR fine-tune e5 @10K (5-ep validated, peak=1.210, std=0.078)
+finetune_e20	1.000000	aligned.junction.held=~0	10000	discard	Finetune from longep3k_e20 LR=0.0005 e20 @10K (3-ep) - completely collapsed
+finetune_e25	1.042833	aligned.junction.held=~2000	10000	discard	Finetune e25 @10K (3-ep, peak=1.129) - near dead
+finetune_e30	1.051533	aligned.junction.held=~3000	10000	discard	Finetune e30 @10K (3-ep, peak=1.155) - near dead
+higamma_e5	1.000000	aligned.junction.held=~0	10000	discard	High gamma (0.998) e5 @10K (3-ep) - still learning
+higamma_e10	1.282867	aligned.junction.held=~8000	10000	keep	High gamma (0.998) e10 @10K (3-ep, peak=1.849, std=0.400) - promising, needs more epochs
+bptt128_old_e5	1.036700	aligned.junction.held=~1000	10000	discard	Old bptt128 from prev session e5 @10K (3-ep, peak=1.072)
+bptt128_old_e10	1.003433	aligned.junction.held=~0	10000	discard	Old bptt128 from prev session e10 @10K (3-ep) - collapsed
