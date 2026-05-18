@@ -632,8 +632,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 state.skill_steps += 1
                 return action, state
 
-        # ── Aligner hub tether: prevent stranding far from hub ──
-        _MAX_ALIGNER_HUB_DISTANCE = 35
+        # ── Aligner tether: prevent stranding far from friendly territory ──
+        _MAX_ALIGNER_TERRITORY_DISTANCE = 35
         has_aligner_gear = self._current_gear(obs) == "aligner"
         if (
             has_aligner_gear
@@ -642,9 +642,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             and state.known_hubs
         ):
             hub_abs = self._nearest_known(current_abs, state.known_hubs)
-            if hub_abs is not None:
-                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
-                if hub_dist > _MAX_ALIGNER_HUB_DISTANCE:
+            friendly_anchors = set(state.known_hubs) | state.known_friendly_junctions
+            nearest_anchor = self._nearest_known(current_abs, friendly_anchors)
+            territory_dist = abs(current_abs[0] - nearest_anchor[0]) + abs(current_abs[1] - nearest_anchor[1]) if nearest_anchor else 9999
+            if territory_dist > _MAX_ALIGNER_TERRITORY_DISTANCE:
                     has_heart = self._inventory_count(obs, "heart") > 0
                     alignable = self._known_alignable_junctions(state)
                     if has_heart and alignable:
@@ -656,7 +657,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     state.skill_steps = 0
                     state.no_move_steps = 0
                     state.no_progress_on_target_steps = 0
-                    self._event(state, f"aligner hub tether: dist {hub_dist} > {_MAX_ALIGNER_HUB_DISTANCE}, redirecting to {state.current_skill}")
+                    self._event(state, f"aligner tether: territory_dist {territory_dist} > {_MAX_ALIGNER_TERRITORY_DISTANCE}, redirecting to {state.current_skill}")
                     direction = self._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
                     if direction:
                         action = self._starter._action(f"move_{direction}")
@@ -723,8 +724,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 travel = (abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])) * 0.3
                 threat = 0.0
                 if enemy_junctions:
+                    nearby_enemies = sum(1 for e in enemy_junctions if abs(j[0] - e[0]) + abs(j[1] - e[1]) <= 30)
                     nearest_enemy = min(abs(j[0] - e[0]) + abs(j[1] - e[1]) for e in enemy_junctions)
-                    threat = max(0, 30 - nearest_enemy) * 0.5
+                    threat = max(0, 30 - nearest_enemy) * 0.5 + nearby_enemies * 2.0
                 return spread - travel + threat
             if current_abs in state.known_friendly_junctions:
                 state.defend_station_steps += 1
