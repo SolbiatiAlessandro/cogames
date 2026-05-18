@@ -63,3 +63,8 @@ de4e34f	0.000000	critical_bug_fix	0	keep	fix: aligners navigate to enemy junctio
 048d496	0.000000	bug_fix	0	keep	fix: cleanup stale enemy junction references after alignment target fix
 b6235b8	0.000000	critical_bug_fix	0	keep	fix: cross_role_policy same enemy junction alignment bug
 de82ebe	0.000000	bug_fix	0	keep	fix: visual extractor depletion — remove stale extractors immediately
+2220539	0.000000	bug_fix	0	keep	fix: depleted extractors not subtracted in fast-path skill selection
+2991329	0.000000	bug_fix	0	keep	fix: cross_role stale extractor removal missing depleted tracking
+0831642	0.000000	bug_fix	0	keep	fix: stationary_on_valid_target counts depleted extractors as valid
+e3e8a4f	0.000000	bug_fix	0	keep	fix: all skill selection paths use active extractors instead of raw known
+437869e	0.000000	bug_fix	0	keep	fix: cross_role deposit tracking counts cargo lost on death as deposits
