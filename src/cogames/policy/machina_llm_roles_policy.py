@@ -429,6 +429,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, "align_neutral completed after spending heart")
             state.current_skill = None
             state.align_neutral_timeouts = 0
+        elif state.current_skill in {"get_heart", "align_neutral"} and not has_aligner and state.skill_steps > 0:
+            self._event(state, f"{state.current_skill} aborted: lost aligner gear (death or contamination)")
+            state.current_skill = None
         elif state.current_skill == "explore" and (
             len(state.known_neutral_junctions) + len(state.known_enemy_junctions) > state.explore_start_junctions
         ):
