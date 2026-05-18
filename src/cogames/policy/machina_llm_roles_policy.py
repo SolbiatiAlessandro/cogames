@@ -69,6 +69,8 @@ class LLMAlignerState(AlignerState):
     defend_last_junction: tuple[int, int] | None = None
     # Hearts estimate at defend start — detect new hearts becoming available
     defend_start_hearts_estimate: int = 0
+    # Hearts held when get_heart skill started — for accurate withdrawal tracking
+    get_heart_start_count: int = 0
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -364,20 +366,24 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
-        # Phase-aware defense: in late game (>7000 steps), defend territory to hold
-        # score. In early/mid game, only defend if enemy activity detected.
+        # Phase-aware defense: defend territory when nothing to align.
+        # Triggers: late game, enemy activity, or substantial territory to protect.
         if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and len(state.known_friendly_junctions) >= 5:
-            late_game = state.global_step > 7000
+            late_game = state.global_step > 5000
             enemy_active = bool(state.known_enemy_junctions)
-            if late_game or enemy_active:
+            substantial_territory = len(state.known_friendly_junctions) >= 20 and state.global_step > 3000
+            if late_game or enemy_active or substantial_territory:
                 skill = "defend"
-                reason = f"{'late-game' if late_game else 'enemy-active'} patrol: {len(state.known_friendly_junctions)} friendly, step={state.global_step}"
+                trigger = 'late-game' if late_game else ('enemy-active' if enemy_active else 'substantial-territory')
+                reason = f"{trigger} patrol: {len(state.known_friendly_junctions)} friendly, step={state.global_step}"
         if skill == "explore":
             state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
         if skill == "defend" and self._shared_map is not None:
             state.defend_start_hearts_estimate = self._shared_map.hearts_crafted_estimate
         state.current_skill = skill
         state.current_reason = reason
+        if skill == "get_heart":
+            state.get_heart_start_count = self._inventory_count(obs, "heart")
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
@@ -402,11 +408,12 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
-                self._event(state, f"get_heart completed with {heart_count} heart(s)")
+                newly_withdrawn = max(0, heart_count - state.get_heart_start_count)
+                self._event(state, f"get_heart completed with {heart_count} heart(s) ({newly_withdrawn} new)")
                 state.get_heart_timeouts = 0
                 sm = self._shared_map
                 if sm is not None:
-                    sm.hub_hearts_withdrawn += heart_count
+                    sm.hub_hearts_withdrawn += newly_withdrawn
                     sm.agents_getting_hearts.discard(obs.agent_id)
                 state.current_skill = None
         elif state.current_skill == "defend":
@@ -557,7 +564,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.global_step += 1
 
         # ── Periodic blacklist expiry: retry previously-unreachable junctions ──
-        _BLACKLIST_EXPIRY_INTERVAL = 500
+        _BLACKLIST_EXPIRY_INTERVAL = 250
         if state.global_step % _BLACKLIST_EXPIRY_INTERVAL == 0 and state.blacklisted_junctions:
             count = len(state.blacklisted_junctions)
             state.blacklisted_junctions.clear()
