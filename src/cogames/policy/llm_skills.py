@@ -340,6 +340,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
     def _neighbors(self, cell: Coord) -> list[tuple[str, Coord]]:
         return [(name, (cell[0] + delta[0], cell[1] + delta[1])) for name, delta in _DIRECTION_DELTAS]
 
+    def _ordered_neighbors_toward(self, cell: Coord, goal: Coord) -> list[tuple[str, Coord]]:
+        return sorted(
+            self._neighbors(cell),
+            key=lambda item: abs(item[1][0] - goal[0]) + abs(item[1][1] - goal[1]),
+        )
+
     def _nearest_known(self, current_abs: Coord, candidates: set[Coord]) -> Coord | None:
         if not candidates:
             return None
@@ -400,7 +406,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             cell = frontier.popleft()
             if cell == goal:
                 break
-            for direction, neighbor in self._neighbors(cell):
+            for direction, neighbor in self._ordered_neighbors_toward(cell, goal):
                 if neighbor in parents or neighbor not in state.known_free_cells or neighbor in avoid:
                     continue
                 parents[neighbor] = (cell, direction)
@@ -425,7 +431,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             cell = frontier.popleft()
             if cell == goal:
                 break
-            for direction, neighbor in self._neighbors(cell):
+            for direction, neighbor in self._ordered_neighbors_toward(cell, goal):
                 if neighbor in parents or neighbor in state.blocked_cells or neighbor in avoid:
                     continue
                 parents[neighbor] = (cell, direction)
