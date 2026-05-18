@@ -348,6 +348,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
+        # Late-game defense: when aligner has heart but all junctions are friendly,
+        # patrol near junctions instead of exploring aimlessly
+        if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and len(state.known_friendly_junctions) >= 5:
+            skill = "defend"
+            reason = f"late-game patrol: {len(state.known_friendly_junctions)} friendly junctions, none alignable"
         if skill == "explore":
             state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
         state.current_skill = skill
@@ -562,13 +567,25 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 action, base_state = self._align_neutral(obs, state, current_abs)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "defend":
-            # Navigate to nearest friendly junction and hold position
             current_abs = self._spawn_offset(obs)
             if current_abs in state.known_friendly_junctions:
-                # Already on junction - stand and defend (noop)
                 action = self._starter._action("noop")
             elif state.known_friendly_junctions:
-                target = self._nearest_known(current_abs, state.known_friendly_junctions)
+                sm = self._shared_map
+                other_positions = set()
+                if sm is not None:
+                    for aid, pos in sm.agent_positions.items():
+                        if aid != obs.agent_id:
+                            other_positions.add(pos)
+                if other_positions and len(state.known_friendly_junctions) > 1:
+                    target = max(
+                        state.known_friendly_junctions,
+                        key=lambda j: min(
+                            abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions
+                        ) - abs(j[0] - current_abs[0]) - abs(j[1] - current_abs[1]) * 0.3,
+                    )
+                else:
+                    target = self._nearest_known(current_abs, state.known_friendly_junctions)
                 direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                 if direction:
                     action = self._starter._action(f"move_{direction}")
