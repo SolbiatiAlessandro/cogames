@@ -7,3 +7,6 @@ f693106	0.000000	cannot_test_offline	0	keep	contamination avoidance: track gear-
 d186121	0.000000	cannot_test_offline	0	keep	distance-aware retreat + phase-aware defense + step counter
 faa6433	0.000000	bug_fix	0	keep	fix: progress tracking was always False for get_heart/align_neutral
 e76016b	0.000000	bug_fix	0	keep	fix: same progress tracking bug in cross_role_policy.py
+002e564	0.000000	bug_fix	0	keep	fix: _bfs_without_cooldowns corrupting SharedMap via in-place set mutation
+99e9677	0.000000	bug_fix	0	keep	fix: junction blacklist removing targets from SharedMap, hiding from all agents
+6ffee00	0.000000	structural_only	0	keep	defend patrol: cycle between junctions instead of sitting idle

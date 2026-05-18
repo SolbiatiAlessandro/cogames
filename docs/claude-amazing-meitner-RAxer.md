@@ -158,10 +158,54 @@ and `cross_role_policy.py`.
 
 The miner's `llm_miner_policy.py` was already correct (state updates after checks).
 
+## 2026-05-18T14:00: SharedMap corruption bug fix (commit 002e564)
+
+### Bug found: `_bfs_without_cooldowns` was corrupting SharedMap sets
+
+In `_bfs_without_cooldowns()`, the code did `state.blocked_cells -= cooldown_cells` which
+modified the SharedMap's set in-place (removing cooldown cells permanently). Then
+`state.blocked_cells = original_blocked` reassigned the local reference to a copy, but the
+SharedMap was already damaged. Same for `known_free_cells |= cooldown_cells`.
+
+**Impact**: After any call to `_bfs_without_cooldowns`:
+1. SharedMap's `blocked_cells` permanently lost cooldown entries
+2. SharedMap's `known_free_cells` permanently gained cooldown entries
+3. The calling agent's state was disconnected from SharedMap for the episode
+4. Other agents in the same tick saw corrupted blocked/free cell data
+
+**Fix**: Save the original reference, create new temporary sets for BFS, restore the
+original reference. SharedMap sets are never mutated. Fixed in both `aligner_agent.py`
+and `llm_skills.py`.
+
+## 2026-05-18T14:15: junction blacklist SharedMap fix (commit 99e9677)
+
+### Bug found: blacklisting a junction removed it from shared awareness
+
+When an agent blacklisted a stuck junction, it also discarded the junction from
+`known_neutral_junctions` or `known_enemy_junctions` (SharedMap sets). This removed
+the junction from ALL agents' awareness, not just the stuck one. Other agents who
+could reach the junction would lose sight of it until re-discovered visually.
+
+**Fix**: Only add to per-agent `blacklisted_junctions` set (already filters from this
+agent's targeting). Don't remove from shared junction sets. Fixed in both
+`machina_llm_roles_policy.py` and `cross_role_policy.py`.
+
+## 2026-05-18T14:30: defend patrol improvement (commit 6ffee00)
+
+Defending agents previously sat on a friendly junction doing noop for up to 750 steps.
+Now they patrol: sit for 20 steps, then move to a different friendly junction (preferring
+the most spread-out target relative to other agents). This provides:
+- Better visual coverage during patrol transit
+- Earlier detection of enemy activity or new neutral junctions
+- More adaptive behavior (the online performance insight says adaptiveness > aggressiveness)
+
 ### Key learnings for this session:
 1. **Always check online evidence before making offline-inspired changes**
 2. **The offline-online gap is massive** — up to -9 points for changes that improve offline by +2.7%
 3. **Structural/behavioral changes** (contamination avoidance, phase-aware defense) are the
    unexplored frontier — parameter tuning is exhausted after 100+ experiments
 4. **Auth blocker persists** — the token only has public read access
-5. **Bug fixes > parameter tuning** — the progress tracking bug could have more impact than any parameter change
+5. **Bug fixes > parameter tuning** — the SharedMap corruption and progress tracking bugs
+   could have more impact than any parameter change
+6. **SharedMap is fragile** — in-place mutations break shared references, and removing from
+   shared sets affects all agents
