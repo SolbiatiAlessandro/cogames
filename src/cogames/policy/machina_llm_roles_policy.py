@@ -500,18 +500,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 if state.align_neutral_timeouts >= 1:
                     current_abs = self._spawn_offset(obs)
                     non_blacklisted_neutral = state.known_neutral_junctions - state.blacklisted_junctions
-                    non_blacklisted_enemy = state.known_enemy_junctions - state.blacklisted_junctions
                     if non_blacklisted_neutral:
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_neutral)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
                             self._event(state, f"blacklisted stuck neutral junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
-                            state.align_neutral_timeouts = 0
-                    elif non_blacklisted_enemy:
-                        stuck_junction = self._nearest_known(current_abs, non_blacklisted_enemy)
-                        if stuck_junction is not None:
-                            state.blacklisted_junctions.add(stuck_junction)
-                            self._event(state, f"blacklisted stuck enemy junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
                             state.align_neutral_timeouts = 0
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
@@ -808,7 +801,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     action, base_state = self._align_neutral(obs, state, current_abs)
                 # Record our predicted target
                 bl = state.blacklisted_junctions
-                alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+                alignable = {j for j in state.known_neutral_junctions
                             if self._is_alignable(j, state) and j not in bl and j not in yield_targets}
                 sm.aligner_targets[obs.agent_id] = self._cascade_priority_target(current_abs, alignable, state)
             else:
