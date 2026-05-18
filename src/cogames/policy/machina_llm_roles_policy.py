@@ -554,24 +554,32 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if sm is not None:
                 sm.aligner_targets.pop(obs.agent_id, None)
                 sm.agents_getting_hearts.discard(obs.agent_id)
-            # Retreat to nearest hub or friendly junction
-            _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
-            retreat_targets = _retreat_hubs | state.known_friendly_junctions
-            if retreat_targets:
-                target = self._nearest_known(current_abs, retreat_targets)
-                if target in state.known_free_cells:
-                    action, state = self._move_to(state, current_abs, target)
-                else:
-                    direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
-                    if direction:
-                        action = self._starter._action(f"move_{direction}")
-                    else:
-                        action, state = self._safe_wander(state, current_abs)
+            _RETREAT_STUCK_LIMIT = 50
+            if state.steps_since_last_move >= _RETREAT_STUCK_LIMIT:
+                state.retreating = False
+                self._event(state, f"retreat cancelled: stuck for {state.steps_since_last_move} steps")
+                logger.info("agent=%s RETREAT_CANCELLED stuck=%d", obs.agent_id, state.steps_since_last_move)
+            elif state.steps_since_last_move >= 5 and state.steps_since_last_move % 3 == 0:
+                action, state = self._unstuck(state)
                 state.skill_steps += 1
                 return action, state
-            # No known retreat target: wander safely
-            action, state = self._safe_wander(state, current_abs)
-            return action, state
+            else:
+                _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
+                retreat_targets = _retreat_hubs | state.known_friendly_junctions
+                if retreat_targets:
+                    target = self._nearest_known(current_abs, retreat_targets)
+                    if target in state.known_free_cells:
+                        action, state = self._move_to(state, current_abs, target)
+                    else:
+                        direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                        if direction:
+                            action = self._starter._action(f"move_{direction}")
+                        else:
+                            action, state = self._safe_wander(state, current_abs)
+                else:
+                    action, state = self._safe_wander(state, current_abs)
+                state.skill_steps += 1
+                return action, state
 
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:
