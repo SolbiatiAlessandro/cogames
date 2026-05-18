@@ -425,6 +425,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 self._event(state, f"defend ended: new hearts available (crafted {self._shared_map.hearts_crafted_estimate} > {state.defend_start_hearts_estimate} at defend start)")
                 state.get_heart_timeouts = 0
                 state.current_skill = None
+            elif not has_heart and has_aligner and state.skill_steps >= self._stuck_threshold * 4:
+                self._event(state, f"defend ended: heartless for {state.skill_steps} steps, getting heart for recapture readiness")
+                state.get_heart_timeouts = 0
+                state.current_skill = None
             elif state.skill_steps >= self._stuck_threshold * 25:
                 self._event(state, "defend ended: trying get_heart again")
                 state.get_heart_timeouts = 0
