@@ -421,6 +421,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             elif not has_aligner:
                 self._event(state, "defend ended: lost aligner gear")
                 state.current_skill = None
+            elif not has_heart and has_aligner and _enemy_or_neutral and any(j in state.known_enemy_junctions for j in _enemy_or_neutral):
+                self._event(state, f"defend ended: heartless but enemy junctions detected — rushing to get heart for recapture")
+                state.get_heart_timeouts = 0
+                state.current_skill = None
             elif not has_heart and has_aligner and self._shared_map is not None and self._shared_map.hearts_crafted_estimate > state.defend_start_hearts_estimate:
                 self._event(state, f"defend ended: new hearts available (crafted {self._shared_map.hearts_crafted_estimate} > {state.defend_start_hearts_estimate} at defend start)")
                 state.get_heart_timeouts = 0
@@ -742,6 +746,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     state.defend_last_junction = current_abs
                     state.defend_station_steps = 0
                     action, state = self._move_to(state, current_abs, target)
+                elif len(state.known_friendly_junctions) <= 1 and state.defend_station_steps >= 10:
+                    action, base_state = self._explore_for_alignment(obs, state)
+                    state = self._copy_with(state, base_state)
                 else:
                     action = self._starter._action("noop")
             elif state.known_friendly_junctions:
