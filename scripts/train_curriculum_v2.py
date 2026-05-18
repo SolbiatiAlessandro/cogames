@@ -105,6 +105,7 @@ def run_training_phase(
     checkpoint_dir: str,
     checkpoint_interval: int = 5,
     log_outputs: bool = True,
+    map_seed: int | None = None,
 ):
     patch_train_hyperparams(
         ent_coef=ent_coef,
@@ -120,6 +121,7 @@ def run_training_phase(
     logger.info(f"  Map: {'arena 50x50' if phase == 1 else 'machina1 88x88'}")
     logger.info(f"  Cogs: {cogs}, MaxSteps: {max_steps}")
     logger.info(f"  m2_factor: {m2_factor}, lr: {lr}")
+    logger.info(f"  map_seed: {map_seed}, optimizer_seed: {seed}")
     logger.info(f"  Weights: {weights}")
     logger.info(f"  Output: {checkpoint_dir}")
     logger.info(f"  Total steps: {steps_total:,}")
@@ -137,6 +139,7 @@ def run_training_phase(
         num_steps=steps_total,
         checkpoints_path=checkpoint_path,
         seed=seed,
+        map_seed=map_seed,
         minibatch_size=4096,
         vector_num_envs=parallel_envs,
         log_outputs=log_outputs,
@@ -161,12 +164,14 @@ def pipeline_arena_anneal(args):
     logger.info("=" * 60)
     stage1a_dir = f"{base_dir}/stage1a"
     stage1a_steps = 30 * steps_per_batch  # ~30 pufferl epochs
+    map_seed = getattr(args, 'map_seed', None)
     weights_1a = run_training_phase(
         phase=1, steps_total=stage1a_steps, seed=args.seed,
         cogs=args.cogs, parallel_envs=args.parallel_envs, max_steps=1000,
         m2_factor=args.m2_factor, ent_coef=0.08, clip_coef=0.1,
         lr=0.00092, gamma=0.995, gae_lambda=0.90,
         weights=args.weights, checkpoint_dir=stage1a_dir,
+        map_seed=map_seed,
     )
 
     # Stage 1b: Medium entropy (ent=0.02, 40 epochs from 1a)
@@ -181,6 +186,7 @@ def pipeline_arena_anneal(args):
         m2_factor=args.m2_factor, ent_coef=0.02, clip_coef=0.1,
         lr=0.00092, gamma=0.995, gae_lambda=0.90,
         weights=weights_1a, checkpoint_dir=stage1b_dir,
+        map_seed=map_seed,
     )
 
     # Stage 1c: Low entropy exploitation (ent=0.01, 30 epochs from 1b)
@@ -195,6 +201,7 @@ def pipeline_arena_anneal(args):
         m2_factor=args.m2_factor, ent_coef=0.01, clip_coef=0.1,
         lr=0.00092, gamma=0.995, gae_lambda=0.90,
         weights=weights_1b, checkpoint_dir=stage1c_dir,
+        map_seed=map_seed,
     )
 
     logger.info("=" * 60)
@@ -205,7 +212,9 @@ def pipeline_arena_anneal(args):
 
 def pipeline_compmap(args):
     """Phase 2 on competition map with 3000-step episodes (the key breakthrough)."""
-    base_dir = f"./train_dir_p2_longep_m2x{int(args.m2_factor)}_s{args.seed}"
+    map_seed = getattr(args, 'map_seed', None)
+    ms_label = f"_ms{map_seed}" if map_seed is not None else ""
+    base_dir = f"./train_dir_p2_longep_m2x{int(args.m2_factor)}_s{args.seed}{ms_label}"
     steps_per_batch = args.parallel_envs * 3000 * args.cogs
 
     if not args.weights:
@@ -215,6 +224,7 @@ def pipeline_compmap(args):
     # Phase 2: Competition map, 3000-step episodes, clip=0.2 (withclips finding)
     logger.info("=" * 60)
     logger.info("PHASE 2: Competition map, 3000-step episodes")
+    logger.info(f"  map_seed={map_seed} (Session 6: map_seed=42 gives favorable layout)")
     logger.info("=" * 60)
     p2_steps = 30 * steps_per_batch
     weights_p2 = run_training_phase(
@@ -223,6 +233,7 @@ def pipeline_compmap(args):
         m2_factor=args.m2_factor, ent_coef=0.01, clip_coef=0.2,
         lr=0.00092, gamma=0.995, gae_lambda=0.90,
         weights=args.weights, checkpoint_dir=base_dir,
+        map_seed=map_seed,
     )
 
     logger.info("=" * 60)
@@ -244,6 +255,8 @@ def main():
 
     # Common args
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--map-seed", type=int, default=None,
+                        help="Fixed map seed (Session 6: map_seed=42 gives favorable layout)")
     parser.add_argument("--weights", type=str, default=None)
     parser.add_argument("--cogs", type=int, default=4)
     parser.add_argument("--parallel-envs", type=int, default=16)
@@ -278,6 +291,7 @@ def main():
             m2_factor=args.m2_factor, ent_coef=args.ent_coef, clip_coef=args.clip_coef,
             lr=args.lr, gamma=args.gamma, gae_lambda=args.gae_lambda,
             weights=args.weights, checkpoint_dir=args.checkpoint_dir,
+            map_seed=args.map_seed,
         )
     else:
         parser.error("Specify either --pipeline or --phase")

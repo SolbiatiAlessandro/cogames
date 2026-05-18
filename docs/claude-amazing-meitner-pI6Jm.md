@@ -39,3 +39,35 @@ Each stage warm-starts from the previous stage's best checkpoint. clip_coef=0.1 
 Running now with m2_factor=5 (baseline). ETA ~47min for full Phase 1 pipeline.
 
 Early signs: junction.held = 258 and 541 appearing at epoch 14-16 with ent=0.08. Good sign of exploration finding alignment behavior.
+
+## 2026-05-18 05:46 UTC: Stage 1a complete
+
+Stage 1a (ent=0.08, 30 pufferl-epochs, 1.92M steps) completed in 17.1 min at ~2500 SPS.
+- Best checkpoint: `train_dir_p1_anneal_m2x5_s42/stage1a/177908215231/model_000469.pt`
+- 469 pufferl gradient steps (30 "epochs" at ~16 gradsteps each)
+- junction.held peaked at 2912, but mostly sparse (near-random exploration phase)
+- Model has found alignment behavior but not reliably
+
+Stage 1b (ent=0.02, 50 epochs, 3.2M steps) now running. This is where policy specialization begins.
+
+## 2026-05-18 05:47 UTC: Stage 1b training (ent=0.02)
+
+Target: concentrate learned alignment behavior. The ent=0.02 forces the model to commit to a policy rather than staying near-uniform random. Expected to see junction.held values become more consistent (less variance, higher mean).
+
+## 2026-05-18 05:55 UTC: PLAN CHANGE — map_seed=42 is the key (Session 6 finding)
+
+Read all 23 comments on issue #75. Critical finding from Session 6:
+- **map_seed=42 is what makes training succeed** — the MAP LAYOUT, not optimizer seed, determines success
+- map42 + seed7 → avg=1.283; map42 + seed123 → avg=1.197 (both work!)
+- Without map42: seed7 → 1.000, seed123 → 1.072 (both fail)
+- **milestones_2:10 already FAILED** (avg=1.103 vs 1.394 baseline) — m2x25 would be even worse
+
+New experiment plan:
+1. map42 + seed42 + m2x5 (baseline reproduction, expect ~1.39)
+2. map42 + seed123 + m2x5 (KEY: does fixed map fix bad seed?)
+3. map42 + seed7 + m2x5 (third seed robustness)
+4. NO map_seed + seed123 + m2x5 (control: confirm bad seed fails without fix)
+
+Added --map-seed CLI arg to train_curriculum_v2.py (maps to train.py's map_seed parameter).
+
+Base objective weight analysis: 1.0/max_steps per tick. With m2_factor=5 on 3000-step episodes: 5/3000=0.00167/tick. The _apply_milestones_2 function scales this and subtracts 1 from junction count (removes home base).
