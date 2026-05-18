@@ -252,6 +252,45 @@ Ported the stuck detection:
 - After 5+ stuck steps, use unstuck moves every 3rd step to break free
 - Uses existing `steps_since_last_move` counter (no new state field needed)
 
+## 2026-05-18T16:00: hub interaction during HP retreat (commit 02e8ecf)
+
+When a heartless aligner retreats past the hub (within 2 cells), it now collects a heart
+opportunistically rather than walking past. Ported from cross_role_policy. No extra steps —
+the agent was already retreating toward hub.
+
+## 2026-05-18T16:15: miner max_hp_seen cap (commit 0e6f90d)
+
+The LLMMinerPolicyImpl._check_miner_hp already capped max_hp_seen at _BASE_HP=100, but
+the base MinerSkillImpl.step_with_state (used by mine_closest_policy) did not. If the
+environment ever reports HP > 100 (hub healing), the base miner would set max_hp_seen
+to the inflated value, making the recovery threshold unreachable.
+
+## 2026-05-18T16:30: periodic blacklist expiry (commit d465237)
+
+Ported from cross_role_policy: clear blacklisted junctions every 500 steps. Without this,
+junctions marked unreachable (from temporary congestion or navigation deadlocks) stay
+blacklisted for the entire 10,000-step episode, progressively reducing the alignment target
+set. After expiry, agents can retry previously-stuck junctions.
+
+Also fixed the same max_hp_seen cap bug in the base MinerSkillImpl (not just LLMMinerPolicyImpl).
+
+## 2026-05-18T16:45: code review — no further structural bugs found
+
+Thorough review of remaining code areas:
+- **SharedMap hazard station sharing**: aligners and miners share the same `known_hazard_stations`
+  set but add different station types. Not a practical bug — hazard stations are always also in
+  `blocked_cells`, so BFS avoids them regardless.
+- **_copy_with field preservation**: all new `LLMAlignerState` fields (max_hp_seen, retreating,
+  _prev_gear, global_step, defend_station_steps, etc.) correctly preserved via `replace()` 
+  from the `state` template.
+- **Miner _move_to vs _move_toward_target**: `_move_to` lacks optimistic BFS, but it's only
+  used for explore/gear_up (short-range), while `_move_toward_target` (with full fallback chain)
+  is used for mine/deposit (long-range). Appropriate split.
+- **Death/respawn handling**: properly handled — contamination check ignores gear=None,
+  HP retreat clears in friendly territory, skill state resets via _maybe_finish_skill.
+- **Heart accumulation near hub**: allows up to 3 hearts before dispatching, matching base
+  aligner behavior. Not changing — parameter tuning proven to hurt online.
+
 ### Key learnings for this session:
 1. **Always check online evidence before making offline-inspired changes**
 2. **The offline-online gap is massive** — up to -9 points for changes that improve offline by +2.7%
@@ -263,4 +302,4 @@ Ported the stuck detection:
 6. **SharedMap is fragile** — in-place mutations break shared references, and removing from
    shared sets affects all agents
 7. **Cross-pollinate from cross_role_policy** — it has battle-tested patterns (retreat stuck
-   detection, hub interaction during retreat, SharedMap cleanup) that the machina policy lacks
+   detection, hub interaction during retreat, blacklist expiry) that the machina policy lacks

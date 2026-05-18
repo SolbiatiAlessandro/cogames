@@ -16,3 +16,7 @@ fdcf930	0.000000	critical_bug_fix	0	keep	fix: HP retreat was completely dead —
 85cffcd	0.000000	structural_only	0	keep	improve: _move_to uses full BFS fallback chain for exploration
 88a8a64	0.000000	bug_fix	0	keep	fix: contamination false positive on death + defend/retreat navigation for junctions
 f3b411d	0.000000	structural_only	0	keep	fix: retreat stuck detection — cancel retreat after 50 stuck steps
+88a8a64	0.000000	bug_fix	0	keep	fix: contamination false positive on death + defend/retreat navigation for junctions
+02e8ecf	0.000000	structural_only	0	keep	improve: collect hearts during HP retreat when near hub
+0e6f90d	0.000000	bug_fix	0	keep	fix: cap miner max_hp_seen at base HP to prevent permanent retreat
+d465237	0.000000	bug_fix	0	keep	fix: base miner max_hp_seen cap + periodic blacklist expiry
