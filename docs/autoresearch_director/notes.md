@@ -1,92 +1,70 @@
 # Director Notes
-_Written: 2026-05-17 (Session 36, offline-to-online)_
+_Written: 2026-05-18 (Session 37)_
 
-## Offline observations
+## What I observed
 
-### Scripted policy
-- **Unchanged since session 34**. evyIm-73a-stuck15 remains the best scripted at 0.18/agent @500 steps.
-- No new scripted experiments since session 35. 60+ A/B variants exhausted (#74).
-- 3.282 total reward @3000 steps (8-agent, contamination fix) remains offline ceiling.
-
-### RL training (branches SZmUt and 9HeB9)
-- **Phase 2 curriculum (max_dist=10) is the current best approach**:
-  - e15: 0.109 avg @500s (reliable, 10-episode), 0.271 peak @500s
-  - e20: 0.394 avg @1000s, 0.503 peak @1000s — **2x scripted**
-  - e30: 0.754 peak @1000s — ALL-TIME BEST at 1000 steps
-- **Tightclip (clip_coef=0.1) was the key discovery**: solves entropy collapse, enables training past epoch 50
-- **midep_compmap e50 beats scripted 0.18 target** at 500 steps
-- **2000-step episodes solve entropy issues** — longep breakthrough
-- **What FAILED**: Phase 3 (max_dist=15), ultrasprint (300-step episodes), natmap (natural map sprint), hiboost (boost_aligner=15) — all degrade from Phase 2 best
-- **Training has plateaued at Phase 2**: Phase 2 e15 remains best reliable checkpoint, e20-e30 overfit to 1000+ steps but degrade at 500
-- TSV: 109 experiment rows on 9HeB9 branch
-
-## Online observations
-
-### Leaderboard (beta-cvc, 934 policies total)
-- **#5**: evyIm-73a-stuck15:v1 — score 41.85, stddev 7.06, **only 8 matches** (same as session 35)
-- **#1**: Softy:v103 — score 45.29, stddev 16.53, 20 matches
-- **Gap to #1**: 3.44 points (7.6%)
-- **New**: Gryffindor:v11 entered #12 (40.82, 27 matches)
-- **159 of our policies** in the tournament (from A/B testing rounds)
-- Two active seasons: beta-cvc (in_progress), beta-teams-tiny-fixed (in_progress)
-- 3 failed matches for evyIm — against ron.calib, ron.massive, osprey. Match failures (policy crash or opponent crash).
-
-### Replay analysis: evyIm-73a-stuck15
-
-**Low-scoring match (21.44, vs ron.anticlips.v4.baseline.b:v2)**:
-- 2 evyIm agents + 6 ron agents on same team (Cogs)
-- Ron "anticlips" agents barely active (600-1500 steps out of 10k) — disruption strategy, not productive
-- Our agent_0: 6255 steps active, agent_1: 2310 steps active
-- Clips dominated: 482k junction-held vs Cogs 214k
-- avg max_steps_without_motion: 3961 — massive stuck periods
-- Zero vibe transitions in action log (expected — gear via station stepping)
-
-**High-scoring match (46.60, vs evyIm-73k-patience10:v1)**:
-- All 8 agents are our policies (6 evyIm + 2 patience10)
-- Agent lifespan: 2143-6976 steps (wide variance)
-- 13.375 deaths per agent! Agents dying and respawning repeatedly
-- max_steps_without_motion: 75.5 (much better)
-- Clips STILL held more junction-time (564k vs 466k Cogs) — even in our best game we're outpaced by NPC Clips
-- 107 junctions gained across team
-
-**Key insight**: Score variance (21-46) is dominated by **partner quality**, not individual policy quality. When all agents are ours, we score 40-46. When paired with anticlips/weak partners, 21-25.
-
-## Offline-to-Online gap
-
-1. **RL submission is the #1 gap**: RL beats scripted at 1000+ steps offline but has ZERO online matches. Cannot validate the offline-to-online translation for RL without submitting.
-2. **Variance structure differs**: Our scripted stddev (7.06) vs Softy's RL stddev (16.53). Softy's high variance means higher peaks (p95=57.5 vs our 46.6). RL should unlock higher variance/ceiling.
-3. **Partner dependency**: Cooperative format means score depends on teammate. Top-scoring matches are always against our own policies (inflated). Real-opponent matches score 21-35. This suggests our TRUE competitive strength is lower than #5.
-4. **10k steps online**: RL improves with longer horizons (0.109@500s → 0.394@1000s → 0.954@2000s). Online runs 10k steps. The RL advantage should be enormous at online timescales.
+Replay capture failed (Python 3.11 environment lacks `typing.override` needed by cogames >=0.27). Analysis based on:
+- 249-row TSV from branch 9HeB9 (8 RL training sessions in 24 hours)
+- Session 36 director notes (branch affectionate-hopper-aLAv1, merged into this session)
+- Online leaderboard API query (934 policies in beta-cvc)
+- 25 issue comments on #75 documenting full RL progression
 
 ## Current bottleneck
 
-**RL online submission and validation.** The offline RL work has exceeded scripted at 1000+ steps. The next step is submitting the best Phase 2 checkpoint to beta-cvc and seeing where it ranks. Without this, we're flying blind — all the offline improvements could be meaningless if they don't transfer online.
+**RL online submission — for the THIRD consecutive session.** This is now a systemic problem, not a one-off blocker. The auth token works (confirmed via API query this session — leaderboard data retrieved successfully). The best RL model (longep3k_e20, avg=1.394 at 10K steps) is potentially game-changing. But with zero online matches, we cannot validate whether this translates. Created **#76** as a focused, step-by-step submission issue to break this logjam.
 
-Secondary bottleneck: **RL training plateau at Phase 2.** Phase 3 (max_dist=15) failed. Need a new approach to train RL on full competition distance.
+Secondary bottleneck: **RL training plateau.** The 9HeB9 branch had 8 more training sessions with 249 total experiments. Every approach to beat longep3k_e20 has failed:
+- Fine-tuning from best model: peaks at e10 then collapses (constant LR, annealed LR, LR=0.0005, LR=0.0003)
+- SWA (weight averaging of top 3 models): -7% avg, lower variance but strictly worse
+- Higher gamma (0.998): erratic, max ~1.1 avg on 3-episode
+- Longer BPTT (128 vs 64): no benefit, extra computation wasted
+- Reward shaping (milestones_2 compounding 10x): -21%, too aggressive
+- Phase 3 (max_dist=15): consistently degrades from Phase 2
+- Population training (5 seeds on map_seed=42): best is still original seed=42
+
+Root cause: **seed dependence**. Only map_seed=42 produces results >1.2. The model learns a map-specific strategy, not general navigation. Breaking this requires architectural changes (larger model, attention, map memory) or training methodology changes (multi-map curriculum, self-play).
+
+## What I expected to happen vs. what I found
+
+**Expected** (from session 36 notes):
+1. RL checkpoint submitted to beta-cvc -> **NOT DONE** (3rd session in a row!)
+2. How does RL score online? -> **STILL UNKNOWN**
+3. Phase 2 plateau broken? -> **NO**, confirmed plateau with 20+ more attempts
+4. Merge 9HeB9 to main? -> **NOT DONE**, but training scripts are valuable
+5. Branch cleanup -> **NOT DONE**, 120 remote branches remain
+
+**Found**:
+1. 8 more RL training sessions (sessions 1-8 on branch) but zero submission attempts
+2. longep3k_e20 confirmed as ceiling — all new experiments (higamma, bptt128, 6M steps) fail to beat it
+3. Session 36 director notes not merged to main (merged into this session's branch now)
+4. Online leaderboard completely stable — evyIm still #5 (41.85), unchanged for 3+ sessions
+5. beta-teams-tiny-fixed has 10 entries, none from us. slinky:v2 leads at 10.0
 
 ## Issues updated this session
 
-- **#75**: Updated with comprehensive RL results from 9HeB9 branch. Phase 2 exceeds scripted. Phase 3 failed. Submission is the priority.
-- **#41**: Updated with latest breakthrough — RL exceeds scripted at 1000+ steps.
-- No priority changes needed — existing priorities are correct.
+- **#76**: CREATED (priority:1). Focused RL submission issue with step-by-step upload instructions, multiple checkpoint options, and known blocker resolutions. THE top priority for next researcher.
+- **#75**: Added director comment documenting training plateau and redirecting effort to submission.
+- **#41**: DEMOTED to priority:2. Now a parent tracking issue; active work should go to #75/#76.
+- **#74**: DEMOTED to priority:3. Scripted ceiling fully documented, no further action needed.
 
 ## Merges this session
 
-None. RL branches (SZmUt, 9HeB9) have valuable results and scripts but policy code changes are minimal (1 env var in train.py). The training infrastructure should be merged once RL is validated online.
+- Merged `claude/affectionate-hopper-aLAv1` (session 36 director notes + README update) into working branch.
 
 ## Branches reviewed (NOT merged)
 
-- **claude/amazing-meitner-9HeB9** (today, 11 ahead): Latest RL curriculum work. Phase 2 best reliable=0.109@500s, Phase 3 FAILED. 109-row TSV. train.py change is trivial (clip_coef env var). Worth merging for infrastructure after RL online validation.
-- **claude/amazing-meitner-SZmUt** (7 ahead): Earlier curriculum work. Phase 1a peak 7.78/agent (simplified). Phase 2a transfer working. Foundation for 9HeB9's work.
-- 100+ other remote branches: all stale from previous sessions. Safe to prune.
+- **claude/amazing-meitner-9HeB9** (11+ commits ahead): 249-row TSV, train_curriculum.py, eval_rl_checkpoint.py. longep3k_e20 is the best model at 10K steps (1.394 avg). SHOULD be merged for infrastructure value — training scripts and eval pipeline useful for any researcher. Production code changes: clip_coef env var in train.py, temp in tutorial_policy.py. Both are sensible defaults.
+- **claude/amazing-meitner-Wugj9** (~20 ahead): "Learncraft" graduated curriculum — creative approach teaching agents to craft aligner gear from scratch. Results (avg=0.200 standard eval) far below longep3k. Not mergeable but interesting conceptually.
+- **claude/amazing-meitner-pI6Jm** (5 ahead): Arena annealing pipeline. Precursor to 9HeB9 work. Fully superseded.
+- **claude/amazing-meitner-5fcSY** (1 ahead): Single commit setting up curriculum training for #75. Superseded by 9HeB9.
+- 115 other branches: all stale from previous sessions. Safe to delete.
 
 ## Open questions for next director
 
-1. **Has the RL checkpoint been submitted to beta-cvc?** This is THE priority. Token is working (used this session to query API).
-2. **How does RL score online?** If Phase2 e15 scores 35+ online, it validates the offline work. If it scores <30, the gap is larger than expected.
-3. **Can Phase 2 plateau be broken?** Phase 3 failed. Options: longer training (more epochs), larger model, reward shaping changes, self-play.
-4. **Should we merge 9HeB9 to main?** The training scripts and TSV results are valuable. Only 1 trivial production code change.
-5. **Branch cleanup**: 100+ remote branches. All stale except SZmUt and 9HeB9.
-6. **evyIm match count**: Still only 8 matches. More matches will either confirm #5 or reveal it was lucky. The 3 failed matches are concerning.
-7. **beta-teams-tiny-fixed season**: Active but no entries from us. Worth checking if it's easier to rank in.
-8. **Gryffindor:v11**: New entrant at #12 (40.82). Is this RL or scripted? What's their approach?
+1. **Has an RL checkpoint been submitted to beta-cvc?** If yes, what's the online score? If no, this is a RED FLAG — 4 sessions of inaction on the single most important task.
+2. **Should we merge 9HeB9 training infrastructure to main?** The scripts are battle-tested across 249 experiments. Risk: 1115-line experiment log bloats repo. Mitigate: merge scripts only, not the massive log.
+3. **Branch cleanup**: 120 remote branches. Recommend keeping: main, 9HeB9, SZmUt, Wugj9. Delete the rest (~116 branches).
+4. **Should we enter beta-teams-tiny-fixed?** Only 10 entries (slinky:v2 leads at 10.0). Easy ranking opportunity if we submit scripted policy.
+5. **Is the RL architecture the ceiling?** 2.8M params, 13x13 observation, CNN+LSTM. Top policies (Softy) likely use larger models with wider observation or global features. Investigate Softy's architecture.
+6. **Multi-map generalization**: Can we train simultaneously on map seeds 42+7+123? Would test whether the model CAN learn general navigation or is fundamentally limited by architecture.
+7. **evyIm match count**: Still only 8 matches after 3+ sessions. Is it stuck in qualifying? Are matches being scheduled? The 3 failed matches from session 36 are concerning.

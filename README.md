@@ -24,87 +24,65 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director (offline-to-online): 2026-05-17 (Session 36)_
+_Updated by Director: 2026-05-18 (Session 37)_
 
-### Online Tournament (beta-cvc, cooperative scoring)
+### Online Tournament (beta-cvc, 934 policies)
 
-| Rank | Score | StdDev | Matches | Policy | Notes |
-|------|-------|--------|---------|--------|-------|
-| #1 | **45.29** | 16.53 | 20 | `Softy:v103` | RL, high variance/high ceiling |
-| #2 | 43.58 | 12.09 | 22 | `Softy:v111` | RL |
-| #3 | 42.48 | 18.63 | 21 | `Softy:v107` | RL |
-| #4 | 41.86 | 17.41 | 21 | `Softy:v96` | RL |
-| **#5** | **41.85** | **7.06** | **8** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — scripted, low match count** |
-| #6 | 41.59 | 18.06 | 20 | `Softy:v100` | RL |
-| #7 | 41.28 | 16.80 | 20 | `slanky:v171` | RL |
-| #8 | 41.22 | 19.66 | 20 | `Softy:v101` | RL |
-| #10 | 41.10 | 16.79 | 21 | `Paz-Bot-9000:v47` | RL |
-| **#11** | **40.85** | **9.27** | **20** | **`ax5wp-74a-hubl2-def-enemy:v1`** | L2 + defend + enemy |
-| #12 | 40.82 | 15.19 | 27 | `Gryffindor:v11` | new top-12 entrant |
-| **#18** | **40.49** | **6.00** | **27** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
+| Rank | Score | StdDev | Policy | Notes |
+|------|-------|--------|--------|-------|
+| #1 | **45.29** | 16.53 | `Softy:v103` | RL, high variance/high ceiling |
+| #2 | 43.58 | 12.09 | `Softy:v111` | RL |
+| #3 | 42.48 | 18.63 | `Softy:v107` | RL |
+| #4 | 41.86 | 17.41 | `Softy:v96` | RL |
+| **#5** | **41.85** | **7.06** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — scripted, stable 3 sessions** |
+| #6 | 41.59 | 18.06 | `Softy:v100` | RL |
+| #7 | 41.28 | 16.80 | `slanky:v171` | RL, new competitor |
+| #8 | 41.22 | 19.66 | `Softy:v101` | RL |
+| #10 | 41.10 | 16.79 | `Paz-Bot-9000:v47` | RL, new competitor |
+| **#11** | **40.85** | **9.27** | **`ax5wp-74a-hubl2-def-enemy:v1`** | L2 + defend + enemy |
+| #12 | 40.82 | 15.19 | `Gryffindor:v11` | RL, entered top 12 |
+| **#18** | **40.49** | **6.00** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
 
-_5 policies in top 20, 159 total submitted. Gap to #1: 3.44 pts (7.6%). Scripted ceiling at ~42 confirmed._
+_5 policies in top 20. Gap to #1: 3.44 pts (7.6%). Scripted ceiling at ~42 confirmed (#74)._
 
-**Variance gap**: Our stddev (7.06) vs Softy's (16.53). We're consistent but can't reach Softy's peaks (p95: 46.6 vs 57.5). RL's high variance = higher ceiling.
+### RL Training Progress (249 experiments on branch 9HeB9)
 
-### RL Training Progress (SIGNIFICANT ADVANCES)
+| Model | 500s avg | 1000s avg | 10K avg | Status |
+|-------|---------|----------|---------|--------|
+| **longep3k_e20** | 0.109 | 0.394 | **1.394** | **BEST — 5-ep validated** |
+| withclips_e10 | — | — | 1.371 | 2nd best 10K |
+| tc_longep3k_e30 | — | — | 1.300 | tightclip variant |
+| finetune_e10 | — | — | 1.295 | from longep3k, LR=5e-4 |
+| Phase 2 e15 | **0.109** | 0.255 | — | BEST RELIABLE @500s |
+| Tightclip e65 | 0.111 | 0.370 | — | 2000s peak: 0.954 |
+| Scripted baseline | 0.18 | ~0.30 | ~41.85 online | ceiling |
 
-| Phase | Config | 500-step avg | 1000-step avg | 1000-step peak | Status |
-|-------|--------|-------------|---------------|----------------|--------|
-| Phase 1a | simplified, no clips | 7.78/agent PEAK | — | — | DONE |
-| Phase 2 (tc65) e15 | max_dist=10, clip=0.1 | **0.109** (reliable) | 0.255 | **0.482** | BEST RELIABLE |
-| Phase 2 (tc65) e20 | max_dist=10 | 0.106 | **0.394** | 0.503 | BEST 1000s avg |
-| Phase 2 (tc65) e30 | max_dist=10 | 0.098 ↓ | — | **0.754** | ALL-TIME PEAK |
-| Tightclip e65 | clip_coef=0.1 | 0.111 | — | — | 2000s peak: 0.954 |
-| midep_compmap e50 | competition map, 2000-step ep | >0.18 (BEATS SCRIPTED) | 0.476 peak | — | BREAKTHROUGH |
-| Phase 3 | max_dist=15 | 0.072-0.102 | 0.300 | — | FAILED ↓ |
+**RL exceeds scripted at 1000+ steps.** At 10K steps (online length), longep3k_e20 scores 1.394 avg — but has ZERO online matches. Submission is the #1 bottleneck.
 
-**Key RL findings since Session 35**:
-- RL now **matches scripted** at 500 steps and **exceeds it** at 1000+ steps
-- clip_coef=0.1 (tightclip) solves entropy collapse — the critical hyperparameter
-- 2000-step episodes solve training entropy issues (longep breakthrough)
-- Phase 3 (max_dist=15), ultrasprint, natmap, hiboost all FAILED — training has plateaued at Phase 2
-- **RL NOT YET SUBMITTED ONLINE** — the #1 priority
+**Training plateau confirmed**: 20+ fine-tuning attempts (SWA, constant LR, higher gamma, BPTT 128, reward shaping) all negative. Only map_seed=42 works (seed-dependent). Phase 3 (max_dist=15) consistently fails.
 
-### Offline Best Results (scripted, 8-agent, 3000 steps)
+### Offline Best (scripted, 8-agent, 3000 steps)
 
 | Rank | Reward | Commit | Config | Notes |
 |------|--------|--------|--------|-------|
-| 1 | **3.282** | `d922520` | v52 + contamination fix | +15.2% vs baseline, 5-seed avg |
+| 1 | **3.282** | `d922520` | v52 + contamination fix | +15.2% vs baseline |
 | 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | previous best |
 
-### Key Findings (Session 36)
+### Key Findings (Session 37)
 
-1. **RL exceeds scripted at 1000+ steps** — Phase2_tc65 e20 averages 0.394/agent @1000 steps, 2x scripted. At 2000 steps, tightclip peaks at 0.954. Since online runs 10k steps, RL should outperform scripted online. But Phase 3 (max_dist=15) FAILED — training has hit a plateau.
-2. **RL not submitted — biggest gap** — Auth was blocked (401). Token provided this session works. RL checkpoint submission is THE critical next step.
-3. **Replay analysis reveals partner dependency** — evyIm scores 40-46 when paired with our own policies, but 21-25 vs external opponents (ron.anticlips, anoop.morphling). Score variance is dominated by teammate quality, not policy quality.
-4. **Agent mortality still high** — 13+ deaths/agent even in best matches (46.60 score). Each death = lost gear + position + respawn overhead.
-5. **Scripted position unchanged** — evyIm at #5 (41.85), still only 8 matches. No new matches since session 35. Gryffindor:v11 entered #12 (40.82).
-
-### Offline-to-Online Gap Analysis
-
-```
-Offline scripted:   0.18/agent @500s (ceiling, no further improvement possible)
-Offline RL best:    0.394/agent @1000s avg, 0.754 peak (exceeds scripted 2x)
-Online scripted:    #5, score 41.85 (8 matches)
-Online RL:          NOT SUBMITTED — zero online validation
-Gap diagnosis:      RL submission is the #1 bottleneck. Cannot close gap without online data.
-Partner variance:   21-46 score range per match (teammate-dependent, not policy-dependent)
-```
-
-### Progress Trajectory
-
-```
-Session 34 (#5, 41.85)  →  Session 35 (#5, stable)  →  Session 36 (#5, stable, RL advances)
-RL: 0.072/500s (P1) → 0.109/500s (P2 reliable) → 0.394/1000s avg (P2 e20) → 0.754/1000s peak
-```
+1. **RL training plateau confirmed** — 8 more sessions on 9HeB9 (249 experiments total). longep3k_e20 (1.394@10K) remains the best. Fine-tuning, SWA, reward shaping, higher gamma, longer BPTT all failed to beat it. The current architecture (2.8M param CNN+LSTM) appears to have hit its ceiling.
+2. **Seed dependence is the root cause** — Only map_seed=42 produces competitive results (1.394). Seeds 7, 123, 13, 31 plateau at 1.0-1.2. The model overfits to a favorable map layout rather than learning general navigation.
+3. **RL submission remains blocked for 3 sessions** — Created #76 as focused submission issue. Auth token confirmed working. No more excuses.
+4. **Online leaderboard stable** — evyIm at #5 (41.85), unchanged for 3 sessions. New competitors: slanky (#7), Paz-Bot-9000 (#10), Gryffindor (#12).
+5. **Session 36 not merged to main** — Director notes from session 36 on branch `affectionate-hopper-aLAv1`, merged into this session's branch.
 
 ### Current Priority Stack
 
 ```
-priority:1  #75  RL Curriculum — submit Phase 2 checkpoint online   <- CRITICAL: validate RL online
-priority:1  #41  RL policy training (parent issue)                  <- RL exceeds scripted @1000s
-priority:2  #74  Scripted ceiling at ~42                            <- confirmed, no action needed
+priority:1  #76  Submit RL checkpoint online                        <- CREATED: 3-session blocker
+priority:1  #75  RL Curriculum Training                             <- training plateau, submit first
+priority:2  #41  RL policy training (parent tracking)               <- subsumed by #75/#76
+priority:3  #74  Scripted ceiling at ~42                            <- confirmed, documented
 priority:3  #73  A/B testing exhausted                              <- 60+ variants, done
 priority:3  #71  Junction control efficiency                        <- RL will address
 priority:3  #70  2-agent allocation                                 <- low leverage
