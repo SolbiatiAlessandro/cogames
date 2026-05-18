@@ -553,6 +553,28 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         elif was_retreating:
             state.current_skill = None
 
+        _MAX_HUB_DISTANCE = 40
+        current_abs = self._current_abs(obs)
+        has_miner = self._starter._current_gear(self._starter._inventory_items(obs)) == "miner"
+        if (
+            has_miner
+            and not state.retreating_to_hub
+            and state.current_skill in {"explore", "mine_until_full"}
+            and state.known_hubs
+        ):
+            hub_abs = self._nearest_known(current_abs, state.known_hubs)
+            if hub_abs is not None:
+                hub_dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                if hub_dist > _MAX_HUB_DISTANCE:
+                    carried = self._carried_total(obs)
+                    state.current_skill = "deposit_to_hub" if carried > 0 else "explore"
+                    state.skill_steps = 0
+                    state.no_move_steps = 0
+                    state.no_progress_on_target_steps = 0
+                    self._event(state, f"hub tether: dist {hub_dist} > {_MAX_HUB_DISTANCE}")
+                    action, base_state = self._deposit_to_hub(obs, state)
+                    return action, self._copy_with(state, base_state)
+
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:
             self._plan_skill(obs, state)
