@@ -687,7 +687,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
             return action, replace(next_state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, state.verified_aligner_stations) if state.verified_aligner_stations else None
+        station_candidates = state.verified_aligner_stations if state.verified_aligner_stations else state.known_aligner_stations
+        target_abs = self._nearest_known(current_abs, station_candidates) if station_candidates else None
         if target_abs is None:
             hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
             if hub_set:
