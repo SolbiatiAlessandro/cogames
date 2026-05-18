@@ -388,14 +388,22 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     sm.hub_hearts_withdrawn += heart_count
                     sm.agents_getting_hearts.discard(obs.agent_id)
                 state.current_skill = None
-        elif state.current_skill == "defend" and has_heart:
-            self._event(state, "defend ended: acquired heart while defending")
-            state.get_heart_timeouts = 0
-            state.current_skill = None
-        elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 50:
-            self._event(state, "defend ended: trying get_heart again")
-            state.get_heart_timeouts = 0  # reset to allow another get_heart attempt
-            state.current_skill = None
+        elif state.current_skill == "defend":
+            _enemy_or_neutral = self._known_alignable_junctions(state)
+            if _enemy_or_neutral and has_heart and has_aligner:
+                self._event(state, f"defend ended: {len(_enemy_or_neutral)} alignable junction(s) detected")
+                state.current_skill = None
+            elif has_heart and not state.last_has_heart:
+                self._event(state, "defend ended: acquired heart while defending")
+                state.get_heart_timeouts = 0
+                state.current_skill = None
+            elif not has_aligner:
+                self._event(state, "defend ended: lost aligner gear")
+                state.current_skill = None
+            elif state.skill_steps >= self._stuck_threshold * 50:
+                self._event(state, "defend ended: trying get_heart again")
+                state.get_heart_timeouts = 0
+                state.current_skill = None
         elif state.current_skill == "align_neutral" and not has_heart and state.skill_steps > 0:
             self._event(state, "align_neutral completed after spending heart")
             state.current_skill = None
