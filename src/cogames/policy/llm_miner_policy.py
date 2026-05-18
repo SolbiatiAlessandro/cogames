@@ -271,8 +271,14 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             self._event(state, f"deposited cargo from {state.last_carried_total} to {carried_total}")
             made_progress = True
         if cargo_decreased:
+            current_abs = self._current_abs(obs)
+            _hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+            near_hub = any(
+                abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+                for h in _hub_set
+            ) if _hub_set else False
             sm = self._shared_map
-            if sm is not None and hasattr(sm, "total_deposits"):
+            if near_hub and sm is not None and hasattr(sm, "total_deposits"):
                 for elem, prev_amount in state.last_carried_elements.items():
                     deposited = prev_amount - carried_elements.get(elem, 0)
                     if deposited > 0:
