@@ -43,3 +43,5 @@ d41eb40	0.000000	structural_only	0	keep	improve: miners deposit at nearest frien
 785ff9b	0.000000	structural_only	0	keep	improve: distance-based aligner target yielding instead of blanket blacklist
 5150e3b	0.000000	structural_only	0	keep	improve: heartless defenders exit sooner (stuck*4) to get hearts for recapture
 dfd0e4a	0.000000	structural_only	0	keep	improve: miner extractor selection considers junction deposit proximity
+a0077ea	0.000000	structural_only	0	keep	improve: heartless defenders react to enemy junctions + single-junction explore
+93ab1cc	0.000000	structural_only	0	keep	improve: territory-aware aligner tether + multi-enemy defend scoring
