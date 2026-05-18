@@ -861,13 +861,15 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 inv[name] = int(token.value)
         return inv
 
+    _BASE_HP = 100
+
     def _check_miner_hp(self, obs: AgentObservation, state: MinerSkillState) -> bool:
         hp = self._read_hp(obs)
         if hp is None:
             state.retreating_to_hub = False
             return False
         if hp > state.max_hp_seen:
-            state.max_hp_seen = hp
+            state.max_hp_seen = min(hp, self._BASE_HP)
         if state.max_hp_seen <= 0:
             return False
         hp_fraction = hp / state.max_hp_seen
