@@ -48,3 +48,4 @@ a0077ea	0.000000	structural_only	0	keep	improve: heartless defenders react to en
 2828173	0.000000	bug_fix	0	keep	fix: heart withdrawal overcount + faster blacklist expiry + earlier defense
 b567a03	0.000000	structural_only	0	keep	improve: early heart grab — aligners collect hearts before gear-up
 658a621	0.000000	structural_only	0	keep	improve: cascade priority considers friendly junction clustering
+36a5f52	0.000000	structural_only	0	keep	improve: dynamic heart accumulation based on alignable junction count
