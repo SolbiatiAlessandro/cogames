@@ -255,7 +255,16 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         was_stuck = bool(state.recent_events and ("exited as stuck" in state.recent_events[-1] or "exited as stale" in state.recent_events[-1] or "timed out after" in state.recent_events[-1]))
         if skill is None:
             if not has_aligner:
-                skill = "explore" if was_stuck else "gear_up"
+                current_abs = self._spawn_offset(obs)
+                _vh_plan = state.verified_hubs if state.verified_hubs else state.known_hubs
+                near_hub_start = state.global_step <= 5 and any(
+                    abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+                    for h in _vh_plan
+                ) if _vh_plan else False
+                if near_hub_start and not has_heart:
+                    skill = "get_heart"
+                else:
+                    skill = "explore" if was_stuck else "gear_up"
             elif not has_heart and state.known_hubs and not was_stuck:
                 skill = "get_heart"
             elif known_alignable_junctions and not was_stuck:
@@ -272,7 +281,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             reason = f"overrode gear_up to explore after {state.gear_contamination_count} contaminations (seeking safer route)"
             skill = "explore"
         # Allow explore/unstuck after stuck exit even without aligner (find alternate path to station)
-        if not has_aligner and skill not in {"gear_up", "unstuck", "explore"}:
+        # Also allow get_heart at game start when near hub (grab hearts before gear to save round trip)
+        early_heart_grab = skill == "get_heart" and state.global_step <= 5
+        if not has_aligner and skill not in {"gear_up", "unstuck", "explore"} and not early_heart_grab:
             if was_stuck:
                 reason = f"overrode {skill} to explore after stuck exit (seeking new path to aligner station)"
                 skill = "explore"
