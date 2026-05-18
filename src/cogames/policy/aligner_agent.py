@@ -683,9 +683,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             state.known_aligner_stations.add(target_abs)
             state.verified_aligner_stations.add(target_abs)
             direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+            if direction is None:
+                direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
             if direction is not None:
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-            action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
+            action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=False)
             return action, replace(next_state, last_mode=state.last_mode)
         station_candidates = state.verified_aligner_stations if state.verified_aligner_stations else state.known_aligner_stations
         target_abs = self._nearest_known(current_abs, station_candidates) if station_candidates else None
@@ -695,13 +697,17 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 hub_center = self._nearest_known(current_abs, hub_set)
                 expected_station = (hub_center[0] + 4, hub_center[1] - 3)
                 direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=True)
+                if direction is None:
+                    direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=False)
                 if direction is not None:
                     return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
             return self._explore(obs, state)
         direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=False)
         return action, replace(next_state, last_mode=state.last_mode)
 
     def _get_heart(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
