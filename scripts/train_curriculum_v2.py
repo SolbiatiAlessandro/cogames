@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """Curriculum training script for RL policy on CogsGuard.
 
-Based on findings from issues #75 and #41:
-- Phase 1: Arena (50x50), no_vibes, no_clips, 4 cogs, 1000-step episodes
-- Phase 2: Competition map (88x88), no_vibes, 4 cogs, 3000-step episodes (key breakthrough)
-- Key hyperparameters: entropy annealing, clip_coef, milestones_2 compounding factor
+Entropy annealing is done via successive training runs with decreasing ent_coef,
+since PufferLib uses a fixed ent_coef per run.
 
-Usage:
-  python scripts/train_curriculum_v2.py --phase 1 --epochs 80 --seed 42
-  python scripts/train_curriculum_v2.py --phase 2 --epochs 30 --seed 42 --weights <path>
-  python scripts/train_curriculum_v2.py --phase 2 --epochs 30 --seed 42 --weights <path> --m2-factor 25
+Usage (full pipeline):
+  python scripts/train_curriculum_v2.py --pipeline arena_anneal --seed 42 --m2-factor 5
+  python scripts/train_curriculum_v2.py --pipeline compmap --seed 42 --weights <p1_best> --m2-factor 25
+
+Usage (single phase):
+  python scripts/train_curriculum_v2.py --phase 1 --epochs 30 --seed 42 --ent-coef 0.02
 """
 from __future__ import annotations
 
 import argparse
+import glob
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -50,7 +52,6 @@ def patch_train_hyperparams(
             config["gamma"] = gamma
             config["gae_lambda"] = gae_lambda
             config["learning_rate"] = learning_rate
-            logger.info(f"Patched hyperparams: ent={ent_coef}, clip={clip_coef}, gamma={gamma}, gae={gae_lambda}, lr={learning_rate}")
         return original_pufferl_init(self, config, *pargs, **pkwargs)
 
     pufferl_mod.PuffeRL.__init__ = patched_pufferl_init
@@ -73,57 +74,58 @@ def make_env_config(phase: int, cogs: int, max_steps: int, m2_factor: float):
     return env_cfg
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Curriculum RL training for CogsGuard")
-    parser.add_argument("--phase", type=int, choices=[1, 2], required=True)
-    parser.add_argument("--epochs", type=int, default=80)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--weights", type=str, default=None)
-    parser.add_argument("--cogs", type=int, default=4)
-    parser.add_argument("--parallel-envs", type=int, default=16)
-    parser.add_argument("--checkpoint-dir", type=str, default=None)
-    parser.add_argument("--max-steps", type=int, default=None)
-    parser.add_argument("--m2-factor", type=float, default=5.0)
-    parser.add_argument("--ent-coef", type=float, default=0.04)
-    parser.add_argument("--clip-coef", type=float, default=0.1)
-    parser.add_argument("--lr", type=float, default=0.00092)
-    parser.add_argument("--gamma", type=float, default=0.995)
-    parser.add_argument("--gae-lambda", type=float, default=0.90)
-    parser.add_argument("--log-outputs", action="store_true")
-    parser.add_argument("--checkpoint-interval", type=int, default=10)
+def find_best_checkpoint(checkpoint_dir: str) -> str | None:
+    """Find the latest checkpoint in a directory."""
+    pattern = os.path.join(checkpoint_dir, "*/model_*.pt")
+    checkpoints = sorted(glob.glob(pattern), key=os.path.getmtime)
+    return checkpoints[-1] if checkpoints else None
 
-    args = parser.parse_args()
 
-    if args.max_steps is None:
-        args.max_steps = 1000 if args.phase == 1 else 3000
+def find_checkpoint_at_epoch(checkpoint_dir: str, epoch: int) -> str | None:
+    """Find checkpoint at specific epoch."""
+    pattern = os.path.join(checkpoint_dir, f"*/model_{epoch:06d}.pt")
+    matches = glob.glob(pattern)
+    return matches[0] if matches else None
 
-    if args.checkpoint_dir is None:
-        tag = f"p{args.phase}_m2x{int(args.m2_factor)}_s{args.seed}"
-        args.checkpoint_dir = f"./train_dir_curriculum_{tag}"
 
+def run_training_phase(
+    phase: int,
+    steps_total: int,
+    seed: int,
+    cogs: int,
+    parallel_envs: int,
+    max_steps: int,
+    m2_factor: float,
+    ent_coef: float,
+    clip_coef: float,
+    lr: float,
+    gamma: float,
+    gae_lambda: float,
+    weights: str | None,
+    checkpoint_dir: str,
+    checkpoint_interval: int = 5,
+    log_outputs: bool = True,
+):
     patch_train_hyperparams(
-        ent_coef=args.ent_coef,
-        clip_coef=args.clip_coef,
-        gamma=args.gamma,
-        gae_lambda=args.gae_lambda,
-        learning_rate=args.lr,
+        ent_coef=ent_coef,
+        clip_coef=clip_coef,
+        gamma=gamma,
+        gae_lambda=gae_lambda,
+        learning_rate=lr,
     )
 
-    env_cfg = make_env_config(args.phase, args.cogs, args.max_steps, args.m2_factor)
+    env_cfg = make_env_config(phase, cogs, max_steps, m2_factor)
 
-    logger.info(f"Phase {args.phase} training:")
-    logger.info(f"  Map: {'arena 50x50' if args.phase == 1 else 'machina1 88x88'}")
-    logger.info(f"  Cogs: {args.cogs}, MaxSteps: {args.max_steps}, Epochs: {args.epochs}")
-    logger.info(f"  m2_factor: {args.m2_factor}, ent: {args.ent_coef}, clip: {args.clip_coef}")
-    logger.info(f"  Weights: {args.weights}")
-    logger.info(f"  Output: {args.checkpoint_dir}")
-
-    steps_per_epoch = args.parallel_envs * args.max_steps * args.cogs
-    total_steps = args.epochs * steps_per_epoch
-    logger.info(f"  Steps/epoch: {steps_per_epoch:,}, Total: {total_steps:,}")
+    logger.info(f"Phase {phase} training (ent={ent_coef}, clip={clip_coef}):")
+    logger.info(f"  Map: {'arena 50x50' if phase == 1 else 'machina1 88x88'}")
+    logger.info(f"  Cogs: {cogs}, MaxSteps: {max_steps}")
+    logger.info(f"  m2_factor: {m2_factor}, lr: {lr}")
+    logger.info(f"  Weights: {weights}")
+    logger.info(f"  Output: {checkpoint_dir}")
+    logger.info(f"  Total steps: {steps_total:,}")
 
     device = torch.device("cpu")
-    checkpoint_path = Path(args.checkpoint_dir)
+    checkpoint_path = Path(checkpoint_dir)
     checkpoint_path.mkdir(parents=True, exist_ok=True)
 
     start_time = time.time()
@@ -131,17 +133,154 @@ def main():
         env_cfg=env_cfg,
         policy_class_path="cogames.policy.tutorial_policy.TutorialPolicy",
         device=device,
-        initial_weights_path=args.weights,
-        num_steps=total_steps,
+        initial_weights_path=weights,
+        num_steps=steps_total,
         checkpoints_path=checkpoint_path,
-        seed=args.seed,
+        seed=seed,
         minibatch_size=4096,
-        vector_num_envs=args.parallel_envs,
-        log_outputs=args.log_outputs,
-        checkpoint_interval=args.checkpoint_interval,
+        vector_num_envs=parallel_envs,
+        log_outputs=log_outputs,
+        checkpoint_interval=checkpoint_interval,
     )
     elapsed = time.time() - start_time
-    logger.info(f"Training completed in {elapsed:.0f}s ({elapsed/60:.1f}m)")
+    logger.info(f"Training phase completed in {elapsed:.0f}s ({elapsed/60:.1f}m)")
+
+    best = find_best_checkpoint(checkpoint_dir)
+    logger.info(f"Best checkpoint: {best}")
+    return best
+
+
+def pipeline_arena_anneal(args):
+    """Phase 1 with entropy annealing: 0.08→0.02→0.01 on arena."""
+    base_dir = f"./train_dir_p1_anneal_m2x{int(args.m2_factor)}_s{args.seed}"
+    steps_per_batch = args.parallel_envs * 1000 * args.cogs  # per pufferl batch
+
+    # Stage 1a: High entropy exploration (ent=0.08, 20 pufferl-epochs worth)
+    logger.info("=" * 60)
+    logger.info("STAGE 1a: High entropy exploration (ent=0.08)")
+    logger.info("=" * 60)
+    stage1a_dir = f"{base_dir}/stage1a"
+    stage1a_steps = 30 * steps_per_batch  # ~30 pufferl epochs
+    weights_1a = run_training_phase(
+        phase=1, steps_total=stage1a_steps, seed=args.seed,
+        cogs=args.cogs, parallel_envs=args.parallel_envs, max_steps=1000,
+        m2_factor=args.m2_factor, ent_coef=0.08, clip_coef=0.1,
+        lr=0.00092, gamma=0.995, gae_lambda=0.90,
+        weights=args.weights, checkpoint_dir=stage1a_dir,
+    )
+
+    # Stage 1b: Medium entropy (ent=0.02, 40 epochs from 1a)
+    logger.info("=" * 60)
+    logger.info("STAGE 1b: Medium entropy (ent=0.02)")
+    logger.info("=" * 60)
+    stage1b_dir = f"{base_dir}/stage1b"
+    stage1b_steps = 50 * steps_per_batch
+    weights_1b = run_training_phase(
+        phase=1, steps_total=stage1b_steps, seed=args.seed,
+        cogs=args.cogs, parallel_envs=args.parallel_envs, max_steps=1000,
+        m2_factor=args.m2_factor, ent_coef=0.02, clip_coef=0.1,
+        lr=0.00092, gamma=0.995, gae_lambda=0.90,
+        weights=weights_1a, checkpoint_dir=stage1b_dir,
+    )
+
+    # Stage 1c: Low entropy exploitation (ent=0.01, 30 epochs from 1b)
+    logger.info("=" * 60)
+    logger.info("STAGE 1c: Low entropy exploitation (ent=0.01)")
+    logger.info("=" * 60)
+    stage1c_dir = f"{base_dir}/stage1c"
+    stage1c_steps = 30 * steps_per_batch
+    weights_1c = run_training_phase(
+        phase=1, steps_total=stage1c_steps, seed=args.seed,
+        cogs=args.cogs, parallel_envs=args.parallel_envs, max_steps=1000,
+        m2_factor=args.m2_factor, ent_coef=0.01, clip_coef=0.1,
+        lr=0.00092, gamma=0.995, gae_lambda=0.90,
+        weights=weights_1b, checkpoint_dir=stage1c_dir,
+    )
+
+    logger.info("=" * 60)
+    logger.info(f"ARENA ANNEALING COMPLETE. Best checkpoint: {weights_1c}")
+    logger.info("=" * 60)
+    return weights_1c
+
+
+def pipeline_compmap(args):
+    """Phase 2 on competition map with 3000-step episodes (the key breakthrough)."""
+    base_dir = f"./train_dir_p2_longep_m2x{int(args.m2_factor)}_s{args.seed}"
+    steps_per_batch = args.parallel_envs * 3000 * args.cogs
+
+    if not args.weights:
+        logger.error("Phase 2 requires --weights (Phase 1 checkpoint)")
+        sys.exit(1)
+
+    # Phase 2: Competition map, 3000-step episodes, clip=0.2 (withclips finding)
+    logger.info("=" * 60)
+    logger.info("PHASE 2: Competition map, 3000-step episodes")
+    logger.info("=" * 60)
+    p2_steps = 30 * steps_per_batch
+    weights_p2 = run_training_phase(
+        phase=2, steps_total=p2_steps, seed=args.seed,
+        cogs=args.cogs, parallel_envs=args.parallel_envs, max_steps=3000,
+        m2_factor=args.m2_factor, ent_coef=0.01, clip_coef=0.2,
+        lr=0.00092, gamma=0.995, gae_lambda=0.90,
+        weights=args.weights, checkpoint_dir=base_dir,
+    )
+
+    logger.info("=" * 60)
+    logger.info(f"PHASE 2 COMPLETE. Best checkpoint: {weights_p2}")
+    logger.info("=" * 60)
+    return weights_p2
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Curriculum RL training for CogsGuard")
+
+    # Pipeline mode
+    parser.add_argument("--pipeline", type=str, choices=["arena_anneal", "compmap"],
+                        help="Run full pipeline")
+
+    # Single phase mode
+    parser.add_argument("--phase", type=int, choices=[1, 2])
+    parser.add_argument("--epochs", type=int, default=30)
+
+    # Common args
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--weights", type=str, default=None)
+    parser.add_argument("--cogs", type=int, default=4)
+    parser.add_argument("--parallel-envs", type=int, default=16)
+    parser.add_argument("--max-steps", type=int, default=None)
+    parser.add_argument("--m2-factor", type=float, default=5.0)
+    parser.add_argument("--ent-coef", type=float, default=0.02)
+    parser.add_argument("--clip-coef", type=float, default=0.1)
+    parser.add_argument("--lr", type=float, default=0.00092)
+    parser.add_argument("--gamma", type=float, default=0.995)
+    parser.add_argument("--gae-lambda", type=float, default=0.90)
+    parser.add_argument("--log-outputs", action="store_true", default=True)
+    parser.add_argument("--checkpoint-dir", type=str, default=None)
+
+    args = parser.parse_args()
+
+    if args.pipeline == "arena_anneal":
+        pipeline_arena_anneal(args)
+    elif args.pipeline == "compmap":
+        pipeline_compmap(args)
+    elif args.phase:
+        if args.max_steps is None:
+            args.max_steps = 1000 if args.phase == 1 else 3000
+        if args.checkpoint_dir is None:
+            args.checkpoint_dir = f"./train_dir_p{args.phase}_ent{args.ent_coef}_m2x{int(args.m2_factor)}_s{args.seed}"
+
+        steps_per_batch = args.parallel_envs * args.max_steps * args.cogs
+        total_steps = args.epochs * steps_per_batch
+
+        run_training_phase(
+            phase=args.phase, steps_total=total_steps, seed=args.seed,
+            cogs=args.cogs, parallel_envs=args.parallel_envs, max_steps=args.max_steps,
+            m2_factor=args.m2_factor, ent_coef=args.ent_coef, clip_coef=args.clip_coef,
+            lr=args.lr, gamma=args.gamma, gae_lambda=args.gae_lambda,
+            weights=args.weights, checkpoint_dir=args.checkpoint_dir,
+        )
+    else:
+        parser.error("Specify either --pipeline or --phase")
 
 
 if __name__ == "__main__":

@@ -22,3 +22,20 @@
 **Container setup**: Python 3.12 venv, CPU-only (4 cores, 15GB RAM), ~2.5K SPS expected.
 
 ## 2026-05-18 05:20 UTC: starting Phase 1 baseline training
+
+First attempt with fixed ent_coef=0.04 — entropy stayed at ~1.60 (near max for 5-action space = ln(5)≈1.609). The model was essentially random. Killed after 141 pufferl epochs.
+
+**Key lesson**: Fixed ent_coef doesn't work for this action space. Must use entropy annealing (successive training runs with decreasing ent_coef).
+
+## 2026-05-18 05:30 UTC: restarting with proper entropy annealing
+
+Using the "proven approach" from previous sessions:
+- Stage 1a: ent=0.08, 30 epochs (exploration, near-random)
+- Stage 1b: ent=0.02, 50 epochs (learning, targeted behavior)  
+- Stage 1c: ent=0.01, 30 epochs (exploitation, polished)
+
+Each stage warm-starts from the previous stage's best checkpoint. clip_coef=0.1 (tight clipping for Phase 1 convergence).
+
+Running now with m2_factor=5 (baseline). ETA ~47min for full Phase 1 pipeline.
+
+Early signs: junction.held = 258 and 541 appearing at epoch 14-16 with ent=0.08. Good sign of exploration finding alignment behavior.

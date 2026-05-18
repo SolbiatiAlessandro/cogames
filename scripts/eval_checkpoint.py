@@ -1,101 +1,96 @@
 #!/usr/bin/env python3
 """Evaluate an RL checkpoint on the competition map.
 
+Runs cogames CLI evaluation and parses output for reward metrics.
+
 Usage:
-  python scripts/eval_checkpoint.py <checkpoint_path> --steps 500 --episodes 5
-  python scripts/eval_checkpoint.py <checkpoint_path> --steps 10000 --episodes 3
+  python scripts/eval_checkpoint.py <checkpoint_path>
+  python scripts/eval_checkpoint.py <checkpoint_path> --steps 10000 --episodes 3 --cogs 8
 """
 from __future__ import annotations
 
 import argparse
-import json
-import logging
+import re
+import subprocess
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-import numpy as np
+def run_eval(checkpoint: str, mission: str, cogs: int, episodes: int,
+             steps: int, seed: int, variants: list[str]) -> dict:
+    cmd = [
+        sys.executable, "-m", "cogames", "run",
+        "-m", mission,
+        "-p", f"class=tutorial,data={checkpoint}",
+        "-c", str(cogs),
+        "-e", str(episodes),
+        "-s", str(steps),
+        "--seed", str(seed),
+    ]
+    for v in variants:
+        cmd.extend(["-v", v])
 
-from cogames.evaluate import evaluate
-from mettagrid.policy.policy import PolicySpec
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    output = result.stdout + result.stderr
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-logger = logging.getLogger("eval_checkpoint")
+    # Parse per-episode rewards from the table
+    rewards = []
+    for line in output.split("\n"):
+        # Match lines like: │ mission_name │       0 │                           0.05 │
+        match = re.search(r"│\s+\d+\s+│\s+([\d.]+)\s+│", line)
+        if match:
+            rewards.append(float(match.group(1)))
+
+    # Parse key stats
+    stats = {}
+    for line in output.split("\n"):
+        match = re.search(r"│\s+\S+\s+│\s+([\w./]+)\s+│\s+([\d.]+)\s+│", line)
+        if match:
+            stats[match.group(1)] = float(match.group(2))
+
+    return {
+        "rewards": rewards,
+        "stats": stats,
+        "avg_reward": sum(rewards) / len(rewards) if rewards else 0.0,
+        "peak_reward": max(rewards) if rewards else 0.0,
+        "raw_output": output,
+    }
 
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate RL checkpoint")
-    parser.add_argument("checkpoint", type=str, help="Path to checkpoint .pt file")
+    parser.add_argument("checkpoint", type=str)
     parser.add_argument("--steps", type=int, default=500)
     parser.add_argument("--episodes", type=int, default=5)
-    parser.add_argument("--cogs", type=int, default=8, help="Number of agents (8 for competition)")
+    parser.add_argument("--cogs", type=int, default=8)
     parser.add_argument("--mission", type=str, default="cogsguard_machina_1.basic")
     parser.add_argument("--seed", type=int, default=3000)
-    parser.add_argument("--no-vibes", action="store_true", default=True)
-    parser.add_argument("--temp", type=float, default=0.7)
+    parser.add_argument("--variant", type=str, nargs="*", default=["no_vibes"])
+    parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
 
-    policy_spec = PolicySpec(
-        class_path="cogames.policy.tutorial_policy.TutorialPolicy",
-        data_path=args.checkpoint,
+    print(f"Evaluating {args.checkpoint}")
+    print(f"  Mission: {args.mission}, Cogs: {args.cogs}, Steps: {args.steps}, Episodes: {args.episodes}")
+
+    result = run_eval(
+        args.checkpoint, args.mission, args.cogs, args.episodes,
+        args.steps, args.seed, args.variant,
     )
 
-    variants = []
-    if args.no_vibes:
-        variants.append("no_vibes")
+    print(f"\n=== Results ({args.episodes} episodes, {args.steps} steps) ===")
+    print(f"  Avg reward:  {result['avg_reward']:.4f}")
+    print(f"  Peak reward: {result['peak_reward']:.4f}")
+    print(f"  All rewards: {result['rewards']}")
 
-    rewards_per_episode = []
-    stats_per_episode = []
+    key_stats = ["cogs/aligned.junction.held", "cogs/aligned.junction",
+                 "heart.gained", "aligner.gained", "junction.aligned_by_agent"]
+    for k in key_stats:
+        if k in result["stats"]:
+            print(f"  {k}: {result['stats'][k]:.2f}")
 
-    for ep in range(args.episodes):
-        seed = args.seed + ep
-        logger.info(f"Episode {ep+1}/{args.episodes} (seed={seed}, steps={args.steps})")
-
-        from cogames.cogs_vs_clips.missions import get_mission_config
-        env_cfg = get_mission_config(
-            args.mission,
-            cogs=args.cogs,
-            variants=variants if variants else None,
-        )
-        env_cfg.game.max_steps = args.steps
-
-        result = evaluate(
-            env_cfg=env_cfg,
-            policies=[(policy_spec, 1.0)],
-            num_episodes=1,
-            seed=seed,
-        )
-
-        if result and len(result) > 0:
-            ep_result = result[0]
-            mission_reward = ep_result.get("mission_reward", 0.0)
-            rewards_per_episode.append(mission_reward)
-            stats_per_episode.append(ep_result)
-            logger.info(f"  Reward: {mission_reward:.4f}")
-
-            # Print key stats
-            for key in ["aligned.junction.held", "heart.gained", "aligner.gained",
-                         "junction.aligned_by_agent", "carbon.deposited"]:
-                val = ep_result.get(key, "N/A")
-                if val != "N/A":
-                    logger.info(f"  {key}: {val}")
-        else:
-            logger.warning(f"  No result for episode {ep+1}")
-            rewards_per_episode.append(0.0)
-
-    if rewards_per_episode:
-        avg = np.mean(rewards_per_episode)
-        std = np.std(rewards_per_episode)
-        peak = np.max(rewards_per_episode)
-        median = np.median(rewards_per_episode)
-        logger.info(f"\n=== SUMMARY ({args.episodes} episodes, {args.steps} steps) ===")
-        logger.info(f"  Avg:    {avg:.4f}")
-        logger.info(f"  Std:    {std:.4f}")
-        logger.info(f"  Peak:   {peak:.4f}")
-        logger.info(f"  Median: {median:.4f}")
-        logger.info(f"  All:    {[f'{r:.4f}' for r in rewards_per_episode]}")
+    if args.verbose:
+        print("\n=== Full Output ===")
+        print(result["raw_output"])
 
 
 if __name__ == "__main__":
