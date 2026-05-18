@@ -279,7 +279,13 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 for h in _hub_set
             ) if _hub_set else False
             sm = self._shared_map
-            if near_hub and sm is not None and hasattr(sm, "total_deposits"):
+            near_friendly_junction = False
+            if sm is not None:
+                near_friendly_junction = any(
+                    abs(current_abs[0] - j[0]) + abs(current_abs[1] - j[1]) <= 1
+                    for j in sm.known_friendly_junctions
+                )
+            if (near_hub or near_friendly_junction) and sm is not None and hasattr(sm, "total_deposits"):
                 for elem, prev_amount in state.last_carried_elements.items():
                     deposited = prev_amount - carried_elements.get(elem, 0)
                     if deposited > 0:

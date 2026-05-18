@@ -828,6 +828,21 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.last_mode = "deposit_to_hub"
         current_abs = self._current_abs(obs)
         preferred_side = self._hub_preferred_side(obs, state)
+        # Check if a friendly junction is closer than the hub — junctions are deposit
+        # points too (resources transfer to hub via queryDeposit handler).
+        sm = self._shared_map
+        friendly_junctions = sm.known_friendly_junctions if sm is not None else set()
+        hub_candidates = state.verified_hubs if state.verified_hubs else state.known_hubs
+        nearest_hub = self._nearest_known(current_abs, hub_candidates)
+        if friendly_junctions and nearest_hub is not None:
+            nearest_junction = self._nearest_known(current_abs, friendly_junctions)
+            if nearest_junction is not None:
+                junction_dist = abs(nearest_junction[0] - current_abs[0]) + abs(nearest_junction[1] - current_abs[1])
+                hub_dist = abs(nearest_hub[0] - current_abs[0]) + abs(nearest_hub[1] - current_abs[1])
+                if junction_dist < hub_dist:
+                    direction = self._bfs_first_direction(state, current_abs, nearest_junction)
+                    if direction is not None:
+                        return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         visible_target = self._closest_visible_location(obs, self._hub_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
@@ -836,8 +851,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 action, next_state = result
                 return action, replace(next_state, last_mode=state.last_mode)
             return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
-        hub_candidates = state.verified_hubs if state.verified_hubs else state.known_hubs
-        target_abs = self._nearest_known(current_abs, hub_candidates)
+        target_abs = nearest_hub
         if target_abs is None and state.remembered_hub_row_from_spawn is not None and state.remembered_hub_col_from_spawn is not None:
             target_abs = (state.remembered_hub_row_from_spawn, state.remembered_hub_col_from_spawn)
             state.known_hubs.add(target_abs)
