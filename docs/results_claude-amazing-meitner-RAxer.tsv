@@ -34,3 +34,4 @@ e58e5b8	0.000000	structural_only	0	keep	improve: cascade priority scoring consid
 dfae4c1	0.000000	bug_fix	0	keep	fix: aligner removes own stations from shared hazard set
 33b33e6	0.000000	bug_fix	0	keep	fix: miner removes own stations from shared hazard set
 d77c2a5	0.000000	structural_only	0	keep	improve: miner hub tethering prevents distant deaths and cargo loss
+0e5c771	0.000000	structural_only	0	keep	improve: aligner hub tether + enemy recapture priority + contamination cap
