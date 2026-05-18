@@ -199,3 +199,7 @@ finetune_e10	1.294633	aligned.junction.held=~12000	10000	keep	Fine-tune from lon
 finetune_v2_e15	1.132867	aligned.junction.held=~8000	10000	discard	Finetune v2 (from ft_e10) e15 @10K (3-ep) - declining from e10
 longep4k_e25	1.065500	aligned.junction.held=~5000	10000	discard	4000-step episodes e25 @10K (3-ep) - worse than 3000-step
 bptt128_e10	1.094700	aligned.junction.held=~7000	10000	discard	BPTT128+GAE0.95 e10 @10K (3-ep) - not competitive
+seed123_e10	1.286267	aligned.junction.held=~10000	10000	discard	Seed123 repro test e10 @10K (3-ep, peak=1.673, std=0.274) - high variance
+seed123_e35	1.072000	aligned.junction.held=~5000	10000	discard	Seed123 e35 @10K (5-ep, peak=1.156, std=0.049) - seed dependent ceiling ~1.07
+seed123_e40	1.065000	aligned.junction.held=~5000	10000	discard	Seed123 e40 @10K (5-ep, peak=1.162, std=0.070) - confirms seed123 plateaus low
+seed123_e45	1.023000	aligned.junction.held=~3000	10000	discard	Seed123 e45 @10K (5-ep, peak=1.117, std=0.047) - declining

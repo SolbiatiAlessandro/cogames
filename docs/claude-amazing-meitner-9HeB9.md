@@ -941,9 +941,24 @@ Code changes: Added COGAMES_BPTT_HORIZON and COGAMES_GAE_LAMBDA environment vari
 9. **boost_aligner=10 collapses** — 7.0 being tested
 10. **1-episode evaluations are extremely unreliable** — highgamma_e50 scored 1.65 on 1-ep but only 1.10 on 3-ep
 
-### Experiments still running
+### Seed dependence finding
 
-- **longep3k_combined**: lowlr + highgamma + slow entropy (5M steps)
-- **longep3k_boost7**: boost_aligner=7.0
-- **longep3k_32envs_v2**: 32 envs (restarted)
-- **longep3k_seed123**: Exact same config as original longep3k but seed=123 (reproducibility test)
+The longep3k_e20 result (avg=1.394) is **seed-dependent**. Training with seed=123 (identical hyperparameters):
+- seed123_e10: avg=1.286 (3-ep) — high variance, misleading
+- seed123_e35: avg=1.072 (5-ep) — stable but much lower
+- seed123_e40: avg=1.065 (5-ep) — plateau around 1.07
+- seed123_e45: avg=1.023 (5-ep) — declining
+
+The seed=42 run hit a "lucky" optimization trajectory. This means the 1.394 result represents what's possible but not reliably reproducible. Need to improve reward shaping to get consistently high performance across seeds.
+
+---
+
+## Session 5: Reward Shaping Experiments (2026-05-18)
+
+### Motivation
+The alive_reward (~1.0 per agent per timestep) dominates the reward signal. Alignment contribution is only ~0.0-0.4 per episode. The `milestones_2` variant has a `compounding_factor` (default=5.0) that scales the per-tick objective reward for holding aligned junctions. Increasing this should amplify the alignment signal.
+
+### Experiments launched
+1. **longep3k_m2x10**: milestones_2 compounding_factor=10 (2x default) — does stronger alignment signal help?
+2. **longep3k_m2x25**: milestones_2 compounding_factor=25 (5x default) — aggressive alignment pressure
+3. **longep3k_seed7**: seed=7 with default config — another seed test for robustness
