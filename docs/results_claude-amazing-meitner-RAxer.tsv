@@ -52,3 +52,6 @@ b567a03	0.000000	structural_only	0	keep	improve: early heart grab — aligners c
 1a40daa	0.000000	structural_only	0	keep	improve: adaptive defend patrol — faster cycling under enemy threat
 111df1e	0.000000	structural_only	0	keep	improve: explore exits when territory expansion reveals alignable junctions
 a76ca6b	0.000000	structural_only	0	keep	improve: spread-aware explore — aligners avoid exploring same direction
+559111f	0.000000	bug_fix	0	keep	fix: distance-aware HP retreat + retreat-by-alignment for agent lifespan
+c336090	0.000000	structural_only	0	keep	improve: smarter heart queue — redirect excess aligners to defend
+3df0170	0.000000	structural_only	0	keep	improve: defend stability — distance check for exit + longer patrol
