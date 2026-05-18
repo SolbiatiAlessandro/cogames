@@ -358,9 +358,18 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if not hub_set:
             return self._nearest_known(current_abs, candidates)
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1]))
+        sm = self._shared_map
+        friendly_junctions = sm.known_friendly_junctions if sm is not None else set()
+        def _deposit_dist(c: Coord) -> int:
+            d = abs(c[0] - hub[0]) + abs(c[1] - hub[1])
+            for fj in friendly_junctions:
+                jd = abs(c[0] - fj[0]) + abs(c[1] - fj[1])
+                if jd < d:
+                    d = jd
+            return d
         return min(candidates, key=lambda c: (
             abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])
-            + (abs(c[0] - hub[0]) + abs(c[1] - hub[1])) // 2,
+            + _deposit_dist(c) // 2,
             c,
         ))
 
