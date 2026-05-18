@@ -291,6 +291,41 @@ Thorough review of remaining code areas:
 - **Heart accumulation near hub**: allows up to 3 hearts before dispatching, matching base
   aligner behavior. Not changing — parameter tuning proven to hurt online.
 
+## 2026-05-18T17:00: additional structural fixes (commits d3d0530, a179d78, 3d133f0, 6df3b52)
+
+### 1. Defend exits early when new hearts available (d3d0530)
+Defending agents previously sat for up to 750 steps before trying get_heart again. Now when
+miners craft new hearts (detected via `hearts_crafted_estimate`), defending aligners exit
+immediately to collect a heart. Records `defend_start_hearts_estimate` when defend starts.
+
+### 2. Gear loss detection for get_heart/align_neutral (a179d78)
+When an aligner died mid-`get_heart` or `align_neutral` and respawned without gear, the skill
+continued running for up to 75 steps before timing out. No `has_aligner` check existed for
+these skills (only `defend` had one). Now both skills abort immediately on gear loss.
+
+### 3. HP retreat cancels current skill (3d133f0)
+When HP retreat triggered, `current_skill` was kept active but SharedMap coordination tracking
+was cleared. After recovery, the agent resumed a stale skill without re-registering in SharedMap
+(e.g., `agents_getting_hearts` was cleared but not re-added on resume). Now the skill is
+cancelled on retreat start AND recovery, forcing a fresh plan. Matches cross_role_policy pattern.
+
+### 4. Miner junction flip detection (6df3b52)
+**Important bug**: When a miner observed a junction that had flipped from friendly to neutral
+(enemy recapture + re-neutralization), the SharedMap was NOT updated because the neutral branch
+checked `not in known_friendly_junctions` before adding. The junction stayed marked as friendly,
+so aligners never knew they needed to recapture it. Fixed: all three branches (friendly, enemy,
+neutral) now correctly update all three junction sets.
+
+## 2026-05-18T17:15: code review continued — verified correct areas
+
+Additional deep review found no further bugs in:
+- **Aligner target coordination**: predicted target matches actual target (same candidate sets)
+- **Heart queue management**: correctly tracks agents_getting_hearts lifecycle
+- **Explore frontier targeting**: alignment frontier correctly extends cascade zone + vision margin
+- **Heart accumulation**: near-hub window (< 3 hearts, < 3 no-progress steps) is appropriate
+- **Cascade _is_alignable**: correctly handles multi-hop by checking distance from all friendly junctions
+- **Navigation fallback chain**: BFS → without-cooldowns → optimistic → greedy — thorough and correct
+
 ### Key learnings for this session:
 1. **Always check online evidence before making offline-inspired changes**
 2. **The offline-online gap is massive** — up to -9 points for changes that improve offline by +2.7%
@@ -303,3 +338,6 @@ Thorough review of remaining code areas:
    shared sets affects all agents
 7. **Cross-pollinate from cross_role_policy** — it has battle-tested patterns (retreat stuck
    detection, hub interaction during retreat, blacklist expiry) that the machina policy lacks
+8. **Always check gear state transitions**: skills that assume aligner gear must detect gear loss
+9. **Junction state tracking differs between agents**: miners use add-if-absent, aligners use
+   refresh-visible-range. The former can miss state flips; the latter is always correct.

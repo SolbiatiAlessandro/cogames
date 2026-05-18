@@ -20,3 +20,7 @@ f3b411d	0.000000	structural_only	0	keep	fix: retreat stuck detection — cancel 
 02e8ecf	0.000000	structural_only	0	keep	improve: collect hearts during HP retreat when near hub
 0e6f90d	0.000000	bug_fix	0	keep	fix: cap miner max_hp_seen at base HP to prevent permanent retreat
 d465237	0.000000	bug_fix	0	keep	fix: base miner max_hp_seen cap + periodic blacklist expiry
+d3d0530	0.000000	structural_only	0	keep	improve: defend exits early when miners craft new hearts
+a179d78	0.000000	bug_fix	0	keep	fix: abort get_heart/align_neutral immediately on aligner gear loss
+3d133f0	0.000000	bug_fix	0	keep	fix: cancel current skill on HP retreat start and recovery
+6df3b52	0.000000	bug_fix	0	keep	fix: miner junction tracking fails to detect friendly→neutral flips
