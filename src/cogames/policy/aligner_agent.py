@@ -799,7 +799,9 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
             for h in _vhubs
         )
-        want_more_hearts = heart_count > 0 and heart_count < 3 and near_hub
+        _early_game = len(state.known_friendly_junctions) < 3
+        _heart_target = 1 if _early_game else 3
+        want_more_hearts = heart_count > 0 and heart_count < _heart_target and near_hub
         if self._current_gear(obs) != "aligner":
             action, state = self._gear_up(obs, state, current_abs)
         elif heart_count <= 0 or want_more_hearts:
