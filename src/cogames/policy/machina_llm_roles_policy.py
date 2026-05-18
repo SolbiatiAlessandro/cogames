@@ -67,6 +67,8 @@ class LLMAlignerState(AlignerState):
     # Defend patrol: steps spent sitting on current junction
     defend_station_steps: int = 0
     defend_last_junction: tuple[int, int] | None = None
+    # Hearts estimate at defend start — detect new hearts becoming available
+    defend_start_hearts_estimate: int = 0
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -368,6 +370,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 reason = f"{'late-game' if late_game else 'enemy-active'} patrol: {len(state.known_friendly_junctions)} friendly, step={state.global_step}"
         if skill == "explore":
             state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
+        if skill == "defend" and self._shared_map is not None:
+            state.defend_start_hearts_estimate = self._shared_map.hearts_crafted_estimate
         state.current_skill = skill
         state.current_reason = reason
         state.skill_steps = 0
@@ -412,6 +416,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 state.current_skill = None
             elif not has_aligner:
                 self._event(state, "defend ended: lost aligner gear")
+                state.current_skill = None
+            elif not has_heart and has_aligner and self._shared_map is not None and self._shared_map.hearts_crafted_estimate > state.defend_start_hearts_estimate:
+                self._event(state, f"defend ended: new hearts available (crafted {self._shared_map.hearts_crafted_estimate} > {state.defend_start_hearts_estimate} at defend start)")
+                state.get_heart_timeouts = 0
                 state.current_skill = None
             elif state.skill_steps >= self._stuck_threshold * 50:
                 self._event(state, "defend ended: trying get_heart again")
