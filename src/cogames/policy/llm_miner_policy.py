@@ -563,7 +563,12 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             if not was_retreating:
                 state.current_skill = None
             action, base_state = self._deposit_to_hub(obs, state)
-            return action, self._copy_with(state, base_state)
+            result_state = self._copy_with(state, base_state)
+            action_name = action.name if hasattr(action, "name") else ""
+            if action_name.startswith("move_"):
+                direction = action_name[len("move_"):]
+                result_state.last_move_target = self._move_target(self._current_abs(obs), direction)
+            return action, result_state
         elif was_retreating:
             state.current_skill = None
 
@@ -587,7 +592,12 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                     state.no_progress_on_target_steps = 0
                     self._event(state, f"hub tether: dist {hub_dist} > {_MAX_HUB_DISTANCE}")
                     action, base_state = self._deposit_to_hub(obs, state)
-                    return action, self._copy_with(state, base_state)
+                    result_state = self._copy_with(state, base_state)
+                    action_name = action.name if hasattr(action, "name") else ""
+                    if action_name.startswith("move_"):
+                        direction = action_name[len("move_"):]
+                        result_state.last_move_target = self._move_target(self._current_abs(obs), direction)
+                    return action, result_state
 
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:
