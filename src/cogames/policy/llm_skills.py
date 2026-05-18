@@ -305,6 +305,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if hubs_now:
             state.verified_hubs.update(hubs_now)
         self._remember_static_objects(state.known_miner_stations, miner_stations_now)
+        if miner_stations_now:
+            state.known_hazard_stations.difference_update(miner_stations_now)
         self._remember_static_objects(state.known_extractors, extractors_now)
         if extractors_now:
             state.verified_extractors.update(extractors_now)
