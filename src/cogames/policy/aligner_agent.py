@@ -81,6 +81,7 @@ class SharedMap:
         self.extractors_by_element: dict[str, set[Coord]] = {
             e: set() for e in ("carbon", "oxygen", "germanium", "silicon")
         }
+        self.depleted_extractors: set[Coord] = set()
 
 
 @dataclass

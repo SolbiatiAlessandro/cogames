@@ -230,6 +230,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             known_extractors=sm.known_extractors if sm else set(base.known_extractors),
             known_hazard_stations=sm.known_hazard_stations if sm else set(base.known_hazard_stations),
             extractors_by_element=sm.extractors_by_element if sm and hasattr(sm, "extractors_by_element") else base.extractors_by_element,
+            depleted_extractors=sm.depleted_extractors if sm and hasattr(sm, "depleted_extractors") else set(base.depleted_extractors),
             last_pos=base.last_pos,
             last_move_target=base.last_move_target,
             max_hp_seen=base.max_hp_seen,
@@ -343,10 +344,9 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             return "explore", "scripted: stale target, exploring for new extractor"
         if was_stuck and not was_explore_exit:
             return "explore", "scripted: stuck, exploring for new route"
-        # Explore to find missing team-scarce element extractors
         team_scarce = self._team_scarce_element()
-        if team_scarce and not state.extractors_by_element.get(team_scarce, set()):
-            return "explore", f"scripted: team needs {team_scarce} but no extractors known"
+        if team_scarce and not self._active_extractors_for_element(state, team_scarce):
+            return "explore", f"scripted: team needs {team_scarce} but no active extractors known"
         active_extractors = self._active_extractors(state)
         if active_extractors:
             return "mine_until_full", f"scripted: {len(active_extractors)} active extractors available"
