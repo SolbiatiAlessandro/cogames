@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--mission", type=str, default="basic")
     parser.add_argument("--num-aligners", type=int, default=None)
     parser.add_argument("--return-load", type=int, default=None)
+    parser.add_argument("--stuck-threshold", type=int, default=None)
     args = parser.parse_args()
 
     from cogames.cogs_vs_clips.missions import get_core_missions
@@ -68,6 +69,8 @@ def main():
         policy_kwargs["num_aligners"] = args.num_aligners
     if args.return_load is not None:
         policy_kwargs["return_load"] = args.return_load
+    if args.stuck_threshold is not None:
+        policy_kwargs["stuck_threshold"] = args.stuck_threshold
 
     policy_spec = PolicySpec(
         class_path="cogames.policy.machina_llm_roles_policy.MachinaLLMRolesPolicy",
