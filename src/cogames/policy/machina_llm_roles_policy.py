@@ -402,7 +402,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 trigger = 'late-game' if late_game else ('enemy-active' if enemy_active else 'substantial-territory')
                 reason = f"{trigger} patrol: {len(state.known_friendly_junctions)} friendly, step={state.global_step}"
         if skill == "explore":
-            state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
+            state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)
         if skill == "defend" and self._shared_map is not None:
             state.defend_start_hearts_estimate = self._shared_map.hearts_crafted_estimate
         state.current_skill = skill
@@ -486,10 +486,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"{state.current_skill} aborted: lost aligner gear (death or contamination)")
             state.current_skill = None
         elif state.current_skill == "explore" and (
-            len(state.known_neutral_junctions) + len(state.known_enemy_junctions) > state.explore_start_junctions
+            len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions) > state.explore_start_junctions
             or (self._known_alignable_junctions(state) and has_heart and has_aligner)
         ):
-            new_total = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) - state.explore_start_junctions
+            new_total = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions) - state.explore_start_junctions
             self._event(state, f"explore completed: {max(new_total, 0)} new junction(s), {len(self._known_alignable_junctions(state))} alignable")
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:

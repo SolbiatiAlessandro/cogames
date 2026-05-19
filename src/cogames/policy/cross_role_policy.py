@@ -1022,8 +1022,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.consecutive_unstuck = 0
 
         if skill in {"explore", "gear_up_aligner", "gear_up_miner"}:
-            state.explore_start_junctions = len(state.known_neutral_junctions)
-            state.explore_start_extractors = len(state.known_extractors)
+            state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)
+            state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
 
         # Issue-36 v16: clear aligner target when switching skills
         if self._shared_map is not None and skill != "align_neutral":
@@ -1131,11 +1131,11 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             # via SharedMap and interrupt miner exploration prematurely — the miner
             # replans to mine_until_full and heads to a known extractor instead of
             # continuing to discover new extractor types.
-            (gear != "miner" and len(state.known_neutral_junctions) > state.explore_start_junctions)
-            or len(state.known_extractors) > state.explore_start_extractors
+            (gear != "miner" and (len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)) > state.explore_start_junctions)
+            or (len(state.known_extractors) + len(state.depleted_extractors)) > state.explore_start_extractors
         ):
-            new_junctions = len(state.known_neutral_junctions) - state.explore_start_junctions
-            new_extractors = len(state.known_extractors) - state.explore_start_extractors
+            new_junctions = (len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)) - state.explore_start_junctions
+            new_extractors = (len(state.known_extractors) + len(state.depleted_extractors)) - state.explore_start_extractors
             self._event(state, f"explore completed: +{new_junctions} junctions, +{new_extractors} extractors")
             # Issue-36 v6: reset gear_up_failures after explore so contaminated agents
             # retry gear acquisition after discovering new area (may find gear station)

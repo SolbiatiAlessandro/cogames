@@ -438,7 +438,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
         if skill == "explore":
-            state.explore_start_extractors = len(state.known_extractors)
+            state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
         self._event(state, f"planner selected {skill}: {reason}")
 
     def _maybe_finish_skill(self, obs: AgentObservation, state: LLMMinerState) -> None:
@@ -471,8 +471,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             state.contamination_avoid_cells.clear()
             self._event(state, "deposit_to_hub completed after deposit")
             state.current_skill = None
-        elif state.current_skill == "explore" and len(state.known_extractors) > state.explore_start_extractors:
-            self._event(state, f"explore completed after discovering {len(state.known_extractors) - state.explore_start_extractors} new extractor(s)")
+        elif state.current_skill == "explore" and (len(state.known_extractors) + len(state.depleted_extractors)) > state.explore_start_extractors:
+            self._event(state, f"explore completed after discovering {(len(state.known_extractors) + len(state.depleted_extractors)) - state.explore_start_extractors} new extractor(s)")
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 3:
             self._event(state, f"explore timed out after {state.skill_steps} steps")
