@@ -1392,6 +1392,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, "phase2 hub waypoint cleared; proceeding to gear station")
             return None
         direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=False)
         if direction:
             return self._aligner._starter._action(f"move_{direction}"), state
         return None
@@ -1621,6 +1623,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._event(state, f"miner hub tether: distance {hub_dist} > {_MAX_HUB_DISTANCE}, {state.current_skill}")
                     logger.info("agent=%s MINER_TETHER dist=%d skill=%s carried=%d", obs.agent_id, hub_dist, state.current_skill, carried)
                     direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction is None:
+                        direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=False)
                     if direction:
                         action = self._aligner._starter._action(f"move_{direction}")
                         self._track_move_target(action, current_abs, state)
@@ -1670,6 +1674,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._event(state, f"aligner tether: territory_dist {territory_dist} > {_MAX_ALIGNER_TERRITORY_DISTANCE}, {state.current_skill}")
                     logger.info("agent=%s ALIGNER_TETHER territory_dist=%d skill=%s", obs.agent_id, territory_dist, state.current_skill)
                     direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction is None:
+                        direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=False)
                     if direction:
                         action = self._aligner._starter._action(f"move_{direction}")
                         self._track_move_target(action, current_abs, state)
