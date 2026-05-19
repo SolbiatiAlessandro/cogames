@@ -79,3 +79,11 @@ a5bca44	0.000000	structural_only	0	keep	improve: cross_role heart accumulation n
 e9c2aef	0.000000	bug_fix	0	keep	fix: cross_role get_heart_timeouts never gates skill selection
 7ea1e75	0.000000	bug_fix	0	keep	fix: cross_role SharedMap stale gear + heart queue tracking between replans
 de209da	0.000000	bug_fix	0	keep	fix: cross_role missing gear-loss skill abort — wastes 15 steps after contamination
+c866809	0.000000	bug_fix	0	keep	fix: cascade priority double-counts enemy junctions in unlocks + recapture
+b036cf7	0.000000	structural_only	0	keep	improve: cross_role defend patrol cycling between friendly junctions
+77feddc	0.000000	structural_only	0	keep	improve: spread-aware explore in base aligner — avoids teammate clustering
+e02f947	0.000000	structural_only	0	keep	improve: miner _explore_near_hub spread awareness — avoid miner clustering
+39e881e	0.000000	bug_fix	0	keep	fix: cross_role fast-path bypasses get_heart_timeouts defend redirect
+a1fe6d0	0.000000	structural_only	0	keep	improve: cross_role heart queue defend + phase-aware late-game defense
+7b9e842	0.000000	structural_only	0	keep	improve: cross_role retreat-by-alignment — align nearby junctions during HP retreat
+ac4853d	0.000000	structural_only	0	keep	improve: cross_role retreat cooldown clearing at 50 steps before giving up at 100
