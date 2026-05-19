@@ -458,6 +458,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 self._shared_map.aligner_targets.pop(obs.agent_id, None)
             if state.current_skill != "get_heart":
                 self._shared_map.agents_getting_hearts.discard(obs.agent_id)
+            if state.current_skill != "mine_until_full" and hasattr(self._shared_map, 'miner_targets'):
+                self._shared_map.miner_targets.pop(obs.agent_id, None)
         return current_abs
 
     def _update_progress(self, obs: AgentObservation, state: CrossRoleState) -> None:

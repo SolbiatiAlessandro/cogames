@@ -362,7 +362,25 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return None
         return min(candidates, key=lambda coord: (abs(coord[0] - current_abs[0]) + abs(coord[1] - current_abs[1]), coord))
 
-    def _nearest_extractor_hub_weighted(self, current_abs: Coord, candidates: set[Coord], state: MinerSkillState) -> Coord | None:
+    def _miner_yield_targets(self, current_abs: Coord, agent_id: int) -> set[Coord]:
+        """Extractors targeted by another miner that is closer — yield to them."""
+        sm = self._shared_map
+        if sm is None or not hasattr(sm, "miner_targets"):
+            return set()
+        yield_set: set[Coord] = set()
+        for aid, t in sm.miner_targets.items():
+            if aid == agent_id or t is None:
+                continue
+            other_pos = sm.agent_positions.get(aid)
+            if other_pos is None:
+                continue
+            their_dist = abs(t[0] - other_pos[0]) + abs(t[1] - other_pos[1])
+            my_dist = abs(t[0] - current_abs[0]) + abs(t[1] - current_abs[1])
+            if their_dist < my_dist:
+                yield_set.add(t)
+        return yield_set
+
+    def _nearest_extractor_hub_weighted(self, current_abs: Coord, candidates: set[Coord], state: MinerSkillState, yield_targets: set[Coord] | None = None) -> Coord | None:
         if not candidates:
             return None
         hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
@@ -378,7 +396,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 if jd < d:
                     d = jd
             return d
-        return min(candidates, key=lambda c: (
+        preferred = candidates - yield_targets if yield_targets else candidates
+        if not preferred:
+            preferred = candidates
+        return min(preferred, key=lambda c: (
             abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1])
             + _deposit_dist(c) // 2,
             c,
@@ -742,11 +763,17 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                         )
             state.steps_near_extractor_no_gain = 0
 
+    def _register_miner_target(self, obs: AgentObservation, target: Coord | None) -> None:
+        sm = self._shared_map
+        if sm is not None and hasattr(sm, "miner_targets"):
+            sm.miner_targets[obs.agent_id] = target
+
     def _mine_until_full(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
         if state.last_mode != "mine_until_full":
             logger.info("agent=%s mode=mine_until_full", obs.agent_id)
             state.last_mode = "mine_until_full"
         current_abs = self._current_abs(obs)
+        yield_targets = self._miner_yield_targets(current_abs, obs.agent_id)
 
         scarce = self._team_scarce_element() or self._scarce_element(obs)
         if scarce and scarce in self._extractor_tags_by_element:
@@ -755,6 +782,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if visible_scarce is not None:
                 target_abs = self._visible_abs_cell(current_abs, visible_scarce)
                 if target_abs not in state.depleted_extractors:
+                    self._register_miner_target(obs, target_abs)
                     result = self._navigate_to_blocked_target(state, current_abs, target_abs)
                     if result is not None:
                         action, next_state = result
@@ -763,8 +791,9 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     return action, replace(next_state, last_mode=state.last_mode)
             scarce_known = self._active_extractors_for_element(state, scarce)
             if scarce_known:
-                target_abs = self._nearest_extractor_hub_weighted(current_abs, scarce_known, state)
+                target_abs = self._nearest_extractor_hub_weighted(current_abs, scarce_known, state, yield_targets)
                 if target_abs is not None:
+                    self._register_miner_target(obs, target_abs)
                     result = self._navigate_to_blocked_target(state, current_abs, target_abs)
                     if result is not None:
                         action, next_state = result
@@ -776,6 +805,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
             if target_abs not in state.depleted_extractors:
+                self._register_miner_target(obs, target_abs)
                 result = self._navigate_to_blocked_target(state, current_abs, target_abs)
                 if result is not None:
                     action, next_state = result
@@ -783,12 +813,14 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 action, next_state = self._move_toward_target(state, current_abs, target_abs)
                 return action, replace(next_state, last_mode=state.last_mode)
         active = self._active_extractors(state)
-        target_abs = self._nearest_extractor_hub_weighted(current_abs, active, state)
+        target_abs = self._nearest_extractor_hub_weighted(current_abs, active, state, yield_targets)
         if target_abs is None:
+            self._register_miner_target(obs, None)
             if state.known_hubs:
                 predicted = self._predicted_extractor_positions(state) - state.depleted_extractors
                 predicted_target = self._nearest_extractor_hub_weighted(current_abs, predicted, state)
                 if predicted_target is not None:
+                    self._register_miner_target(obs, predicted_target)
                     result = self._navigate_to_blocked_target(state, current_abs, predicted_target)
                     if result is not None:
                         action, next_state = result
@@ -797,6 +829,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                     return action, replace(next_state, last_mode=state.last_mode)
                 return self._explore_near_hub(obs, state)
             return self._explore(obs, state)
+        self._register_miner_target(obs, target_abs)
         result = self._navigate_to_blocked_target(state, current_abs, target_abs)
         if result is not None:
             action, next_state = result
