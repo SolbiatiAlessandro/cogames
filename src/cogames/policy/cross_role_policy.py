@@ -1085,7 +1085,11 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.align_neutral_timeouts = 0
             state.current_skill = None
         elif state.current_skill in {"mine_until_full", "deposit_to_hub"} and gear != "miner" and state.skill_steps > 0:
-            self._event(state, f"{state.current_skill} aborted: lost miner gear (death or contamination)")
+            current_abs = self._current_abs(obs)
+            if gear in ("scrambler", "scout"):
+                state.contamination_avoid_cells.add(current_abs)
+                state.gear_contamination_count += 1
+            self._event(state, f"{state.current_skill} aborted: lost miner gear at {current_abs} (contamination count={state.gear_contamination_count})")
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried >= self._return_load:
             self._event(state, f"mine_until_full completed: cargo={carried}")
@@ -1502,8 +1506,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         self._update_progress(obs, state)
 
         gear = self._current_gear(obs)
-        _CONTAMINATION_GEARS = {"miner", "scrambler", "scout"}
-        if state._prev_gear == "aligner" and gear in _CONTAMINATION_GEARS:
+        _CONTAMINATION_GEARS = {"scrambler", "scout"}
+        if state._prev_gear in ("aligner", "miner") and gear in _CONTAMINATION_GEARS:
             state.contamination_avoid_cells.add(current_abs)
             state.gear_contamination_count += 1
             logger.info("agent=%s GEAR_CONTAMINATED at %s (now %s, count=%d)",
