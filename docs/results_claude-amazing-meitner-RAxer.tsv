@@ -94,3 +94,5 @@ e192fc6	0.000000	critical_bug_fix	0	keep	fix: cross_role contamination cell trac
 2820d33	0.000000	bug_fix	0	keep	fix: miner deposit_to_hub valid target missing junction proximity
 55ac65a	0.000000	bug_fix	0	keep	fix: cross_role miner gear-loss doesn't record contamination cell
 ce5d222	0.000000	structural_only	0	keep	improve: cross_role explore time cap at stuck_threshold*2 steps
+05591bf	0.000000	structural_only	0	keep	improve: cross_role heart-before-gear — grab hearts near hub before aligner gear-up
+7ad9c55	0.000000	critical_bug_fix	0	keep	fix: defend heart-acquisition exit was dead code in both machina + cross_role
