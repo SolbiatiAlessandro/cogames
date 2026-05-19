@@ -17,7 +17,9 @@ from cogames.policy.aligner_agent import (
     AlignerPolicyImpl,
     SharedMap,
     _FRIENDLY_TERRITORY_DISTANCE,
+    _HUB_ALIGN_DISTANCE,
     _HP_RETREAT_THRESHOLD,
+    _JUNCTION_ALIGN_DISTANCE,
 )
 from cogames.policy.llm_miner_policy import LLMMinerPlannerClient, LLMMinerPolicyImpl, LLMMinerState
 from cogames.policy.llm_skills import MinerSkillImpl, MinerSkillState
@@ -400,7 +402,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         return self._aligner._spawn_offset(obs)
 
     def _known_alignable_junctions(self, state: CrossRoleState) -> set[Coord]:
-        return state.known_neutral_junctions - state.blacklisted_junctions
+        return {j for j in state.known_neutral_junctions - state.blacklisted_junctions
+                if self._aligner._is_alignable(j, state)}
 
     def _dist_to_nearest_safe(self, current_abs: Coord, state: CrossRoleState) -> int:
         min_dist = 9999
@@ -1807,8 +1810,41 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 ))
 
         elif skill == "defend":
-            # Issue-16: navigate toward nearest friendly junction and hold position
-            target = self._aligner._nearest_known(current_abs, state.known_friendly_junctions)
+            # Issue-16: navigate toward friendly junction with highest defend value.
+            # Prefer bridge junctions (cascade risk) near enemy territory.
+            fj = state.known_friendly_junctions
+            ej = state.known_enemy_junctions
+            kh = state.known_hubs
+            sm = self._shared_map
+            other_positions = set()
+            if sm is not None:
+                for aid, pos in sm.agent_positions.items():
+                    if aid != obs.agent_id:
+                        other_positions.add(pos)
+            def _cr_defend_score(j):
+                travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
+                threat = 0.0
+                if ej:
+                    nearest_enemy = min(abs(j[0] - e[0]) + abs(j[1] - e[1]) for e in ej)
+                    threat = max(0, 30 - nearest_enemy) * 0.5
+                cascade = 0
+                for f in fj:
+                    if f == j or abs(f[0] - j[0]) + abs(f[1] - j[1]) > _JUNCTION_ALIGN_DISTANCE:
+                        continue
+                    has_other = any(abs(f[0] - h[0]) + abs(f[1] - h[1]) <= _HUB_ALIGN_DISTANCE for h in kh)
+                    if not has_other:
+                        has_other = any(
+                            abs(f[0] - o[0]) + abs(f[1] - o[1]) <= _JUNCTION_ALIGN_DISTANCE
+                            for o in fj if o != j and o != f
+                        )
+                    if not has_other:
+                        cascade += 1
+                spread = min((abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions), default=0)
+                return spread * 0.5 - travel * 0.3 + threat + cascade * 3.0
+            if len(fj) > 1 and other_positions:
+                target = max(fj, key=_cr_defend_score)
+            else:
+                target = self._aligner._nearest_known(current_abs, fj)
             if target is not None:
                 dist = abs(current_abs[0] - target[0]) + abs(current_abs[1] - target[1])
                 if dist <= 2:

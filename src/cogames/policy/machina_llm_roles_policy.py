@@ -9,6 +9,7 @@ from typing import Callable
 
 from cogames.policy.aligner_agent import (
     AlignerPolicyImpl, AlignerState, SharedMap, _FRIENDLY_TERRITORY_DISTANCE, _HP_RETREAT_THRESHOLD,
+    _HUB_ALIGN_DISTANCE, _JUNCTION_ALIGN_DISTANCE,
 )
 from cogames.policy.llm_aligner_prompt import ALIGNER_SKILL_DESCRIPTIONS, build_llm_aligner_prompt
 from cogames.policy.llm_miner_policy import LLMMinerPlannerClient, LLMMinerPolicyImpl, LLMMinerState
@@ -816,7 +817,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill == "defend":
             current_abs = self._spawn_offset(obs)
             enemy_junctions = state.known_enemy_junctions
-            def _defend_score(j, other_positions, current_abs, enemy_junctions):
+            def _defend_score(j, other_positions, current_abs, enemy_junctions,
+                              friendly_junctions=frozenset(), hubs=frozenset()):
                 spread = min(abs(j[0] - p[0]) + abs(j[1] - p[1]) for p in other_positions)
                 travel = (abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])) * 0.3
                 threat = 0.0
@@ -824,7 +826,21 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     nearby_enemies = sum(1 for e in enemy_junctions if abs(j[0] - e[0]) + abs(j[1] - e[1]) <= 30)
                     nearest_enemy = min(abs(j[0] - e[0]) + abs(j[1] - e[1]) for e in enemy_junctions)
                     threat = max(0, 30 - nearest_enemy) * 0.5 + nearby_enemies * 2.0
-                return spread - travel + threat
+                cascade = 0
+                for f in friendly_junctions:
+                    if f == j:
+                        continue
+                    if abs(f[0] - j[0]) + abs(f[1] - j[1]) > _JUNCTION_ALIGN_DISTANCE:
+                        continue
+                    has_other = any(abs(f[0] - h[0]) + abs(f[1] - h[1]) <= _HUB_ALIGN_DISTANCE for h in hubs)
+                    if not has_other:
+                        has_other = any(
+                            abs(f[0] - o[0]) + abs(f[1] - o[1]) <= _JUNCTION_ALIGN_DISTANCE
+                            for o in friendly_junctions if o != j and o != f
+                        )
+                    if not has_other:
+                        cascade += 1
+                return spread - travel + threat + cascade * 3.0
             if current_abs in state.known_friendly_junctions:
                 state.defend_station_steps += 1
                 patrol_interval = 10 if enemy_junctions else 40
@@ -837,9 +853,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                             if aid != obs.agent_id:
                                 other_positions.add(pos)
                     if other_positions:
+                        fj = state.known_friendly_junctions
+                        kh = state.known_hubs
                         target = max(
                             other_junctions,
-                            key=lambda j: _defend_score(j, other_positions, current_abs, enemy_junctions),
+                            key=lambda j: _defend_score(j, other_positions, current_abs, enemy_junctions, fj, kh),
                         )
                     else:
                         target = self._nearest_known(current_abs, other_junctions)
@@ -859,9 +877,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         if aid != obs.agent_id:
                             other_positions.add(pos)
                 if other_positions and len(state.known_friendly_junctions) > 1:
+                    fj = state.known_friendly_junctions
+                    kh = state.known_hubs
                     target = max(
                         state.known_friendly_junctions,
-                        key=lambda j: _defend_score(j, other_positions, current_abs, enemy_junctions),
+                        key=lambda j: _defend_score(j, other_positions, current_abs, enemy_junctions, fj, kh),
                     )
                 else:
                     target = self._nearest_known(current_abs, state.known_friendly_junctions)
