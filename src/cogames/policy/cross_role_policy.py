@@ -603,6 +603,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if self._shared_map is not None:
             self._shared_map.agents_getting_hearts.discard(agent_id)
             self._shared_map.aligner_targets.pop(agent_id, None)
+            if hasattr(self._shared_map, 'miner_targets'):
+                self._shared_map.miner_targets.pop(agent_id, None)
 
     def _set_skill_fast(self, obs: AgentObservation, state: CrossRoleState, skill: str, reason: str) -> None:
         """Issue-36 v18: centralized fast-path skill assignment with SharedMap cleanup.
