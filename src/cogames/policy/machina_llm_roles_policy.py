@@ -688,7 +688,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         default=9999,
                     ) if retreat_targets else 9999
                     if alignable_dist < safe_dist and alignable_dist <= 10:
-                        direction = self._navigate_to_station(state, current_abs, nearest_alignable, avoid_hazards=False)
+                        direction = self._navigate_to_station(state, current_abs, nearest_alignable, avoid_hazards=True)
                         if direction:
                             action = self._starter._action(f"move_{direction}")
                             state.last_move_target = self._move_target(current_abs, direction)
@@ -709,12 +709,16 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                             direction = ("south" if dr > 0 else "north") if abs(dr) >= abs(dc) else ("east" if dc > 0 else "west")
                             action = self._starter._action(f"move_{direction}")
                         else:
-                            direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                            direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=True)
+                            if direction is None:
+                                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                             action = self._starter._action(f"move_{direction}") if direction else self._starter._action("noop")
                     elif target in state.known_free_cells:
                         action, state = self._move_to(state, current_abs, target)
                     else:
-                        direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                        direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=True)
+                        if direction is None:
+                            direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                         if direction:
                             action = self._starter._action(f"move_{direction}")
                         else:

@@ -1724,7 +1724,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                                 default=9999,
                             ) if retreat_targets else 9999
                             if al_dist < safe_dist and al_dist <= 10:
-                                direction = self._aligner._navigate_to_station(state, current_abs, nearest_alignable, avoid_hazards=False)
+                                direction = self._aligner._navigate_to_station(state, current_abs, nearest_alignable, avoid_hazards=True)
                                 if direction:
                                     action = self._aligner._starter._action(f"move_{direction}")
                                     self._track_move_target(action, current_abs, state)
@@ -1764,7 +1764,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                                     self._track_move_target(action, current_abs, state)
                                     return action, state
                         return self._aligner._starter._action("noop"), state
-                    direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                    direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=True)
+                    if direction is None:
+                        direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                     if direction:
                         action = self._aligner._starter._action(f"move_{direction}")
                         self._track_move_target(action, current_abs, state)
