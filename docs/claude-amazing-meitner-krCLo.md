@@ -57,3 +57,41 @@ Issue #77 asks us to evaluate 40+ bug fixes from the RAxer branch. The recommend
 - Clips NPC don't seem to recapture our junctions
 
 2026-05-19T18:30Z: starting new experiment loop. Since junction alignment saturates early, the key leverage is SPEED of initial alignment. Faster alignment = more hold time reward within any time horizon.
+
+### Session 2 sweeps (2026-05-20, DISCARDED)
+| Config | Avg (3-seed) | vs 3A5M |
+|--------|-----|-------------|
+| stuck_threshold=10 | 1068 | -5.5% |
+| hub_dist_weight=0.0 | 1127 | -0.3% |
+| hub_dist_weight=0.1 | 1118 | -1.0% |
+| hub_dist_weight=0.5 | 1077 | -4.7% |
+| return_load=30 | 1090 | -3.5% |
+| JUNCTION_ALIGN_DIST=40 | 1068 | 0% (51/51 junctions max) |
+| JUNCTION_ALIGN_DIST=200 | 1068 | 0% (confirms 51 is map max) |
+| aligner_repulsion_explore | 1130 | 0% (no effect) |
+
+### Key discoveries (session 2)
+- Junction count is seed-dependent (Poisson distribution); seed 42 has exactly 51
+- Distance limit is NOT why 2 junctions remain unaligned — they don't exist on this seed
+- Mining saturates by ~3K steps (identical stats at 3K and 10K)
+- Hub produces hearts on-demand; mining is not the bottleneck
+- 0 aligners → reward=24 (hub baseline); alignment IS the dominant reward
+- `LLMAlignerPolicyImpl` is the active aligner policy, not `CrossRolePolicyImpl`
+
+### 6-seed validation of 3A5M
+| Seed | 4A4M | 3A5M | Δ |
+|------|------|------|---|
+| 42 | 1028 | 1068 | +3.8% |
+| 43 | 927 | 1137 | +22.7% |
+| 44 | 1226 | 1186 | -3.3% |
+| 45 | 1167 | 1087 | -6.9% |
+| 46 | 1150 | 1139 | -1.0% |
+| 47 | 1132 | 1123 | -0.8% |
+| **6-seed avg** | **1105** | **1123** | **+1.6%** |
+
+3A5M improvement is +1.6% across 6 seeds (down from +6.6% on 3 seeds). Seed 43 is an outlier.
+
+### 10K step evaluation (3A5M)
+- Seed 42: 3979.62, Seed 43: 4329.07, Seed 44: 4713.85 → **avg 4340.85**
+- Confirms junction saturation: 51 junctions aligned by ~2K steps
+- All reward after step ~2K is pure junction hold time
