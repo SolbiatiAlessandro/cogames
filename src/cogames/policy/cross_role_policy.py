@@ -1018,14 +1018,24 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill == "get_heart" and has_heart and state.skill_steps > 0:
             heart_count = self._inventory_count(obs, "heart")
-            newly_withdrawn = max(1, heart_count - state.get_heart_start_count)
-            self._event(state, f"get_heart completed: acquired {newly_withdrawn} heart(s) (now {heart_count})")
-            state.get_heart_timeouts = 0
-            state.consecutive_get_heart_failures = 0  # Issue-16: reset on success
-            if self._shared_map is not None:
-                self._shared_map.hub_hearts_withdrawn += newly_withdrawn
-                logger.info("agent=%s hub_hearts_withdrawn=%d (+%d)", obs.agent_id, self._shared_map.hub_hearts_withdrawn, newly_withdrawn)
-            state.current_skill = None
+            current_abs = self._current_abs(obs)
+            near_hub = any(
+                abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+                for h in state.known_hubs
+            )
+            alignable_count = len(self._known_alignable_junctions(state))
+            accumulation_target = min(5, max(3, alignable_count))
+            if heart_count < accumulation_target and near_hub and state.no_progress_on_target_steps < 3:
+                pass
+            else:
+                newly_withdrawn = max(1, heart_count - state.get_heart_start_count)
+                self._event(state, f"get_heart completed: acquired {newly_withdrawn} heart(s) (now {heart_count})")
+                state.get_heart_timeouts = 0
+                state.consecutive_get_heart_failures = 0
+                if self._shared_map is not None:
+                    self._shared_map.hub_hearts_withdrawn += newly_withdrawn
+                    logger.info("agent=%s hub_hearts_withdrawn=%d (+%d)", obs.agent_id, self._shared_map.hub_hearts_withdrawn, newly_withdrawn)
+                state.current_skill = None
         elif state.current_skill == "align_neutral" and not has_heart and state.skill_steps > 0:
             self._event(state, "align_neutral completed: heart spent")
             state.align_neutral_timeouts = 0
