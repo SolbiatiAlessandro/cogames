@@ -74,3 +74,6 @@ e3e8a4f	0.000000	bug_fix	0	keep	fix: all skill selection paths use active extrac
 b7b8ca3	0.000000	bug_fix	0	keep	fix: heart accumulation progress tracking only detected first heart
 400a3ff	0.000000	bug_fix	0	keep	fix: heart queue missing 3 hearts from initial hub elements (24//7=3)
 1176415	0.000000	bug_fix	0	keep	fix: cross_role hub_hearts_withdrawn always +1 instead of actual count
+c3ad361	0.000000	structural_only	0	keep	improve: cascade-aware defend scoring + cross_role alignable range check
+a5bca44	0.000000	structural_only	0	keep	improve: cross_role heart accumulation near hub before departing
+e9c2aef	0.000000	bug_fix	0	keep	fix: cross_role get_heart_timeouts never gates skill selection
