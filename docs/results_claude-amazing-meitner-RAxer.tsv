@@ -105,3 +105,4 @@ e4b0992	0.000000	structural_only	0	keep	improve: miner extractor target coordina
 c36df8a	0.000000	bug_fix	0	keep	fix: tether get_heart missing start_count + cross_role defend missing alignable exit
 625e45c	0.000000	bug_fix	0	keep	fix: cross_role junction deposit BFS skipped hazard avoidance
 ce4863e	0.000000	bug_fix	0	keep	fix: retreat navigation skips hazard avoidance — causes gear contamination
+07bab6f	0.000000	bug_fix	0	keep	fix: cross_role retreat/tether greedy fallback ignores hazard stations
