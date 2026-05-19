@@ -1064,12 +1064,12 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         carried = self._carried_total(obs)
 
+        # Issue-44: detect depleted extractors — must run before last_carried_total update
+        self._check_extractor_depletion(obs, state)
+
         if carried != state.last_carried_total:
             state.steps_in_current_mode = 0
             state.last_carried_total = carried
-
-        # Issue-44: detect depleted extractors
-        self._check_extractor_depletion(obs, state)
 
         if state.stuck_explore_remaining > 0:
             state.stuck_explore_remaining -= 1

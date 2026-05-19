@@ -542,8 +542,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
 
     def _step_impl(self, obs: AgentObservation, state: LLMMinerState) -> tuple[Action, LLMMinerState]:
         self._update_map_memory(obs, state)
-        self._update_progress(obs, state)
         self._check_extractor_depletion(obs, state)
+        self._update_progress(obs, state)
 
         sm = self._shared_map
         if sm is not None and hasattr(sm, 'agent_positions'):
