@@ -132,3 +132,4 @@ cf67283	0.000000	critical_bug_fix	0	keep	fix: cross_role get_heart_cooldown_step
 c412a05	0.000000	bug_fix	0	keep	fix: machina get_heart stuck/stale exits don't increment get_heart_timeouts
 a66429f	0.000000	bug_fix	0	keep	fix: cross_role get_heart stuck/stale exits don't increment get_heart_timeouts
 9a540ab	0.000000	bug_fix	0	keep	fix: _clear_shared_map_tracking missing miner_targets cleanup
+df21603	0.000000	bug_fix	0	keep	fix: cross_role _update_map_memory drops move_blocked_cells and cooldown_cells
