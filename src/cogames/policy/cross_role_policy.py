@@ -291,6 +291,7 @@ class CrossRoleState:
     # Defend patrol cycling
     defend_station_steps: int = 0
     defend_last_junction: Coord | None = None
+    defend_start_hearts_estimate: int = 0
 
     # Issue-34: deposit tracking for heart availability signaling
     _last_seen_deposits: int = 0
@@ -619,6 +620,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.no_progress_on_target_steps = 0
         state.defend_station_steps = 0
         state.defend_last_junction = None
+        if skill == "defend" and self._shared_map is not None:
+            state.defend_start_hearts_estimate = self._shared_map.hearts_crafted_estimate
         if skill == "get_heart":
             state.get_heart_start_count = self._inventory_count(obs, "heart")
         self._event(state, f"planner selected {skill}: {reason}")
@@ -1018,6 +1021,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.no_progress_on_target_steps = 0
         state.defend_station_steps = 0
         state.defend_last_junction = None
+        if skill == "defend" and self._shared_map is not None:
+            state.defend_start_hearts_estimate = self._shared_map.hearts_crafted_estimate
         if skill == "get_heart":
             state.get_heart_start_count = self._inventory_count(obs, "heart")
         self._event(state, f"planner selected {skill}: {reason}")
@@ -1135,12 +1140,37 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, f"explore interrupted: found {len(self._known_alignable_junctions(state))} alignable targets")
             state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
-            # Issue-16: agent got a heart while defending — switch to aligning
             self._event(state, "defend completed: acquired heart, switching to align")
             state.consecutive_get_heart_failures = 0
             state.current_skill = None
+        elif state.current_skill == "defend" and gear != "aligner" and state.skill_steps > 0:
+            self._event(state, "defend ended: lost aligner gear")
+            state.current_skill = None
+        elif (
+            state.current_skill == "defend"
+            and not has_heart
+            and gear == "aligner"
+            and state.known_enemy_junctions
+            and any(self._aligner._is_alignable(ej, state) for ej in state.known_enemy_junctions)
+        ):
+            self._event(state, "defend ended: reachable enemy junctions detected — rushing to get heart for recapture")
+            state.get_heart_timeouts = 0
+            state.current_skill = None
+        elif (
+            state.current_skill == "defend"
+            and not has_heart
+            and gear == "aligner"
+            and self._shared_map is not None
+            and self._shared_map.hearts_crafted_estimate > state.defend_start_hearts_estimate
+        ):
+            self._event(state, f"defend ended: new hearts available (crafted {self._shared_map.hearts_crafted_estimate} > {state.defend_start_hearts_estimate})")
+            state.get_heart_timeouts = 0
+            state.current_skill = None
+        elif state.current_skill == "defend" and not has_heart and gear == "aligner" and state.skill_steps >= self._stuck_threshold * 4:
+            self._event(state, f"defend ended: heartless for {state.skill_steps} steps, getting heart for recapture")
+            state.get_heart_timeouts = 0
+            state.current_skill = None
         elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 20:
-            # Issue-16: long defend timeout — replan in case situation changed
             self._event(state, f"defend recheck after {state.skill_steps} steps")
             state.get_heart_timeouts = 0
             state.current_skill = None
