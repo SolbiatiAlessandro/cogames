@@ -226,6 +226,8 @@ class CrossRoleState:
     known_enemy_junctions: set[Coord] = field(default_factory=set)
     known_hazard_stations: set[Coord] = field(default_factory=set)
     blacklisted_junctions: set[Coord] = field(default_factory=set)
+    verified_hubs: set[Coord] = field(default_factory=set)
+    verified_aligner_stations: set[Coord] = field(default_factory=set)
 
     # Miner-specific structures
     known_miner_stations: set[Coord] = field(default_factory=set)
@@ -241,6 +243,10 @@ class CrossRoleState:
     # Move-failure tracking
     last_pos: Coord | None = None
     last_move_target: Coord | None = None
+    move_cooldowns: dict[tuple[int, int], int] = field(default_factory=dict)
+    steps_since_last_move: int = 0
+    contamination_avoid_cells: set[Coord] = field(default_factory=set)
+    gear_contamination_count: int = 0
 
     # LLM planning state
     current_skill: str | None = None
