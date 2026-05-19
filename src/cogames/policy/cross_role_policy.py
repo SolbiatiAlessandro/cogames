@@ -564,7 +564,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             or (state.current_skill == "gear_up_aligner" and near_aligner_station)
             or (state.current_skill == "gear_up_miner" and near_miner_station)
             or (state.current_skill == "mine_until_full" and near_extractor)  # v12: was near_hub (bug)
-            or (state.current_skill == "deposit_to_hub" and near_hub)
+            or (state.current_skill == "deposit_to_hub" and (near_hub or any(
+                abs(current_abs[0] - j[0]) + abs(current_abs[1] - j[1]) <= 1
+                for j in state.known_friendly_junctions)))
         )
 
         if made_progress:
