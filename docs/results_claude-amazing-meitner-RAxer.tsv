@@ -103,3 +103,4 @@ fa4cdb9	0.000000	bug_fix	0	keep	fix: cross_role get_heart exits don't clear agen
 e4b0992	0.000000	structural_only	0	keep	improve: miner extractor target coordination via SharedMap — yield to closer miners
 03a1168	0.000000	structural_only	0	keep	cleanup: remove dead code — _expand_hazard_zone + unused extractor-to-hub functions
 c36df8a	0.000000	bug_fix	0	keep	fix: tether get_heart missing start_count + cross_role defend missing alignable exit
+625e45c	0.000000	bug_fix	0	keep	fix: cross_role junction deposit BFS skipped hazard avoidance
