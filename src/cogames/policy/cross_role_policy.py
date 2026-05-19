@@ -1623,7 +1623,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         action = self._aligner._starter._action(f"move_{direction}")
                         self._track_move_target(action, current_abs, state)
                         return action, state
-                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs, avoid_hazards=True)
                     state = self._copy_with_shared(replace(state,
                         wander_direction_index=base_state.wander_direction_index,
                         wander_steps_remaining=base_state.wander_steps_remaining,
@@ -1672,7 +1672,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         action = self._aligner._starter._action(f"move_{direction}")
                         self._track_move_target(action, current_abs, state)
                         return action, state
-                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs, avoid_hazards=True)
                     state = self._copy_with_shared(replace(state,
                         wander_direction_index=base_state.wander_direction_index,
                         wander_steps_remaining=base_state.wander_steps_remaining,
@@ -1771,7 +1771,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         action = self._aligner._starter._action(f"move_{direction}")
                         self._track_move_target(action, current_abs, state)
                         return action, state
-                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, target)
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, target, avoid_hazards=True)
                     state = self._copy_with_shared(replace(state,
                         wander_direction_index=base_state.wander_direction_index,
                         wander_steps_remaining=base_state.wander_steps_remaining,
