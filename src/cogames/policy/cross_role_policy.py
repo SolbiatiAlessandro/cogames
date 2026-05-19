@@ -1263,6 +1263,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures += 1
                 state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
+                state.get_heart_timeouts += 1
                 state.consecutive_get_heart_failures += 1
                 state.get_heart_cooldown_steps = min(30, state.consecutive_get_heart_failures * 10)
                 if self._shared_map is not None:
@@ -1270,6 +1271,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= self._stuck_threshold // 2:
+            state.get_heart_timeouts += 1
             state.consecutive_get_heart_failures += 1
             state.get_heart_cooldown_steps = min(30, state.consecutive_get_heart_failures * 10)
             if self._shared_map is not None:
@@ -1301,6 +1303,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures += 1
                 state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
+                state.get_heart_timeouts += 1
                 state.consecutive_get_heart_failures += 1
                 state.get_heart_cooldown_steps = min(30, state.consecutive_get_heart_failures * 10)
                 if self._shared_map is not None:
