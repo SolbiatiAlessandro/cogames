@@ -689,15 +689,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         default=9999,
                     ) if retreat_targets else 9999
                     if alignable_dist < safe_dist and alignable_dist <= 10:
-                        direction = self._navigate_to_station(state, current_abs, nearest_alignable, avoid_hazards=True)
-                        if direction:
-                            action = self._starter._action(f"move_{direction}")
-                            state.last_move_target = self._move_target(current_abs, direction)
-                        else:
-                            action, state = self._move_to(state, current_abs, nearest_alignable)
-                            action_name = action.name if hasattr(action, "name") else ""
-                            if action_name.startswith("move_"):
-                                state.last_move_target = self._move_target(current_abs, action_name[len("move_"):])
+                        action, state = self._move_to(state, current_abs, nearest_alignable)
+                        action_name = action.name if hasattr(action, "name") else ""
+                        if action_name.startswith("move_"):
+                            state.last_move_target = self._move_target(current_abs, action_name[len("move_"):])
                         state.skill_steps += 1
                         return action, state
                 if retreat_targets:
