@@ -509,27 +509,21 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     for j in self._shared_map.known_friendly_junctions
                 )
             if near_deposit and self._shared_map is not None:
-                near_hub_deposit = any(
-                    abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
-                    for h in state.known_hubs
-                )
                 for elem in ("carbon", "oxygen", "germanium", "silicon"):
                     prev = state.last_inventory_counts.get(elem, 0)
                     curr = current_inv.get(elem, 0)
                     deposited_elem = max(0, prev - curr)
                     if deposited_elem > 0:
                         self._shared_map.total_deposits[elem] += deposited_elem
-                        if near_hub_deposit:
-                            self._shared_map.hub_deposits[elem] = self._shared_map.hub_deposits.get(elem, 0) + deposited_elem
-                if near_hub_deposit:
-                    min_hub = min(self._shared_map.hub_deposits.values()) if self._shared_map.hub_deposits else 0
-                    new_estimate = min_hub // 7
-                    if new_estimate > self._shared_map.hearts_crafted_estimate:
-                        self._shared_map.hearts_crafted_estimate = new_estimate
-                        logger.info(
-                            "agent=%s hearts_crafted_estimate=%d hub_deposits=%s total_deposits=%s",
-                            obs.agent_id, new_estimate, self._shared_map.hub_deposits, self._shared_map.total_deposits,
-                        )
+                # Estimate hearts that could have been crafted from all deposits
+                min_deposits = min(self._shared_map.total_deposits.values())
+                new_estimate = min_deposits // 7  # 7 of each element per heart
+                if new_estimate > self._shared_map.hearts_crafted_estimate:
+                    self._shared_map.hearts_crafted_estimate = new_estimate
+                    logger.info(
+                        "agent=%s hearts_crafted_estimate=%d deposits=%s",
+                        obs.agent_id, new_estimate, self._shared_map.total_deposits,
+                    )
 
         last_action_move = self._feature_value(obs, "last_action_move")
         gear = self._current_gear(obs)

@@ -295,15 +295,12 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                     deposited = prev_amount - carried_elements.get(elem, 0)
                     if deposited > 0:
                         sm.total_deposits[elem] = sm.total_deposits.get(elem, 0) + deposited
-                        if near_hub:
-                            sm.hub_deposits[elem] = sm.hub_deposits.get(elem, 0) + deposited
-                if near_hub:
-                    min_hub = min(sm.hub_deposits.values()) if sm.hub_deposits else 0
-                    new_estimate = min_hub // 7
-                    if new_estimate > sm.hearts_crafted_estimate:
-                        sm.hearts_crafted_estimate = new_estimate
-                        logger.info("agent=%s hearts_crafted_estimate=%d hub_deposits=%s total_deposits=%s",
-                                    obs.agent_id, new_estimate, sm.hub_deposits, sm.total_deposits)
+                min_deposits = min(sm.total_deposits.values()) if sm.total_deposits else 0
+                new_estimate = min_deposits // 7
+                if new_estimate > sm.hearts_crafted_estimate:
+                    sm.hearts_crafted_estimate = new_estimate
+                    logger.info("agent=%s hearts_crafted_estimate=%d deposits=%s",
+                                obs.agent_id, new_estimate, sm.total_deposits)
         elif state.current_skill == "mine_until_full" and carried_total > state.last_carried_total:
             self._event(state, f"cargo increased from {state.last_carried_total} to {carried_total}")
             made_progress = True

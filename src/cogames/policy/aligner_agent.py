@@ -74,7 +74,6 @@ class SharedMap:
         # Prevents all aligners from rushing to hub when only 1-2 hearts are available.
         self.agents_getting_hearts: set[int] = set()
         self.hub_deposits_total: int = 0
-        self.hub_deposits: dict[str, int] = {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0}
         # Issue-47: track active miner IDs for adaptive return_load
         self.active_miner_ids: set[int] = set()
         # Issue-36 v20: shared per-element extractor locations. When one miner discovers
