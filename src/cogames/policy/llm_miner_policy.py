@@ -599,7 +599,10 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                     state.no_move_steps = 0
                     state.no_progress_on_target_steps = 0
                     self._event(state, f"hub tether: dist {hub_dist} > {_MAX_HUB_DISTANCE}")
-                    action, base_state = self._deposit_to_hub(obs, state)
+                    if carried > 0:
+                        action, base_state = self._deposit_to_hub(obs, state)
+                    else:
+                        action, base_state = self._explore_near_hub(obs, state)
                     result_state = self._copy_with(state, base_state)
                     action_name = action.name if hasattr(action, "name") else ""
                     if action_name.startswith("move_"):
