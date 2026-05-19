@@ -791,8 +791,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     )
                     others_getting = len(self._shared_map.agents_getting_hearts - {obs.agent_id})
                     if others_getting >= max(1, estimated_available):
-                        self._set_skill_fast(obs, state, "explore",
-                            f"fast-path: heart queue full ({others_getting} in flight, ~{estimated_available} available)")
+                        if len(state.known_friendly_junctions) >= 3:
+                            self._set_skill_fast(obs, state, "defend",
+                                f"fast-path: heart queue full ({others_getting} in flight, ~{estimated_available} available), defending")
+                        else:
+                            self._set_skill_fast(obs, state, "explore",
+                                f"fast-path: heart queue full ({others_getting} in flight, ~{estimated_available} available)")
                         return
                 logger.info("agent=%s issue36_fast_path: skipping LLM, selecting get_heart directly", obs.agent_id)
                 self._set_skill_fast(obs, state, "get_heart",
@@ -800,8 +804,17 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 return
             # Issue-36 v7: fast-path for remaining aligner states (eliminates more LLM calls)
             if has_heart and not known_alignable:
-                self._set_skill_fast(obs, state, "explore",
-                    "fast-path: aligner has heart but no alignable junctions, exploring")
+                fj_count = len(state.known_friendly_junctions)
+                late_game = state.episode_step > 5000
+                enemy_active = bool(state.known_enemy_junctions)
+                substantial = fj_count >= 20 and state.episode_step > 3000
+                if fj_count >= 5 and (late_game or enemy_active or substantial):
+                    trigger = "late-game" if late_game else ("enemy-active" if enemy_active else "substantial-territory")
+                    self._set_skill_fast(obs, state, "defend",
+                        f"fast-path: {trigger} patrol ({fj_count} friendly, step={state.episode_step})")
+                else:
+                    self._set_skill_fast(obs, state, "explore",
+                        "fast-path: aligner has heart but no alignable junctions, exploring")
                 return
             if not has_heart and hub_depleted:
                 self._set_skill_fast(obs, state, "explore",
