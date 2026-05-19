@@ -1619,14 +1619,17 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     state.no_progress_on_target_steps = 0
                     self._event(state, f"miner hub tether: distance {hub_dist} > {_MAX_HUB_DISTANCE}, {state.current_skill}")
                     logger.info("agent=%s MINER_TETHER dist=%d skill=%s carried=%d", obs.agent_id, hub_dist, state.current_skill, carried)
-                    direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
-                    if direction is None:
-                        direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=False)
-                    if direction:
-                        action = self._aligner._starter._action(f"move_{direction}")
-                        self._track_move_target(action, current_abs, state)
-                        return action, state
-                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs, avoid_hazards=True)
+                    if carried > 0:
+                        direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                        if direction is None:
+                            direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=False)
+                        if direction:
+                            action = self._aligner._starter._action(f"move_{direction}")
+                            self._track_move_target(action, current_abs, state)
+                            return action, state
+                        action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs, avoid_hazards=True)
+                    else:
+                        action, base_state = self._miner._explore_near_hub(obs, state)
                     state = self._copy_with_shared(replace(state,
                         wander_direction_index=base_state.wander_direction_index,
                         wander_steps_remaining=base_state.wander_steps_remaining,
