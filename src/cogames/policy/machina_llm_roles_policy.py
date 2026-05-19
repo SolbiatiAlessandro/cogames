@@ -763,12 +763,14 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     state.no_progress_on_target_steps = 0
                     self._event(state, f"aligner tether: territory_dist {territory_dist} > {_MAX_ALIGNER_TERRITORY_DISTANCE}, redirecting to {state.current_skill}")
                     direction = self._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    if direction is None:
+                        direction = self._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=False)
                     if direction:
                         action = self._starter._action(f"move_{direction}")
                         state.skill_steps += 1
                         state.last_move_target = self._move_target(current_abs, direction)
                         return action, state
-                    action, state = self._move_to(state, current_abs, hub_abs)
+                    action, state = self._safe_wander(state, current_abs)
                     state.skill_steps += 1
                     action_name = action.name if hasattr(action, "name") else ""
                     if action_name.startswith("move_"):
