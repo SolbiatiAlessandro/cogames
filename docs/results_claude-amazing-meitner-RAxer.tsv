@@ -128,3 +128,4 @@ b6f692e	0.000000	bug_fix	0	keep	fix: aligner tether navigation — missing hazar
 10424bf	0.000000	bug_fix	0	keep	fix: CrossRoleState missing steps_near_extractor_no_gain field
 ff3010f	0.000000	critical_bug_fix	0	keep	fix: cross_role hub_hearts_withdrawn overcounts by 1 on every get_heart exit
 cf67283	0.000000	critical_bug_fix	0	keep	fix: cross_role get_heart_cooldown_steps never activated — dead code
+5e90262	0.000000	critical_bug_fix	0	keep	fix: extractor depletion check always true — last_carried_total updated before comparison
