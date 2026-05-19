@@ -1073,6 +1073,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
                 state.consecutive_get_heart_failures += 1
+                state.get_heart_cooldown_steps = min(30, state.consecutive_get_heart_failures * 10)
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_move_steps >= self._stuck_threshold:
@@ -1083,13 +1084,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
+                state.get_heart_cooldown_steps = min(30, state.consecutive_get_heart_failures * 10)
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= self._stuck_threshold // 2:
-            # Issue-34 v12: Shorter stale threshold for get_heart (10 steps instead of 20).
-            # Aligners waste less time camping at empty hub. Faster cycling means
-            # more time spent exploring/aligning and more frequent heart pickup attempts.
             state.consecutive_get_heart_failures += 1
+            state.get_heart_cooldown_steps = min(30, state.consecutive_get_heart_failures * 10)
             self._event(state, f"get_heart exited as stale after {state.no_progress_on_target_steps} steps (short threshold)")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_progress_on_target_steps >= self._stuck_threshold:
@@ -1115,6 +1115,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
+                state.get_heart_cooldown_steps = min(30, state.consecutive_get_heart_failures * 10)
             self._event(state, f"{state.current_skill} exited as stale after {state.no_progress_on_target_steps} steps")
             state.current_skill = None
 
