@@ -344,15 +344,17 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if direction is not None:
             return direction
         # Greedy toward the approach cell, avoiding known obstacles
+        hazard_avoid = (state.known_hazard_stations | state.contamination_avoid_cells) if avoid_hazards else set()
         candidates = []
         for dir_name, (ddr, ddc) in _DIRECTION_DELTAS:
             neighbor = (current_abs[0] + ddr, current_abs[1] + ddc)
             dist = abs(neighbor[0] - approach[0]) + abs(neighbor[1] - approach[1])
             hard_blocked = neighbor in state.blocked_cells
+            hazard = neighbor in hazard_avoid
             soft_blocked = neighbor in state.move_blocked_cells
-            candidates.append((hard_blocked, soft_blocked, dist, dir_name))
+            candidates.append((hard_blocked, hazard, soft_blocked, dist, dir_name))
         candidates.sort()
-        return candidates[0][3]
+        return candidates[0][4]
 
     def _safe_wander(self, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         """Wander avoiding hazard stations and blocked cells (hard walls)."""
