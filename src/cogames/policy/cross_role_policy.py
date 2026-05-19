@@ -442,12 +442,17 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.last_move_target = saved_last_move_target
         state.steps_since_last_move = saved_steps_since
         state.move_cooldowns = saved_cooldowns
-        # Issue-36 v13: miner update clears+rebuilds blocked_cells from its own blocked_now,
-        # which doesn't include aligner stations. Visible aligner stations get unblocked and
-        # added to known_free_cells. Fix: re-apply blocking for all known aligner stations.
+        # Miner's _update_map_memory rebuilds blocked_cells from its own blocked_now,
+        # which doesn't include aligner stations, move_blocked_cells, or the restored
+        # cooldown_cells. Re-apply all blocking the miner's rebuild dropped.
         if state.known_aligner_stations:
             state.blocked_cells.update(state.known_aligner_stations)
             state.known_free_cells.difference_update(state.known_aligner_stations)
+        cooldown_cells = set(state.move_cooldowns.keys())
+        state.blocked_cells.update(cooldown_cells)
+        state.blocked_cells.update(state.move_blocked_cells)
+        state.known_free_cells.difference_update(cooldown_cells)
+        state.known_free_cells.difference_update(state.move_blocked_cells)
         # Issue-35: Track agent positions and gear for congestion avoidance + team coordination
         if self._shared_map is not None:
             self._shared_map.agent_positions[obs.agent_id] = current_abs
