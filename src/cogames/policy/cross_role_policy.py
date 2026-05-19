@@ -1908,7 +1908,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         continue
                     other_pos = sm.agent_positions.get(aid)
                     if other_pos is None:
-                        yield_targets.add(t)
                         continue
                     their_dist = abs(t[0] - other_pos[0]) + abs(t[1] - other_pos[1])
                     my_dist = abs(t[0] - current_abs[0]) + abs(t[1] - current_abs[1])
