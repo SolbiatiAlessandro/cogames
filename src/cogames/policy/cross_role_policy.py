@@ -1120,6 +1120,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures = 0
                 self._event(state, "contamination: reset gear_up_failures after explore")
             state.current_skill = None
+        elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
+            contaminated = gear in ("scrambler", "scout")
+            if contaminated and state.gear_contamination_count >= 4:
+                state.gear_contamination_count = 0
+            self._event(state, f"explore capped after {state.skill_steps} steps without discovery")
+            state.current_skill = None
         # Issue-36 v7: interrupt explore when get_heart cooldown expires.
         # Heartless aligners explore during cooldown. When cooldown expires, they should
         # immediately switch to get_heart instead of waiting for explore to find something.
