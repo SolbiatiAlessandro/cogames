@@ -271,6 +271,7 @@ class CrossRoleState:
     retreat_stuck_steps: int = 0  # Issue-36 v7: consecutive no-move steps while retreating
     steps_since_last_heart: int = 0  # Issue-36: steps since agent last acquired a heart
     last_deposit_hearts_estimate: int = 0  # Issue-36: last known hearts_crafted_estimate, to detect new hearts
+    get_heart_start_count: int = 0
 
     # Miner LLM tracking
     last_carried_total: int = 0
@@ -602,6 +603,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
+        if skill == "get_heart":
+            state.get_heart_start_count = self._inventory_count(obs, "heart")
         self._event(state, f"planner selected {skill}: {reason}")
 
     def _plan_skill(self, obs: AgentObservation, state: CrossRoleState) -> None:
@@ -979,6 +982,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
+        if skill == "get_heart":
+            state.get_heart_start_count = self._inventory_count(obs, "heart")
         self._event(state, f"planner selected {skill}: {reason}")
 
     def _maybe_finish_skill(self, obs: AgentObservation, state: CrossRoleState) -> None:
@@ -1009,13 +1014,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 self._event(state, f"gear_up_miner wrong-gear completion (preferred={effective_preferred}), failures={state.gear_up_failures}")
             state.current_skill = None
         elif state.current_skill == "get_heart" and has_heart and state.skill_steps > 0:
-            self._event(state, "get_heart completed: acquired heart")
+            heart_count = self._inventory_count(obs, "heart")
+            newly_withdrawn = max(1, heart_count - state.get_heart_start_count)
+            self._event(state, f"get_heart completed: acquired {newly_withdrawn} heart(s) (now {heart_count})")
             state.get_heart_timeouts = 0
             state.consecutive_get_heart_failures = 0  # Issue-16: reset on success
-            # Issue-16: track hub heart withdrawals for depletion awareness
             if self._shared_map is not None:
-                self._shared_map.hub_hearts_withdrawn += 1
-                logger.info("agent=%s hub_hearts_withdrawn=%d", obs.agent_id, self._shared_map.hub_hearts_withdrawn)
+                self._shared_map.hub_hearts_withdrawn += newly_withdrawn
+                logger.info("agent=%s hub_hearts_withdrawn=%d (+%d)", obs.agent_id, self._shared_map.hub_hearts_withdrawn, newly_withdrawn)
             state.current_skill = None
         elif state.current_skill == "align_neutral" and not has_heart and state.skill_steps > 0:
             self._event(state, "align_neutral completed: heart spent")
