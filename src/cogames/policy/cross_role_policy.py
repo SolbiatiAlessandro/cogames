@@ -1183,6 +1183,15 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             self._event(state, "defend completed: acquired heart while defending, switching to align")
             state.consecutive_get_heart_failures = 0
             state.current_skill = None
+        elif state.current_skill == "defend" and has_heart and gear == "aligner" and state.skill_steps > 0:
+            _alignable_neutral = self._known_alignable_junctions(state)
+            if _alignable_neutral:
+                current_abs = self._current_abs(obs)
+                nearest_alignable = self._aligner._nearest_known(current_abs, _alignable_neutral)
+                alignable_dist = abs(nearest_alignable[0] - current_abs[0]) + abs(nearest_alignable[1] - current_abs[1]) if nearest_alignable else 9999
+                if alignable_dist <= 25:
+                    self._event(state, f"defend ended: alignable junction at dist={alignable_dist}")
+                    state.current_skill = None
         elif state.current_skill == "defend" and gear != "aligner" and state.skill_steps > 0:
             self._event(state, "defend ended: lost aligner gear")
             state.current_skill = None
@@ -1649,6 +1658,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._clear_shared_map_tracking(obs.agent_id)
                     if self._shared_map is not None and state.current_skill == "get_heart":
                         self._shared_map.agents_getting_hearts.add(obs.agent_id)
+                        state.get_heart_start_count = self._inventory_count(obs, "heart")
                     state.skill_steps = 0
                     state.no_move_steps = 0
                     state.no_progress_on_target_steps = 0

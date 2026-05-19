@@ -747,6 +747,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         state.current_skill = "align_neutral"
                     elif not has_heart and state.known_hubs:
                         state.current_skill = "get_heart"
+                        state.get_heart_start_count = self._inventory_count(obs, "heart")
                         if sm is not None:
                             sm.agents_getting_hearts.add(obs.agent_id)
                     state.skill_steps = 0
