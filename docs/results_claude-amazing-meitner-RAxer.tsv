@@ -71,3 +71,4 @@ e3e8a4f	0.000000	bug_fix	0	keep	fix: all skill selection paths use active extrac
 2dcd252	0.000000	critical_bug_fix	0	keep	fix: CrossRoleState missing 6 fields — agents returned noop every step
 432ec5d	0.000000	bug_fix	0	keep	fix: junction deposit navigation missing BFS fallback chain
 900d7c6	0.000000	bug_fix	0	keep	fix: cross_role double movement tracking + retreat to friendly junctions
+b7b8ca3	0.000000	bug_fix	0	keep	fix: heart accumulation progress tracking only detected first heart
