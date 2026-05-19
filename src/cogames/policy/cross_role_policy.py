@@ -1339,21 +1339,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             dr, dc = delta_map.get(direction, (0, 0))
             state.last_move_target = (current_abs[0] + dr, current_abs[1] + dc)
 
-    def _expand_hazard_zone(self, state: CrossRoleState) -> CrossRoleState:
-        """Return a state with hazard zone expanded by 1-cell adjacency buffer.
-
-        Auto-equip in CoGames triggers when walking NEAR (adjacent to) a gear station.
-        Expanding the avoid set prevents routes that pass adjacent to contaminating stations.
-        Only used for gear_up navigation, not general movement.
-        """
-        if not state.known_hazard_stations:
-            return state
-        expanded = set(state.known_hazard_stations)
-        for hs in state.known_hazard_stations:
-            for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                expanded.add((hs[0] + dr, hs[1] + dc))
-        return replace(state, known_hazard_stations=expanded)
-
     def _navigate_to_station_safe(self, state: CrossRoleState, current_abs: Coord, target_abs: Coord) -> str | None:
         """Navigate to target station, returning None if next step would enter a hazard station.
 

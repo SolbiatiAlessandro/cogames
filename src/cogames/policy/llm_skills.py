@@ -1021,34 +1021,6 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             state.retreating_to_hub = False
         return state.retreating_to_hub
 
-    def _nearest_extractor_to_hub(self, state: MinerSkillState) -> Coord | None:
-        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
-        extractors = state.verified_extractors if state.verified_extractors else state.known_extractors
-        if not hub_set or not state.known_extractors:
-            return None
-        hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1]))
-        return min(
-            state.known_extractors,
-            key=lambda e: abs(e[0] - hub[0]) + abs(e[1] - hub[1]),
-        )
-
-    def _nearest_scarce_extractor_to_hub(self, state: MinerSkillState, obs: AgentObservation) -> Coord | None:
-        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
-        if not hub_set:
-            return None
-        hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1]))
-        scarce = self._team_scarce_element() or self._scarce_element(obs)
-        if scarce:
-            candidates = state.extractors_by_element.get(scarce, set())
-            if candidates:
-                return min(candidates, key=lambda e: abs(e[0] - hub[0]) + abs(e[1] - hub[1]))
-        if state.known_extractors:
-            return min(
-                state.known_extractors,
-                key=lambda e: abs(e[0] - hub[0]) + abs(e[1] - hub[1]),
-            )
-        return None
-
     _step_counter: dict[int, int] = {}
 
     _STUCK_THRESHOLD = 150
