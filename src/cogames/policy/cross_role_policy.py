@@ -1093,10 +1093,13 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.consecutive_get_heart_failures = 0
                 if self._shared_map is not None:
                     self._shared_map.hub_hearts_withdrawn += newly_withdrawn
+                    self._shared_map.agents_getting_hearts.discard(obs.agent_id)
                     logger.info("agent=%s hub_hearts_withdrawn=%d (+%d)", obs.agent_id, self._shared_map.hub_hearts_withdrawn, newly_withdrawn)
                 state.current_skill = None
         elif state.current_skill == "get_heart" and gear not in ("aligner", "none") and state.skill_steps > 0:
             self._event(state, f"get_heart aborted: gear contaminated to {gear}")
+            if self._shared_map is not None:
+                self._shared_map.agents_getting_hearts.discard(obs.agent_id)
             state.current_skill = None
         elif state.current_skill == "align_neutral" and gear != "aligner" and state.skill_steps > 0:
             self._event(state, f"align_neutral aborted: lost aligner gear (now {gear})")
@@ -1236,6 +1239,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             elif state.current_skill == "get_heart":
                 state.get_heart_timeouts += 1
                 state.consecutive_get_heart_failures += 1
+                if self._shared_map is not None:
+                    self._shared_map.agents_getting_hearts.discard(obs.agent_id)
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_move_steps >= self._stuck_threshold:
@@ -1246,6 +1251,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
+                if self._shared_map is not None:
+                    self._shared_map.agents_getting_hearts.discard(obs.agent_id)
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill == "get_heart" and state.no_progress_on_target_steps >= self._stuck_threshold // 2:
@@ -1253,6 +1260,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             # Aligners waste less time camping at empty hub. Faster cycling means
             # more time spent exploring/aligning and more frequent heart pickup attempts.
             state.consecutive_get_heart_failures += 1
+            if self._shared_map is not None:
+                self._shared_map.agents_getting_hearts.discard(obs.agent_id)
             self._event(state, f"get_heart exited as stale after {state.no_progress_on_target_steps} steps (short threshold)")
             state.current_skill = None
         elif state.current_skill is not None and state.current_skill != "defend" and state.no_progress_on_target_steps >= self._stuck_threshold:
@@ -1281,6 +1290,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.gear_up_failures_total += 1
             if state.current_skill == "get_heart":
                 state.consecutive_get_heart_failures += 1
+                if self._shared_map is not None:
+                    self._shared_map.agents_getting_hearts.discard(obs.agent_id)
             self._event(state, f"{state.current_skill} exited as stale after {state.no_progress_on_target_steps} steps")
             state.current_skill = None
 
