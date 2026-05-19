@@ -1611,6 +1611,24 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             else:
                 _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
                 retreat_targets = _retreat_hubs | state.known_friendly_junctions
+                retreat_gear = self._current_gear(obs)
+                retreat_heart = self._inventory_count(obs, "heart") > 0
+                if retreat_gear == "aligner" and retreat_heart:
+                    alignable = self._known_alignable_junctions(state)
+                    if alignable:
+                        nearest_alignable = self._aligner._nearest_known(current_abs, alignable)
+                        if nearest_alignable is not None:
+                            al_dist = abs(nearest_alignable[0] - current_abs[0]) + abs(nearest_alignable[1] - current_abs[1])
+                            safe_dist = min(
+                                (abs(t[0] - current_abs[0]) + abs(t[1] - current_abs[1]) for t in retreat_targets),
+                                default=9999,
+                            ) if retreat_targets else 9999
+                            if al_dist < safe_dist and al_dist <= 10:
+                                direction = self._aligner._navigate_to_station(state, current_abs, nearest_alignable, avoid_hazards=False)
+                                if direction:
+                                    action = self._aligner._starter._action(f"move_{direction}")
+                                    self._track_move_target(action, current_abs, state)
+                                    return action, state
                 target = self._aligner._nearest_known(current_abs, retreat_targets) if retreat_targets else None
                 if target is not None:
                     is_hub = target in _retreat_hubs
