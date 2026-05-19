@@ -550,6 +550,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             gear = self._starter._current_gear(self._starter._inventory_items(obs))
             if gear:
                 sm.agent_gears[obs.agent_id] = gear
+            else:
+                sm.agent_gears.pop(obs.agent_id, None)
         if sm is not None and hasattr(sm, 'miner_targets') and state.current_skill != "mine_until_full":
             sm.miner_targets.pop(obs.agent_id, None)
 
