@@ -16,7 +16,6 @@ from typing import Callable
 from cogames.policy.aligner_agent import (
     AlignerPolicyImpl,
     SharedMap,
-    _FRIENDLY_TERRITORY_DISTANCE,
     _HUB_ALIGN_DISTANCE,
     _HP_RETREAT_THRESHOLD,
     _JUNCTION_ALIGN_DISTANCE,

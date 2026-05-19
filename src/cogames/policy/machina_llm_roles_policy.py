@@ -8,7 +8,7 @@ from dataclasses import dataclass, field, replace
 from typing import Callable
 
 from cogames.policy.aligner_agent import (
-    AlignerPolicyImpl, AlignerState, SharedMap, _FRIENDLY_TERRITORY_DISTANCE, _HP_RETREAT_THRESHOLD,
+    AlignerPolicyImpl, AlignerState, SharedMap, _HP_RETREAT_THRESHOLD,
     _HUB_ALIGN_DISTANCE, _JUNCTION_ALIGN_DISTANCE,
 )
 from cogames.policy.llm_aligner_prompt import ALIGNER_SKILL_DESCRIPTIONS, build_llm_aligner_prompt
