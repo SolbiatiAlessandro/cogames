@@ -659,6 +659,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             gear = self._current_gear(obs)
             if gear:
                 sm.agent_gears[obs.agent_id] = gear
+            else:
+                sm.agent_gears.pop(obs.agent_id, None)
             if state.current_skill != "align_neutral":
                 sm.aligner_targets.pop(obs.agent_id, None)
             if state.current_skill != "get_heart":
