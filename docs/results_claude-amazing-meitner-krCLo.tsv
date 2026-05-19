@@ -1,1 +1,8 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+4531257	1060.38	junctions=55.3 hearts=61.0	3000	keep	baseline: 4A4M 3-seed avg (42/43/44) stuck_threshold=15
+7055f58	1060.38	junctions=55.3 hearts=61.0	3000	discard	cooldown-fix: activate get_heart_cooldown_steps on failure (no effect - get_heart never fails)
+10456cd	1130.17	junctions=56.3 hearts=60.3	3000	keep	3A5M split: 3 aligners + 5 miners (+6.6% vs baseline)
+10456cd	1074.83	junctions=55.3 hearts=59.7	3000	discard	3A5M + stuck_threshold=28 (worse than st=15)
+10456cd	1118.22	junctions=56.0 hearts=60.0	3000	discard	3A5M + stuck_threshold=20 (worse than st=15)
+10456cd	1014.02	junctions=53.7 hearts=56.3	3000	discard	2A6M split: too few aligners
+10456cd	1113.11	junctions=55.7 hearts=60.7	3000	discard	5A3M split: contamination from station contention
