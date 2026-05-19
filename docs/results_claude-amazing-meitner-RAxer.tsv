@@ -87,3 +87,10 @@ e02f947	0.000000	structural_only	0	keep	improve: miner _explore_near_hub spread 
 a1fe6d0	0.000000	structural_only	0	keep	improve: cross_role heart queue defend + phase-aware late-game defense
 7b9e842	0.000000	structural_only	0	keep	improve: cross_role retreat-by-alignment — align nearby junctions during HP retreat
 ac4853d	0.000000	structural_only	0	keep	improve: cross_role retreat cooldown clearing at 50 steps before giving up at 100
+408e781	0.000000	structural_only	0	keep	improve: cross_role aligner tether measures distance to nearest friendly anchor
+752b29b	0.000000	structural_only	0	keep	improve: cross_role smarter defend exits — enemy recapture, new hearts, gear loss
+e192fc6	0.000000	critical_bug_fix	0	keep	fix: cross_role contamination cell tracking was completely dead
+74e65f1	0.000000	bug_fix	0	keep	fix: cross_role deposit_to_hub valid target missing junction proximity
+2820d33	0.000000	bug_fix	0	keep	fix: miner deposit_to_hub valid target missing junction proximity
+55ac65a	0.000000	bug_fix	0	keep	fix: cross_role miner gear-loss doesn't record contamination cell
+ce5d222	0.000000	structural_only	0	keep	improve: cross_role explore time cap at stuck_threshold*2 steps
