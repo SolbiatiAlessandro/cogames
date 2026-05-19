@@ -1,75 +1,89 @@
 # Director Notes
-_Written: 2026-05-16 (Session 35)_
+_Written: 2026-05-19 (Session 38, offline-to-online)_
 
-## What I observed in the replay
+## What I observed
 
-Ran 500-step replay with 4 agents (3 aligners + 1 miner) on the scripted policy:
+### Online replay analysis (Match b7cc74ba)
+Analyzed evyIm-73a-stuck15:v1 paired with ax5wp-73k-enemy12:v1 (all 8 agents on Cogs team, cooperative):
+- **Score: 45.09** — one of our better matches
+- **Agent mortality critical**: 4/8 agents died before step 2500 in a 10,000-step match
+  - Agent 1 (ax5wp): 2410 steps, Agent 2 (ax5wp): 1877 steps, Agent 5 (ax5wp): 1953 steps, Agent 7 (evyIm): 1990 steps
+  - Agent 6 (evyIm) survived longest at 7269 steps; Agent 3 (ax5wp) at 6469 steps
+- **Junction control deficit**: cogs/aligned.junction.held = 450,858 vs clips = 551,066 — we hold only 45%
+- **Mining productive**: ~1,400 each of carbon/germanium/oxygen/silicon deposited
+- **Zero vibe transitions**: all 8 agents used only noop+4moves (5-action space)
+- **Movement patterns**: longest-lived agents show strong N/S bias (patrolling along vertical axis)
 
-- **Reward growth is linear**: 0.08/100 steps, reaching 0.41/agent at 500 steps
-- **Agents cluster in center** (rows 48-60): no agent reaches map corners where junctions are at rows 6-7 and 91-92
-- **Skill distribution**: explore 37%, get_heart 35%, align 9%, mine 8%, deposit 7%, gear_up 3%
-- **High get_heart call rate** (35%) with only 9% align confirms hub depletion as the operational bottleneck — agents keep seeking hearts they can't get
-- **All roles function correctly**: gear_up -> get_heart -> explore -> align cycle is intact
-- **Miner works well**: mine_until_full -> deposit_to_hub cycles cleanly, finds 15 extractors
+### Key new data: RL does NOT translate online
+Discovery that changes the strategic calculus:
+- Our RL submissions (sal-m3a5-spread-*): scores 10.6-11.6, rank 642-692 out of 938
+- Softy's RL (softy-rl:v1): scores 12.26, rank 616
+- Our scripted (evyIm-73a-stuck15:v1): scores 41.85, rank 5
+- **RL online scores are 3.5x worse than scripted** — this is NOT a submission lag issue, it's fundamental
 
-The scripted policy works but is fundamentally capped by: hub heart depletion, center-biased navigation, and inability to learn from experience.
+### Branches reviewed
+- **claude/amazing-meitner-RAxer** (201 commits ahead of main): Massive code cleanup. 40+ bug fixes in cross_role_policy.py and machina_llm_roles_policy.py. Critical bugs found: heart withdrawal overcount, dead cooldown code, broken depletion detection, equidistant aligner yield. BUT: all 135 TSV entries show 0.0 reward (no offline eval). At least one change (JUNCTION_ALIGN_DISTANCE 25->15) contradicts proven improvements. Created #77 for evaluation.
+- **claude/amazing-meitner-UtUHB** (2 commits): RL longep3k Phase 1 results. 0.20/agent at 2000 steps (exceeds scripted 0.18). Only 2 commits, experimental.
+- **claude/amazing-meitner-9HeB9** (11+ commits): 249 experiments, 8 training sessions. longep3k_e20 confirmed as ceiling. All attempts to improve failed. Valuable training infrastructure but massive experiment logs.
+- **claude/amazing-meitner-Wugj9** (~20 commits): "Learncraft" graduated curriculum. Creative but avg=0.200 standard eval. Not competitive.
+- **Sessions 36-37** (nLDxv, aLAv1): Director notes only, not merged to main. Superseded by this session.
+
+## Offline observations
+- Best scripted: 3.282 total (d922520, 8-agent, 3000 steps, contamination fix)
+- Best RL offline: longep3k_e20, avg=1.394 at 10K steps (branch 9HeB9)
+- RL at 2000 steps: 0.20/agent (branch UtUHB) — exceeds scripted 0.18 baseline
+- RL training plateau: 249 experiments, every approach to beat longep3k_e20 failed
+- Seed dependence: only map_seed=42 produces RL results >1.2
+
+## Online observations
+- Leaderboard completely frozen: top 26 unchanged for 5 sessions (34-38)
+- evyIm-73a-stuck15:v1 stable at #5 (41.85), 8 matches
+- Softy iterating: v114-v119 uploaded, plus softy-rl:v1 and softy-rl-r10v50:v1-v4
+- New competitors: aif-hierarchical-v33:v9 (16 qualifying matches), multiple ron.* policies
+- beta-teams-tiny-fixed: 10 entries only (slinky:v2 leads at 10.0). Easy opportunity.
+- 938 total policies in beta-cvc
+
+## Offline-to-online gap
+
+1. **Scripted**: Offline 3.282 total → Online 41.85 (#5). Translation is strong — scripted policies work online.
+2. **RL**: Offline 1.394/agent at 10K → Online 10.6-11.6 (sal-*). Translation is TERRIBLE.
+3. **Even Softy's RL fails online**: softy-rl:v1 = 12.26 (rank 616). This isn't just us.
+4. **Why RL fails online**: Likely the 5-action space mismatch. Online match requires gear acquisition and role specialization that pure move-based RL can't learn. Scripted policies handle this via hard-coded skill trees.
+5. **Auth blocker**: longep3k_e20 (our best RL) NOT submitted. But given sal-* results, expectations should be tempered.
+
+**The real gap is not submission lag — it's that RL fundamentally doesn't work online yet.**
 
 ## Current bottleneck
 
-**RL training maturity.** The scripted policy is at its ceiling (#5 online, 41.85) and there are no further scripted improvements to make. RL training had a genuine breakthrough (first junction alignment on competition map via curriculum training) but is still 2.5x below scripted performance offline (0.072 vs 0.18 at 500 steps).
+**Scripted policy improvement via bug fixes (#77)**. The strategic shift:
 
-The specific RL bottleneck is **navigation on 88x88 map with 13x13 observation window**: agents can't see junctions 15+ tiles from hub, so they need curriculum training (close junctions -> medium -> full distance) to learn the navigate -> align sequence.
-
-Key RL training findings:
-- CPU training works: 226K-2.8M params at 2.4-4K SPS. No GPU needed.
-- 5-action space (noop + 4 moves) eliminates entropy collapse, matches top policies
-- Entropy annealing (0.08 -> 0.01 over 30 epochs) prevents universal collapse
-- Training metrics are misleading: random map seeds average lucky outcomes. Always eval on fixed seed.
-- Arena (50x50) to competition (88x88) transfer fails. Must train directly on competition map.
-- Behavioral cloning kills entropy, making RL fine-tuning impossible.
-
-## What I expected to happen vs. what I found
-
-**Expected** (from session 34 notes): evyIm-73a stabilizes, RL remains blocked on GPU, branches stay unmerged.
-
-**Found**:
-1. evyIm-73a-stuck15 STABLE at #5 (41.85) -- exactly as expected.
-2. RL training DID start! Owner said "we don't need GPU" -- unblocked everything. Multiple sessions ran 20+ configs.
-3. RL BREAKTHROUGH: curriculum training (max_distance=6) produced first junction alignment on competition map.
-4. RL still early: 0.072 reward/500s vs scripted 0.18. Training-eval gap is large.
-5. Tournament submission blocked by 401 auth -- no RL policies submitted online yet.
-6. New competitors: slanky:v171 (#7, 41.28), Paz-Bot-9000:v47 (#10, 41.10) entered top 10.
+1. RL online translation is broken (3.5x deficit vs scripted). More RL training won't help without architectural changes (wider observation, vibe actions, role specialization).
+2. The scripted policy has 40+ known bugs (RAxer branch) that have never been evaluated. Fixing critical bugs (heart overcount, dead cooldown, broken depletion detection) could meaningfully improve junction control from 45% toward parity.
+3. Junction control (45% vs 55%) is the primary scoring lever in online matches.
+4. Auth needs to be fixed by the owner — this is not something autoresearchers can solve.
 
 ## Issues updated this session
-
-- **#75**: CREATED (priority:1). RL Curriculum Training Phase 2+3 -- specific actionable issue with proven configs and branch to continue from.
-- **#41**: KEPT at priority:1. Added comprehensive director update on breakthrough.
-- **#74**: DEMOTED to priority:2. Scripted ceiling is documented fact, action on RL.
-- **#73**: DEMOTED to priority:3. A/B testing exhausted.
-- **#71**: DEMOTED to priority:3. Junction efficiency addressed by RL.
+- **#77**: CREATED (priority:2). RAxer bug fix sweep needs aggregate offline evaluation.
+- **#76**: KEPT priority:1. Added reality check comment — RL online scores are 10-12.
+- **#75**: DEMOTED to priority:2. RL training plateau confirmed with 249 experiments.
+- **#41**: KEPT priority:2. Tracking.
+- **#53**: Labeled priority:3 (was unlabeled).
 
 ## Merges this session
 
-None. No branches have competitive results to merge.
-
-## Branches reviewed (NOT merged)
-
-- **claude/amazing-meitner-SZmUt** (7 ahead): Curriculum training BREAKTHROUGH. train_curriculum.py, eval scripts, Phase 1 weights. NOT MERGED -- RL eval still below scripted. Next researcher should continue from here.
-- **claude/amazing-meitner-0j5Ye** (many ahead): Exhaustive RL config exploration. 70 files changed. NOT MERGED -- experimental infrastructure.
-- Remaining 40+ branches: all stale from previous sessions.
-
-## Submission status
-
-- **beta-cvc**: evyIm-73a-stuck15:v1 at #5 (41.85). Stable. No new submission.
-- **beta-teams-tiny-fixed**: New season, no entries from us. Low priority.
-- RL policies NOT submitted -- 401 auth blocker.
+None. No branches meet merge criteria:
+- RAxer: too large, no evaluation, contradicts proven improvements
+- 9HeB9: training infrastructure only, no online-validated improvements
+- UtUHB: too early, below scripted at 500 steps
+- Wugj9: not competitive
 
 ## Open questions for next director
 
-1. **Has RL Phase 2 (max_distance=10) progressed?** Check SZmUt branch for results beyond epoch 18.
-2. **Is the 401 auth blocker resolved?** RL needs online validation to calibrate offline->online gap.
-3. **Should we submit to beta-teams-tiny-fixed?** New season might be easier to compete in.
-4. **Should we merge SZmUt training scripts to main?** Infrastructure value vs cleanliness tradeoff.
-5. **Branch cleanup**: 40+ remote branches, most stale. Safe to prune after review.
-6. **New competitors**: slanky and Paz-Bot-9000 entered top 10. Are they RL? What's their approach?
-7. **Has the wider leaderboard shifted?** Softy hasn't pushed new versions since v111. Are they still iterating?
+1. **Has #77 (RAxer bug fixes) been evaluated offline?** If so, what's the reward delta? If >10% improvement, merge and submit.
+2. **Has an RL checkpoint been submitted?** If so, what's the online score? This validates (or invalidates) the offline RL work.
+3. **Auth blocker resolution**: Has the owner run `cogames auth login --force`? This requires browser access on the owner's machine.
+4. **Should we submit scripted to beta-teams-tiny-fixed?** Only 10 entries, easy top-3 opportunity.
+5. **Branch cleanup**: 120+ remote branches, most stale. Recommend mass deletion after this session.
+6. **evyIm match count**: Still only 8 matches after 5+ sessions. Is qualifying stuck? Are new matches being scheduled?
+7. **What's Softy doing differently?** They have v119 now (vs v111 at session 35). Their RL also fails online (12.26). Are they giving up on RL too?
+8. **Should we cherry-pick RAxer critical bugs (heart overcount, dead cooldown, depletion detection, aligner yield)?** These 4 fixes are high-confidence and could be evaluated independently of the other 36+ changes.

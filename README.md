@@ -24,7 +24,7 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-16 (Session 35)_
+_Updated by Director (offline-to-online): 2026-05-19 (Session 38)_
 
 ### Online Tournament (beta-cvc, cooperative scoring)
 
@@ -36,25 +36,41 @@ _Updated by Director: 2026-05-16 (Session 35)_
 | #4 | 41.86 | `Softy:v96` | RL |
 | **#5** | **41.85** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — scripted, stuck_threshold=15** |
 | #6 | 41.59 | `Softy:v100` | RL |
-| #7 | 41.28 | `slanky:v171` | RL (new competitor) |
-| #10 | 41.10 | `Paz-Bot-9000:v47` | new competitor |
+| #7 | 41.28 | `slanky:v171` | RL |
+| #8 | 41.22 | `Softy:v101` | RL |
+| #9 | 41.20 | `Softy:v102` | RL |
+| #10 | 41.10 | `Paz-Bot-9000:v47` | RL |
 | **#11** | **40.85** | **`ax5wp-74a-hubl2-def-enemy:v1`** | hub L2 fix + defend + enemy |
+| #12 | 40.82 | `Gryffindor:v11` | competitor |
 | **#18** | **40.49** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
-| **#19** | **40.44** | **`ax5wp-73s-l2fix:v1`** | L2 distance fix |
-| **#20** | **40.43** | **`ax5wp-73x-hubl2-def:v1`** | L2 + defend |
+| **#642** | **11.63** | **`sal-m3a5-spread-t40:v1`** | **OUR RL — terrible online** |
+| **#659** | **11.25** | **`sal-m3a5-spread-t30:v1`** | **OUR RL** |
 
-_5 policies in top 20, 30+ in top 100. Gap to #1: 3.44 pts (7.6%). Scripted ceiling at ~42 confirmed._
+_5 scripted policies in top 20. RL policies score 10-12 online (rank 642-692). Gap to #1: 3.44 pts (7.6%)._
+_938 total policies in beta-cvc. Softy iterating to v119. softy-rl:v1 scores 12.26 (rank 616)._
 
-### RL Training Progress (NEW)
+### RL Training Progress
 
 | Phase | max_distance | Result | Status |
 |-------|-------------|--------|--------|
 | Phase 1 | 6 (close) | 1.4 junctions, 0.072 reward/500s | DONE |
-| Phase 2 | 10 (medium) | 4 junctions, 1416 held | IN PROGRESS |
-| Phase 3 | 15 (competition) | — | PENDING |
+| Phase 2 | 10 (medium) | 4 junctions, 1416 held | DONE |
+| longep3k | competition | **0.20/agent at 2000s** (exceeds scripted 0.18) | BEST |
+| longep3k_e20 | competition | **1.394 avg at 10K** (5-ep validated) | BEST 10K |
 
-First ever RL junction alignment on competition map achieved via curriculum training (#75).
-CPU training viable: 2.8M param CNN+LSTM at 2.4K SPS. No GPU needed.
+RL plateau confirmed: 249 experiments on 9HeB9 branch, none beat longep3k_e20. Seed dependence is root cause.
+**Best RL model still NOT submitted online** — auth blocker for 4+ sessions (#76).
+
+### RL Online Reality Check
+
+| Policy | Online Score | Online Rank | Notes |
+|--------|-------------|-------------|-------|
+| `sal-m3a5-spread-t40:v1` | 11.63 | #642 | our RL, old/experimental |
+| `sal-m3a5-spread-t30:v1` | 11.25 | #659 | our RL |
+| `softy-rl:v1` | 12.26 | #616 | Softy's RL also bad online |
+| `evyIm-73a-stuck15:v1` | **41.85** | **#5** | scripted, 3.5x better |
+
+RL scores 10-12 online vs scripted 41.85. Even Softy's RL struggles. Offline RL gains do not translate.
 
 ### Offline Best Results (scripted, 8-agent, 3000 steps)
 
@@ -62,32 +78,47 @@ CPU training viable: 2.8M param CNN+LSTM at 2.4K SPS. No GPU needed.
 |------|--------|--------|--------|-------|
 | 1 | **3.282** | `d922520` | v52 + contamination fix | +15.2% vs baseline, 5-seed avg |
 | 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | previous best |
+| ? | untested | RAxer branch | 40+ bug fixes | needs evaluation (#77) |
 
-### Key Findings (Session 35)
+### Online Replay Analysis (Session 38)
 
-1. **RL training breakthrough** — Curriculum training (close junctions within obs window) achieved first RL junction alignment on competition map. Path to top-3 is now clear (#75).
-2. **Scripted ceiling holds** — evyIm-73a-stuck15:v1 stable at #5 (41.85). No movement since session 34. Combination regression pattern confirmed across 60+ variants (#74).
-3. **New competitors** — slanky:v171 (#7, 41.28) and Paz-Bot-9000:v47 (#10, 41.10) entered top 10. Competition is tightening.
-4. **CPU RL training works** — Owner confirmed no GPU needed. LSTM/CNN models train at 2-4K SPS on CPU. Previous "blocked on GPU" was a false premise.
-5. **5-action space is key** — Top policies use only noop + 4 moves, no change_vibe. Our RL training confirms this eliminates entropy collapse.
+Analyzed match b7cc74ba (evyIm-73a-stuck15 + ax5wp-73k-enemy12, score 45.09):
+- **Agent mortality**: 4/8 agents died before step 2500 (50% mortality in 10K-step match)
+- **Junction control deficit**: Cogs 450,858 vs Clips 551,066 — we hold only 45%
+- **Zero vibe transitions**: 5-action space confirmed across all agents
+- **Best agent survived 7269/10000 steps** with strong N/S patrol pattern
+
+### Key Findings (Session 38)
+
+1. **RL does NOT translate online** — Our RL (sal-*) scores 10-12, scripted scores 41.85. Even Softy's RL (softy-rl:v1) only scores 12.26. The offline→online gap for RL is ~3.5x worse than scripted.
+2. **RAxer mega-branch** — 201 commits, 40+ bug fixes in cross_role and machina policies. Critical finds: heart withdrawal overcount, dead cooldown code, broken depletion detection, equidistant aligner yield. NO offline eval. Created #77.
+3. **Leaderboard frozen** — Top 26 unchanged for 5 sessions (34-38). evyIm still #5 (41.85, 8 matches). Softy iterating (v114-v119) but no leaderboard movement.
+4. **Submission remains the #1 blocker** — 4th session flagging auth failure. longep3k_e20 unvalidated online. But RL online reality check tempers expectations.
+5. **New competitor activity** — softy-rl:v1, aif-hierarchical-v33:v9, multiple ron.* policies entering qualifying. Competition broadening.
 
 ### Progress Trajectory
 
 ```
-Session 30 (#40, 36.15)  →  Session 34 (#5, 41.85)  →  Session 35 (#5, 41.85, stable)
-RL training: 0 junctions (all prior) → 1.4 junctions (curriculum P1) → 4 junctions (P2 early)
+Session 34 (#5, 41.85) → Session 35 (#5, 41.85) → Session 38 (#5, 41.85, frozen 5 sessions)
+RL online: sal-* at rank 642 (11.63) — 3.5x worse than scripted
+RAxer: 201 commits, 40+ bug fixes, 0 offline evaluations
 ```
+
+**Current offline ceiling**: 3.282 total (scripted). RL longep3k_e20 1.394/agent at 10K steps but untested online.
+**Current online rank**: #5 of 938 in beta-cvc (41.85, evyIm-73a-stuck15:v1)
+**Gap**: RL offline improvements do NOT translate online. Scripted bug fixes (#77) are the most promising next lever.
+**Next up**: #76 (submit RL, validate gap) and #77 (evaluate RAxer bug fixes)
 
 ### Current Priority Stack
 
 ```
-priority:1  #75  RL Curriculum Training Phase 2+3                     <- NEW, the path to top-3
-priority:1  #41  RL policy training (parent issue)                    <- breakthrough! CPU viable
-priority:2  #74  Scripted ceiling at ~42                              <- documented, action on RL
-priority:3  #73  A/B test toEqP improvements                         <- DEMOTED, exhausted
-priority:3  #71  Junction control efficiency                          <- DEMOTED, RL will address
-priority:3  #70  2-agent allocation                                   <- low leverage
-priority:3  #53, #27, #26, #23-17, #12, #11, #10                     <- speculative / researched
+priority:1  #76  Submit RL checkpoint to beta-cvc              <- 4th session blocked on auth!
+priority:2  #77  RAxer bug fix sweep — eval before merge       <- NEW, 40+ fixes untested
+priority:2  #75  RL Curriculum Training Phase 2+3              <- DEMOTED, plateau confirmed
+priority:2  #41  RL policy training (parent)                   <- tracking
+priority:3  #74  Scripted ceiling at ~42                       <- documented
+priority:3  #73, #71, #70                                      <- exhausted / low leverage
+priority:3  #53, #27, #26, #23-17, #12, #11, #10              <- speculative / researched
 ```
 <!-- LEADERBOARD_END -->
 
