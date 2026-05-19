@@ -1,1 +1,6 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+20fc7d7	0.050	junction_held:0	500	keep	Phase 1 e040 at 500 steps (only survival reward)
+20fc7d7	0.200	junction_held:~3363_training	2000	keep	Phase 1 e040 at 2000 steps (exceeds scripted 0.18 baseline!)
+20fc7d7	0.052	junction_held:0	500	keep	Phase 1 e075 at 500 steps
+20fc7d7	0.054	junction_held:0	500	keep	Phase 1 e200 at 500 steps
+20fc7d7	0.050	junction_held:0	500	keep	Phase 1 e245 at 500 steps
