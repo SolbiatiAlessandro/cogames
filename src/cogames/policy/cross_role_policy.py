@@ -2050,14 +2050,12 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         target = None
                     if target is not None:
                         dist = abs(current_abs[0] - target[0]) + abs(current_abs[1] - target[1])
-                elif dist <= 2:
-                    action = self._aligner._starter._action("noop")
                 if target is not None and dist > 0 and action is None:
                     direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=True)
                     if direction:
                         action = self._aligner._starter._action(f"move_{direction}")
                     else:
-                        action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, target)
+                        action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, target, avoid_hazards=True)
                         state = self._copy_with_shared(replace(state,
                             wander_direction_index=base_state.wander_direction_index,
                             wander_steps_remaining=base_state.wander_steps_remaining,
