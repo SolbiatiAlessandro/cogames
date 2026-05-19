@@ -1770,6 +1770,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                                 return action, state
                             if dist == 2 and wants_hub_interaction:
                                 direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=True)
+                                if direction is None:
+                                    direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                                 if direction:
                                     action = self._aligner._starter._action(f"move_{direction}")
                                     self._track_move_target(action, current_abs, state)
