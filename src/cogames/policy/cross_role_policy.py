@@ -1595,13 +1595,19 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 state.retreat_stuck_steps = 0
 
             _RETREAT_STUCK_LIMIT = 50
-            if state.retreat_stuck_steps >= _RETREAT_STUCK_LIMIT:
+            _RETREAT_GIVE_UP_LIMIT = 100
+            if state.retreat_stuck_steps >= _RETREAT_GIVE_UP_LIMIT:
                 state.retreating = False
                 state.retreat_stuck_steps = 0
                 state.current_skill = None
                 self._clear_shared_map_tracking(obs.agent_id)
-                self._event(state, f"retreat cancelled: stuck for {_RETREAT_STUCK_LIMIT} steps, replanning")
-                logger.info("agent=%s RETREAT_CANCELLED stuck=%d, giving up retreat", obs.agent_id, _RETREAT_STUCK_LIMIT)
+                self._event(state, f"retreat cancelled: stuck for {_RETREAT_GIVE_UP_LIMIT} steps, replanning")
+                logger.info("agent=%s RETREAT_CANCELLED stuck=%d, giving up retreat", obs.agent_id, _RETREAT_GIVE_UP_LIMIT)
+            elif state.retreat_stuck_steps == _RETREAT_STUCK_LIMIT:
+                state.move_cooldowns.clear()
+                if hasattr(state, 'move_blocked_cells'):
+                    state.move_blocked_cells.clear()
+                self._event(state, f"retreat stuck: cleared cooldowns after {_RETREAT_STUCK_LIMIT} steps")
 
             elif state.retreat_stuck_steps >= 5 and state.retreat_stuck_steps % 3 == 0:
                 action, state = self._unstuck_move(state)
