@@ -1726,11 +1726,14 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                                 default=9999,
                             ) if retreat_targets else 9999
                             if al_dist < safe_dist and al_dist <= 10:
-                                direction = self._aligner._navigate_to_station(state, current_abs, nearest_alignable, avoid_hazards=True)
-                                if direction:
-                                    action = self._aligner._starter._action(f"move_{direction}")
-                                    self._track_move_target(action, current_abs, state)
-                                    return action, state
+                                action, base_state = self._aligner._move_to(state, current_abs, nearest_alignable)
+                                state = self._copy_with_shared(replace(state,
+                                    wander_direction_index=base_state.wander_direction_index,
+                                    wander_steps_remaining=base_state.wander_steps_remaining,
+                                    last_mode=base_state.last_mode,
+                                ))
+                                self._track_move_target(action, current_abs, state)
+                                return action, state
                 target = self._aligner._nearest_known(current_abs, retreat_targets) if retreat_targets else None
                 if target is not None:
                     is_hub = target in _retreat_hubs
@@ -1766,6 +1769,15 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                                     self._track_move_target(action, current_abs, state)
                                     return action, state
                         return self._aligner._starter._action("noop"), state
+                    if target in state.known_free_cells:
+                        action, base_state = self._aligner._move_to(state, current_abs, target)
+                        state = self._copy_with_shared(replace(state,
+                            wander_direction_index=base_state.wander_direction_index,
+                            wander_steps_remaining=base_state.wander_steps_remaining,
+                            last_mode=base_state.last_mode,
+                        ))
+                        self._track_move_target(action, current_abs, state)
+                        return action, state
                     direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=True)
                     if direction is None:
                         direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=False)
@@ -2051,11 +2063,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     if target is not None:
                         dist = abs(current_abs[0] - target[0]) + abs(current_abs[1] - target[1])
                 if target is not None and dist > 0 and action is None:
-                    direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=True)
-                    if direction:
-                        action = self._aligner._starter._action(f"move_{direction}")
-                    else:
-                        action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, target, avoid_hazards=True)
+                    if target in state.known_free_cells:
+                        action, base_state = self._aligner._move_to(state, current_abs, target)
                         state = self._copy_with_shared(replace(state,
                             wander_direction_index=base_state.wander_direction_index,
                             wander_steps_remaining=base_state.wander_steps_remaining,
@@ -2063,6 +2072,19 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                             last_pos=getattr(base_state, 'last_pos', state.last_pos),
                             last_move_target=getattr(base_state, 'last_move_target', state.last_move_target),
                         ))
+                    else:
+                        direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=True)
+                        if direction:
+                            action = self._aligner._starter._action(f"move_{direction}")
+                        else:
+                            action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, target, avoid_hazards=True)
+                            state = self._copy_with_shared(replace(state,
+                                wander_direction_index=base_state.wander_direction_index,
+                                wander_steps_remaining=base_state.wander_steps_remaining,
+                                last_mode=base_state.last_mode,
+                                last_pos=getattr(base_state, 'last_pos', state.last_pos),
+                                last_move_target=getattr(base_state, 'last_move_target', state.last_move_target),
+                            ))
             else:
                 # No friendly junctions known — explore near hub to stay safe
                 if state.known_hubs:

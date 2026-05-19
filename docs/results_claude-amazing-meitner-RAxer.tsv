@@ -109,3 +109,4 @@ ce4863e	0.000000	bug_fix	0	keep	fix: retreat navigation skips hazard avoidance �
 9957291	0.000000	bug_fix	0	keep	fix: defend heart-acquisition exits don't reset get_heart_timeouts
 1e738fa	0.000000	bug_fix	0	keep	fix: cross_role defend noop at dist<=2 + defend greedy missing hazard avoidance
 df68760	0.000000	critical_bug_fix	0	keep	fix: machina defend exits as stale after 15 steps — missing defend exclusion
+82ad5c9	0.000000	structural_only	0	keep	improve: cross_role direct BFS for junction navigation — defend, retreat, retreat-by-alignment
