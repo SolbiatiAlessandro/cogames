@@ -108,3 +108,4 @@ ce4863e	0.000000	bug_fix	0	keep	fix: retreat navigation skips hazard avoidance â
 07bab6f	0.000000	bug_fix	0	keep	fix: cross_role retreat/tether greedy fallback ignores hazard stations
 9957291	0.000000	bug_fix	0	keep	fix: defend heart-acquisition exits don't reset get_heart_timeouts
 1e738fa	0.000000	bug_fix	0	keep	fix: cross_role defend noop at dist<=2 + defend greedy missing hazard avoidance
+df68760	0.000000	critical_bug_fix	0	keep	fix: machina defend exits as stale after 15 steps â€” missing defend exclusion
