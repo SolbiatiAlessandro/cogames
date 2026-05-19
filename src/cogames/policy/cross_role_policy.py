@@ -1540,6 +1540,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
 
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+        self._miner._check_extractor_depletion(obs, state)
 
         gear = self._current_gear(obs)
         _CONTAMINATION_GEARS = {"scrambler", "scout"}
