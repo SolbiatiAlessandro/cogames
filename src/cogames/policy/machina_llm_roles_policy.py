@@ -372,7 +372,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         # Heart queue management: limit aligners rushing to hub based on estimated availability
         if skill == "get_heart" and self._shared_map is not None:
             sm = self._shared_map
-            available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
+            # Hub starts with 5 hearts + 24 of each element (8*3*1). Elements craft
+            # into hearts via make_heart/get_and_make_heart: 24//7 = 3 extra hearts.
+            _INITIAL_ELEMENT_HEARTS = 3
+            available_hearts = max(0, 5 + _INITIAL_ELEMENT_HEARTS + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
             max_queue = max(1, min(available_hearts, 4))
             if already_getting >= max_queue:

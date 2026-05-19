@@ -718,7 +718,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             hearts_consumed = self._shared_map.hub_hearts_withdrawn
             # If estimated crafted hearts exceed what's been withdrawn (minus initial 5),
             # there should be hearts available in the hub
-            hearts_from_crafting_consumed = max(0, hearts_consumed - 5)  # 5 initial hearts
+            hearts_from_crafting_consumed = max(0, hearts_consumed - 8)  # 5 initial hearts + 3 from initial elements
             if estimated_hearts > hearts_from_crafting_consumed:
                 state.get_heart_cooldown_steps = 0
                 state.consecutive_get_heart_failures = 0
@@ -764,8 +764,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 # Issue-36 v18: heart queue management — don't send more aligners to hub
                 # than estimated hearts available. Prevents 3 aligners rushing for 1 heart.
                 if self._shared_map is not None:
+                    _INITIAL_ELEMENT_HEARTS = 3  # 24 initial elements // 7 heart_cost
                     estimated_available = max(0,
-                        5 + self._shared_map.hearts_crafted_estimate - self._shared_map.hub_hearts_withdrawn
+                        5 + _INITIAL_ELEMENT_HEARTS + self._shared_map.hearts_crafted_estimate - self._shared_map.hub_hearts_withdrawn
                     )
                     others_getting = len(self._shared_map.agents_getting_hearts - {obs.agent_id})
                     if others_getting >= max(1, estimated_available):
