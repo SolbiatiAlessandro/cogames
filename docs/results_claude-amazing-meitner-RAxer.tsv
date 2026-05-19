@@ -120,3 +120,5 @@ b6f692e	0.000000	bug_fix	0	keep	fix: aligner tether navigation — missing hazar
 2c76042	0.000000	bug_fix	0	keep	fix: miner stale agent_gears after death — same bug as aligner
 4915278	0.000000	bug_fix	0	keep	fix: cross_role tether + gear_up_via_hub missing hazard fallback for hub navigation
 26cc4e2	0.000000	bug_fix	0	keep	fix: cross_role retreat hub approach at dist=2 missing hazard fallback
+6643bc6	0.000000	structural_only	0	keep	cleanup: remove dead defend_last_junction field from both policies
+400b88b	0.000000	bug_fix	0	keep	fix: miner hub tether calls deposit_to_hub with zero cargo — oscillation
