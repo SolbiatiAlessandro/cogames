@@ -68,7 +68,6 @@ class LLMAlignerState(AlignerState):
     global_step: int = 0
     # Defend patrol: steps spent sitting on current junction
     defend_station_steps: int = 0
-    defend_last_junction: tuple[int, int] | None = None
     # Hearts estimate at defend start — detect new hearts becoming available
     defend_start_hearts_estimate: int = 0
     # Hearts held when get_heart skill started — for accurate withdrawal tracking
@@ -413,7 +412,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
         state.defend_station_steps = 0
-        state.defend_last_junction = None
         self._event(state, f"planner selected {skill}: {reason}")
 
     def _maybe_finish_skill(self, obs: AgentObservation, state: LLMAlignerState) -> None:
@@ -876,7 +874,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         )
                     else:
                         target = self._nearest_known(current_abs, other_junctions)
-                    state.defend_last_junction = current_abs
                     state.defend_station_steps = 0
                     action, state = self._move_to(state, current_abs, target)
                 elif len(state.known_friendly_junctions) <= 1 and state.defend_station_steps >= 10:

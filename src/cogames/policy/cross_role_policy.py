@@ -291,7 +291,6 @@ class CrossRoleState:
 
     # Defend patrol cycling
     defend_station_steps: int = 0
-    defend_last_junction: Coord | None = None
     defend_start_hearts_estimate: int = 0
 
     # Issue-34: deposit tracking for heart availability signaling
@@ -625,7 +624,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
         state.defend_station_steps = 0
-        state.defend_last_junction = None
         if skill in {"explore", "gear_up_aligner", "gear_up_miner"}:
             state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)
             state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
@@ -1041,7 +1039,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
         state.defend_station_steps = 0
-        state.defend_last_junction = None
         if skill in {"explore", "gear_up_aligner", "gear_up_miner"}:
             state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)
             state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
@@ -2052,7 +2049,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                             target = max(other_junctions, key=_cr_defend_score)
                         else:
                             target = self._aligner._nearest_known(current_abs, other_junctions)
-                        state.defend_last_junction = current_abs
                         state.defend_station_steps = 0
                     elif len(fj) <= 1 and state.defend_station_steps >= 10:
                         action, base_state = self._aligner._explore_for_alignment(obs, state)
