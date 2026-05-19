@@ -1919,7 +1919,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                         continue
                     their_dist = abs(t[0] - other_pos[0]) + abs(t[1] - other_pos[1])
                     my_dist = abs(t[0] - current_abs[0]) + abs(t[1] - current_abs[1])
-                    if their_dist <= my_dist:
+                    if their_dist < my_dist:
                         yield_targets.add(t)
                 if yield_targets:
                     saved_bl = set(state.blacklisted_junctions)
