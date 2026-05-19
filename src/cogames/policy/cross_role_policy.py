@@ -442,9 +442,16 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         if state.known_aligner_stations:
             state.blocked_cells.update(state.known_aligner_stations)
             state.known_free_cells.difference_update(state.known_aligner_stations)
-        # Issue-35: Track agent positions for congestion avoidance
+        # Issue-35: Track agent positions and gear for congestion avoidance + team coordination
         if self._shared_map is not None:
             self._shared_map.agent_positions[obs.agent_id] = current_abs
+            gear = self._current_gear(obs)
+            if gear:
+                self._shared_map.agent_gears[obs.agent_id] = gear
+            if state.current_skill != "align_neutral":
+                self._shared_map.aligner_targets.pop(obs.agent_id, None)
+            if state.current_skill != "get_heart":
+                self._shared_map.agents_getting_hearts.discard(obs.agent_id)
         return current_abs
 
     def _update_progress(self, obs: AgentObservation, state: CrossRoleState) -> None:
