@@ -125,3 +125,4 @@ b6f692e	0.000000	bug_fix	0	keep	fix: aligner tether navigation — missing hazar
 0a1ef42	0.000000	bug_fix	0	keep	fix: cross_role miner hub tether navigates to hub with zero cargo
 39f62ad	0.000000	bug_fix	0	keep	fix: aligner yield uses <= causing both equidistant aligners to yield
 90445c6	0.000000	bug_fix	0	keep	fix: machina + cross_role miners missing extractor depletion detection
+10424bf	0.000000	bug_fix	0	keep	fix: CrossRoleState missing steps_near_extractor_no_gain field
