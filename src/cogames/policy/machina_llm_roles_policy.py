@@ -524,13 +524,17 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps without completion")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
-            if state.current_skill == "get_heart" and self._shared_map is not None:
-                self._shared_map.agents_getting_hearts.discard(obs.agent_id)
+            if state.current_skill == "get_heart":
+                state.get_heart_timeouts += 1
+                if self._shared_map is not None:
+                    self._shared_map.agents_getting_hearts.discard(obs.agent_id)
             self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
             state.current_skill = None
         elif state.current_skill not in {None, "gear_up", "defend"} and state.no_progress_on_target_steps >= self._stuck_threshold:
-            if state.current_skill == "get_heart" and self._shared_map is not None:
-                self._shared_map.agents_getting_hearts.discard(obs.agent_id)
+            if state.current_skill == "get_heart":
+                state.get_heart_timeouts += 1
+                if self._shared_map is not None:
+                    self._shared_map.agents_getting_hearts.discard(obs.agent_id)
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
 
