@@ -780,8 +780,10 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     f"fast-path: have heart and {len(known_alignable)} alignable targets")
                 return
             if not has_heart and not hub_depleted and state.known_hubs:
-                # Issue-36 v18: heart queue management — don't send more aligners to hub
-                # than estimated hearts available. Prevents 3 aligners rushing for 1 heart.
+                if state.get_heart_timeouts >= 1 and state.known_friendly_junctions:
+                    self._set_skill_fast(obs, state, "defend",
+                        f"fast-path: defend after {state.get_heart_timeouts} get_heart timeout(s)")
+                    return
                 if self._shared_map is not None:
                     _INITIAL_ELEMENT_HEARTS = 3  # 24 initial elements // 7 heart_cost
                     estimated_available = max(0,
