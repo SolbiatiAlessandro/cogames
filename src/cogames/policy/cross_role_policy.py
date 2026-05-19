@@ -278,6 +278,7 @@ class CrossRoleState:
 
     # Miner LLM tracking
     last_carried_total: int = 0
+    steps_near_extractor_no_gain: int = 0
     # Issue-36 v15: per-element inventory tracking for accurate deposit accounting
     last_inventory_counts: dict[str, int] = field(default_factory=lambda: {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0})
     explore_start_extractors: int = 0
