@@ -589,6 +589,8 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
                 if hub_dist > _MAX_HUB_DISTANCE:
                     carried = self._carried_total(obs)
                     state.current_skill = "deposit_to_hub" if carried > 0 else "explore"
+                    if state.current_skill == "explore":
+                        state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
                     state.skill_steps = 0
                     state.no_move_steps = 0
                     state.no_progress_on_target_steps = 0

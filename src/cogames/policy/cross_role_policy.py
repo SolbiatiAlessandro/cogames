@@ -625,6 +625,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.no_progress_on_target_steps = 0
         state.defend_station_steps = 0
         state.defend_last_junction = None
+        if skill in {"explore", "gear_up_aligner", "gear_up_miner"}:
+            state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)
+            state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
         if skill == "defend" and self._shared_map is not None:
             state.defend_start_hearts_estimate = self._shared_map.hearts_crafted_estimate
         if skill == "get_heart":
@@ -1021,10 +1024,6 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             reason = f"overrode unstuck to explore after {state.consecutive_unstuck} consecutive unstuck"
             state.consecutive_unstuck = 0
 
-        if skill in {"explore", "gear_up_aligner", "gear_up_miner"}:
-            state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)
-            state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
-
         # Issue-36 v16: clear aligner target when switching skills
         if self._shared_map is not None and skill != "align_neutral":
             self._shared_map.aligner_targets.pop(obs.agent_id, None)
@@ -1042,6 +1041,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.no_progress_on_target_steps = 0
         state.defend_station_steps = 0
         state.defend_last_junction = None
+        if skill in {"explore", "gear_up_aligner", "gear_up_miner"}:
+            state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)
+            state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
         if skill == "defend" and self._shared_map is not None:
             state.defend_start_hearts_estimate = self._shared_map.hearts_crafted_estimate
         if skill == "get_heart":
@@ -1614,6 +1616,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     else:
                         state.current_skill = "explore"
                         state.current_reason = f"miner tether: explore near hub (dist {hub_dist} > {_MAX_HUB_DISTANCE})"
+                        state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)
+                        state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
                     state.skill_steps = 0
                     state.no_move_steps = 0
                     state.no_progress_on_target_steps = 0
@@ -1662,6 +1666,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     state.skill_steps = 0
                     state.no_move_steps = 0
                     state.no_progress_on_target_steps = 0
+                    if state.current_skill == "explore":
+                        state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions) + len(state.known_friendly_junctions)
+                        state.explore_start_extractors = len(state.known_extractors) + len(state.depleted_extractors)
                     self._event(state, f"aligner tether: territory_dist {territory_dist} > {_MAX_ALIGNER_TERRITORY_DISTANCE}, {state.current_skill}")
                     logger.info("agent=%s ALIGNER_TETHER territory_dist=%d skill=%s", obs.agent_id, territory_dist, state.current_skill)
                     direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
