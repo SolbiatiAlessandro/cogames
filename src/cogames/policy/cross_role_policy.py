@@ -956,6 +956,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 skill = "explore"
                 reason = "overrode: already have miner gear, no extractors"
 
+        if gear == "aligner" and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1 and state.known_friendly_junctions:
+            skill = "defend"
+            reason = f"overrode get_heart to defend after {state.get_heart_timeouts} timeout(s) (hub likely empty)"
         # Prevent consecutive unstuck loops
         if skill == "unstuck":
             state.consecutive_unstuck += 1
@@ -1103,6 +1106,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 20:
             # Issue-16: long defend timeout — replan in case situation changed
             self._event(state, f"defend recheck after {state.skill_steps} steps")
+            state.get_heart_timeouts = 0
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished horizon")
