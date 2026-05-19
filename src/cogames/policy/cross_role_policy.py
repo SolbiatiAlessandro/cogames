@@ -672,6 +672,22 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.gear_up_failures = 0
             self._event(state, f"contamination detected ({gear}): resetting gear_up state for re-acquisition")
         if needs_gear_up:
+            if (
+                gear not in ("miner",)
+                and not has_heart
+                and effective_preferred == "aligner"
+                and state.known_hubs
+                and not contaminated
+            ):
+                current_abs = self._current_abs(obs)
+                near_hub = any(
+                    abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
+                    for h in state.known_hubs
+                )
+                if near_hub:
+                    self._set_skill_fast(obs, state, "get_heart",
+                        "heart-before-gear: grabbing heart near hub before aligner gear-up")
+                    return
             failures = state.gear_up_failures
             if failures == 0:
                 bootstrap_gear = effective_preferred
@@ -1077,8 +1093,11 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._shared_map.hub_hearts_withdrawn += newly_withdrawn
                     logger.info("agent=%s hub_hearts_withdrawn=%d (+%d)", obs.agent_id, self._shared_map.hub_hearts_withdrawn, newly_withdrawn)
                 state.current_skill = None
-        elif state.current_skill in {"get_heart", "align_neutral"} and gear != "aligner" and state.skill_steps > 0:
-            self._event(state, f"{state.current_skill} aborted: lost aligner gear (death or contamination)")
+        elif state.current_skill == "get_heart" and gear not in ("aligner", "none") and state.skill_steps > 0:
+            self._event(state, f"get_heart aborted: gear contaminated to {gear}")
+            state.current_skill = None
+        elif state.current_skill == "align_neutral" and gear != "aligner" and state.skill_steps > 0:
+            self._event(state, f"align_neutral aborted: lost aligner gear (now {gear})")
             state.current_skill = None
         elif state.current_skill == "align_neutral" and not has_heart and state.skill_steps > 0:
             self._event(state, "align_neutral completed: heart spent")
