@@ -115,3 +115,5 @@ e5bc1cd	0.000000	bug_fix	0	keep	fix: _navigate_to_station greedy fallback ignore
 4078aed	0.000000	wrong_fix	0	discard	REVERTED: junction deposits DO transfer to hub via queryDeposit — fix was incorrect
 b6f692e	0.000000	bug_fix	0	keep	fix: aligner tether navigation — missing hazard fallback + _move_to on blocked hub
 2b3743b	0.000000	bug_fix	0	keep	fix: aligner yield coordination yields to agents with unknown position
+1137195	0.000000	bug_fix	0	keep	fix: cross_role aligner yield coordination same unknown position bug
+7967f3a	0.000000	bug_fix	0	keep	fix: machina stale agent_gears after death — gearless agents retain pre-death gear
