@@ -71,6 +71,7 @@ class LLMAlignerState(AlignerState):
     defend_start_hearts_estimate: int = 0
     # Hearts held when get_heart skill started — for accurate withdrawal tracking
     get_heart_start_count: int = 0
+    last_heart_count: int = 0
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -165,20 +166,22 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
     def _update_progress(self, obs: AgentObservation, state: LLMAlignerState) -> None:
         has_heart = self._inventory_count(obs, "heart") > 0
+        heart_count = self._inventory_count(obs, "heart")
         friendly_count = len(state.known_friendly_junctions)
         current_abs = self._spawn_offset(obs)
-        if state.current_skill == "get_heart" and has_heart and not state.last_has_heart:
-            self._event(state, "acquired a heart")
+        if state.current_skill == "get_heart" and heart_count > state.last_heart_count:
+            self._event(state, f"heart count increased to {heart_count}")
         if state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions:
             self._event(state, f"friendly junction count increased from {state.last_friendly_junctions} to {friendly_count}")
 
         last_action_move = self._feature_value(obs, "last_action_move")
         made_progress = (
-            (state.current_skill == "get_heart" and has_heart and not state.last_has_heart)
+            (state.current_skill == "get_heart" and heart_count > state.last_heart_count)
             or (state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions)
             or (state.current_skill == "gear_up" and self._current_gear(obs) == "aligner")
         )
         state.last_has_heart = has_heart
+        state.last_heart_count = heart_count
         state.last_friendly_junctions = friendly_count
         # Hub cells are blocked objects — agents stand adjacent, never on the hub cell itself.
         # Use Manhattan distance ≤ 1 for get_heart so navigation-shake doesn't fire while waiting.

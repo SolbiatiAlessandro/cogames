@@ -258,6 +258,7 @@ class CrossRoleState:
 
     # Aligner LLM tracking
     last_has_heart: bool = False
+    last_heart_count: int = 0
     last_friendly_junctions: int = 0
     consecutive_unstuck: int = 0
     explore_start_junctions: int = 0
@@ -448,8 +449,9 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         carried_total = self._carried_total(obs)
         current_abs = self._current_abs(obs)
 
-        if state.current_skill == "get_heart" and has_heart and not state.last_has_heart:
-            self._event(state, "acquired a heart")
+        heart_count = self._inventory_count(obs, "heart")
+        if state.current_skill == "get_heart" and heart_count > state.last_heart_count:
+            self._event(state, f"heart count increased to {heart_count}")
         if state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions:
             self._event(state, f"friendly junction count increased {state.last_friendly_junctions}→{friendly_count}")
         if state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total:
@@ -526,7 +528,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         )
 
         made_progress = (
-            (state.current_skill == "get_heart" and has_heart and not state.last_has_heart)
+            (state.current_skill == "get_heart" and heart_count > state.last_heart_count)
             or (state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions)
             or (state.current_skill == "gear_up_aligner" and gear == "aligner")
             or (state.current_skill == "gear_up_miner" and gear == "miner")
@@ -534,6 +536,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             or (state.current_skill == "mine_until_full" and carried_total > state.last_carried_total)
         )
         state.last_has_heart = has_heart
+        state.last_heart_count = heart_count
         state.last_friendly_junctions = friendly_count
         state.last_carried_total = carried_total
         if gear == "miner":
