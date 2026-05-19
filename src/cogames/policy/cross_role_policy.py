@@ -288,6 +288,10 @@ class CrossRoleState:
     gear_up_failures_total: int = 0  # Issue-34 v12: cumulative counter that never resets on contamination
     gear_up_completed: bool = False  # True once any gear_up succeeds; prevents retry after accidental gear change
 
+    # Defend patrol cycling
+    defend_station_steps: int = 0
+    defend_last_junction: Coord | None = None
+
     # Issue-34: deposit tracking for heart availability signaling
     _last_seen_deposits: int = 0
 
@@ -613,6 +617,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
+        state.defend_station_steps = 0
+        state.defend_last_junction = None
         if skill == "get_heart":
             state.get_heart_start_count = self._inventory_count(obs, "heart")
         self._event(state, f"planner selected {skill}: {reason}")
@@ -995,6 +1001,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         state.skill_steps = 0
         state.no_move_steps = 0
         state.no_progress_on_target_steps = 0
+        state.defend_station_steps = 0
+        state.defend_last_junction = None
         if skill == "get_heart":
             state.get_heart_start_count = self._inventory_count(obs, "heart")
         self._event(state, f"planner selected {skill}: {reason}")
@@ -1873,12 +1881,37 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             else:
                 target = self._aligner._nearest_known(current_abs, fj)
             if target is not None:
+                action = None
                 dist = abs(current_abs[0] - target[0]) + abs(current_abs[1] - target[1])
-                if dist <= 2:
-                    # Already near friendly junction — hold position (noop)
+                if current_abs in fj:
+                    state.defend_station_steps += 1
+                    patrol_interval = 10 if ej else 40
+                    if state.defend_station_steps >= patrol_interval and len(fj) > 1:
+                        other_junctions = fj - {current_abs}
+                        if len(other_junctions) > 1 and other_positions:
+                            target = max(other_junctions, key=_cr_defend_score)
+                        else:
+                            target = self._aligner._nearest_known(current_abs, other_junctions)
+                        state.defend_last_junction = current_abs
+                        state.defend_station_steps = 0
+                    elif len(fj) <= 1 and state.defend_station_steps >= 10:
+                        action, base_state = self._aligner._explore_for_alignment(obs, state)
+                        state = self._copy_with_shared(replace(state,
+                            wander_direction_index=base_state.wander_direction_index,
+                            wander_steps_remaining=base_state.wander_steps_remaining,
+                            last_mode=base_state.last_mode,
+                            last_pos=getattr(base_state, 'last_pos', state.last_pos),
+                            last_move_target=getattr(base_state, 'last_move_target', state.last_move_target),
+                        ))
+                        target = None
+                    else:
+                        action = self._aligner._starter._action("noop")
+                        target = None
+                    if target is not None:
+                        dist = abs(current_abs[0] - target[0]) + abs(current_abs[1] - target[1])
+                elif dist <= 2:
                     action = self._aligner._starter._action("noop")
-                else:
-                    # Navigate toward friendly junction
+                if target is not None and dist > 0 and action is None:
                     direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=True)
                     if direction:
                         action = self._aligner._starter._action(f"move_{direction}")
