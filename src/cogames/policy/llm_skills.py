@@ -879,6 +879,10 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 hub_dist = abs(nearest_hub[0] - current_abs[0]) + abs(nearest_hub[1] - current_abs[1])
                 if junction_dist < hub_dist:
                     direction = self._bfs_first_direction(state, current_abs, nearest_junction)
+                    if direction is None:
+                        direction = self._bfs_without_cooldowns(state, current_abs, nearest_junction)
+                    if direction is None:
+                        direction = self._bfs_optimistic_direction(state, current_abs, nearest_junction)
                     if direction is not None:
                         return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         visible_target = self._closest_visible_location(obs, self._hub_tags)

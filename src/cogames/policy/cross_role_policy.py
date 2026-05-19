@@ -1755,6 +1755,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 # Navigate to friendly junction (walkable — direct BFS, no approach cell needed)
                 direction = self._aligner._bfs_first_direction(state, current_abs, junction_target, avoid_hazards=False)
                 if direction is None:
+                    direction = self._aligner._bfs_without_cooldowns(state, current_abs, junction_target, avoid_hazards=False)
+                if direction is None:
                     direction = self._aligner._bfs_optimistic_direction(state, current_abs, junction_target, avoid_hazards=False)
                 if direction is not None:
                     action = self._aligner._starter._action(f"move_{direction}")
