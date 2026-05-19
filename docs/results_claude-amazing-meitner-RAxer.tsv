@@ -77,3 +77,5 @@ b7b8ca3	0.000000	bug_fix	0	keep	fix: heart accumulation progress tracking only d
 c3ad361	0.000000	structural_only	0	keep	improve: cascade-aware defend scoring + cross_role alignable range check
 a5bca44	0.000000	structural_only	0	keep	improve: cross_role heart accumulation near hub before departing
 e9c2aef	0.000000	bug_fix	0	keep	fix: cross_role get_heart_timeouts never gates skill selection
+7ea1e75	0.000000	bug_fix	0	keep	fix: cross_role SharedMap stale gear + heart queue tracking between replans
+de209da	0.000000	bug_fix	0	keep	fix: cross_role missing gear-loss skill abort — wastes 15 steps after contamination
