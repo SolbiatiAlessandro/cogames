@@ -1046,9 +1046,15 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     self._shared_map.hub_hearts_withdrawn += newly_withdrawn
                     logger.info("agent=%s hub_hearts_withdrawn=%d (+%d)", obs.agent_id, self._shared_map.hub_hearts_withdrawn, newly_withdrawn)
                 state.current_skill = None
+        elif state.current_skill in {"get_heart", "align_neutral"} and gear != "aligner" and state.skill_steps > 0:
+            self._event(state, f"{state.current_skill} aborted: lost aligner gear (death or contamination)")
+            state.current_skill = None
         elif state.current_skill == "align_neutral" and not has_heart and state.skill_steps > 0:
             self._event(state, "align_neutral completed: heart spent")
             state.align_neutral_timeouts = 0
+            state.current_skill = None
+        elif state.current_skill in {"mine_until_full", "deposit_to_hub"} and gear != "miner" and state.skill_steps > 0:
+            self._event(state, f"{state.current_skill} aborted: lost miner gear (death or contamination)")
             state.current_skill = None
         elif state.current_skill == "mine_until_full" and carried >= self._return_load:
             self._event(state, f"mine_until_full completed: cargo={carried}")
