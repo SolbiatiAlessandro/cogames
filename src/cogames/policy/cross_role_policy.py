@@ -400,13 +400,37 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
     def _known_alignable_junctions(self, state: CrossRoleState) -> set[Coord]:
         return state.known_neutral_junctions - state.blacklisted_junctions
 
+    def _dist_to_nearest_safe(self, current_abs: Coord, state: CrossRoleState) -> int:
+        min_dist = 9999
+        for hub in state.known_hubs:
+            d = abs(current_abs[0] - hub[0]) + abs(current_abs[1] - hub[1])
+            if d < min_dist:
+                min_dist = d
+        for fj in state.known_friendly_junctions:
+            d = abs(current_abs[0] - fj[0]) + abs(current_abs[1] - fj[1])
+            if d < min_dist:
+                min_dist = d
+        return min_dist
+
     def _update_map_memory(self, obs: AgentObservation, state: CrossRoleState) -> Coord:
         """Update map from both aligner and miner perspectives."""
         # Use aligner map memory (handles junctions, aligner stations, hazards)
         current_abs = self._aligner._update_map_memory(obs, state)
+        # Save movement tracking state — aligner already processed it correctly.
+        # Without this, the miner call re-increments steps_since_last_move (always >=1
+        # after a move, doubles when stuck) and double-ticks cooldowns (expire 2x fast).
+        saved_last_pos = state.last_pos
+        saved_last_move_target = state.last_move_target
+        saved_steps_since = state.steps_since_last_move
+        saved_cooldowns = dict(state.move_cooldowns)
         # Additionally update miner-specific structures (extractors, miner stations)
         # We reuse the miner's _update_map_memory but pass our CrossRoleState (duck typing)
         self._miner._update_map_memory(obs, state)
+        # Restore movement tracking — prevent double counting
+        state.last_pos = saved_last_pos
+        state.last_move_target = saved_last_move_target
+        state.steps_since_last_move = saved_steps_since
+        state.move_cooldowns = saved_cooldowns
         # Issue-36 v13: miner update clears+rebuilds blocked_cells from its own blocked_now,
         # which doesn't include aligner stations. Visible aligner stations get unblocked and
         # added to known_free_cells. Fix: re-apply blocking for all known aligner stations.
@@ -1382,31 +1406,33 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         self._update_progress(obs, state)
         self._maybe_finish_skill(obs, state)
 
-        # Issue-36: HP retreat — navigate to hub when HP is dangerously low
-        # Hub provides AOE heal in its territory. Retreating keeps agents alive at 10k steps.
-        # Cap max_hp_seen at 100 (base HP) to prevent retreat getting stuck when hub heals
-        # agents above base HP (e.g., to 200). Without cap, recovery threshold becomes
-        # 80% of 200 = 160, which is unreachable with base HP of 100 → permanent retreat.
         _BASE_HP = 100
         current_hp = self._inventory_count(obs, "hp")
         if current_hp > state.max_hp_seen:
             state.max_hp_seen = min(current_hp, _BASE_HP)
         if state.max_hp_seen > 0:
             hp_fraction = current_hp / state.max_hp_seen
-            if hp_fraction < _HP_RETREAT_THRESHOLD and not state.retreating:
+            in_friendly = self._aligner._in_friendly_territory(current_abs, state)
+            dist_to_safe = self._dist_to_nearest_safe(current_abs, state)
+            effective_threshold = _HP_RETREAT_THRESHOLD
+            if dist_to_safe > 40:
+                effective_threshold = min(0.85, _HP_RETREAT_THRESHOLD + 0.15)
+            elif dist_to_safe > 25:
+                effective_threshold = _HP_RETREAT_THRESHOLD + 0.05
+            if hp_fraction < effective_threshold and not in_friendly and not state.retreating:
                 state.retreating = True
-                state.retreat_stuck_steps = 0  # Issue-36 v7: reset stuck counter on retreat start
-                state.current_skill = None  # cancel current skill
-                self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19: release coordination slots
-                self._event(state, f"HP retreat: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
-                logger.info("agent=%s HP_RETREAT hp=%d/%d frac=%.2f", obs.agent_id, current_hp, state.max_hp_seen, hp_fraction)
-            elif hp_fraction >= 0.80 and state.retreating:
+                state.retreat_stuck_steps = 0
+                state.current_skill = None
+                self._clear_shared_map_tracking(obs.agent_id)
+                self._event(state, f"HP retreat: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%}) dist_safe={dist_to_safe}")
+                logger.info("agent=%s HP_RETREAT hp=%d/%d frac=%.2f dist_safe=%d", obs.agent_id, current_hp, state.max_hp_seen, hp_fraction, dist_to_safe)
+            elif state.retreating and (in_friendly or hp_fraction >= 0.85):
                 state.retreating = False
-                state.retreat_stuck_steps = 0  # Issue-36 v7: reset stuck counter on recovery
-                state.current_skill = None  # replan after recovery
-                self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19: release coordination slots
-                self._event(state, f"HP recovered: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%})")
-                logger.info("agent=%s HP_RECOVERED hp=%d/%d", obs.agent_id, current_hp, state.max_hp_seen)
+                state.retreat_stuck_steps = 0
+                state.current_skill = None
+                self._clear_shared_map_tracking(obs.agent_id)
+                self._event(state, f"HP recovered: hp={current_hp}/{state.max_hp_seen} ({hp_fraction:.0%}) in_friendly={in_friendly}")
+                logger.info("agent=%s HP_RECOVERED hp=%d/%d in_friendly=%s", obs.agent_id, current_hp, state.max_hp_seen, in_friendly)
 
         # Issue-36 v6: miner hub tethering — prevent miners from wandering too far from hub.
         # Miners that explore beyond MAX_HUB_DISTANCE can't retreat in time when HP drops.
@@ -1499,85 +1525,70 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                     return action, state
 
         if state.retreating and state.known_hubs:
-            # Issue-36 v7: track stuck steps during retreat to prevent permanent stuck loops.
-            # In V6 seed 42, agent 0 spent 8827 steps stuck against walls while retreating.
             last_action_move = self._feature_value(obs, "last_action_move")
             if last_action_move == 0:
                 state.retreat_stuck_steps += 1
             else:
                 state.retreat_stuck_steps = 0
 
-            # Issue-36 v7: if stuck for 50+ steps during retreat, cancel retreat entirely.
-            # A stuck-retreating agent contributes nothing — better to let it replan and
-            # potentially do useful work even at low HP, or die trying.
             _RETREAT_STUCK_LIMIT = 50
             if state.retreat_stuck_steps >= _RETREAT_STUCK_LIMIT:
                 state.retreating = False
                 state.retreat_stuck_steps = 0
                 state.current_skill = None
-                self._clear_shared_map_tracking(obs.agent_id)  # Issue-36 v19
+                self._clear_shared_map_tracking(obs.agent_id)
                 self._event(state, f"retreat cancelled: stuck for {_RETREAT_STUCK_LIMIT} steps, replanning")
                 logger.info("agent=%s RETREAT_CANCELLED stuck=%d, giving up retreat", obs.agent_id, _RETREAT_STUCK_LIMIT)
-                # Fall through to normal skill planning below
 
-            # Issue-36 v7: if stuck for 5+ steps during retreat, use unstuck move to break free
             elif state.retreat_stuck_steps >= 5 and state.retreat_stuck_steps % 3 == 0:
                 action, state = self._unstuck_move(state)
                 self._track_move_target(action, current_abs, state)
                 return action, state
 
             else:
-                # Normal retreat navigation
-                hub_abs = self._aligner._nearest_known(current_abs, state.known_hubs)
-                if hub_abs is not None:
-                    dist = abs(current_abs[0] - hub_abs[0]) + abs(current_abs[1] - hub_abs[1])
+                _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
+                retreat_targets = _retreat_hubs | state.known_friendly_junctions
+                target = self._aligner._nearest_known(current_abs, retreat_targets) if retreat_targets else None
+                if target is not None:
+                    is_hub = target in _retreat_hubs
+                    dist = abs(current_abs[0] - target[0]) + abs(current_abs[1] - target[1])
                     if dist <= 2:
-                        state.retreat_stuck_steps = 0  # not stuck, intentionally holding
-                        # Issue-36 v7: emergency deposit — miners with cargo step into hub
-                        # to trigger deposit handler before healing. Saves resources that
-                        # would be lost if the miner dies (per issue #34 findings).
-                        # Issue-36 v9: also step into hub for non-miners to trigger heart
-                        # collection. Heartless aligners can pick up hearts while healing,
-                        # so they can immediately align after recovery.
-                        carried = self._carried_total(obs)
-                        gear = self._current_gear(obs)
-                        has_heart = self._inventory_count(obs, "heart") > 0
-                        wants_hub_interaction = (
-                            (gear == "miner" and carried > 0)  # deposit cargo
-                            or (gear != "miner" and not has_heart)  # collect heart
-                        )
-                        if dist == 1 and wants_hub_interaction:
-                            dr = hub_abs[0] - current_abs[0]
-                            dc = hub_abs[1] - current_abs[1]
-                            if abs(dr) >= abs(dc):
-                                direction = "south" if dr > 0 else "north"
-                            else:
-                                direction = "east" if dc > 0 else "west"
-                            if gear == "miner":
-                                self._event(state, f"emergency deposit: miner stepping into hub with {carried} cargo")
-                            else:
-                                self._event(state, "retreat hub interaction: stepping into hub to collect heart")
-                            action = self._aligner._starter._action(f"move_{direction}")
-                            self._track_move_target(action, current_abs, state)
-                            return action, state
-                        # Issue-36 v10: at dist==2, approach hub to reach dist==1 for interaction.
-                        # Without this, agents noop at dist 2 and never trigger hub handlers
-                        # (deposit, get_heart). Moving 1 step closer enables hub interaction
-                        # on the next step while still being in AOE heal range.
-                        if dist == 2 and wants_hub_interaction:
-                            direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
-                            if direction:
+                        state.retreat_stuck_steps = 0
+                        if is_hub:
+                            carried = self._carried_total(obs)
+                            gear = self._current_gear(obs)
+                            has_heart = self._inventory_count(obs, "heart") > 0
+                            wants_hub_interaction = (
+                                (gear == "miner" and carried > 0)
+                                or (gear != "miner" and not has_heart)
+                            )
+                            if dist == 1 and wants_hub_interaction:
+                                dr = target[0] - current_abs[0]
+                                dc = target[1] - current_abs[1]
+                                if abs(dr) >= abs(dc):
+                                    direction = "south" if dr > 0 else "north"
+                                else:
+                                    direction = "east" if dc > 0 else "west"
+                                if gear == "miner":
+                                    self._event(state, f"emergency deposit: miner stepping into hub with {carried} cargo")
+                                else:
+                                    self._event(state, "retreat hub interaction: stepping into hub to collect heart")
                                 action = self._aligner._starter._action(f"move_{direction}")
                                 self._track_move_target(action, current_abs, state)
                                 return action, state
-                        # Hold position for healing
+                            if dist == 2 and wants_hub_interaction:
+                                direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=True)
+                                if direction:
+                                    action = self._aligner._starter._action(f"move_{direction}")
+                                    self._track_move_target(action, current_abs, state)
+                                    return action, state
                         return self._aligner._starter._action("noop"), state
-                    direction = self._aligner._navigate_to_station(state, current_abs, hub_abs, avoid_hazards=True)
+                    direction = self._aligner._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                     if direction:
                         action = self._aligner._starter._action(f"move_{direction}")
                         self._track_move_target(action, current_abs, state)
                         return action, state
-                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, hub_abs)
+                    action, base_state = self._aligner._greedy_move_toward_abs(state, current_abs, target)
                     state = self._copy_with_shared(replace(state,
                         wander_direction_index=base_state.wander_direction_index,
                         wander_steps_remaining=base_state.wander_steps_remaining,
