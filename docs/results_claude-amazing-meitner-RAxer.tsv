@@ -106,3 +106,4 @@ c36df8a	0.000000	bug_fix	0	keep	fix: tether get_heart missing start_count + cros
 625e45c	0.000000	bug_fix	0	keep	fix: cross_role junction deposit BFS skipped hazard avoidance
 ce4863e	0.000000	bug_fix	0	keep	fix: retreat navigation skips hazard avoidance — causes gear contamination
 07bab6f	0.000000	bug_fix	0	keep	fix: cross_role retreat/tether greedy fallback ignores hazard stations
+9957291	0.000000	bug_fix	0	keep	fix: defend heart-acquisition exits don't reset get_heart_timeouts
