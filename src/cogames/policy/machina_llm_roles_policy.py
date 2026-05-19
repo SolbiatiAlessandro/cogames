@@ -52,6 +52,7 @@ class LLMAlignerState(AlignerState):
     no_move_steps: int = 0
     no_progress_on_target_steps: int = 0
     last_has_heart: bool = False
+    _prev_step_had_heart: bool = False
     last_friendly_junctions: int = 0
     consecutive_unstuck: int = 0
     explore_start_junctions: int = 0
@@ -136,6 +137,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             no_move_steps=state.no_move_steps,
             no_progress_on_target_steps=state.no_progress_on_target_steps,
             last_has_heart=state.last_has_heart,
+            _prev_step_had_heart=state._prev_step_had_heart,
             last_friendly_junctions=state.last_friendly_junctions,
             consecutive_unstuck=state.consecutive_unstuck,
             explore_start_junctions=state.explore_start_junctions,
@@ -181,6 +183,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             or (state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions)
             or (state.current_skill == "gear_up" and self._current_gear(obs) == "aligner")
         )
+        state._prev_step_had_heart = state.last_has_heart
         state.last_has_heart = has_heart
         state.last_heart_count = heart_count
         state.last_friendly_junctions = friendly_count
@@ -452,7 +455,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 if alignable_dist <= 25 or _reachable_enemy:
                     self._event(state, f"defend ended: alignable junction at dist={alignable_dist}")
                     state.current_skill = None
-            elif has_heart and not state.last_has_heart:
+            elif has_heart and not state._prev_step_had_heart:
                 self._event(state, "defend ended: acquired heart while defending")
                 state.get_heart_timeouts = 0
                 state.current_skill = None

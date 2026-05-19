@@ -261,6 +261,7 @@ class CrossRoleState:
 
     # Aligner LLM tracking
     last_has_heart: bool = False
+    _prev_step_had_heart: bool = False
     last_heart_count: int = 0
     last_friendly_junctions: int = 0
     consecutive_unstuck: int = 0
@@ -552,6 +553,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             or (state.current_skill == "deposit_to_hub" and carried_total < state.last_carried_total)
             or (state.current_skill == "mine_until_full" and carried_total > state.last_carried_total)
         )
+        state._prev_step_had_heart = state.last_has_heart
         state.last_has_heart = has_heart
         state.last_heart_count = heart_count
         state.last_friendly_junctions = friendly_count
@@ -1171,8 +1173,8 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
         ):
             self._event(state, f"explore interrupted: found {len(self._known_alignable_junctions(state))} alignable targets")
             state.current_skill = None
-        elif state.current_skill == "defend" and has_heart:
-            self._event(state, "defend completed: acquired heart, switching to align")
+        elif state.current_skill == "defend" and has_heart and not state._prev_step_had_heart:
+            self._event(state, "defend completed: acquired heart while defending, switching to align")
             state.consecutive_get_heart_failures = 0
             state.current_skill = None
         elif state.current_skill == "defend" and gear != "aligner" and state.skill_steps > 0:
