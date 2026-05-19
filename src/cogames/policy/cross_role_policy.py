@@ -249,6 +249,7 @@ class CrossRoleState:
     steps_since_last_move: int = 0
     contamination_avoid_cells: set[Coord] = field(default_factory=set)
     gear_contamination_count: int = 0
+    _prev_gear: str = ""
 
     # LLM planning state
     current_skill: str | None = None
@@ -1497,6 +1498,22 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
 
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+
+        gear = self._current_gear(obs)
+        _CONTAMINATION_GEARS = {"miner", "scrambler", "scout"}
+        if state._prev_gear == "aligner" and gear in _CONTAMINATION_GEARS:
+            state.contamination_avoid_cells.add(current_abs)
+            state.gear_contamination_count += 1
+            logger.info("agent=%s GEAR_CONTAMINATED at %s (now %s, count=%d)",
+                        obs.agent_id, current_abs, gear, state.gear_contamination_count)
+        state._prev_gear = gear
+
+        _CONTAMINATION_EXPIRY_INTERVAL = 500
+        if state.episode_step % _CONTAMINATION_EXPIRY_INTERVAL == 0 and state.contamination_avoid_cells:
+            count = len(state.contamination_avoid_cells)
+            state.contamination_avoid_cells.clear()
+            self._event(state, f"contamination cells expired: cleared {count} cells")
+
         self._maybe_finish_skill(obs, state)
 
         _BASE_HP = 100
