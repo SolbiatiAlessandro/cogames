@@ -122,3 +122,5 @@ b6f692e	0.000000	bug_fix	0	keep	fix: aligner tether navigation — missing hazar
 26cc4e2	0.000000	bug_fix	0	keep	fix: cross_role retreat hub approach at dist=2 missing hazard fallback
 6643bc6	0.000000	structural_only	0	keep	cleanup: remove dead defend_last_junction field from both policies
 400b88b	0.000000	bug_fix	0	keep	fix: miner hub tether calls deposit_to_hub with zero cargo — oscillation
+0a1ef42	0.000000	bug_fix	0	keep	fix: cross_role miner hub tether navigates to hub with zero cargo
+39f62ad	0.000000	bug_fix	0	keep	fix: aligner yield uses <= causing both equidistant aligners to yield
