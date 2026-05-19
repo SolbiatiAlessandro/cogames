@@ -1181,6 +1181,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             state.current_skill = None
         elif state.current_skill == "defend" and has_heart and not state._prev_step_had_heart:
             self._event(state, "defend completed: acquired heart while defending, switching to align")
+            state.get_heart_timeouts = 0
             state.consecutive_get_heart_failures = 0
             state.current_skill = None
         elif state.current_skill == "defend" and has_heart and gear == "aligner" and state.skill_steps > 0:
@@ -1191,6 +1192,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
                 alignable_dist = abs(nearest_alignable[0] - current_abs[0]) + abs(nearest_alignable[1] - current_abs[1]) if nearest_alignable else 9999
                 if alignable_dist <= 25:
                     self._event(state, f"defend ended: alignable junction at dist={alignable_dist}")
+                    state.get_heart_timeouts = 0
                     state.current_skill = None
         elif state.current_skill == "defend" and gear != "aligner" and state.skill_steps > 0:
             self._event(state, "defend ended: lost aligner gear")

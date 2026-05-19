@@ -454,6 +454,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 alignable_dist = abs(nearest_alignable[0] - current_abs[0]) + abs(nearest_alignable[1] - current_abs[1]) if nearest_alignable else 9999
                 if alignable_dist <= 25 or _reachable_enemy:
                     self._event(state, f"defend ended: alignable junction at dist={alignable_dist}")
+                    state.get_heart_timeouts = 0
                     state.current_skill = None
             elif has_heart and not state._prev_step_had_heart:
                 self._event(state, "defend ended: acquired heart while defending")
