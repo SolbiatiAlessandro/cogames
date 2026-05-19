@@ -1088,7 +1088,7 @@ class CrossRolePolicyImpl(StatefulPolicyImpl[CrossRoleState]):
             if heart_count < accumulation_target and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
-                newly_withdrawn = max(1, heart_count - state.get_heart_start_count)
+                newly_withdrawn = max(0, heart_count - state.get_heart_start_count)
                 self._event(state, f"get_heart completed: acquired {newly_withdrawn} heart(s) (now {heart_count})")
                 state.get_heart_timeouts = 0
                 state.consecutive_get_heart_failures = 0
