@@ -100,3 +100,5 @@ fa4cdb9	0.000000	bug_fix	0	keep	fix: cross_role get_heart exits don't clear agen
 7bbdc77	0.000000	bug_fix	0	keep	fix: explore completion counts decrease on teammate align/deplete — all 3 policies
 76d159c	0.000000	bug_fix	0	keep	fix: explore_start counters not initialized on fast-path/tether skill assignment
 7b8c105	0.000000	bug_fix	0	keep	fix: _in_friendly_territory same distance for hub+junction — false safe at dist 11-15 from junction
+e4b0992	0.000000	structural_only	0	keep	improve: miner extractor target coordination via SharedMap — yield to closer miners
+03a1168	0.000000	structural_only	0	keep	cleanup: remove dead code — _expand_hazard_zone + unused extractor-to-hub functions
