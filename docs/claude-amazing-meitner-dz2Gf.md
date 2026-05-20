@@ -132,3 +132,28 @@ Also cleaned up dead mining mode code from machina_llm_roles_policy.py.
 7. Explore cap 30→45: +0.9% 3-seed, -0.2% 6-seed (seed 47 regression)
 
 **Conclusion**: The +3.3% cumulative improvement (gear_up approach diversification + shared depleted extractors + early heart cap) appears to be near the ceiling for incremental scripted changes. 18+ parameter/mechanism tweaks tested across sessions 3-4 have all been neutral to negative. Further improvement likely requires architectural changes (different skill framework, LLM planner improvements, or online-specific adaptations).
+
+## 2026-05-21: session 5 — deep diagnostic + 7 experiments, all failed
+
+**Key diagnostic findings** (skill time tracking added to aligners and miners):
+- Aligner time allocation: **68% explore**, 23% align_neutral, 9% get_heart, <2% gear_up+unstuck
+- Miner time allocation: 45% mine_until_full, 33% explore, 19% deposit_to_hub, 1% gear_up
+- 84% of aligner explore phases cap at 30 steps without finding junctions (190 caps vs 172 completions on seed 42)
+- When explore completes (finds junction), it averages ~13 steps. Caps are always 30 steps.
+- align_neutral: 22 timeouts vs 12 completions on seed 42 (each timeout = 75 wasted steps)
+- ALL align_neutral timeouts have on_target=False — agent never reaches the junction
+- Timeout distances range from 2-57 cells: both close-range deadlocks and unreachable targets
+- BFS navigation succeeds 99%+ of the time — timeouts from long winding BFS paths, not nav failures
+- Game's JUNCTION_ALIGN_DISTANCE=15, policy uses 25. The 25 acts as "planning horizon" for explore.
+- Oxygen is the mining bottleneck: 900 gained vs carbon 1350, germanium 1090, silicon 1570
+
+**Tried and failed**:
+1. Explore coordination via SharedMap (dist=8, dist=5): aligners forced to different frontier cells hurt individual efficiency. -0.3% / -0.7%
+2. Hearts accumulation cap 5→8: more hub wait time, aligners idle longer. -2.2%
+3. JUNCTION_ALIGN_DISTANCE 25→15 (match game constant): +0.5% 3-seed but -0.4% 6-seed. Seed 47 regressed -2.9%. The "planning horizon" of 25 helps explore find junctions that will become alignable as network grows.
+4. JUNCTION_ALIGN_DISTANCE 25→20: -1.2%
+5. Align_neutral timeout reduction (×5→×3): aligners give up on reachable junctions too quickly, spend MORE time exploring. -5.7%
+6. Hub-empty explore-instead (explore when hearts_crafted_estimate=0 and hub_hearts_withdrawn≥5): aligners explore far from hub, long return trip when hearts arrive. -2.1%
+7. Distance progress early exit (blacklist target if no distance improvement for 40 steps): counter-productive blacklisting removes useful junction knowledge. -1.2% to -2.2%
+
+**Conclusion**: The +3.3% cumulative improvement remains the ceiling. 25+ experiments across 5 sessions have been exhaustively tested. The bottleneck is structural: aligners spend 68% exploring because junctions are scattered across the map and alignment frontier shrinks as territory is explored. Further gains require fundamentally different approaches (RL-trained policy, LLM-guided exploration, or online-specific enemy adaptation).
