@@ -584,3 +584,35 @@ Committed as f6f0cde. Changes: heart queue fix + default 7/8 aligner fraction + 
 
 ### Cumulative improvement chain
 - Baseline (3.04) → HP retreat 35% (+163%) → 7A1M + heart fix (+66%) = **+338% total**
+
+### Experiment 12c: Heart accumulation sweep with 7A1M
+
+| Hearts | Seed 42 | Seed 43 | Seed 44 | 3-seed avg |
+|--------|---------|---------|---------|------------|
+| 2 | 10.10 | 8.69 | 7.15 | 8.65 |
+| **5 (default)** | **11.55** | **11.47** | **13.57** | **12.20** |
+| 7 | 11.28 | 10.11 | 10.97 | 10.79 |
+| 8 | 14.24 | 13.67 | 9.43 | 12.45 |
+
+Hearts=5 remains optimal. Too few hearts = excess hub travel. Too many = hub congestion with 7 aligners. Discarded, keeping hearts=5.
+
+### Experiment 12d: Fine-tuning sweep (all discarded)
+
+| Experiment | 3-seed avg | vs baseline (12.20) | Notes |
+|-----------|-----------|-------------------|-------|
+| Resume 40% (from 50%) | 12.20 | 0% | No effect |
+| No retreat during gear_up | 12.19 | 0% | No effect |
+| Stuck threshold 10 | 10.06 | -17.5% | Too aggressive |
+| Stuck threshold 20 | 13.11 | +7.5% (noise) | 6-seed: 13.20 < 13.32 baseline |
+| Stuck threshold 25 | 12.42 | +1.8% | Noise |
+| Move cooldown 5 | 11.42 | -6.4% | Oscillation worse |
+| Move cooldown 7 | 12.39 | +1.6% | Noise |
+| Friendly territory 20 (from 15) | 11.77 | -3.5% | Less safe area hurts |
+| Blacklist clear on heart refill | 12.82 | +5.1% (3-seed) | 6-seed: 12.56 < 13.32, reverted |
+| 6A2M at 10K steps | 11.44 | — | 7A1M still better (12.90) |
+
+### 10K step validation
+7A1M at 10K steps: avg 12.90 (42:12.25, 43:12.17, 44:14.27). Improvement scales to competition episode length.
+
+### Conclusion
+The committed config (7A1M, HP retreat 35%/resume 50%, hearts=5, stuck=15, cooldown=6, friendly_dist=15, heart_queue_fix) appears to be at a strong local optimum. All single-parameter changes tested are within noise or worse.

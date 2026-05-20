@@ -40,3 +40,12 @@ WIP	7.37	junctions_gained=n/a junction_held=n/a	3000	discard	[POST-REBASE] HP re
 83a3ded	8.45	hearts=n/a	3000	discard	[POST-REBASE] 8A0M+HP35% (no fix): station congestion. avg 8.45 (42:10.58, 43:10.67, 44:4.10)
 f6f0cde	13.32	hearts=n/a	3000	keep	[POST-REBASE] 7A1M+HP35%+heart-fix: 6-seed avg 13.32 (42:11.55, 43:11.47, 44:13.57, 45:12.09, 46:14.56, 47:16.66) +66% vs 3A5M
 f6f0cde	12.72	hearts=n/a	3000	discard	[POST-REBASE] 8A0M+HP35%+heart-fix: 6-seed avg 12.72 (42:12.39, 43:10.78, 44:13.54, 45:12.46, 46:10.53, 47:16.60)
+f6f0cde	8.65	hearts=n/a	3000	discard	[POST-REBASE] 7A1M hearts=2: too few hearts per trip. avg 8.65 (42:10.10, 43:8.69, 44:7.15)
+f6f0cde	12.45	hearts=n/a	3000	discard	[POST-REBASE] 7A1M hearts=8: avg 12.45 (42:14.24, 43:13.67, 44:9.43) noise vs hearts=5
+f6f0cde	10.79	hearts=n/a	3000	discard	[POST-REBASE] 7A1M hearts=7: avg 10.79 (42:11.28, 43:10.11, 44:10.97)
+f6f0cde	12.90	hearts=n/a	10000	keep	[POST-REBASE] 7A1M 10K-step: 3-seed avg 12.90 (42:12.25, 43:12.17, 44:14.27) scales to competition length
+f6f0cde	13.11	hearts=n/a	3000	discard	[POST-REBASE] 7A1M stuck=20: avg 13.11 (42:12.10, 43:16.12, 44:11.11) 6-seed 13.20 < baseline 13.32
+f6f0cde	11.42	hearts=n/a	3000	discard	[POST-REBASE] 7A1M cooldown=5: avg 11.42 (42:8.25, 43:12.23, 44:13.77)
+f6f0cde	12.39	hearts=n/a	3000	discard	[POST-REBASE] 7A1M cooldown=7: avg 12.39 (42:13.67, 43:11.55, 44:11.94)
+f6f0cde	11.77	hearts=n/a	3000	discard	[POST-REBASE] 7A1M friendly_dist=20: avg 11.77 (42:11.01, 43:10.80, 44:13.50)
+f6f0cde	12.56	hearts=n/a	3000	discard	[POST-REBASE] 7A1M blacklist-clear: 6-seed avg 12.56 worse than 13.32 baseline
