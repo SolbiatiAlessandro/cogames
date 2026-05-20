@@ -538,3 +538,49 @@ Junction metrics:
 **Why deaths increased**: with HP retreat, agents survive more missions → encounter more danger overall → more total deaths, but each death is "cheaper" because the agent was already productive.
 
 **Biggest improvement of the entire session. Committed and will continue testing.**
+
+---
+
+## Session 12: Role Split Re-optimization (Post-Rebase + HP Retreat)
+
+2026-05-20T14:00Z: Starting new experiment loop. My hypothesis is that in braveheart (255 hearts), miners contribute ZERO to the per-cog reward (which counts hub + aligned junctions via `net:cogs` tag). Miners can't get hearts (`isNot(actorHas({"miner": 1}))` filter) and can't align junctions. Their only value is map exploration for the shared map.
+
+Previous 4A4M test was with 25% HP retreat threshold (scored 6.40). Now that we've established 35% as optimal, more aligners might score better. Testing 5A3M and 6A2M with 35% HP retreat.
+
+### Experiment 12a: Role split sweep with 35% HP retreat
+
+| Config | Seed 42 | Seed 43 | Seed 44 | 3-seed avg |
+|--------|---------|---------|---------|------------|
+| 3A5M | 7.94 | 6.37 | 9.73 | 8.01 |
+| 4A4M | 7.13 | 5.65 | 8.81 | 7.20 |
+| 5A3M | 11.96 | 5.70 | 11.95 | 9.87 |
+| 6A2M | 10.42 | 8.81 | 8.68 | 9.30 |
+| 7A1M | 10.68 | 7.46 | 12.84 | 10.33 |
+| 8A0M | 10.58 | 10.67 | 4.10 | 8.45 |
+
+More aligners clearly better, peak at 7A1M. 8A0M suffers from station congestion.
+
+### Key discovery: Heart queue bug
+
+The heart queue code (`available_hearts = max(0, 5 + ...)`) hardcodes 5 initial hearts, but braveheart hub has 255. After 5 withdrawals, the code thinks hub is empty and limits to max 3 concurrent get_heart requests, starving 7+ aligner configs.
+
+Fix: `available_hearts = max(0, sm.initial_hub_hearts + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)` with `initial_hub_hearts=255`.
+
+### Experiment 12b: 7A1M + heart queue fix (6-seed validation)
+
+| Seed | 7A1M+fix | 8A0M+fix |
+|------|----------|----------|
+| 42 | 11.55 | 12.39 |
+| 43 | 11.47 | 10.78 |
+| 44 | 13.57 | 13.54 |
+| 45 | 12.09 | 12.46 |
+| 46 | 14.56 | 10.53 |
+| 47 | 16.66 | 16.60 |
+| **Avg** | **13.32** | **12.72** |
+
+7A1M + heart queue fix is the new best: **13.32** per cog (6-seed avg), **+66%** vs 3A5M baseline.
+
+Committed as f6f0cde. Changes: heart queue fix + default 7/8 aligner fraction + initial_hub_hearts=255.
+
+### Cumulative improvement chain
+- Baseline (3.04) → HP retreat 35% (+163%) → 7A1M + heart fix (+66%) = **+338% total**

@@ -33,3 +33,10 @@ WIP	6.40	junctions_gained=n/a junction_held=n/a	3000	discard	[POST-REBASE] 4A4M+
 WIP	6.87	junctions_gained=n/a junction_held=n/a	3000	discard	[POST-REBASE] HP retreat 30%: threshold sweep. avg 6.87 (42:5.42, 43:5.50, 44:9.69)
 WIP	7.21	junctions_gained=n/a junction_held=n/a	3000	discard	[POST-REBASE] HP retreat 40%: threshold sweep. avg 7.21 (42:5.76, 43:6.16, 44:9.70)
 WIP	7.37	junctions_gained=n/a junction_held=n/a	3000	discard	[POST-REBASE] HP retreat 45%: threshold sweep. avg 7.37 (42:6.16, 43:6.25, 44:9.70)
+83a3ded	9.87	hearts=n/a	3000	discard	[POST-REBASE] 5A3M+HP35%: more aligners helps. avg 9.87 (42:11.96, 43:5.70, 44:11.95) but not optimal
+83a3ded	9.30	hearts=n/a	3000	discard	[POST-REBASE] 6A2M+HP35%: avg 9.30 (42:10.42, 43:8.81, 44:8.68)
+83a3ded	10.33	hearts=n/a	3000	superseded	[POST-REBASE] 7A1M+HP35% (no fix): avg 10.33 (42:10.68, 43:7.46, 44:12.84)
+83a3ded	7.20	hearts=n/a	3000	discard	[POST-REBASE] 4A4M+HP35%: fewer aligners worse. avg 7.20 (42:7.13, 43:5.65, 44:8.81)
+83a3ded	8.45	hearts=n/a	3000	discard	[POST-REBASE] 8A0M+HP35% (no fix): station congestion. avg 8.45 (42:10.58, 43:10.67, 44:4.10)
+f6f0cde	13.32	hearts=n/a	3000	keep	[POST-REBASE] 7A1M+HP35%+heart-fix: 6-seed avg 13.32 (42:11.55, 43:11.47, 44:13.57, 45:12.09, 46:14.56, 47:16.66) +66% vs 3A5M
+f6f0cde	12.72	hearts=n/a	3000	discard	[POST-REBASE] 8A0M+HP35%+heart-fix: 6-seed avg 12.72 (42:12.39, 43:10.78, 44:13.54, 45:12.46, 46:10.53, 47:16.60)
