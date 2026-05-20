@@ -261,10 +261,52 @@ ALL existing checkpoints evaluated at 500 steps on competition map — ALL retur
 - `cogames auth status` returns "Authenticated as unknown"
 - **Cannot submit ANY policy** until auth is refreshed via browser OAuth flow
 
-### Session 6: new training approaches (2026-05-21)
+### Session 6: new training approaches (2026-05-20)
 
-**Training launched:**
-1. scratch_comp_hiboost: FROM SCRATCH on competition map, 8 cogs, clip=0.1, boost_aligner=20.0
-2. p1_flat_8cog: Phase 1 flat with 8 cogs (not 4), clip=0.1, to produce stronger base model
+**scratch_comp_hiboost: FAILED**
+- FROM SCRATCH on competition map, 8 cogs, clip=0.1, boost_aligner=20.0
+- clipfrac=0 after epoch 1, entropy stuck at 1.60 — random policy
+- Killed after confirming no learning
 
-**Scripted policy 10K eval**: Running 3 episodes at 10K steps to calibrate offline score
+**P1 flat 8-cog: COMPLETED (peak 7541 held ticks)**
+- Config: Phase 1 flat, 8 cogs, clip=0.1, boost_aligner=5.0, flat-map, no-clips, start-aligner, start-heart, max_dist=5, 1000-step, 16 envs
+- Trained 96 epochs, entropy 1.609→1.449
+- Peak held: 7541 (epoch ~50), exceeding previous researcher's 7008
+- Mean held: 2849 overall
+- Checkpoints: model_000010 through model_000090
+
+**Scripted policy 10K eval: 3.74 avg per-agent**
+- 3 episodes: 4.57, 2.55, 4.11
+- Cogs held: 27,441 avg; Clips held: 1,188,808 avg — clips dominate
+- 63.33 junctions aligned (avg); 34.75 deaths per agent
+- Confirms scripted policy is the current best, but clips far outperform
+
+**train.py fix: ent_coef now reads from COGAMES_ENT_COEF env var**
+- Was hardcoded at 0.01, now reads `os.environ.get("COGAMES_ENT_COEF", "0.01")`
+
+### Session 6b: Phase 2 compmap training
+
+**Phase 2 compmap (from P1 flat e80): partial success**
+- Config: cogsguard_machina_1.basic, 8 cogs, max_dist=6, clip=0.1, boost_aligner=5.0, 1000-step
+- Warm-started from P1 flat 8-cog e80
+- Training held_ticks: peaked at 21K+ (very strong in training env)
+- BUT eval on vanilla competition map: 0.3 at 3K steps (alive reward only)
+- Root cause: model learns close-range navigation (max_dist=6) but can't reach distant junctions on real map
+- Checkpoints: model_000010 through model_000050
+
+**Phase 2 eval sweep (all alive-only):**
+| Checkpoint | 1K steps | 3K steps |
+|-----------|----------|----------|
+| compmap_e010 | 0.10 | 0.30 |
+| compmap_e020 | 0.10 | 0.30 |
+| compmap_e030 | 0.10 | 0.30 |
+| compmap_e040 | 0.10 | 0.31 |
+| compmap_e050 | 0.10 | 0.30 |
+
+### Session 6c: longep3k training (IN PROGRESS)
+
+**Longep3k (from compmap e40): training**
+- Config: cogsguard_machina_1.basic, 8 cogs, max_dist=10, clip=0.1, boost_aligner=5.0, 3000-step, 16 envs
+- Warm-started from compmap_from_p1flat e40
+- This follows previous researcher's breakthrough path (longep3k_e20 → 1.394/agent)
+- Checkpoint interval: 5 epochs
