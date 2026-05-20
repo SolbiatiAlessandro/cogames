@@ -647,3 +647,50 @@ Weight=2.0 is the clear optimum: +8.9% over baseline, improving 5/6 seeds.
 1. Cascade-aware scoring: `travel + hub_dist * 0.2 - cascade_unlocks * 2`
 2. Shared-map blacklist fix: don't discard from shared junction sets
 3. Gear-loss detection: immediately cancel skill when aligner gear lost mid-skill
+
+---
+
+## Session 14: Optimization Ceiling Investigation (2026-05-20)
+
+2026-05-20T20:00Z: Starting from 14.80/cog baseline (6-seed avg at 3000 steps). Exhaustive parameter sweep to find remaining improvements. Also established 10K step baseline.
+
+### Explore cap increase (20d7a09) — KEPT (+2%)
+Increased explore cap from `stuck_threshold * 2` (30 steps) to `stuck_threshold * 3` (45 steps). 6-seed avg: 14.80 (+2% vs 14.51 cascade baseline).
+
+### Exhaustive parameter sweep — ALL DISCARDED
+
+| Experiment | 6-seed avg | vs 14.80 | Finding |
+|-----------|-----------|----------|---------|
+| BFS hazard cascade reorder | 14.80 | 0% | Reordering avoid_hazards fallback chain had zero effect |
+| Heart stockpile 5→8 | 13.85 | -6.4% | Too much time at hub stockpiling hearts |
+| Cascade weight *4 | 12.29 | -17% | Too much cascade priority → agents chase distant junctions |
+| Cascade weight *1 | 11.92 | -19.5% | Too little cascade → worse targeting |
+| Territory dist 15→10 | 14.77 | -0.2% | Fixed real bug (junction territory=10) but rarely triggered |
+| Hub dist *0 | 13.10 | -11.5% | Removing hub distance from scoring hurts badly |
+| Hub dist *0.4 | 13.01 | -12.1% | Increasing hub distance penalty overshoots |
+| Explore cap 60 | 14.74 | -0.4% | Diminishing returns on explore duration |
+| 8A 0M | 9.15 | -38% | No miner = much less map exploration |
+| Stuck threshold 10 | 9.42 | -36% | Agents give up too quickly |
+| Stuck threshold 20 | 12.39 | -16% | Agents wait too long when stuck |
+| Explore toward unreachable | 14.80 | 0% | Directed explore to known unreachable junctions never fires |
+| Unstuck horizon 2 | 14.42 | -2.6% | Unstuck rarely fires — only 2/6 seeds affected |
+| 6A 2M | 12.34 | -16.6% | Losing one aligner not worth faster exploration |
+
+### 10K step baseline — KEPT
+3-seed avg at 10K steps: **15.54** (42:17.76, 43:14.38, 44:14.49). Higher than 3K baseline because junctions aligned early accumulate more reward ticks.
+
+### Key findings
+
+1. **All parameters are at local optima**: cascade_unlocks*2, hub_dist*0.2, stuck_threshold=15, explore_cap=45, heart_stockpile=5, role_split=7A1M
+2. **HP retreat oscillation bug found**: Agents cycle between HP_LOW retreat and immediate "in_friendly" resume because `_FRIENDLY_TERRITORY_DISTANCE=15` overestimates junction territory (actual=10). Agent HP drops from 100→2 while "in friendly territory." Fix had no measurable impact because it only affects late-game on some seeds.
+3. **Seeds 43-46 are deterministic**: Many experiments produce IDENTICAL scores on seeds 43-46, confirming the changed code paths never execute on those seeds. Only seeds 42/47 exercise edge cases.
+4. **Changes that restrict behavior always hurt**: Every parameter change that made agents more cautious or limited their options resulted in regression
+5. **Only DECISION QUALITY improvements work**: Cascade scoring (+8.9%) and blacklist fix were the only wins. All timing/threshold tweaks are noise.
+
+### Recommendations for next researcher
+
+1. **Try agent-specific map regions**: Assign each aligner a quadrant to avoid overlap
+2. **Investigate clip behavior**: If clips recapture junctions, defense mechanisms could help
+3. **Optimize for 10K steps specifically**: Competition runs 10K, current tuning is for 3K
+4. **Consider RL hybrid**: Use RL for movement decisions + scripted skill selection
+5. **Cherry-pick RAxer critical bugs**: The `hub_hearts_withdrawn` overcount (bug #1 from issue #77) might help on non-braveheart variants

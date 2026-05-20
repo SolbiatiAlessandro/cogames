@@ -50,3 +50,19 @@ f6f0cde	12.39	hearts=n/a	3000	discard	[POST-REBASE] 7A1M cooldown=7: avg 12.39 (
 f6f0cde	11.77	hearts=n/a	3000	discard	[POST-REBASE] 7A1M friendly_dist=20: avg 11.77 (42:11.01, 43:10.80, 44:13.50)
 f6f0cde	12.56	hearts=n/a	3000	discard	[POST-REBASE] 7A1M blacklist-clear: 6-seed avg 12.56 worse than 13.32 baseline
 eea1b24	14.51	hearts=n/a	3000	keep	[POST-REBASE] cascade-scoring+blacklist-fix: 6-seed avg 14.51 (42:12.62, 43:15.01, 44:13.62, 45:16.36, 46:14.84, 47:14.63) +8.9% vs 13.32 baseline
+20d7a09	14.80	hearts=n/a	3000	keep	explore-cap-45: 6-seed avg 14.80 +2% vs cascade-scoring. explore cap from stuck_threshold*2 to *3
+20d7a09	14.80	hearts=n/a	3000	discard	bfs-hazard-cascade-reorder: 14.80 identical to baseline. reordering BFS avoid_hazards fallback had zero effect
+20d7a09	13.85	hearts=n/a	3000	discard	heart-stockpile-8: 6-seed avg 13.85 (-6.4%). agents waste time stockpiling at hub
+20d7a09	12.29	hearts=n/a	3000	discard	cascade-weight-4: 6-seed avg 12.29 (-17%). too much cascade priority sends agents to distant junctions
+20d7a09	11.92	hearts=n/a	3000	discard	cascade-weight-1: 6-seed avg 11.92 (-19.5%). too little cascade = worse than *2
+20d7a09	14.77	hearts=n/a	3000	discard	territory-dist-10: 6-seed avg 14.77 (-0.2%). reducing friendly territory check from 15 to 10 — noise
+20d7a09	13.10	hearts=n/a	3000	discard	hub-dist-0: 6-seed avg 13.10 (-11.5%). removing hub distance from scoring hurts badly
+20d7a09	13.01	hearts=n/a	3000	discard	hub-dist-0.4: 6-seed avg 13.01 (-12.1%). increasing hub distance penalty too much
+20d7a09	14.74	hearts=n/a	3000	discard	explore-cap-60: 6-seed avg 14.74 (-0.4%). cap at stuck*4=60 steps — noise
+20d7a09	9.15	hearts=n/a	3000	discard	8A-0M: 6-seed avg 9.15 (-38%). no miner = much less map exploration
+20d7a09	9.42	hearts=n/a	3000	discard	stuck-threshold-10: 6-seed avg 9.42 (-36%). agents give up too fast
+20d7a09	12.39	hearts=n/a	3000	discard	stuck-threshold-20: 6-seed avg 12.39 (-16%). agents wait too long when stuck
+20d7a09	14.80	hearts=n/a	3000	discard	explore-toward-unreachable: 14.80 identical. directed explore to non-alignable junctions never fires
+20d7a09	14.42	hearts=n/a	3000	discard	unstuck-horizon-2: 6-seed avg 14.42 (-2.6%). unstuck rarely fires — only seeds 42/47 affected
+20d7a09	12.34	hearts=n/a	3000	discard	6A-2M: 6-seed avg 12.34 (-16.6%). losing one aligner for exploration not worth it
+20d7a09	15.54	hearts=n/a	10000	keep	10K-baseline: 3-seed avg 15.54 (42:17.76, 43:14.38, 44:14.49) at competition length
