@@ -144,3 +144,18 @@ Issue #77 asks us to evaluate 40+ bug fixes from the RAxer branch. The recommend
 - **Explore cap robust**: default (stuck_threshold × 2 = 30) is optimal; shorter and longer both hurt
 - **Near theoretical ceiling**: at 3K steps with ~130 junction cells, current avg ~1153 is ~90% of theoretical max (~1300). Remaining 10% is alignment latency that's hard to compress further
 - **Next researcher should consider**: tournament-specific optimizations (4v4 with clips), dynamic role switching after junction saturation, or completely new skill architectures
+
+### Session 4: final parameter retest (2026-05-20, all DISCARDED)
+| Config | Avg (3-seed) | vs hearts5 |
+|--------|-------------|------------|
+| return_load=30+hearts5 | 1124 | -3.1% |
+| stuck_threshold=12+hearts5 | 1163 | +0.2% |
+| hearts=6+fix (6-seed) | 1160 | +0.6% |
+
+All within noise or negative. Issue #77 parameter space fully exhausted.
+
+### Final cumulative improvement (issue #77)
+- Baseline 4A4M (6-seed): 1105
+- + 3A5M split: 1123 (+1.6%)
+- + hearts5+progress-fix: 1153 (+2.7% over 3A5M, +4.4% total)
+- Committed at c3f6e8a, all experiments recorded in TSV

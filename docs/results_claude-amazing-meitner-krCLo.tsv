@@ -22,3 +22,6 @@ c3f6e8a	1097.59	junctions=n/a hearts=n/a	3000	discard	explore_cap=22+hearts5: sh
 c3f6e8a	1148.35	junctions=n/a hearts=n/a	3000	discard	explore_cap=45+hearts5: longer explore no help (-1.0% vs hearts5)
 c3f6e8a	1139.81	junctions=n/a hearts=n/a	3000	discard	hearts=4+fix: fewer hearts per trip (-1.7% vs hearts5)
 c3f6e8a	1159.38	junctions=n/a hearts=n/a	3000	discard	adaptive-hearts (3-7)+fix: same as hearts5 (0% effect)
+c3f6e8a	1123.54	junctions=n/a hearts=n/a	3000	discard	return_load=30+hearts5: more frequent deposits (-3.1% vs hearts5)
+c3f6e8a	1162.49	junctions=n/a hearts=n/a	3000	discard	stuck_threshold=12+hearts5: faster stuck detection (+0.2% noise vs hearts5)
+c3f6e8a	1160.32	junctions=n/a hearts=n/a	3000	discard	hearts=6+fix 6-seed avg: +0.6% vs hearts5 (noise, not significant)
