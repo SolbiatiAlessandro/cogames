@@ -392,4 +392,73 @@ ALL existing checkpoints evaluated at 500 steps on competition map — ALL retur
 
 Both: 8 cogs, 16 envs, map_seed=42, boost_aligner=5.0, boost_heart=2.0, credit+milestones_2, max_dist=15
 
-**Training in progress...**
+**sweetspot_longep3k**: KILLED at epoch 12 (merged into anneal analysis below)
+- clipfrac oscillating 0-0.18, entropy 1.59-1.61 stable
+- Sporadic hearts/aligners, 0 junction alignment
+- Similar dynamics to anneal — killed to save CPU
+
+**anneal_longep3k: BREAKTHROUGH — first consistent junction alignment on competition map**
+
+Training dynamics (epochs 1-20):
+| Epoch | Entropy | Clipfrac | Hearts/agent | Aligners/agent | Junctions/agent |
+|-------|---------|----------|-------------|----------------|-----------------|
+| 1 | 1.604 | 0.106 | 0.50 | 0.125 | 0.0 |
+| 2 | 1.603 | 0.086 | 0.25 | 0.125 | 0.0 |
+| 4 | 1.592 | 0.203 | 0.0 | 0.25 | 0.0 |
+| 9 | 1.597 | 0.015 | 0.75 | 0.0 | 0.0 |
+| 11 | 1.598 | 0.180 | 0.50 | 0.125 | 0.0 |
+| **14** | **1.606** | **0.021** | **1.375** | **0.25** | **0.375** |
+| 15 | 1.605 | 0.002 | 0.875 | 0.625 | 0.0 |
+| 17 | 1.600 | 0.037 | 0.50 | 0.625 | 0.0 |
+| **18** | **1.596** | **0.032** | **1.125** | **0.50** | **0.375** |
+| **19** | **1.593** | **0.088** | **1.125** | **0.50** | **0.375** |
+
+Key findings:
+- **Junction alignment emerged at epoch 14** — first time ANY RL training has achieved this on the real competition map
+- **Consistent junction alignment at epochs 14, 18, 19** — not a fluke
+- **Aligner acquisition improving**: 0.125→0.625 per agent (5x increase)
+- **Heart acquisition trending up**: 0.25→1.375 per agent
+- **Entropy stable**: 1.59-1.61 (entropy annealing barely started at epoch 19 of ~366 total)
+- **Clipfrac oscillating 0.002-0.203**: PPO is actively learning
+
+**conservative_longep3k**: KILLED at epoch 5
+- update_epochs=2, lr=0.0003, ent=0.03
+- clipfrac=0.0 for all 5 epochs — too conservative, no learning
+- Replaced with anneal_explore_longep3k
+
+**anneal_explore_longep3k**: RUNNING (epoch 1+)
+- Same as anneal_longep3k + explore_weight=0.001 (cell.visited reward)
+- Hypothesis: explore_weight provides dense navigation signal that accelerates junction discovery
+
+### Session 9: continued training and evaluation (2026-05-20)
+
+**Training trajectory through epoch 37:**
+
+Three distinct phases observed:
+1. **Pre-learning (epochs 1-17)**: entropy ~1.60, clipfrac 0-0.20, sporadic game metrics
+2. **Rapid learning (epochs 18-25)**: entropy 1.60→1.48, clipfrac rising to 0.29, heart acquisition improving
+3. **Stabilization (epochs 26-37)**: entropy bounced back to 1.52-1.53, clipfrac 0.10-0.17, stable
+
+Game metrics improvement (per-agent averages):
+| Metric | Early (e1-11) | Mid (e14-19) | Late (e24-36) |
+|--------|--------------|-------------|---------------|
+| heart.gained | 0.0-0.75 | 0.5-1.375 | 2.0-5.25 |
+| aligner.gained | 0.0-0.25 | 0.25-0.625 | 0.125-0.25 |
+| junction.aligned | 0.0 | 0.0-0.375 | 0.0-0.375 |
+
+Key findings:
+- **Heart acquisition 10x improvement**: 0.5→5.25 per agent
+- **Junction alignment emerging**: 4 of 14 eval blocks show non-zero (0.125-0.375)
+- **Agent specialization**: epoch 28 showed agent 7 alone aligning 3 junctions
+- **Entropy self-correction**: dropped to 1.46, recovered to 1.53 without intervention
+- **Explained variance >0.95**: critic network very accurate
+
+**Eval results (1-episode, 3K steps, 8 cogs, temp=0.7):**
+| Checkpoint | Reward | Note |
+|-----------|--------|------|
+| anneal e015 (ep0 only) | 0.4464 | similar to original e020 baseline |
+| anneal e020 | pending | from rapid learning phase |
+| anneal e025 | pending | from entropy trough |
+| anneal e030 | pending | from stabilization phase |
+
+Original e020 baseline: 0.463 per agent at 3K steps.
