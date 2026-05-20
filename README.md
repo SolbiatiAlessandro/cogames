@@ -24,7 +24,7 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-16 (Session 35)_
+_Updated by Director: 2026-05-20 (Session 36)_
 
 ### Online Tournament (beta-cvc, cooperative scoring)
 
@@ -36,58 +36,67 @@ _Updated by Director: 2026-05-16 (Session 35)_
 | #4 | 41.86 | `Softy:v96` | RL |
 | **#5** | **41.85** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — scripted, stuck_threshold=15** |
 | #6 | 41.59 | `Softy:v100` | RL |
-| #7 | 41.28 | `slanky:v171` | RL (new competitor) |
-| #10 | 41.10 | `Paz-Bot-9000:v47` | new competitor |
+| #7 | 41.28 | `slanky:v171` | RL competitor |
+| #8 | 41.22 | `Softy:v101` | RL |
+| #9 | 41.20 | `Softy:v102` | RL |
+| #10 | 41.10 | `Paz-Bot-9000:v47` | competitor |
 | **#11** | **40.85** | **`ax5wp-74a-hubl2-def-enemy:v1`** | hub L2 fix + defend + enemy |
+| #12 | 40.82 | `Gryffindor:v11` | new competitor |
 | **#18** | **40.49** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
-| **#19** | **40.44** | **`ax5wp-73s-l2fix:v1`** | L2 distance fix |
-| **#20** | **40.43** | **`ax5wp-73x-hubl2-def:v1`** | L2 + defend |
 
-_5 policies in top 20, 30+ in top 100. Gap to #1: 3.44 pts (7.6%). Scripted ceiling at ~42 confirmed._
+_5 policies in top 20, 30+ in top 100. Gap to #1: 3.44 pts (7.6%). Leaderboard FROZEN — auth expired, can't submit._
 
-### RL Training Progress (NEW)
+### BLOCKER: Auth Token Expired (#78)
 
-| Phase | max_distance | Result | Status |
-|-------|-------------|--------|--------|
-| Phase 1 | 6 (close) | 1.4 junctions, 0.072 reward/500s | DONE |
-| Phase 2 | 10 (medium) | 4 junctions, 1416 held | IN PROGRESS |
-| Phase 3 | 15 (competition) | — | PENDING |
-
-First ever RL junction alignment on competition map achieved via curriculum training (#75).
-CPU training viable: 2.8M param CNN+LSTM at 2.4K SPS. No GPU needed.
+**No online submissions possible.** Token expired for 5+ consecutive sessions. Owner must run `cogames auth login` from a machine with a browser. This blocks ALL online progress — scripted improvements AND RL validation.
 
 ### Offline Best Results (scripted, 8-agent, 3000 steps)
 
 | Rank | Reward | Commit | Config | Notes |
 |------|--------|--------|--------|-------|
-| 1 | **3.282** | `d922520` | v52 + contamination fix | +15.2% vs baseline, 5-seed avg |
-| 2 | 2.849 | `e9288ec` | v52 baseline (4A+4M BFS) | previous best |
+| 1 | **1153** | `c3f6e8a` | 3A5M + hearts5 + progress fix (krCLo) | **NEW** +4.4% vs baseline, 6-seed avg |
+| 2 | 1130 | `1045689` | 3A5M split (krCLo) | +6.6% vs 4A4M |
+| 3 | 1060 | `4531257` | 4A4M baseline (d922520) | previous best config |
 
-### Key Findings (Session 35)
+_Note: reward units differ from prior sessions — krCLo uses raw junction held ticks at 3000 steps, not normalized mission_reward._
 
-1. **RL training breakthrough** — Curriculum training (close junctions within obs window) achieved first RL junction alignment on competition map. Path to top-3 is now clear (#75).
-2. **Scripted ceiling holds** — evyIm-73a-stuck15:v1 stable at #5 (41.85). No movement since session 34. Combination regression pattern confirmed across 60+ variants (#74).
-3. **New competitors** — slanky:v171 (#7, 41.28) and Paz-Bot-9000:v47 (#10, 41.10) entered top 10. Competition is tightening.
-4. **CPU RL training works** — Owner confirmed no GPU needed. LSTM/CNN models train at 2-4K SPS on CPU. Previous "blocked on GPU" was a false premise.
-5. **5-action space is key** — Top policies use only noop + 4 moves, no change_vibe. Our RL training confirms this eliminates entropy collapse.
+### RL Training Progress
+
+| Phase | max_distance | Result | Status |
+|-------|-------------|--------|--------|
+| Phase 1 flat | 6 (close) | 7541 held ticks (peak) | DONE |
+| Phase 2 compmap | 6 (patched) | 21K+ held in training, 0.31 at 3K eval | IN PROGRESS |
+| Real-map direct | 15 (competition) | held ticks 246→793, 1-3 junctions | EARLY, MOST PROMISING |
+
+Distribution shift is the core RL problem: max_dist=6/10 models don't transfer to competition (max_dist=15). Direct real-map training is the correct approach. All checkpoints on competition eval still score 0.05 (alive reward only). Scripted at 10K: 3.74/agent — still 3-4x better.
+
+### Key Findings (Session 36)
+
+1. **Auth expired for 5+ sessions** — #1 blocker. No online submissions possible. Created #78.
+2. **Merged krCLo to main** — 3A5M role split + hearts5 + progress fix = +4.4% offline. Ready to submit as `lessandro-ohm-mani-padme-hum` once auth is fixed.
+3. **RAxer bugs mostly N/A** — Of 4 "critical" bugs, only 1 applies to current code (dead cooldown), with zero measurable effect. No cherry-pick needed.
+4. **RL checkpoints lost** — longep3k_e20 (1.394/agent) was never committed to git. All current competition-map models score 0.05.
+5. **RL online reality check** — softy-rl:v1 scores 12.26 online, sal-* RL scores 10-12. RL-to-online gap is massive. Temper expectations.
+6. **Leaderboard stable** — No movement in top 10 since session 35. Gryffindor:v11 entered #12.
 
 ### Progress Trajectory
 
 ```
-Session 30 (#40, 36.15)  →  Session 34 (#5, 41.85)  →  Session 35 (#5, 41.85, stable)
-RL training: 0 junctions (all prior) → 1.4 junctions (curriculum P1) → 4 junctions (P2 early)
+Session 30 (#40, 36.15)  →  Session 34 (#5, 41.85)  →  Session 36 (#5, 41.85, FROZEN)
+Offline: 1060 (4A4M) → 1130 (3A5M) → 1153 (hearts5+fix) = +8.8% cumulative
+RL: 0.05 on comp map (all checkpoints). Real-map training just starting.
 ```
 
 ### Current Priority Stack
 
 ```
-priority:1  #75  RL Curriculum Training Phase 2+3                     <- NEW, the path to top-3
-priority:1  #41  RL policy training (parent issue)                    <- breakthrough! CPU viable
-priority:2  #74  Scripted ceiling at ~42                              <- documented, action on RL
-priority:3  #73  A/B test toEqP improvements                         <- DEMOTED, exhausted
-priority:3  #71  Junction control efficiency                          <- DEMOTED, RL will address
-priority:3  #70  2-agent allocation                                   <- low leverage
-priority:3  #53, #27, #26, #23-17, #12, #11, #10                     <- speculative / researched
+priority:1  #78  AUTH TOKEN EXPIRED                                   <- BLOCKER, owner action needed
+priority:2  #76  Submit RL checkpoint to beta-cvc                     <- blocked on #78
+priority:2  #77  RAxer bug fixes (krCLo merged, needs submission)     <- blocked on #78
+priority:2  #75  RL Curriculum Training Phase 2+3                     <- slow progress, needs more training
+priority:2  #41  RL policy training (parent)                          <- RL-online gap is large
+priority:2  #74  Scripted ceiling at ~42                              <- documented
+priority:3  #73, #71, #70, #53, #27, #26, #23-17, #12, #11, #10     <- low priority / researched
 ```
 <!-- LEADERBOARD_END -->
 

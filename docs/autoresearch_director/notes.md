@@ -1,75 +1,63 @@
 # Director Notes
-_Written: 2026-05-16 (Session 35)_
+_Written: 2026-05-20 (Session 36)_
 
 ## What I observed in the replay
 
-Ran 500-step replay with 4 agents (3 aligners + 1 miner) on the scripted policy:
-
-- **Reward growth is linear**: 0.08/100 steps, reaching 0.41/agent at 500 steps
-- **Agents cluster in center** (rows 48-60): no agent reaches map corners where junctions are at rows 6-7 and 91-92
-- **Skill distribution**: explore 37%, get_heart 35%, align 9%, mine 8%, deposit 7%, gear_up 3%
-- **High get_heart call rate** (35%) with only 9% align confirms hub depletion as the operational bottleneck — agents keep seeking hearts they can't get
-- **All roles function correctly**: gear_up -> get_heart -> explore -> align cycle is intact
-- **Miner works well**: mine_until_full -> deposit_to_hub cycles cleanly, finds 15 extractors
-
-The scripted policy works but is fundamentally capped by: hub heart depletion, center-biased navigation, and inability to learn from experience.
+Could not run replay — this container lacks `cogsguard` native module (requires bazel build). Used TSV data, issue comments, branch diffs, and online leaderboard API instead.
 
 ## Current bottleneck
 
-**RL training maturity.** The scripted policy is at its ceiling (#5 online, 41.85) and there are no further scripted improvements to make. RL training had a genuine breakthrough (first junction alignment on competition map via curriculum training) but is still 2.5x below scripted performance offline (0.072 vs 0.18 at 500 steps).
+**AUTH TOKEN EXPIRED (#78).** This is the #1 blocker for the entire research program. The Softmax auth token `6PnHPiX9...` resolves to `subject_type: anonymous`. No policy can be submitted — not scripted, not RL. This has been blocking for 5+ consecutive director sessions (34-38). Owner must run `cogames auth login` from a machine with a browser.
 
-The specific RL bottleneck is **navigation on 88x88 map with 13x13 observation window**: agents can't see junctions 15+ tiles from hub, so they need curriculum training (close junctions -> medium -> full distance) to learn the navigate -> align sequence.
-
-Key RL training findings:
-- CPU training works: 226K-2.8M params at 2.4-4K SPS. No GPU needed.
-- 5-action space (noop + 4 moves) eliminates entropy collapse, matches top policies
-- Entropy annealing (0.08 -> 0.01 over 30 epochs) prevents universal collapse
-- Training metrics are misleading: random map seeds average lucky outcomes. Always eval on fixed seed.
-- Arena (50x50) to competition (88x88) transfer fails. Must train directly on competition map.
-- Behavioral cloning kills entropy, making RL fine-tuning impossible.
+Secondary bottleneck: RL training maturity. All RL checkpoints on competition map score 0.05 (base alive reward). The distribution shift problem (max_dist=6/10 trained models fail at competition max_dist=15) is the core issue. Direct real-map training is the correct approach but is still early (held ticks at 793, growing slowly).
 
 ## What I expected to happen vs. what I found
 
-**Expected** (from session 34 notes): evyIm-73a stabilizes, RL remains blocked on GPU, branches stay unmerged.
+**Expected** (from session 35 notes):
+1. RL Phase 2 (max_distance=10) would progress — PARTIALLY: Phase 2 compmap shows 21K held in training but only 0.31 at eval
+2. Auth blocker resolved — NO: Still expired. 5th consecutive session.
+3. Submit to beta-teams-tiny-fixed — NO: Can't submit anything without auth
+4. Merge SZmUt training scripts — BYPASSED: krCLo branch had better improvements to merge
+5. Branch cleanup — DEFERRED: ~120 remote branches, but auth is higher priority
 
 **Found**:
-1. evyIm-73a-stuck15 STABLE at #5 (41.85) -- exactly as expected.
-2. RL training DID start! Owner said "we don't need GPU" -- unblocked everything. Multiple sessions ran 20+ configs.
-3. RL BREAKTHROUGH: curriculum training (max_distance=6) produced first junction alignment on competition map.
-4. RL still early: 0.072 reward/500s vs scripted 0.18. Training-eval gap is large.
-5. Tournament submission blocked by 401 auth -- no RL policies submitted online yet.
-6. New competitors: slanky:v171 (#7, 41.28), Paz-Bot-9000:v47 (#10, 41.10) entered top 10.
-
-## Issues updated this session
-
-- **#75**: CREATED (priority:1). RL Curriculum Training Phase 2+3 -- specific actionable issue with proven configs and branch to continue from.
-- **#41**: KEPT at priority:1. Added comprehensive director update on breakthrough.
-- **#74**: DEMOTED to priority:2. Scripted ceiling is documented fact, action on RL.
-- **#73**: DEMOTED to priority:3. A/B testing exhausted.
-- **#71**: DEMOTED to priority:3. Junction efficiency addressed by RL.
+1. krCLo branch had clean +4.4% offline improvement (3A5M + hearts5 + progress fix) — MERGED to main
+2. RAxer "critical bugs" mostly don't apply to current code. Only dead cooldown code (no effect).
+3. Previous longep3k_e20 checkpoints LOST — never committed to git. Major research asset gone.
+4. Real-map RL training (max_dist=15) is the most promising approach — started from previous e050 checkpoint
+5. softy-rl:v1 at 12.26 online — even strong teams' RL is terrible online. RL-online gap is massive.
+6. Gryffindor:v11 entered leaderboard at #12 (40.82). New competitor.
 
 ## Merges this session
 
-None. No branches have competitive results to merge.
+- **claude/amazing-meitner-krCLo** -> main (fast-forward)
+  - 3A5M role split: `aligner_fraction` 0.5 -> 3/8
+  - Hearts accumulation: threshold 3 -> 5
+  - Progress tracking bug fix: `last_heart_count` tracking
+  - get_heart_cooldown_steps activation (cosmetic, no effect)
+  - TSV evidence: 1153 vs 1060 baseline, 6-seed validated
+  - Also includes: `train_curriculum.py`, `eval_rl_checkpoint.py` scripts
 
-## Branches reviewed (NOT merged)
+## Issues updated this session
 
-- **claude/amazing-meitner-SZmUt** (7 ahead): Curriculum training BREAKTHROUGH. train_curriculum.py, eval scripts, Phase 1 weights. NOT MERGED -- RL eval still below scripted. Next researcher should continue from here.
-- **claude/amazing-meitner-0j5Ye** (many ahead): Exhaustive RL config exploration. 70 files changed. NOT MERGED -- experimental infrastructure.
-- Remaining 40+ branches: all stale from previous sessions.
+- **#78**: CREATED (priority:1). Auth token expired blocker. Owner action required.
+- **#76**: DEMOTED priority:1 -> priority:2. Blocked on #78. RL checkpoints lost.
+- **#77**: KEPT at priority:2. krCLo merged. Needs online submission (blocked on #78).
+- **#75**: DEMOTED priority:1 -> priority:2. RL still early, distribution shift is core problem.
+- **#41**: DEMOTED priority:1 -> priority:2. RL-online gap may be much larger than expected.
 
 ## Submission status
 
-- **beta-cvc**: evyIm-73a-stuck15:v1 at #5 (41.85). Stable. No new submission.
-- **beta-teams-tiny-fixed**: New season, no entries from us. Low priority.
-- RL policies NOT submitted -- 401 auth blocker.
+- **beta-cvc**: evyIm-73a-stuck15:v1 at #5 (41.85). FROZEN — can't submit.
+- **Main has krCLo improvements** ready to submit as `lessandro-ohm-mani-padme-hum` once auth works.
+- RL policies NOT submitted — all score 0.05 on competition map anyway.
 
 ## Open questions for next director
 
-1. **Has RL Phase 2 (max_distance=10) progressed?** Check SZmUt branch for results beyond epoch 18.
-2. **Is the 401 auth blocker resolved?** RL needs online validation to calibrate offline->online gap.
-3. **Should we submit to beta-teams-tiny-fixed?** New season might be easier to compete in.
-4. **Should we merge SZmUt training scripts to main?** Infrastructure value vs cleanliness tradeoff.
-5. **Branch cleanup**: 40+ remote branches, most stale. Safe to prune after review.
-6. **New competitors**: slanky and Paz-Bot-9000 entered top 10. Are they RL? What's their approach?
-7. **Has the wider leaderboard shifted?** Softy hasn't pushed new versions since v111. Are they still iterating?
+1. **Is auth fixed?** Check `cogames auth status` — if still anonymous, escalate further. Consider alternative auth methods.
+2. **Should we submit the krCLo scripted improvements?** Once auth works: submit as `lessandro-ohm-mani-padme-hum` to beta-cvc.
+3. **Is the real-map RL training working?** Check krCLo branch (sessions 6+) for max_dist=15 results. Held ticks must reach ~7000+ to be competitive.
+4. **Branch cleanup**: 120+ remote branches. Most are stale. Safe to prune.
+5. **RL online expectations**: softy-rl:v1 at 12.26 suggests RL may not be the path to top-3. Scripted ceiling at 41.85 may be closer to the practical limit.
+6. **Junction saturation**: krCLo found 51/53 junctions aligned by ~2K steps. After that, all reward is pure hold time. Defense against enemy scramblers is the real online lever.
+7. **New season?** Check if new tournament seasons have opened.
