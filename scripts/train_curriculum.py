@@ -84,6 +84,8 @@ def main():
     parser.add_argument("--lr", type=float, default=0.00092, help="Learning rate")
     parser.add_argument("--no-anneal-lr", action="store_true", help="Disable LR annealing (constant LR)")
     parser.add_argument("--min-lr-ratio", type=float, default=0.0, help="Min LR ratio for annealing (0=anneal to 0)")
+    parser.add_argument("--randomize-map-seed", action="store_true",
+                        help="Randomize map seed each episode (prevents seed overfitting)")
     args = parser.parse_args()
 
     phase_config = {
@@ -214,6 +216,24 @@ def main():
     if args.min_lr_ratio > 0:
         os.environ["COGAMES_MIN_LR_RATIO"] = str(args.min_lr_ratio)
         print(f"  Min LR ratio: {args.min_lr_ratio}")
+
+    if args.randomize_map_seed:
+        import random as _random
+        from mettagrid import PufferMettaGridEnv
+        from mettagrid.mapgen.mapgen import MapGen as _MapGen
+
+        _orig_init_sim = PufferMettaGridEnv._init_simulation
+
+        def _randomized_init_simulation(self):
+            mb = getattr(self._current_cfg.game, "map_builder", None)
+            if isinstance(mb, _MapGen.Config):
+                if not hasattr(self, "_map_seed_rng"):
+                    self._map_seed_rng = _random.Random(self._current_seed)
+                mb.seed = self._map_seed_rng.randint(0, 100000)
+            return _orig_init_sim(self)
+
+        PufferMettaGridEnv._init_simulation = _randomized_init_simulation
+        print("  Map seed randomization ENABLED (each episode gets a new map)")
 
     from mettagrid.policy.loader import resolve_policy_class_path
     class_path = resolve_policy_class_path("tutorial")
