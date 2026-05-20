@@ -578,7 +578,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s mode=gear_up", obs.agent_id)
             state.last_mode = "gear_up"
         current_abs = self._current_abs(obs)
-        preferred_side = state.gear_up_approach_rotation % 4 if state.gear_contamination_count > 0 else None
+        preferred_side = (obs.agent_id + state.gear_up_approach_rotation) % 4
         visible_target = self._closest_visible_location(obs, self._miner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)

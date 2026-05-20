@@ -170,6 +170,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         state.known_friendly_junctions = sm.known_friendly_junctions
         state.known_enemy_junctions = sm.known_enemy_junctions
         state.known_hazard_stations = sm.known_hazard_stations
+        state.known_miner_stations = sm.known_miner_stations
 
     def initial_agent_state(self) -> AlignerState:
         starter_state = self._starter.initial_agent_state()

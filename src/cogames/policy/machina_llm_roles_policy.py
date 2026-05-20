@@ -487,6 +487,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         sm = self._shared_map
         if sm is not None:
             sm.agent_positions[obs.agent_id] = current_abs
+            sm.agent_gears[obs.agent_id] = self._current_gear(obs)
             if state.current_skill != "align_neutral":
                 sm.aligner_targets.pop(obs.agent_id, None)
             if state.current_skill != "get_heart":
@@ -571,8 +572,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if self._inventory_count(obs, "heart") > 0:
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_friendly_junctions:
-                # Heartless aligner with friendly junctions: explore alignment frontier
-                # to discover new junctions for when hearts become available
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_hubs:
                 action, base_state = self._explore_near_hub(obs, state)
