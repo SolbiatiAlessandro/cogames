@@ -303,10 +303,47 @@ ALL existing checkpoints evaluated at 500 steps on competition map — ALL retur
 | compmap_e040 | 0.10 | 0.31 |
 | compmap_e050 | 0.10 | 0.30 |
 
-### Session 6c: longep3k training (IN PROGRESS)
+### Session 6c: longep3k + real-map training
 
-**Longep3k (from compmap e40): training**
-- Config: cogsguard_machina_1.basic, 8 cogs, max_dist=10, clip=0.1, boost_aligner=5.0, 3000-step, 16 envs
-- Warm-started from compmap_from_p1flat e40
-- This follows previous researcher's breakthrough path (longep3k_e20 → 1.394/agent)
-- Checkpoint interval: 5 epochs
+**Longep3k (from compmap e40): abandoned**
+- Config: cogsguard_machina_1.basic, 8 cogs, max_dist=10, clip=0.1, boost_aligner=5.0, 3000-step
+- Distribution shift confirmed: max_dist=10 training doesn't transfer to max_dist=15 eval
+
+**Previous researcher's checkpoint eval:**
+- Loaded compmap_longep3k e020-e060 and longep3k_arena e020-e100
+- ALL scored 0.3 or 1.0 (alive only) on competition map
+- Even previous researcher's "best" (longep3k_e20, reported 1.394/agent) doesn't reproduce on our eval setup
+
+**Real-map training (from prev researcher's longep3k_comp e50): BREAKTHROUGH**
+- Config: phase 3, max_dist=15 (real map), 8 cogs, clip=0.1, ent=0.03, boost_aligner=3.0, 3K-step, 16 envs
+- Started from previous researcher's best checkpoint
+- Training held_ticks: peaked 2411 (epoch 54), then decayed to 0 by epoch 90+
+- Entropy stable at 1.57-1.60, but clipfrac=0.0 after epoch 30 (policy frozen)
+- Trained 109 epochs, stopped due to plateau
+
+**Real-map eval sweep (3K steps, seed=42):**
+| Checkpoint | Reward | Note |
+|-----------|--------|------|
+| e005 | 0.300 | alive only |
+| e010 | 0.300 | alive only |
+| e015 | 0.300 | alive only |
+| **e020** | **0.463** | **FIRST model above alive on real map** |
+| e025 | 0.379 | slightly above alive |
+| e030-e070 | 0.300 | alive only |
+
+**Key finding**: only e020 produces meaningful junction alignment on eval. Earlier and later checkpoints all regress to alive reward. Training held_ticks don't predict eval performance — the model at epoch 20 has a general exploration behavior that works on the eval map, while later epochs overfit.
+
+**10K eval:** e015 at 10K = 1.0001 (alive: 0.1×10K). e020 at 10K: pending.
+
+### Session 7: high-entropy exploration from e020 (IN PROGRESS)
+
+**Hypothesis**: e020 is the best starting point. Higher entropy (0.05 vs 0.03) and stronger reward shaping (boost_aligner=5.0, boost_heart=2.0) should encourage more exploration and prevent the premature convergence seen in the first run.
+
+**Config**:
+- weights: realmap e020 (our best checkpoint)
+- ent_coef: 0.05 (up from 0.03)
+- clip_coef: 0.1
+- boost_aligner: 5.0, boost_heart: 2.0
+- lr: 0.0005, no LR annealing (constant)
+- max_dist=15, 3K-step, 8 cogs, 16 envs, seed=42
+- Tag: highent_from_e020

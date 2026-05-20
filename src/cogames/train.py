@@ -300,7 +300,7 @@ def train(
         learning_rate=learning_rate,
         gamma=float(os.environ.get("COGAMES_GAMMA", "0.995")),
         gae_lambda=float(os.environ.get("COGAMES_GAE_LAMBDA", "0.90")),
-        update_epochs=1,
+        update_epochs=int(os.environ.get("COGAMES_UPDATE_EPOCHS", "1")),
         clip_coef=float(os.environ.get("COGAMES_CLIP_COEF", "0.2")),
         vf_coef=2.0,
         vf_clip_coef=0.2,
