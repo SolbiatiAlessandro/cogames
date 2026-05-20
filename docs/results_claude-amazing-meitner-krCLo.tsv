@@ -27,4 +27,9 @@ c3f6e8a	1162.49	junctions=n/a hearts=n/a	3000	discard	stuck_threshold=12+hearts5
 c3f6e8a	1160.32	junctions=n/a hearts=n/a	3000	discard	hearts=6+fix 6-seed avg: +0.6% vs hearts5 (noise, not significant)
 3bebf20	3.04	junctions_gained=63.3 junction_held=27441	3000	baseline	[POST-REBASE] 3A5M baseline 3-seed avg (42/43/44) per_cog reward, new map gen ~140 junctions
 3bebf20	3.07	junctions_gained=63.3 junction_held=27441	3000	discard	[POST-REBASE] nav shake 3/2: seed42 +24.8%, seed43 -12.4%, seed44 -19.1%, avg +1.0% (high variance)
-WIP	6.89	junctions_gained=97 junction_held=65939	3000	keep	[POST-REBASE] HP retreat 25%: enable aligner HP retreat at 25% threshold. +126.6% avg (42:+50.9%, 43:+250.8%, 44:+144.9%)
+WIP	6.89	junctions_gained=97 junction_held=65939	3000	superseded	[POST-REBASE] HP retreat 25%: enable aligner HP retreat at 25% threshold. +126.6% avg (42:+50.9%, 43:+250.8%, 44:+144.9%)
+WIP	8.01	junctions_gained=n/a junction_held=n/a	3000	keep	[POST-REBASE] HP retreat 35%: tuned threshold from 25% to 35%. +163.5% avg vs baseline (42:7.94, 43:6.37, 44:9.73)
+WIP	6.40	junctions_gained=n/a junction_held=n/a	3000	discard	[POST-REBASE] 4A4M+HP retreat 25%: more aligners helps less. avg 6.40 (42:7.80, 43:5.78, 44:5.62)
+WIP	6.87	junctions_gained=n/a junction_held=n/a	3000	discard	[POST-REBASE] HP retreat 30%: threshold sweep. avg 6.87 (42:5.42, 43:5.50, 44:9.69)
+WIP	7.21	junctions_gained=n/a junction_held=n/a	3000	discard	[POST-REBASE] HP retreat 40%: threshold sweep. avg 7.21 (42:5.76, 43:6.16, 44:9.70)
+WIP	7.37	junctions_gained=n/a junction_held=n/a	3000	discard	[POST-REBASE] HP retreat 45%: threshold sweep. avg 7.37 (42:6.16, 43:6.25, 44:9.70)
