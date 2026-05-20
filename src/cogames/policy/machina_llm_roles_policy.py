@@ -57,6 +57,7 @@ class LLMAlignerState(AlignerState):
     explore_start_junctions: int = 0
     align_neutral_timeouts: int = 0
     get_heart_timeouts: int = 0
+    hearts_at_get_heart_start: int = 0
     recent_events: list[str] = field(default_factory=list)
     # HP monitoring
     max_hp_seen: int = 0
@@ -348,6 +349,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
+        if skill == "get_heart":
+            state.hearts_at_get_heart_start = self._inventory_count(obs, "heart")
         if skill == "explore":
             state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
         state.current_skill = skill
@@ -374,11 +377,12 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if heart_count < 5 and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
-                self._event(state, f"get_heart completed with {heart_count} heart(s)")
+                newly_withdrawn = max(0, heart_count - state.hearts_at_get_heart_start)
+                self._event(state, f"get_heart completed with {heart_count} heart(s) (withdrew {newly_withdrawn})")
                 state.get_heart_timeouts = 0
                 sm = self._shared_map
                 if sm is not None:
-                    sm.hub_hearts_withdrawn += heart_count
+                    sm.hub_hearts_withdrawn += newly_withdrawn
                     sm.agents_getting_hearts.discard(obs.agent_id)
                 state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
