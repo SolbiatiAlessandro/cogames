@@ -49,3 +49,4 @@ f6f0cde	11.42	hearts=n/a	3000	discard	[POST-REBASE] 7A1M cooldown=5: avg 11.42 (
 f6f0cde	12.39	hearts=n/a	3000	discard	[POST-REBASE] 7A1M cooldown=7: avg 12.39 (42:13.67, 43:11.55, 44:11.94)
 f6f0cde	11.77	hearts=n/a	3000	discard	[POST-REBASE] 7A1M friendly_dist=20: avg 11.77 (42:11.01, 43:10.80, 44:13.50)
 f6f0cde	12.56	hearts=n/a	3000	discard	[POST-REBASE] 7A1M blacklist-clear: 6-seed avg 12.56 worse than 13.32 baseline
+eea1b24	14.51	hearts=n/a	3000	keep	[POST-REBASE] cascade-scoring+blacklist-fix: 6-seed avg 14.51 (42:12.62, 43:15.01, 44:13.62, 45:16.36, 46:14.84, 47:14.63) +8.9% vs 13.32 baseline

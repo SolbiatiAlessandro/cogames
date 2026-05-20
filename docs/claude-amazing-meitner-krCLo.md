@@ -616,3 +616,34 @@ Hearts=5 remains optimal. Too few hearts = excess hub travel. Too many = hub con
 
 ### Conclusion
 The committed config (7A1M, HP retreat 35%/resume 50%, hearts=5, stuck=15, cooldown=6, friendly_dist=15, heart_queue_fix) appears to be at a strong local optimum. All single-parameter changes tested are within noise or worse.
+
+---
+
+## Session 13: Cascade-Aware Junction Targeting (2026-05-20)
+
+2026-05-20T16:30Z: Starting new experiment loop. Investigated gear contamination paths (avoid_hazards=False fallbacks) — changes regressed from 13.32 to 12.25 (-8%) because agents couldn't reach junctions when only path crossed hazard stations.
+
+### Key discovery: shared-map blacklist mutation bug
+
+When a junction is blacklisted after align_neutral timeout, the code was calling `state.known_neutral_junctions.discard(stuck_junction)`. With shared maps, this mutates the set for ALL agents. One agent's navigation failure removes the junction from every agent's knowledge. Fixed by only adding to per-agent blacklist without discarding from shared set.
+
+### Key discovery: cascade-unaware junction targeting
+
+The junction priority scoring was `travel + hub_dist * 0.2` — purely based on proximity. A junction near many unaligned junctions is much more valuable because aligning it enables those junctions to become alignable via cascade (within JUNCTION_ALIGN_DISTANCE=25). Added cascade bonus: count nearby unaligned junctions, subtract `cascade_unlocks * weight` from score.
+
+### Experiment 13a: Weight sweep
+
+| Weight | Seed 42 | Seed 43 | Seed 44 | Seed 45 | Seed 46 | Seed 47 | 6-seed avg | vs baseline |
+|--------|---------|---------|---------|---------|---------|---------|------------|-------------|
+| **baseline** | **11.55** | **11.47** | **13.57** | **12.09** | **14.56** | **16.66** | **13.32** | — |
+| 1.5 | 11.97 | 14.35 | 10.42 | 14.28 | 11.21 | 13.94 | 12.70 | -4.7% |
+| **2.0** | **12.62** | **15.01** | **13.62** | **16.36** | **14.84** | **14.63** | **14.51** | **+8.9%** |
+| 2.5 | 13.92 | 14.24 | 13.39 | 9.98 | 12.06 | 12.92 | 12.75 | -4.3% |
+| 3.0 | 12.81 | 14.70 | 18.00 | 10.17 | 11.56 | 13.65 | 13.48 | +1.2% |
+
+Weight=2.0 is the clear optimum: +8.9% over baseline, improving 5/6 seeds.
+
+### Changes committed (eea1b24)
+1. Cascade-aware scoring: `travel + hub_dist * 0.2 - cascade_unlocks * 2`
+2. Shared-map blacklist fix: don't discard from shared junction sets
+3. Gear-loss detection: immediately cancel skill when aligner gear lost mid-skill
