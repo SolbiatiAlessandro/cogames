@@ -340,7 +340,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         # Allow at least 2 aligners simultaneously to reduce idle time
         if skill == "get_heart" and self._shared_map is not None:
             sm = self._shared_map
-            available_hearts = max(0, 5 + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
+            available_hearts = max(0, sm.initial_hub_hearts + sm.hearts_crafted_estimate - sm.hub_hearts_withdrawn)
             already_getting = len(sm.agents_getting_hearts - {obs.agent_id})
             if already_getting >= max(3, available_hearts):
                 skill = "explore"
@@ -625,6 +625,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         llm_local_model_path: str | None = None,
         scripted_miners: bool | str = "auto",
         scripted_aligners: bool | str = "auto",
+        initial_hub_hearts: int | str = 255,
     ):
         super().__init__(policy_env_info, device=device)
         n_agents = policy_env_info.num_agents
@@ -646,6 +647,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         logger.info("scripted_aligners=%s (n_agents=%d, raw=%s)", self._scripted_aligners, n_agents, scripted_aligners)
 
         self._shared_map = SharedMap()  # ONE map, shared by ALL agents
+        self._shared_map.initial_hub_hearts = int(initial_hub_hearts)
 
         # Target aligner fraction for proportional role assignment.
         # In tournament, we may only control a subset of agents (e.g. 4 of 8).
@@ -660,7 +662,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             na_str = str(num_aligners).lower()
             self._static_aligner_ids = None
             if na_str == "auto":
-                self._aligner_fraction = 3.0 / 8.0
+                self._aligner_fraction = 7.0 / 8.0
             else:
                 self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
         self._assigned_roles: dict[int, str] = {}

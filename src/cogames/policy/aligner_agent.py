@@ -62,6 +62,7 @@ class SharedMap:
         self.agent_positions: dict[int, Coord] = {}
         # Hub depletion tracking (issue-16): count total hearts withdrawn across team
         self.hub_hearts_withdrawn: int = 0
+        self.initial_hub_hearts: int = 5
         # Issue-36: deposit tracking for heart pipeline awareness
         self.total_deposits: dict[str, int] = {"carbon": 0, "oxygen": 0, "germanium": 0, "silicon": 0}
         self.hearts_crafted_estimate: int = 0  # estimated hearts created by make_heart
