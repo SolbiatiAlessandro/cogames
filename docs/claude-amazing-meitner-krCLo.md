@@ -186,8 +186,85 @@ Switching to RL training after exhausting scripted policy optimization.
 - After 544K steps: 0 hearts gained, 0 junctions aligned
 - **Root cause**: full curriculum is needed — previous researcher built up through flat-map→natural map→longer episodes. Random policy can't complete aligner→heart→junction pipeline on natural map.
 
-### Phase 1b: flat-map with pre-equipped gear (in progress)
+### Phase 1b: flat-map with pre-equipped gear — COMPLETED
 - Config: 4 cogs, 1000-step episodes, 16 envs, flat-map, no-clips, start-aligner, start-heart, max_dist=5
-- Training IS learning: junction alignment from eval block 2, held ticks growing to 1600+ by epoch 60
-- Entropy 1.61 → 1.48 (gradual decline, no collapse)
-- Following previous researcher's curriculum: P1 flat → P2 natural → longep3k
+- Peak: 4932 held ticks (eval 47, ~epoch 100), avg 1500-2200 in later evals
+- Entropy 1.61 → 1.55 (stable, no collapse)
+- Trained 110 epochs, checkpoints through e110
+
+### Longep2k arena with starting gear — TRANSFER FAILURE
+- Config: 4 cogs, 2000-step episodes, 16 envs, natural terrain, start-aligner, start-heart, max_dist=6
+- Learned strongly on training map: 6.65 per-agent reward, held ticks up to 9062
+- BUT 1.0001 on competition map (base reward only)
+- **Root cause**: agents start with gear in training but not in competition. Model never learned gear acquisition.
+
+### Compmap direct (from scratch) — FAILED
+- Config: 4 cogs, 3000-step episodes, 16 envs, cogsguard_machina_1.basic, max_dist=10, no gear
+- Brief spike at eval 6 (5335 held, 1.75 junctions) then collapsed to 0 for 10+ evals
+- Entropy stuck at 1.60 (random policy) after 120 epochs
+- **Root cause**: training from scratch on full map too hard without curriculum
+
+### Phase 2: arena longep3k WITHOUT gear (from P1 warm-start) — FAILED
+- Config: 4 cogs, 3000-step episodes, 16 envs, cogsguard_arena.basic, max_dist=6
+- Warm-started from P1 flat e080 checkpoint
+- Restarted with 1000-step episodes after 3000-step was too slow
+- 75 epochs, KL=0.0, clipfrac=0.0, entropy=1.6054 (random policy)
+- Only 0.25 hearts gained per evaluation — reward too sparse
+- **Root cause**: arena map doesn't transfer; 4 cogs too few; P1 with-gear model can't find gear on new map
+
+### Session 5: following previous researcher's proven curriculum (2026-05-20)
+
+**Key learnings from analyzing previous researcher's branch (claude/amazing-meitner-9HeB9):**
+1. Must train on COMPETITION MAP (cogsguard_machina_1.basic), not arena — arena doesn't transfer
+2. Must use 8 cogs (not 4) — more agents = more reward signal
+3. clip_coef=0.1 prevents entropy collapse (critical after ~50 epochs)
+4. train.py env var reading patch needed — applied from previous researcher's branch
+5. Proven pipeline: P1 flat → compmap_v1 (comp map, max_dist=6) → tightclip (clip=0.1) → Phase 2 (max_dist=10) → longep3k (3000-step)
+6. Best result: longep3k_e20 avg=1.394 per-agent at 10K steps
+
+**Applied train.py patch**: `clip_coef`, `lr`, `gamma`, `gae_lambda`, `anneal_lr`, `min_lr_ratio`, `bptt_horizon` now read from env vars.
+
+**Training launched (2 parallel runs):**
+1. compmap_v1: 8 cogs, competition map, max_dist=6, clip=0.2, 1000-step, from P1 flat e080
+2. compmap_tightclip: 8 cogs, competition map, max_dist=6, clip=0.1, 1000-step, from P1 flat e080
+
+### Session 5 results: both runs FAILED
+- compmap_v1 (clip=0.2): 42 epochs, entropy drifted to 1.58 (random), clipfrac=0.0 from epoch 3
+- compmap_tightclip (clip=0.1): 41 epochs, same pattern
+- Heart acquisition: sporadic (0.125-1.75 per eval) but too sparse for gradient signal
+- Junction alignment: 0.125 total across all evals — nearly zero
+- **Root cause**: P1 flat model (4 cogs, with gear) doesn't transfer to competition map (8 cogs, no gear)
+
+### Session 5 comprehensive checkpoint evaluation
+ALL existing checkpoints evaluated at 500 steps on competition map — ALL return 0.0500 (base alive reward):
+| Checkpoint set | Epochs tested | Result |
+|---------------|---------------|--------|
+| compmap_v1 | e020, e060 | 0.05 |
+| compmap_longep3k | e020, e060, e100 | 0.05 |
+| longep3k (arena) | e020, e060, e100 | 0.05 |
+| p2_arena_1k | e060, e120, e190 | 0.05 |
+| P1_flat | e080 | 0.05 |
+| P1_tightclip | e080 | 0.05 |
+
+**The entire RL training effort has produced zero working models.**
+
+### Session 5 additional training attempts (ALL FAILED)
+| Config | From | Epochs | Clipfrac | Result |
+|--------|------|--------|----------|--------|
+| compmap_tc_s6 (clip=0.1, max_dist=6, 1K step) | compmap_v1 e060 | 8 | 0 after epoch 1 | Dead |
+| longep3k_tc_s6 (clip=0.1, max_dist=10, 3K step) | compmap_v1 e060 | 6 | 0 after epoch 1 | Dead |
+
+### Issue #76 status: BLOCKED
+- Auth token `6PnHPiX9SWLBZhkMyHr4JJWKuUWZY29t_2CTrVDlCHs` returns 401 on submit endpoint
+- Both server URLs fail: `api.observatory.softmax-research.net` and `softmax.com/api/observatory`
+- Upgraded cogames to 0.27.3 from PyPI — no help
+- `cogames auth status` returns "Authenticated as unknown"
+- **Cannot submit ANY policy** until auth is refreshed via browser OAuth flow
+
+### Session 6: new training approaches (2026-05-21)
+
+**Training launched:**
+1. scratch_comp_hiboost: FROM SCRATCH on competition map, 8 cogs, clip=0.1, boost_aligner=20.0
+2. p1_flat_8cog: Phase 1 flat with 8 cogs (not 4), clip=0.1, to produce stronger base model
+
+**Scripted policy 10K eval**: Running 3 episodes at 10K steps to calibrate offline score

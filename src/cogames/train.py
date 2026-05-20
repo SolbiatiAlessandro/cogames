@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing
+import os
 import platform
 from datetime import UTC, datetime
 from pathlib import Path
@@ -240,8 +241,9 @@ def train(
 
     env_name = "cogames.cogs_vs_clips"
 
-    learning_rate = 0.00092
-    bptt_horizon = 64 if use_rnn else 1
+    learning_rate = float(os.environ.get("COGAMES_LR", "0.00092"))
+    default_bptt = 64 if use_rnn else 1
+    bptt_horizon = int(os.environ.get("COGAMES_BPTT_HORIZON", str(default_bptt)))
     optimizer = "adam"
     adam_eps = 1e-8
 
@@ -293,13 +295,13 @@ def train(
         torch_deterministic=True,
         cpu_offload=False,
         optimizer=optimizer,
-        anneal_lr=True,
+        anneal_lr=os.environ.get("COGAMES_ANNEAL_LR", "true").lower() in ("true", "1", "yes"),
         precision="float32",
         learning_rate=learning_rate,
-        gamma=0.995,
-        gae_lambda=0.90,
+        gamma=float(os.environ.get("COGAMES_GAMMA", "0.995")),
+        gae_lambda=float(os.environ.get("COGAMES_GAE_LAMBDA", "0.90")),
         update_epochs=1,
-        clip_coef=0.2,
+        clip_coef=float(os.environ.get("COGAMES_CLIP_COEF", "0.2")),
         vf_coef=2.0,
         vf_clip_coef=0.2,
         max_grad_norm=1.5,
@@ -313,7 +315,7 @@ def train(
         vtrace_c_clip=1.0,
         prio_alpha=0.8,
         prio_beta0=0.2,
-        min_lr_ratio=0.0,
+        min_lr_ratio=float(os.environ.get("COGAMES_MIN_LR_RATIO", "0.0")),
     )
 
     trainer = pufferl.PuffeRL(train_args, vecenv, policy.network())
