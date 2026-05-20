@@ -51,6 +51,7 @@ class LLMAlignerState(AlignerState):
     no_move_steps: int = 0
     no_progress_on_target_steps: int = 0
     last_has_heart: bool = False
+    last_heart_count: int = 0
     last_friendly_junctions: int = 0
     consecutive_unstuck: int = 0
     explore_start_junctions: int = 0
@@ -114,6 +115,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             no_move_steps=state.no_move_steps,
             no_progress_on_target_steps=state.no_progress_on_target_steps,
             last_has_heart=state.last_has_heart,
+            last_heart_count=state.last_heart_count,
             last_friendly_junctions=state.last_friendly_junctions,
             consecutive_unstuck=state.consecutive_unstuck,
             explore_start_junctions=state.explore_start_junctions,
@@ -146,6 +148,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
     def _update_progress(self, obs: AgentObservation, state: LLMAlignerState) -> None:
         has_heart = self._inventory_count(obs, "heart") > 0
+        heart_count = self._inventory_count(obs, "heart")
         friendly_count = len(state.known_friendly_junctions)
         current_abs = self._spawn_offset(obs)
         if state.current_skill == "get_heart" and has_heart and not state.last_has_heart:
@@ -153,11 +156,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions:
             self._event(state, f"friendly junction count increased from {state.last_friendly_junctions} to {friendly_count}")
 
+        heart_increased = state.current_skill == "get_heart" and heart_count > state.last_heart_count
         state.last_has_heart = has_heart
+        state.last_heart_count = heart_count
         state.last_friendly_junctions = friendly_count
         last_action_move = self._feature_value(obs, "last_action_move")
         made_progress = (
-            (state.current_skill == "get_heart" and has_heart and not state.last_has_heart)
+            (state.current_skill == "get_heart" and (heart_increased or (has_heart and not state.last_has_heart)))
             or (state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions)
             or (state.current_skill == "gear_up" and self._current_gear(obs) == "aligner")
         )
@@ -280,7 +285,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                     for h in _vh
                 )
-                if heart_count < 4 and near_hub:
+                if heart_count < 6 and near_hub:
                     pass
                 else:
                     reason = f"overrode get_heart to align_neutral ({heart_count} hearts, not near hub)"
@@ -293,7 +298,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             reason = "overrode align_neutral to unstuck after stuck exit (escape navigation deadlock near junction)"
             skill = "unstuck"
         # Prevent immediate-completion loops: get_heart already done if has_heart=True
-        # Exception: near hub with <3 hearts, allow accumulation
+        # Exception: near hub with <5 hearts, allow accumulation
         if has_aligner and has_heart and skill == "get_heart":
             heart_count = self._inventory_count(obs, "heart")
             current_abs = self._spawn_offset(obs)
@@ -302,7 +307,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh2
             )
-            if heart_count < 4 and near_hub:
+            if heart_count < 6 and near_hub:
                 pass
             elif known_alignable_junctions:
                 reason = f"overrode get_heart to align_neutral ({heart_count} hearts held)"
@@ -365,7 +370,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
+            if heart_count < 5 and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
                 self._event(state, f"get_heart completed with {heart_count} heart(s)")

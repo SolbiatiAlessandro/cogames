@@ -95,3 +95,28 @@ Issue #77 asks us to evaluate 40+ bug fixes from the RAxer branch. The recommend
 - Seed 42: 3979.62, Seed 43: 4329.07, Seed 44: 4713.85 → **avg 4340.85**
 - Confirms junction saturation: 51 junctions aligned by ~2K steps
 - All reward after step ~2K is pure junction hold time
+
+### Session 3: structural improvements (2026-05-20)
+
+#### Cascade gain scoring — DISCARDED (-3.8%)
+- Modified `_cascade_priority_target` to score junctions by how many non-alignable junctions they'd bring into cascade range
+- Formula: `travel + hub_dist * 0.2 - cascade_gain * 8`
+- Result: avg 1087 vs 3A5M 1130 = **-3.8%** — sends aligners to farther junctions, travel cost outweighs cascade benefit
+
+#### Progress tracking bug found and exploited
+- **Bug**: `_update_progress` L157 sets `state.last_has_heart = has_heart` BEFORE `made_progress` check at L161 uses `not state.last_has_heart` — so get_heart progress is never detected (dead code)
+- With broken progress: `no_progress_on_target_steps` always increments at hub → exits after ~3 steps with 1-3 hearts
+- **Fix**: Track `last_heart_count` and detect `heart_count > last_heart_count` as progress
+- Fix alone (threshold=3): avg 1096 = **-3.0%** (aligners reliably stay for 3 hearts but the wait hurts)
+- Fix + threshold=5: avg 1153 = **+2.7%** (5 hearts per trip saves enough round trips to matter)
+
+#### Hearts5 + progress fix — KEPT (+2.7%)
+| Seed | 3A5M | hearts5+fix | Δ |
+|------|------|-------------|---|
+| 42 | 1068 | 1078 | +1.0% |
+| 43 | 1137 | 1141 | +0.4% |
+| 44 | 1186 | 1261 | +6.3% |
+| 45 | 1087 | 1215 | +11.8% |
+| 46 | 1139 | 1114 | -2.2% |
+| 47 | 1123 | 1111 | -1.1% |
+| **6-seed avg** | **1123** | **1153** | **+2.7%** |

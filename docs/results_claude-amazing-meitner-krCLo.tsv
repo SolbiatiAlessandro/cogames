@@ -10,3 +10,6 @@ commit	mission_reward	secondary_rewards	steps	status	description
 10456cd	1090.16	junctions=51.0 hearts=59.0	3000	discard	3A5M + return_load=30 (more hub trips, -3.5%)
 10456cd	1123.34	junctions=51.0 hearts=59.0	3000	keep	3A5M 6-seed validation (42-47): +1.6% vs 4A4M
 10456cd	4340.85	junctions=51.0 hearts=60.3	10000	keep	3A5M 10K 3-seed avg (42/43/44)
+10456cd	1087.01	junctions=n/a hearts=n/a	3000	discard	cascade_gain scoring: prioritize junctions that unlock more (-3.8% vs 3A5M)
+10456cd	1095.77	junctions=n/a hearts=n/a	3000	discard	progress-fix-only (threshold=3): heart progress tracking fix alone (-3.0%)
+PENDING	1153.24	junctions=n/a hearts=n/a	3000	keep	hearts5+progress-fix: 6-seed avg (42-47) accumulate 5 hearts + fix progress tracking (+2.7% vs 3A5M)
