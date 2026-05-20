@@ -454,11 +454,43 @@ Key findings:
 - **Explained variance >0.95**: critic network very accurate
 
 **Eval results (1-episode, 3K steps, 8 cogs, temp=0.7):**
-| Checkpoint | Reward | Note |
-|-----------|--------|------|
-| anneal e015 (ep0 only) | 0.4464 | similar to original e020 baseline |
-| anneal e020 | pending | from rapid learning phase |
-| anneal e025 | pending | from entropy trough |
-| anneal e030 | pending | from stabilization phase |
+| Checkpoint | Seed | Reward | Note |
+|-----------|------|--------|------|
+| anneal e015 | 100 | 0.425 avg | 2 episodes: 0.429, 0.421 |
+| anneal e020 | 100 | 0.300 | alive only — regression |
+| anneal e020 | 42 | 0.300 | alive only (training seed too!) |
+| anneal e030 | 100 | 0.300 | alive only |
+| anneal e040 | 100 | 0.300 | alive only |
 
 Original e020 baseline: 0.463 per agent at 3K steps.
+
+**CONCLUSION: anneal_longep3k FAILED**
+
+Despite showing promising training metrics (heart acquisition 10x improvement, sporadic junction alignment), ALL checkpoints from epoch 20+ regress to alive-only (0.300) in eval. The anneal training over-optimized heart acquisition via boost_heart=2.0, destroying the junction-seeking exploration behavior the original e020 model had.
+
+Root cause analysis:
+- boost_heart=2.0 made heart acquisition the dominant reward signal
+- Between epochs 15-20, the model shifted from balanced (hearts+junctions) to heart-only
+- The model reliably reaches the hub and collects hearts but never finds/aligns junctions in eval
+- Training junction alignment was sporadic (4/14 eval blocks) and unreliable
+- Even on the training seed (42), the model can't align junctions in single-episode eval
+
+**Training killed at epoch 52. Pivoting to junction-focused approach.**
+
+### Session 10: junction-focused training (2026-05-20)
+
+**Strategy**: Fix the reward imbalance that caused anneal training to fail.
+- Dramatically increase junction alignment reward: boost_aligner=20 (4x previous)
+- Remove heart boost entirely: boost_heart=0
+- Increase milestones_2 objective compounding: 25x (5x previous default)
+- This makes holding aligned junctions the overwhelmingly dominant reward
+
+**junction_focus training config:**
+- weights: realmap e020 (original baseline, still best)
+- reward: credit,milestones_2:25 (25x objective compounding)
+- boost_aligner: 20.0 (aligner_gained=20, junction_aligned=50)
+- boost_heart: 0.0 (credit gives heart_gained=0.05 only)
+- clip_coef: 0.1, update_epochs: 4, lr: 0.001
+- ent annealing: 0.08→0.02 over 50%
+- 8 cogs, 16 envs, 3K-step episodes, map_seed=42, max_dist=15
+- checkpoint-interval: 3 (faster feedback)
