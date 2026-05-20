@@ -347,3 +347,49 @@ ALL existing checkpoints evaluated at 500 steps on competition map — ALL retur
 - lr: 0.0005, no LR annealing (constant)
 - max_dist=15, 3K-step, 8 cogs, 16 envs, seed=42
 - Tag: highent_from_e020
+
+### Session 7b: update_epochs discovery + experiments
+
+**CRITICAL FIX: `update_epochs=1` was hardcoded in train.py**
+- PPO needs multiple gradient passes per batch for policy updates. With `update_epochs=1`, `clipfrac=0.0` for ALL training — policy never meaningfully updated.
+- Fixed: `update_epochs` now configurable via `COGAMES_UPDATE_EPOCHS` env var (committed 2e3c100)
+- Also updated COMPAT_VERSION to 0.25 for beta-cvc compatibility
+
+**Training experiments with update_epochs=4:**
+
+| Config | clipfrac | Entropy | Result |
+|--------|----------|---------|--------|
+| clip=0.2, lr=0.001, ent=0.05 ("aggressive") | 0.10-0.20 | 1.60→1.45 collapse | Learns but entropy collapses |
+| clip=0.1, lr=0.0005, ent=0.05 | 0.0 | 1.60 stable | Too conservative, no learning |
+| clip=0.1, lr=0.001, ent=0.1 ("sweet-spot") | 0.01-0.03 rising | 1.60 stable | Promising, killed too early (6 epochs) |
+| clip=0.2, lr=0.001, ent=0.15 | 0.0 | 1.60 stable | ent_coef too high, dominates policy loss |
+| clip=0.2, lr=0.001, ent=0.05, explore=0.001 ("final_explore") | 0.0-0.29 | 1.60→1.19→1.52 recovery | Ran 17 epochs, entropy recovered! |
+
+**final_explore recovery analysis:**
+- Entropy dipped to 1.185 at epoch 9 (near-collapse) then bounced back to 1.52 by epoch 17
+- The `explore_weight=0.001` (cell.visited reward) provides dense exploration signal that prevents full collapse
+- Clipfrac high throughout (0.02-0.29) — policy actively updating
+- Checkpoints available at e003, e006, e009, e012, e015
+
+**All update_epochs=4 checkpoints eval'd at 3K = 0.300 (alive only):**
+| Checkpoint | 3K eval | Source |
+|-----------|---------|--------|
+| update4 e005 | 0.300 | aggressive config |
+| update4 e010 | 0.300 | aggressive config |
+| update4 e015 | pending | aggressive config |
+| update4 e020 | pending | aggressive config |
+
+### Session 8: long-episode training with update_epochs=4 (2026-05-20)
+
+**Strategy**: Combine the two key discoveries:
+1. 3000-step episodes (previous researcher's breakthrough)
+2. update_epochs=4 (my fix for clipfrac=0)
+
+**Two parallel runs launched from realmap e020:**
+
+1. **sweetspot_longep3k**: clip=0.1, ent=0.05, lr=0.001, constant LR, 3K-step episodes
+2. **anneal_longep3k**: clip=0.1, ent annealing 0.08→0.02 over 50%, lr=0.001, constant LR, 3K-step episodes
+
+Both: 8 cogs, 16 envs, map_seed=42, boost_aligner=5.0, boost_heart=2.0, credit+milestones_2, max_dist=15
+
+**Training in progress...**
