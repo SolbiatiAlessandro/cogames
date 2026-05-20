@@ -1,0 +1,2 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+baseline	1159.893	jh=0 hg=64.3	3000	keep	baseline with ported krCLo improvements: 3A5M split + hearts5 + progress tracking fix (avg 3 seeds)
