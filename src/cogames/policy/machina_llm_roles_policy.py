@@ -359,6 +359,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
     def _maybe_finish_skill(self, obs: AgentObservation, state: LLMAlignerState) -> None:
         has_heart = self._inventory_count(obs, "heart") > 0
         has_aligner = self._current_gear(obs) == "aligner"
+        if not has_aligner and state.current_skill not in {None, "gear_up", "unstuck", "explore"}:
+            self._event(state, f"gear lost during {state.current_skill} — switching to gear_up")
+            state.current_skill = None
+            return
         if state.current_skill == "gear_up" and has_aligner and state.skill_steps > 0:
             self._event(state, "gear_up completed after acquiring aligner gear")
             state.current_skill = None
@@ -420,15 +424,12 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_neutral)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
-                            state.known_neutral_junctions.discard(stuck_junction)
                             self._event(state, f"blacklisted stuck neutral junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
                             state.align_neutral_timeouts = 0
                     elif non_blacklisted_enemy:
-                        # Also blacklist stuck enemy junctions
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_enemy)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
-                            state.known_enemy_junctions.discard(stuck_junction)
                             self._event(state, f"blacklisted stuck enemy junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
                             state.align_neutral_timeouts = 0
             elif state.current_skill == "get_heart":
