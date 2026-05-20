@@ -159,3 +159,35 @@ All within noise or negative. Issue #77 parameter space fully exhausted.
 - + 3A5M split: 1123 (+1.6%)
 - + hearts5+progress-fix: 1153 (+2.7% over 3A5M, +4.4% total)
 - Committed at c3f6e8a, all experiments recorded in TSV
+
+---
+
+## Issue #75: RL Curriculum Training (session 4, 2026-05-20)
+
+Switching to RL training after exhausting scripted policy optimization.
+
+### Plan
+1. Phase 1: Train from scratch with max_dist=6, clip_coef=0.1, ent annealing 0.04→0.01
+2. Phase 2: Fine-tune best Phase 1 checkpoint with max_dist=10
+3. Evaluate at 500, 1000, and 10K steps
+4. Compare vs scripted policy and previous RL results
+
+### Phase 1a: 1000-step episodes, 64 envs (FAILED)
+- Config: 4 cogs, 1000-step episodes, 64 envs, clip_coef=0.1, boost_aligner=5.0, credit+milestones_2
+- Trained 123 epochs (2M steps), entropy 1.45-1.60
+- All checkpoints eval to 0.1000 per-agent at 1K steps (base reward only)
+- **Root cause**: env vars for ent_coef/clip_coef are set by train_curriculum.py but NEVER read by train.py (hardcoded ent_coef=0.01, clip_coef=0.2). Also 1000-step episodes too short for meaningful learning signal.
+- Also: training from scratch on natural map fails — agents never acquire hearts, can't align junctions
+
+### Phase 1a revision: 3000-step longep (FAILED)
+- Config: 4 cogs, 3000-step episodes, 16 envs, clip_coef=0.2, boost_aligner=5.0, map_seed=42
+- Matched previous researcher's config but trained FROM SCRATCH (not warm-started)
+- KL=0.0, clipfrac=0.0 for all epochs — policy not updating
+- After 544K steps: 0 hearts gained, 0 junctions aligned
+- **Root cause**: full curriculum is needed — previous researcher built up through flat-map→natural map→longer episodes. Random policy can't complete aligner→heart→junction pipeline on natural map.
+
+### Phase 1b: flat-map with pre-equipped gear (in progress)
+- Config: 4 cogs, 1000-step episodes, 16 envs, flat-map, no-clips, start-aligner, start-heart, max_dist=5
+- Training IS learning: junction alignment from eval block 2, held ticks growing to 1600+ by epoch 60
+- Entropy 1.61 → 1.48 (gradual decline, no collapse)
+- Following previous researcher's curriculum: P1 flat → P2 natural → longep3k
