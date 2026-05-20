@@ -81,6 +81,7 @@ class SharedMap:
         self.extractors_by_element: dict[str, set[Coord]] = {
             e: set() for e in ("carbon", "oxygen", "germanium", "silicon")
         }
+        self.depleted_extractors: set[Coord] = set()
 
 
 @dataclass
@@ -109,6 +110,7 @@ class AlignerState(StarterCogState):
     # Issue-65: cells where gear contamination occurred — added to BFS avoid set
     contamination_avoid_cells: set[Coord] = field(default_factory=set)
     gear_contamination_count: int = 0
+    hub_approach_rotation: int = 0
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):

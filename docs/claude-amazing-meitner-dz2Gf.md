@@ -64,3 +64,28 @@ Tested many parameter changes:
 Also cleaned up dead mining mode code from machina_llm_roles_policy.py.
 
 **Next**: Continue looking for improvements. The main bottleneck is junction availability (hearts > junctions), not heart production. Need to find ways to discover/align junctions faster.
+
+## 2026-05-20 10:00-11:45: session 2 experiment sweep
+
+**Tried and failed**:
+1. Aligner gear_up approach diversification: -4.2% on seed 42. Unlike miner stations, forcing different approach sides hurt.
+2. First-deposit speed (return_load=20 or 28 for first trip): -3.0% to -9.7%. Trip overhead outweighs earlier heart availability.
+3. Heart queue management (limit hub trips when hub empty): -1.0% to -5.1%. The hub-empty estimate lags reality, causing aligners to miss hearts.
+4. JUNCTION_ALIGN_DISTANCE=30/35: neutral to -3.4%. Most junctions already within 25 cells.
+5. HUB_ALIGN_DISTANCE=30: neutral to -3.1%.
+
+**Key diagnostic finding**: Between steps 75-200 on seed 42, all 3 aligners oscillate between get_heart (15 steps at empty hub) and explore (discover 1-2 junctions). The explore phases ARE productive (discover junctions for later). The get_heart stale exits at 15 steps (not 75-step timeout), so `get_heart_timeouts` never increments and "defend" mode never triggers.
+
+**Kept**: Shared depleted extractors (+1.0%)
+
+**Hypothesis**: Each miner tracks extractor depletion independently. When one miner marks an extractor as depleted, others still navigate to it, waste 40+ steps mining nothing, then mark it themselves.
+
+**Fix**: Added `depleted_extractors: set[Coord]` to SharedMap, shared via `_bind_shared_map_miner`. When any miner marks an extractor depleted, all miners instantly know.
+
+**Results** (3-seed avg):
+- Seed 42: 1102.7 (baseline 1103.9, -0.1%)
+- Seed 123: 1100.9 (baseline 1087.2, +1.3%)
+- Seed 7: 1191.7 (baseline 1169.1, +1.9%)
+- **Avg: 1131.8 (baseline 1120.1, +1.0%)**
+
+6-seed validation (42-47): 1148.8 vs baseline 1131.5 (+1.5%). Some seed variance (43: -2.7%, 45: -5.4%) but 6/8 seeds improved.

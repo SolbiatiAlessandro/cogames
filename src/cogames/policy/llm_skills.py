@@ -129,6 +129,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         # Share per-element extractor locations so all miners know where each element is
         if hasattr(sm, "extractors_by_element"):
             state.extractors_by_element = sm.extractors_by_element
+        if hasattr(sm, "depleted_extractors"):
+            state.depleted_extractors = sm.depleted_extractors
 
     def initial_agent_state(self) -> MinerSkillState:
         starter_state = self._starter.initial_agent_state()

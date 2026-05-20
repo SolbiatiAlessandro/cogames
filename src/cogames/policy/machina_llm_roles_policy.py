@@ -205,8 +205,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             # Skip LLM call entirely — use deterministic rule-based planner
             skill = None
             reason = "scripted mode"
-            logger.info("agent=%s role=aligner scripted_plan has_aligner=%s has_heart=%s alignable=%d",
-                        obs.agent_id, has_aligner, has_heart, len(known_alignable_junctions))
+            step_num = self._aligner_step_counts.get(obs.agent_id, 0)
+            logger.info("agent=%s step=%d role=aligner scripted_plan has_aligner=%s has_heart=%s alignable=%d friendly=%d",
+                        obs.agent_id, step_num, has_aligner, has_heart, len(known_alignable_junctions), len(state.known_friendly_junctions))
         else:
             prompt = build_llm_aligner_prompt(
                 has_aligner=has_aligner,
@@ -479,9 +480,14 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             logger.warning("agent=%s role=aligner step_error=%s — returning noop", obs.agent_id, e)
             return self._starter._action("noop"), state
 
+    _aligner_step_counts: dict[int, int] = {}
+
     def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+
+        aid = obs.agent_id
+        self._aligner_step_counts[aid] = self._aligner_step_counts.get(aid, 0) + 1
 
         # ── Team coordination: sync shared state ──
         sm = self._shared_map
