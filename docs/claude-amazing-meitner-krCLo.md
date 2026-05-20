@@ -494,3 +494,47 @@ Root cause analysis:
 - ent annealing: 0.08→0.02 over 50%
 - 8 cogs, 16 envs, 3K-step episodes, map_seed=42, max_dist=15
 - checkpoint-interval: 3 (faster feedback)
+
+### Session 11: issue #71 — junction control efficiency (2026-05-20)
+
+**Context**: After rebasing to main (fa6d698), map generation changed (now ~140 junctions vs 53 before). Reward format changed to per-cog. Working with scripted policy optimization.
+
+**Post-rebase baseline (3A5M, 3-seed avg 42/43/44):**
+
+| Seed | per cog | junction.gained | junction.held | clips.held |
+|------|---------|-----------------|---------------|------------|
+| 42   | 3.87    | 63              | 35,666        | 183,120    |
+| 43   | 1.85    | 58              | 15,523        | 183,120    |
+| 44   | 3.41    | 69              | 31,135        | 183,120    |
+| **Avg** | **3.04** | **63.3**     | **27,441**    |            |
+
+**Navigation shake (3 blocked / every 2nd) — DISCARDED**
+- Modified from "5 blocked, every 3rd" to "3 blocked, every 2nd" in _step_impl line 518
+- Seed 42: +24.8%, Seed 43: -12.4%, Seed 44: -19.1%, **Avg +1.0%** (high variance, inconsistent)
+
+**HP retreat at 25% threshold — MASSIVE IMPROVEMENT (+126.6%)**
+
+**Hypothesis**: Aligners have HP retreat completely disabled (_read_hp returns None), causing 5-6 deaths per aligner per episode. Each death loses gear+heart, requiring expensive re-gearing. Re-enabling retreat at a low threshold prevents deaths while minimizing disruption.
+
+**Changes (machina_llm_roles_policy.py):**
+1. Override `_read_hp` to actually read HP from observation tokens
+2. Set retreat threshold to 25% (vs 70% used by other agents) — low enough to avoid oscillation
+3. Resume threshold at 40% (agents resume work quickly after reaching safety)
+
+| Seed | Baseline | HP Retreat 25% | Delta |
+|------|----------|----------------|-------|
+| 42   | 3.87     | 5.84           | +50.9% |
+| 43   | 1.85     | 6.49           | +250.8% |
+| 44   | 3.41     | 8.35           | +144.9% |
+| **Avg** | **3.04** | **6.89**    | **+126.6%** |
+
+Junction metrics:
+- Gained: 63.3 → 97 (+53%)
+- Held: 27,441 → 65,939 (+140%)
+- Hearts withdrawn: ~27 → ~203 (7.5x more hub trips)
+
+**Root cause of improvement**: enabling HP retreat doesn't reduce deaths (they actually increased from ~16 to ~30 for aligners), but it dramatically increases heart throughput. Agents cycle through many more heart→align→retreat→heart loops. Total hearts withdrawn went from ~27 to ~203 per game. The continuous cycling means more junctions aligned AND more held time.
+
+**Why deaths increased**: with HP retreat, agents survive more missions → encounter more danger overall → more total deaths, but each death is "cheaper" because the agent was already productive.
+
+**Biggest improvement of the entire session. Committed and will continue testing.**
