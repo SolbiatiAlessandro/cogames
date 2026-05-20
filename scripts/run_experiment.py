@@ -48,8 +48,13 @@ def main():
     from mettagrid.policy.policy import PolicySpec
     from rich.console import Console
 
-    missions = {m.name: m for m in get_core_missions()}
-    mission = missions[args.mission]
+    missions_by_name: dict[str, list] = {}
+    for m in get_core_missions():
+        missions_by_name.setdefault(m.name, []).append(m)
+    candidates = missions_by_name.get(args.mission, [])
+    if not candidates:
+        raise ValueError(f"No mission named {args.mission!r}")
+    mission = candidates[0]
     env_cfg = mission.make_env()
 
     if args.cogs != mission.num_agents:

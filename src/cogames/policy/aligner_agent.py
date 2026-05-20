@@ -555,12 +555,12 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             state.last_mode = mode
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
-        """Read current HP from observation tokens.
-
-        Intentionally returns None: the aligner's HP retreat logic
-        causes rapid oscillation near territory boundaries. Aligners work better
-        without HP retreat because they operate near/at junctions.
-        """
+        """Read current HP from observation tokens."""
+        for token in obs.tokens:
+            if token.location != self._starter._center:
+                continue
+            if token.feature.name == "inv:hp":
+                return int(token.value)
         return None
 
     def _in_friendly_territory(self, current_abs: Coord, state: AlignerState) -> bool:

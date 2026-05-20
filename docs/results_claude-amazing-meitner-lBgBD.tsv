@@ -1,0 +1,3 @@
+commit	mission_reward	secondary_rewards	steps	status	description
+baseline	29.95	aligner.gained=13.3,aligner.lost=13.3	10000	baseline	Machina1 3A5M baseline (no HP retreat). avg of seeds 42,43,44
+hp_retreat_50pct	31.18	aligner.gained=14.3,aligner.lost=14.3	10000	improvement	HP retreat at 50% with hysteresis. avg of seeds 42,43,44. +4.1%
