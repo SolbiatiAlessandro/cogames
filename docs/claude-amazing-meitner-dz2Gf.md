@@ -115,3 +115,20 @@ Also cleaned up dead mining mode code from machina_llm_roles_policy.py.
 6-seed (42-47): 1167.8 vs baseline 1148.8 (+1.7%)
 
 **Cumulative improvement**: +3.3% vs original baseline (1143.5 vs 1107.4)
+
+## 2026-05-20 18:00-19:40: session 4 — exhaustive parameter sweep
+
+**Key finding**: BFS-for-junctions hypothesis DISPROVEN. Previous sessions claimed "ALL BFS methods ALWAYS fail for junction targets because junctions are in blocked_cells." Logging showed this is FALSE: junctions are NOT added to `blocked_now` (only walls, extractors, hubs, stations are), so junctions ARE in `known_free_cells` and BFS works normally. Only 2 out of ~200 junction navigations fell through to greedy (distant blocked junctions at dist>30). The BFS fix was a dead end.
+
+**Also identified**: Miner gear contamination loop on seed 123 — agents 0 and 4 oscillate in gear_up→explore for 100+ steps. Agent 4 gets contaminated twice at (3, -4) despite `contamination_avoid_cells`. Root cause unclear — may be only path through contamination cell.
+
+**Tried and failed**:
+1. Deposit timeout 30→45: +1.2% 3-seed, -1.0% 6-seed (inconsistent)
+2. Hub distance weight for extractors (//2 → *1): -1.0% (too much hub bias)
+3. Sector-based explore diversification: -5.1% (forces suboptimal exploration)
+4. Move cooldown 6→3: -2.8% (agents get stuck in repetitive failed moves)
+5. Sticky explore targets (5/10/15 step commitment): +0.3-0.4% avg (inconsistent)
+6. Navigation shake threshold 5→3: +0.3% 6-seed (within noise)
+7. Explore cap 30→45: +0.9% 3-seed, -0.2% 6-seed (seed 47 regression)
+
+**Conclusion**: The +3.3% cumulative improvement (gear_up approach diversification + shared depleted extractors + early heart cap) appears to be near the ceiling for incremental scripted changes. 18+ parameter/mechanism tweaks tested across sessions 3-4 have all been neutral to negative. Further improvement likely requires architectural changes (different skill framework, LLM planner improvements, or online-specific adaptations).

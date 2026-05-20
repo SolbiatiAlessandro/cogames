@@ -3,3 +3,4 @@ baseline	1107.426	jh=53.3 hg=63.3	3000	keep	baseline with ported krCLo improveme
 pending	1120.096	jh=56.0 hg=63.7	3000	keep	gear_up approach diversification: agent_id-based side selection reduces initial station congestion (+1.1%)
 pending	1131.751	jh=56.7 hg=64.7	3000	keep	shared depleted extractors: miners share extractor depletion info via SharedMap (+1.0%)
 pending	1143.482	jh=56.0 hg=64.3	3000	keep	early heart cap: limit hearts5 accumulation to 2 before crafted hearts exist so 3rd aligner gets initial heart 155 steps earlier (+1.0%)
+pending	1143.482	jh=56.0 hg=64.3	3000	fail	session 4: 7 experiments all neutral-to-negative (deposit timeout, hub dist, sector explore, move cooldown, sticky targets, nav shake, explore cap). BFS-for-junctions hypothesis disproven. Incremental optimization ceiling reached at +3.3%.
