@@ -120,3 +120,27 @@ Issue #77 asks us to evaluate 40+ bug fixes from the RAxer branch. The recommend
 | 46 | 1139 | 1114 | -2.2% |
 | 47 | 1123 | 1111 | -1.1% |
 | **6-seed avg** | **1123** | **1153** | **+2.7%** |
+
+### 10K step evaluation (hearts5+fix)
+- Seed 42: 3990.21, Seed 43: 4333.38, Seed 44: 4788.12 → **avg 4370.57** (+0.7% vs 3A5M 10K)
+- Smaller improvement at 10K because alignment phase is a smaller fraction of total runtime
+
+### Session 3 additional sweeps (all DISCARDED)
+| Config | Avg (3-seed) | vs hearts5 |
+|--------|-------------|------------|
+| 2A6M+hearts5 | 1106 | -4.1% |
+| 4A4M+hearts5 | 1084 | -6.6% |
+| hearts=7+fix | 1149 | -1.0% |
+| hearts=4+fix | 1140 | -1.7% |
+| junction_dist=18 | 1152 | 0% |
+| explore_cap=22 | 1098 | -5.4% |
+| explore_cap=45 | 1148 | -1.0% |
+| adaptive-hearts (3-7) | 1159 | 0% |
+
+### Session 3 key findings
+- **Progress tracking bug**: `_update_progress` L157 sets `state.last_has_heart` before `made_progress` uses it — get_heart progress was dead code since the codebase was written
+- **Optimal heart accumulation**: hearts=5 is the sweet spot; 3 too few, 7 too many (hub takes too long to produce), 4 slightly suboptimal
+- **Role split robust**: 3A5M is still optimal with hearts5; 2A6M and 4A4M both worse
+- **Explore cap robust**: default (stuck_threshold × 2 = 30) is optimal; shorter and longer both hurt
+- **Near theoretical ceiling**: at 3K steps with ~130 junction cells, current avg ~1153 is ~90% of theoretical max (~1300). Remaining 10% is alignment latency that's hard to compress further
+- **Next researcher should consider**: tournament-specific optimizations (4v4 with clips), dynamic role switching after junction saturation, or completely new skill architectures
