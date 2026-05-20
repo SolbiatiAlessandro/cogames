@@ -89,3 +89,29 @@ Also cleaned up dead mining mode code from machina_llm_roles_policy.py.
 - **Avg: 1131.8 (baseline 1120.1, +1.0%)**
 
 6-seed validation (42-47): 1148.8 vs baseline 1131.5 (+1.5%). Some seed variance (43: -2.7%, 45: -5.4%) but 6/8 seeds improved.
+
+## 2026-05-20 13:00-14:00: session 3 experiments
+
+**Tried and failed**:
+1. Mine stale → retry: after mine stale exit, skip explore and go directly to mine_until_full if active extractors remain. v1 (any active): seed 123 catastrophic -7.6%, miners stuck cycling depleted cluster. v2 (far active only, max 1 consecutive): still -0.4% avg. Reverted.
+
+**Kept**: Early heart cap (+1.0%)
+
+**Hypothesis**: Agent 6 (3rd aligner) waits 162 steps for its first heart because agents 1 & 3 grab all 5 initial hub hearts via hearts5 accumulation. By step 185, 18 alignable junctions are already available — agent 6 could have been aligning much sooner.
+
+**Fix**: In `_maybe_finish_skill`, when `hearts_crafted_estimate == 0` (no crafted hearts yet = early game), cap the hearts5 accumulation threshold from 5 to 2. This means each aligner grabs at most 2 hearts from the initial pool, leaving 1 for the 3rd aligner.
+
+**Results**: Agent 6 gets first heart at step 30 instead of step 185 — 155 steps earlier!
+- Cap=1: too aggressive, avg -1.3%
+- **Cap=2: avg +1.0% (3-seed), +1.7% (6-seed)**
+- Cap=3: neutral, avg +0.1%
+
+3-seed detail:
+- Seed 42: 1107.8 (baseline 1102.7, +0.5%)
+- Seed 123: 1091.2 (baseline 1100.9, -0.9%)
+- Seed 7: 1231.4 (baseline 1191.7, +3.3%)
+- **Avg: 1143.5 (baseline 1131.8, +1.0%)**
+
+6-seed (42-47): 1167.8 vs baseline 1148.8 (+1.7%)
+
+**Cumulative improvement**: +3.3% vs original baseline (1143.5 vs 1107.4)

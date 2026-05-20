@@ -374,7 +374,11 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 5 and near_hub and state.no_progress_on_target_steps < 3:
+            early_game_cap = 5
+            sm = self._shared_map
+            if sm is not None and sm.hearts_crafted_estimate == 0:
+                early_game_cap = 2
+            if heart_count < early_game_cap and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
                 newly_withdrawn = max(0, heart_count - state.hearts_at_get_heart_start)
