@@ -24,79 +24,74 @@
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-05-20 (Session 36)_
+_Updated by Director (offline-to-online): 2026-05-21 (Session 37)_
 
 ### Online Tournament (beta-cvc, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| #1 | **45.29** | `Softy:v103` | RL |
-| #2 | 43.58 | `Softy:v111` | RL |
-| #3 | 42.48 | `Softy:v107` | RL |
-| #4 | 41.86 | `Softy:v96` | RL |
-| **#5** | **41.85** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — scripted, stuck_threshold=15** |
-| #6 | 41.59 | `Softy:v100` | RL |
-| #7 | 41.28 | `slanky:v171` | RL competitor |
-| #8 | 41.22 | `Softy:v101` | RL |
-| #9 | 41.20 | `Softy:v102` | RL |
-| #10 | 41.10 | `Paz-Bot-9000:v47` | competitor |
-| **#11** | **40.85** | **`ax5wp-74a-hubl2-def-enemy:v1`** | hub L2 fix + defend + enemy |
-| #12 | 40.82 | `Gryffindor:v11` | new competitor |
-| **#18** | **40.49** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
+| #1 | **49.40** | `all_role_policy_v1shapeterr4_auto_model035000:v1` | **NEW** RL, safaalver-softmax |
+| #2 | 49.28 | `..._model025000:v1` | RL, same team |
+| #3 | 47.41 | `..._model020000:v1` | RL, same team |
+| #4 | 45.74 | `..._model017500:v1` | RL, same team |
+| #5 | 45.29 | `Softy:v103` | RL (was #1) |
+| #6-#12 | 42.6-45.0 | _6 more RL checkpoints + Softy_ | RL dominates top 14 |
+| #14 | 41.86 | `Softy:v96` | RL |
+| **#15** | **41.85** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — dropped from #5** |
+| #17 | 41.35 | `ax5wp-73s-l2fix:v1` | ours |
+| **#26** | **40.71** | **`lessandro-navfix-cd3:v1`** | nav fix (was #18) |
 
-_5 policies in top 20, 30+ in top 100. Gap to #1: 3.44 pts (7.6%). Leaderboard FROZEN — auth expired, can't submit._
+_148 of our policies on leaderboard (949 total). Gap to #1: 7.55 pts (18%). Auth STILL expired, can't submit._
 
-### BLOCKER: Auth Token Expired (#78)
+### BLOCKER: Auth Token Expired (#78) — 6th consecutive session
 
-**No online submissions possible.** Token expired for 5+ consecutive sessions. Owner must run `cogames auth login` from a machine with a browser. This blocks ALL online progress — scripted improvements AND RL validation.
+**No online submissions possible.** Token still resolves to anonymous. Owner must run `cogames auth login`. We have a critical +129.5% offline fix ready to submit.
 
-### Offline Best Results (scripted, 8-agent, 3000 steps)
+### Offline Best Results
 
-| Rank | Reward | Commit | Config | Notes |
+| Rank | Reward | Source | Config | Notes |
 |------|--------|--------|--------|-------|
-| 1 | **1153** | `c3f6e8a` | 3A5M + hearts5 + progress fix (krCLo) | **NEW** +4.4% vs baseline, 6-seed avg |
-| 2 | 1130 | `1045689` | 3A5M split (krCLo) | +6.6% vs 4A4M |
-| 3 | 1060 | `4531257` | 4A4M baseline (d922520) | previous best config |
+| 1 | **8.63** | v1EZZ `f2b6ca5` | 3A5M neutral-only-align (8ag, 3Ks) | **CRITICAL FIX** +129.5%, 6-seed, applied to main |
+| 2 | 1153 | krCLo `c3f6e8a` | 3A5M + hearts5 (8ag, 3Ks) | +4.4% vs old baseline |
+| 3 | 3.76 | v1EZZ baseline | 3A5M old (8ag, 3Ks) | pre-fix baseline |
 
-_Note: reward units differ from prior sessions — krCLo uses raw junction held ticks at 3000 steps, not normalized mission_reward._
+_v1EZZ discovered aligners targeting unalignable enemy junctions. Fix cherry-picked to main._
 
 ### RL Training Progress
 
 | Phase | max_distance | Result | Status |
 |-------|-------------|--------|--------|
 | Phase 1 flat | 6 (close) | 7541 held ticks (peak) | DONE |
-| Phase 2 compmap | 6 (patched) | 21K+ held in training, 0.31 at 3K eval | IN PROGRESS |
-| Real-map direct | 15 (competition) | held ticks 246→793, 1-3 junctions | EARLY, MOST PROMISING |
+| Phase 2 compmap | 6 (patched) | 21K+ in training, 0.31 eval | STALLED |
+| Real-map direct | 15 (competition) | 793 held ticks | EARLY |
 
-Distribution shift is the core RL problem: max_dist=6/10 models don't transfer to competition (max_dist=15). Direct real-map training is the correct approach. All checkpoints on competition eval still score 0.05 (alive reward only). Scripted at 10K: 3.74/agent — still 3-4x better.
+`safaalver-softmax` proves RL dominates online (49.40). Their policy: pure movement, zero vibes, auto-uploaded checkpoints at steps 2.5K-35K. Our RL training needs acceleration.
 
-### Key Findings (Session 36)
+### Key Findings (Session 37 — offline-to-online)
 
-1. **Auth expired for 5+ sessions** — #1 blocker. No online submissions possible. Created #78.
-2. **Merged krCLo to main** — 3A5M role split + hearts5 + progress fix = +4.4% offline. Ready to submit as `lessandro-ohm-mani-padme-hum` once auth is fixed.
-3. **RAxer bugs mostly N/A** — Of 4 "critical" bugs, only 1 applies to current code (dead cooldown), with zero measurable effect. No cherry-pick needed.
-4. **RL checkpoints lost** — longep3k_e20 (1.394/agent) was never committed to git. All current competition-map models score 0.05.
-5. **RL online reality check** — softy-rl:v1 scores 12.26 online, sal-* RL scores 10-12. RL-to-online gap is massive. Temper expectations.
-6. **Leaderboard stable** — No movement in top 10 since session 35. Gryffindor:v11 entered #12.
+1. **New #1 competitor**: `safaalver-softmax` flooded top 14 with auto-uploaded RL checkpoints (49.40 best). We dropped #5 to #15.
+2. **Critical bug fix applied to main**: Aligners were targeting unalignable enemy junctions (game requires neutral tag for alignment). Fix: +129.5% offline (6-seed: 8.63 vs 3.76). From v1EZZ branch.
+3. **Replay analysis**: Zero vibe transitions across ALL policies. Agent survival is the key differentiator. Weak partners drag score to 21.4, strong partners lift to 46.6.
+4. **Auth blocked 6th session**: Can't submit critical fix. Every session without auth is a missed opportunity.
+5. **RL is the only path to top-5**: safaalver proves RL works online at scale. Scripted ceiling confirmed at ~42.
 
 ### Progress Trajectory
 
 ```
-Session 30 (#40, 36.15)  →  Session 34 (#5, 41.85)  →  Session 36 (#5, 41.85, FROZEN)
-Offline: 1060 (4A4M) → 1130 (3A5M) → 1153 (hearts5+fix) = +8.8% cumulative
-RL: 0.05 on comp map (all checkpoints). Real-map training just starting.
+Session 34 (#5, 41.85) → Session 36 (#5, FROZEN) → Session 37 (#15, competitor entry)
+Offline: 1153 (krCLo) → 8.63 (v1EZZ neutral-only fix, +129.5% on comp map)
+Online: dropped 10 ranks (new competitor, not regression). Auth still blocks submission.
 ```
 
 ### Current Priority Stack
 
 ```
-priority:1  #78  AUTH TOKEN EXPIRED                                   <- BLOCKER, owner action needed
-priority:2  #76  Submit RL checkpoint to beta-cvc                     <- blocked on #78
-priority:2  #77  RAxer bug fixes (krCLo merged, needs submission)     <- blocked on #78
-priority:2  #75  RL Curriculum Training Phase 2+3                     <- slow progress, needs more training
-priority:2  #41  RL policy training (parent)                          <- RL-online gap is large
-priority:2  #74  Scripted ceiling at ~42                              <- documented
-priority:3  #73, #71, #70, #53, #27, #26, #23-17, #12, #11, #10     <- low priority / researched
+priority:1  #78  AUTH TOKEN EXPIRED                                   <- BLOCKER, 6th session
+priority:1  #79  Submit neutral-only-align fix (NEW)                  <- +129.5%, blocked on #78
+priority:2  #75  RL Curriculum Training                               <- safaalver proves RL dominates
+priority:2  #41  RL policy training                                   <- only path to top-5
+priority:3  #76, #77, #74, #73, #71, #70                             <- lower priority
+priority:3  #53, #27, #26, #23-17, #12, #11, #10                     <- research / low priority
 ```
 <!-- LEADERBOARD_END -->
 

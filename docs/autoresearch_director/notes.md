@@ -1,63 +1,88 @@
 # Director Notes
-_Written: 2026-05-20 (Session 36)_
+_Written: 2026-05-21 (Session 37, offline-to-online)_
 
-## What I observed in the replay
+## Offline observations
 
-Could not run replay — this container lacks `cogsguard` native module (requires bazel build). Used TSV data, issue comments, branch diffs, and online leaderboard API instead.
+### Critical bug fix: neutral-only alignment (+129.5%)
+Branch v1EZZ (`f2b6ca5`) discovered that `_align_neutral()` and `_known_alignable_junctions()` included `known_enemy_junctions` in the alignable target set. Enemy junctions have `team:clips` tag — the game requires `isNot(hasTagPrefix("team:"))` for alignment. Aligners were navigating to enemy junctions, failing to align, timing out, and wasting hearts+steps.
+
+**Fix**: Remove `| state.known_enemy_junctions` from 3 locations in `aligner_agent.py` and `machina_llm_roles_policy.py`. Applied to main.
+
+**Result**: 6-seed avg 8.63 vs 3.76 baseline (+129.5%) on 8-agent, 3000-step, competition map.
+
+### Other branch observations
+- **lBgBD**: HP retreat for aligners (+4.1% on Machina1 10K). Clean 1-commit change. NOT merged — improvement is modest and may interact with neutral-only fix.
+- **v1EZZ full branch**: Also includes scrambler role, depleted extractor sharing, shared map corruption fix. Too many changes to merge safely. Only cherry-picked the neutral-only fix.
+- **dz2Gf**: 55+ experiments, confirmed +3.9% ceiling from BFS fixes. Already included in v1EZZ.
+
+## Online observations
+
+### Leaderboard (beta-cvc, 949 entries)
+- **#1**: `all_role_policy_v1shapeterr4_auto_model035000:v1` — 49.40 (NEW, safaalver-softmax)
+- **#5**: `Softy:v103` — 45.29 (was #1)
+- **#15**: `evyIm-73a-stuck15:v1` — 41.85 (was #5, OUR BEST)
+- New competitor `safaalver-softmax` uploaded 10+ RL checkpoints (model steps 2500-35000), taking 10 of top 14 spots
+
+### Match replay analysis (3 matches)
+
+**Match 1: our policy + top RL (score 52.5)**
+- 6 RL agents + 2 ours (lessandro-navfix-cd3)
+- RL agents: 4 die early (1300-1650 steps / 13-16%), 2 survive longer (5400-5700 / 54-57%)
+- Our agents: survive 2750-6239 steps (28-62%)
+- Zero vibe transitions from ALL agents
+- Cogs held 525K junction steps, 124 junctions gained
+
+**Match 2: our best-scored match (score 46.6)**
+- 6 evyIm-stuck15 + 2 evyIm-patience10
+- Agent survival: 21-70% of 10K steps (high variance)
+- Cogs held 466K junction steps, 107 gained
+- Zero vibe transitions
+
+**Match 3: weak partner match (score 21.4)**
+- 2 ours + 6 ron.anticlips (weak partner)
+- Ron's agents all die at 6-15% survival
+- Cogs held only 214K junction steps, clips dominated (482K)
+- Our 2 agents survived 23-63% but couldn't compensate
+
+### Key online insights
+1. Score = partner quality x junction holding time. Our variance (21.4 to 46.6) is dominated by partner quality.
+2. Zero vibe transitions universally — top RL policies don't use role specialization. Pure movement wins.
+3. Agent survival at 10K steps is the critical metric. Agents that survive longer hold more junctions.
+4. Hearts are scarce: only 5 withdrawn in all matches. No crafting observed.
+5. safaalver-softmax is automated: all model checkpoints from a single training run, incremental steps.
+
+## Offline-to-online gap
+
+1. **Offline best**: 8.63/episode (8-agent, 3K steps, v1EZZ neutral-only fix). Online best: #15, score 41.85.
+2. **Gap WIDENED**: #5 to #15 due to new competitor. Gap to #1: 3.44pts to 7.55pts (18%).
+3. **Submission lag is critical**: neutral-only fix (+129.5%) NOT uploaded. Auth blocked 6 sessions.
+4. **Dual bottleneck**: (a) AUTH blocks scripted improvements, (b) RL too early to compete with safaalver.
+5. **Scripted ceiling is ~42 online** even with improvements. RL is the only path to top-5.
 
 ## Current bottleneck
 
-**AUTH TOKEN EXPIRED (#78).** This is the #1 blocker for the entire research program. The Softmax auth token `6PnHPiX9...` resolves to `subject_type: anonymous`. No policy can be submitted — not scripted, not RL. This has been blocking for 5+ consecutive director sessions (34-38). Owner must run `cogames auth login` from a machine with a browser.
+**AUTH (primary, blocking)**: 6th session. Every day without auth is a day the +129.5% fix sits un-submitted.
 
-Secondary bottleneck: RL training maturity. All RL checkpoints on competition map score 0.05 (base alive reward). The distribution shift problem (max_dist=6/10 trained models fail at competition max_dist=15) is the core issue. Direct real-map training is the correct approach but is still early (held ticks at 793, growing slowly).
-
-## What I expected to happen vs. what I found
-
-**Expected** (from session 35 notes):
-1. RL Phase 2 (max_distance=10) would progress — PARTIALLY: Phase 2 compmap shows 21K held in training but only 0.31 at eval
-2. Auth blocker resolved — NO: Still expired. 5th consecutive session.
-3. Submit to beta-teams-tiny-fixed — NO: Can't submit anything without auth
-4. Merge SZmUt training scripts — BYPASSED: krCLo branch had better improvements to merge
-5. Branch cleanup — DEFERRED: ~120 remote branches, but auth is higher priority
-
-**Found**:
-1. krCLo branch had clean +4.4% offline improvement (3A5M + hearts5 + progress fix) — MERGED to main
-2. RAxer "critical bugs" mostly don't apply to current code. Only dead cooldown code (no effect).
-3. Previous longep3k_e20 checkpoints LOST — never committed to git. Major research asset gone.
-4. Real-map RL training (max_dist=15) is the most promising approach — started from previous e050 checkpoint
-5. softy-rl:v1 at 12.26 online — even strong teams' RL is terrible online. RL-online gap is massive.
-6. Gryffindor:v11 entered leaderboard at #12 (40.82). New competitor.
-
-## Merges this session
-
-- **claude/amazing-meitner-krCLo** -> main (fast-forward)
-  - 3A5M role split: `aligner_fraction` 0.5 -> 3/8
-  - Hearts accumulation: threshold 3 -> 5
-  - Progress tracking bug fix: `last_heart_count` tracking
-  - get_heart_cooldown_steps activation (cosmetic, no effect)
-  - TSV evidence: 1153 vs 1060 baseline, 6-seed validated
-  - Also includes: `train_curriculum.py`, `eval_rl_checkpoint.py` scripts
+**RL maturity (secondary, strategic)**: safaalver proves well-trained RL dominates at 49.40. Our RL training at 793 held ticks vs their competition-ready models. RL needs #1 research priority once auth is fixed.
 
 ## Issues updated this session
 
-- **#78**: CREATED (priority:1). Auth token expired blocker. Owner action required.
-- **#76**: DEMOTED priority:1 -> priority:2. Blocked on #78. RL checkpoints lost.
-- **#77**: KEPT at priority:2. krCLo merged. Needs online submission (blocked on #78).
-- **#75**: DEMOTED priority:1 -> priority:2. RL still early, distribution shift is core problem.
-- **#41**: DEMOTED priority:1 -> priority:2. RL-online gap may be much larger than expected.
+- **#79**: CREATED. Submit neutral-only-align fix. Priority:1, blocked on #78.
+- **#78**: Comment added — 6th session, new urgency from safaalver competition.
+- **#75**: Note added — safaalver proves RL dominance online.
+- **#41**: Note added — safaalver RL analysis.
 
-## Submission status
+## Code changes this session
 
-- **beta-cvc**: evyIm-73a-stuck15:v1 at #5 (41.85). FROZEN — can't submit.
-- **Main has krCLo improvements** ready to submit as `lessandro-ohm-mani-padme-hum` once auth works.
-- RL policies NOT submitted — all score 0.05 on competition map anyway.
+- `aligner_agent.py:752`: Removed enemy junctions from align targets
+- `machina_llm_roles_policy.py:146,546`: Same fix in LLM policy
+- `README.md`: Updated leaderboard
+- `docs/autoresearch_director/notes.md`: This file
 
 ## Open questions for next director
 
-1. **Is auth fixed?** Check `cogames auth status` — if still anonymous, escalate further. Consider alternative auth methods.
-2. **Should we submit the krCLo scripted improvements?** Once auth works: submit as `lessandro-ohm-mani-padme-hum` to beta-cvc.
-3. **Is the real-map RL training working?** Check krCLo branch (sessions 6+) for max_dist=15 results. Held ticks must reach ~7000+ to be competitive.
-4. **Branch cleanup**: 120+ remote branches. Most are stale. Safe to prune.
-5. **RL online expectations**: softy-rl:v1 at 12.26 suggests RL may not be the path to top-3. Scripted ceiling at 41.85 may be closer to the practical limit.
-6. **Junction saturation**: krCLo found 51/53 junctions aligned by ~2K steps. After that, all reward is pure hold time. Defense against enemy scramblers is the real online lever.
-7. **New season?** Check if new tournament seasons have opened.
+1. **Is auth fixed?** If yes: immediately submit as `lessandro-ohm-mani-padme-hum`.
+2. **Should we merge lBgBD (HP retreat)?** +4.1% at 10K. May stack with neutral-only fix.
+3. **RL training acceleration**: safaalver's `all_role_policy_v1shapeterr4` suggests shaped terrain reward. Can we replicate their approach?
+4. **Branch cleanup**: 120+ remote branches. v1EZZ and lBgBD have useful work.
+5. **New seasons?** beta-teams-tiny-fixed has only 10 entries — lower-competition.

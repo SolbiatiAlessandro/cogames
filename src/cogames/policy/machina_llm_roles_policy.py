@@ -142,8 +142,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         return self._starter._closest_tag_location(obs, self._hub_tags) is not None
 
     def _known_alignable_junctions(self, state: LLMAlignerState) -> set[tuple[int, int]]:
-        # Combine neutral and enemy junctions — recapturing enemy is a +2 swing
-        return {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+        return {j for j in state.known_neutral_junctions
                 if self._is_alignable(j, state) and j not in state.blacklisted_junctions}
 
     def _update_progress(self, obs: AgentObservation, state: LLMAlignerState) -> None:
@@ -543,7 +542,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     action, base_state = self._align_neutral(obs, state, current_abs)
                 # Record our predicted target (excluding others' targets)
                 bl = state.blacklisted_junctions
-                alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+                alignable = {j for j in state.known_neutral_junctions
                             if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
                 sm.aligner_targets[obs.agent_id] = self._cascade_priority_target(current_abs, alignable, state)
             else:
