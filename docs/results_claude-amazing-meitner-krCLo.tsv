@@ -89,3 +89,6 @@ eea1b24	14.51	hearts=n/a	3000	keep	[POST-REBASE] cascade-scoring+blacklist-fix: 
 36f0e28	19.55	hearts=n/a	3000	discard	scrambler-hearts3: 3-seed avg 19.55 identical to baseline. scrambler rarely lingers at hub
 36f0e28	19.64	hearts=n/a	3000	discard	explore-bias-0.5: 6-seed avg 19.64 (42:18.90, 43:20.31, 44:23.26, 45:17.99, 46:19.18, 47:18.20) +1.0% stronger bias
 2db0846	19.72	hearts=n/a	3000	keep	explore-bias-0.3: 6-seed avg 19.72 (42:23.57, 43:18.95, 44:18.68, 45:19.07, 46:18.93, 47:19.11) +1.4% directional explore per agent
+2db0846	19.68	hearts=n/a	3000	discard	scrambler-outward-explore: 6-seed avg 19.68 (42:22.12, 43:18.95, 44:20.79, 45:20.33, 46:16.78, 47:19.11) -0.2% noise
+2db0846	19.54	hearts=n/a	3000	discard	enemy-proximity-cascade: 6-seed avg 19.54 (42:20.42, 43:17.88, 44:19.96, 45:19.39, 46:18.60, 47:20.97) -0.9% sends agents to contested areas
+2db0846	19.80	hearts=n/a	3000	discard	aligner-preposition: 6-seed avg 19.80 (42:20.41, 43:19.40, 44:19.51, 45:21.80, 46:19.96, 47:17.73) +0.4% noise. preposition near enemy junctions adds complexity for marginal gain
