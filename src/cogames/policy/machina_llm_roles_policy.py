@@ -465,18 +465,18 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if state.max_hp_seen <= 0:
             return False
         hp_fraction = hp / state.max_hp_seen
-        in_friendly = self._in_friendly_territory(current_abs, state)
-        if hp_fraction < _HP_RETREAT_THRESHOLD and not in_friendly:
-            if not state.retreating:
-                logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) retreating to friendly territory",
-                            obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
-                self._event(state, f"HP low ({hp}/{state.max_hp_seen}), retreating")
-                state.retreating = True
+        if hp_fraction < _HP_RETREAT_THRESHOLD and not state.retreating:
+            logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) retreating to friendly territory",
+                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
+            self._event(state, f"HP low ({hp}/{state.max_hp_seen}), retreating")
+            state.retreating = True
+        if state.retreating:
+            if hp_fraction >= 0.85:
+                logger.info("agent=%s HP_OK hp=%d/%d resuming",
+                            obs.agent_id, hp, state.max_hp_seen)
+                state.retreating = False
+                return False
             return True
-        if state.retreating and (in_friendly or hp_fraction > 0.7):
-            logger.info("agent=%s HP_OK hp=%d/%d in_friendly=%s resuming",
-                        obs.agent_id, hp, state.max_hp_seen, in_friendly)
-            state.retreating = False
         return False
 
     def step_with_state(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:

@@ -29,8 +29,8 @@ _JUNCTION_ALIGN_DISTANCE = 25
 # to reach hub (1 HP/step drain). If hub is >49 cells away, they die.
 # At 70%, agents have 69 steps to reach hub, which is much more forgiving.
 _HP_RETREAT_THRESHOLD = 0.70
-# Distance from hub/friendly junction to be considered "in friendly territory"
-_FRIENDLY_TERRITORY_DISTANCE = 15
+# Must be ≤ TERRITORY_CONTROL_RADIUS (10) so agents actually get healed
+_FRIENDLY_TERRITORY_DISTANCE = 9
 
 
 class SharedMap:
@@ -558,12 +558,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             state.last_mode = mode
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
-        """Read current HP from observation tokens.
-
-        Intentionally returns None: the aligner's HP retreat logic
-        causes rapid oscillation near territory boundaries. Aligners work better
-        without HP retreat because they operate near/at junctions.
-        """
+        """Read current HP from observation tokens."""
+        center = self._starter._center
+        for token in obs.tokens:
+            if token.location != center:
+                continue
+            if token.feature.name == "inv:hp":
+                return int(token.value)
         return None
 
     def _in_friendly_territory(self, current_abs: Coord, state: AlignerState) -> bool:

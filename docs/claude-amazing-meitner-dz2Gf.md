@@ -216,3 +216,62 @@ New baseline: 3-seed avg 1152.0, 6-seed avg 1174.6
 **Near-miss**: Nav-shake threshold 5→3 helped seed 47 (+2.8%) but hurt seed 7 (-0.3%), net inconsistent. Return_load 30: -14%, return_load 50: catastrophic.
 
 **Conclusion**: 55+ experiments across 7 sessions. The +3.9% improvement is the confirmed ceiling for incremental scripted optimization. The map size (50×50) means most coordination/exploration optimizations are neutralized — agents naturally cover the small map efficiently. Further gains would require either RL training, online-specific enemy adaptation, or fundamental policy architecture changes.
+
+## 2026-05-21: session 8 — global obs integration + new approaches
+
+**Experiment 1: Global obs hub elements for scarce element detection — FAILED (-0.4%)**
+
+**Hypothesis**: Miners use SharedMap.total_deposits to detect team-scarce elements, but this lags reality (only updated on deposit events). Global observation features (`team:oxygen`, `team:carbon`, etc.) provide real-time hub element inventory. Using actual hub inventory should improve scarce element routing accuracy.
+
+**Changes**: Added `_read_hub_elements(obs)` and `_team_scarce_element_from_obs(obs)` methods to MinerSkillImpl. Updated `_mine_until_full` and `_scripted_skill_choice` to prioritize obs-based scarce detection. Also updated `_update_progress` to use hub elements for better `hearts_crafted_estimate`.
+
+**Results** (6-seed 42-47):
+- Baseline: 1174.6 avg → **New: 1170.3 avg (-0.4%)**
+- Seed 42: 1129.9 (-0.7%), Seed 43: 1156.9 (-0.3%), Seed 44: 1236.1 (-2.9%)
+- Seed 45: 1249.3 (+1.0%), Seed 46: 1169.3 (+3.6%), Seed 47: 1080.1 (-2.7%)
+
+**Interpretation**: The real-time hub inventory doesn't help because: (1) scarce element detection already works well enough with deposit tracking, (2) hub inventory fluctuates rapidly as hearts get crafted (consuming 7 of each element), making instantaneous readings noisy, (3) miners can't control which extractors are nearby — the scarce element info is actionable only when miners have a choice between equal-distance extractors. Reverted.
+
+**Experiment 2: Junction deposit — miners deposit at nearest friendly junction instead of hub**
+
+**Discovery**: Junctions have a `deposit_{team}` on_use_handler that forwards cargo to the team hub via `queryDeposit`. This means miners don't need to trek all the way back to the hub — they can deposit at ANY friendly (cog-aligned) junction. Average distance to nearest friendly junction should be much shorter than to the hub, saving significant travel time per deposit cycle.
+
+**Hypothesis**: Miners currently waste 30-37 deposit cycles per game, each requiring a round-trip to the hub. If the nearest friendly junction is closer, routing there instead saves travel steps per cycle. With 5 miners over 3000 steps, even saving 5 steps per cycle = 750-925 total steps redirected to mining.
+
+**Changes**: Modified `_deposit_to_hub` in `llm_skills.py` to check SharedMap for `known_friendly_junctions` and route to the nearest one when it's closer than the hub. Updated `_update_progress` to count junction proximity as valid for deposit skill.
+
+**Results** (seed 42): total_reward=1088.1 vs baseline 1138.3 = **-4.4%**
+
+**Interpretation**: Junction deposits DON'T work as expected. 108 successful deposits but 166 stale exits (miner adjacent to junction but cargo not decreasing). The deposit handler fires on junction collision but most attempts fail. Possible reasons: (1) SharedMap has stale friendly junction data — clips scramble junctions every 100 steps but the map doesn't update until an agent sees the change, (2) the `on_use_handler` for junction deposit may have additional constraints in the C++ engine not visible in Python config. The 166 stale exits waste enormous miner time. Reverted.
+
+## 2026-05-21: session 9 — MACHINA_1 (88×88) pivot + HP retreat fix
+
+**Key discovery**: 50×50 arena has hit +3.9% ceiling after 55+ experiments. Pivoted to MACHINA_1 (88×88, 10000 steps, 4 clips ships) — the actual online tournament map.
+
+**Diagnostic on MACHINA_1**: Catastrophic baseline — 86 deaths, 28.3 total_reward at 10000 steps. All agents die repeatedly from HP drain. HP retreat was DISABLED for aligners (`_read_hp` returned None in `aligner_agent.py:560`). Miners retreat at 25% HP but hub is too far on 88×88.
+
+**KEPT: HP retreat for aligners + anti-oscillation + miner territory retreat (+60% on machina1)**
+
+Changes:
+1. **Enable aligner HP reading**: `_read_hp` now reads actual `inv:hp` from observation tokens instead of returning None
+2. **Anti-oscillation**: `_check_hp` resume condition changed from "in_friendly territory OR hp > 70%" to "hp ≥ 85%". Prevents rapid retreat/resume cycling at territory boundaries
+3. **Fix _FRIENDLY_TERRITORY_DISTANCE**: Reduced from 15 to 9 to match actual territory heal radius (TERRITORY_CONTROL_RADIUS=10)
+4. **Miner retreat to nearest territory**: New `_retreat_to_territory` method routes miners to nearest hub OR friendly junction (whichever is closer) instead of always to hub. Miners on 88×88 die trying to reach distant hub.
+5. **Miner retreat threshold**: Increased from 25% to 35% — gives miners 35 steps of buffer instead of 25
+
+Results (machina1, seed 42):
+- Baseline (no HP retreat): 28.3 reward, 86 deaths at 10000 steps
+- HP retreat v1 (oscillation bug): 22.86 reward, 27 deaths at 3000 steps  
+- HP retreat + anti-oscillation: 37.80 reward, 30 deaths at 3000 steps
+- + territory retreat for miners: **45.23 reward**, 30 deaths at 3000 steps
+- At 10000 steps: **50.83 reward**, 68 deaths (vs 28.3/91 baseline)
+
+50×50 arena: 1138.33 (UNCHANGED — HP retreat never triggers on small map)
+
+**Also tried and rejected**:
+- Territory-aware junction scoring (dist_to_territory weight): +10% on machina1 but -15% on 50×50. Even small changes to scoring function disrupt carefully-balanced junction ordering on small map.
+- Aligner retreat threshold 80%: more retreat = less productive work, -10% on machina1
+- Miner retreat threshold 50%: too aggressive, -56% on machina1 (miners retreat constantly)
+- Defend skill: just does noop on friendly junction, doesn't help
+
+**Death spiral analysis**: All productive activity (alignment, mining) stops by step 3000. Junction alignments identical at 3000 and 10000 steps. Agents die → respawn without gear → can't re-gear → die again. By step 9000, all aligners have lost gear (`has_aligner=False`), only 3 friendly junctions remain (clips scrambled all 107). Territory collapses. Target: pzwh4 branch gets 3917 (vs our 50.83) — still 77× gap.

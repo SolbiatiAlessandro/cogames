@@ -539,7 +539,7 @@ class LLMMinerPolicyImpl(MinerSkillImpl, StatefulPolicyImpl[LLMMinerState]):
             logger.info("agent=%s step=%d inv=%s skill=%s", aid, step_num, inv, state.current_skill)
 
         if self._check_miner_hp(obs, state):
-            action, base_state = self._deposit_to_hub(obs, state)
+            action, base_state = self._retreat_to_territory(obs, state)
             return action, self._copy_with(state, base_state)
 
         self._maybe_finish_skill(obs, state)

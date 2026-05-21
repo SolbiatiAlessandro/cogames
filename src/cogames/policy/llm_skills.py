@@ -841,7 +841,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             return action, replace(next_state, last_mode=state.last_mode)
         return self._greedy_walk_toward_safe(state, current_abs, target_abs), state
 
-    _MINER_HP_RETREAT_THRESHOLD = 0.25
+    _MINER_HP_RETREAT_THRESHOLD = 0.35
 
     def _read_hp(self, obs: AgentObservation) -> int | None:
         center = self._starter._center
@@ -883,6 +883,26 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                         obs.agent_id, hp, state.max_hp_seen)
             state.retreating_to_hub = False
         return state.retreating_to_hub
+
+    def _retreat_to_territory(self, obs: AgentObservation, state: MinerSkillState) -> tuple[Action, MinerSkillState]:
+        current_abs = self._current_abs(obs)
+        candidates: set[Coord] = set()
+        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+        candidates.update(hub_set)
+        sm = self._shared_map
+        if sm is not None:
+            candidates.update(sm.known_friendly_junctions)
+        if not candidates:
+            return self._deposit_to_hub(obs, state)
+        target = min(candidates, key=lambda c: abs(c[0] - current_abs[0]) + abs(c[1] - current_abs[1]))
+        if target in hub_set:
+            return self._deposit_to_hub(obs, state)
+        result = self._navigate_to_blocked_target(state, current_abs, target)
+        if result is not None:
+            action, next_state = result
+            return action, replace(next_state, last_mode="retreat_to_territory")
+        action, next_state = self._move_toward_target(state, current_abs, target)
+        return action, replace(next_state, last_mode="retreat_to_territory")
 
     def _nearest_extractor_to_hub(self, state: MinerSkillState) -> Coord | None:
         hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
