@@ -101,3 +101,12 @@ eea1b24	14.51	hearts=n/a	3000	keep	[POST-REBASE] cascade-scoring+blacklist-fix: 
 29dffd7	20.65	hearts=n/a	3000	keep	nav-shake-3: 6-seed avg 20.65 (42:19.15, 43:20.79, 44:22.80, 45:17.55, 46:20.66, 47:22.98) +4.7% vs 19.72 baseline. shake every 3rd blocked step instead of 5th
 29dffd7	26.24	hearts=n/a	10000	keep	10K all-improvements: 3-seed avg 26.24 (42:23.48, 43:25.23, 44:30.01) +14.1% vs prev 10K best 23.00. bugfixes + explore-cap-30 + nav-shake-3
 29dffd7	19.38	hearts=n/a	3000	discard	nav-shake-threshold-3: 3-seed avg 19.38 (42:19.75, 43:18.72, 44:19.68) -6.2%. start shaking at 3 blocked moves too aggressive
+29dffd7	20.70	hearts=n/a	3000	discard	hearts=8: 6-seed avg 20.70 (42:20.58, 43:21.22, 44:21.70, 45:20.18, 46:21.79, 47:18.78) +0.2% noise
+29dffd7	18.55	hearts=n/a	3000	discard	explore-bias-0.4: 3-seed avg 18.55 -10%. too strong bias forces bad paths
+29dffd7	18.63	hearts=n/a	3000	discard	6A2S0M-retest: 3-seed avg 18.63 -10%. 2 scramblers still worse than 1
+29dffd7	16.35	hearts=n/a	3000	discard	8A0S-retest: 3-seed avg 16.35 -21%. scrambler confirmed critical
+29dffd7	19.04	hearts=n/a	3000	discard	explore-cap-20: 3-seed avg 19.04 -8%. too short for frontier discovery
+29dffd7	17.81	hearts=n/a	3000	discard	cascade-weight-3: 3-seed avg 17.81 -14%. sends agents to distant junctions
+29dffd7	20.38	hearts=n/a	3000	discard	scrambler-general-explore: 3-seed avg 20.38 0% noise. general vs alignment frontier explore
+29dffd7	19.72	hearts=n/a	3000	discard	optimistic-bfs-explore: 6-seed avg 19.72 -4.5%. BFS overhead in explore slows down
+29dffd7	20.64	hearts=n/a	3000	discard	stuck-exit-12: 6-seed avg 20.64 0%. no effect — nav shake already handles stuck agents
