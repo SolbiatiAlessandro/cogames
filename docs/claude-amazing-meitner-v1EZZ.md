@@ -72,11 +72,20 @@ Implemented early_rush mechanic for miners. Found critical bug: restructuring el
 ### Exp 9: Mining mode threshold=40 (conservative)
 Identical to baseline (neutral). Mining mode threshold doesn't matter in offline eval.
 
+### Exp 10: Deposit stagger (wide ±8, narrow ±4)
+Both variants: avg 1119.48 → **-5.9% — DISCARD.** Staggering return_load across miners hurts overall throughput.
+
+### Exp 11: Edge priority (cascade bias toward frontier junctions)
+Override `_cascade_priority_target` to prefer junctions far from existing friendly territory (network-edge expansion).
+- Weight 0.3: avg 1182.95 → **-0.5% — DISCARD.**
+- Weight 0.1: avg 1156.86 → **-2.7% — DISCARD.**
+Nearest-first selection (base class default) is optimal. Frontier bias causes aligners to travel further for marginal gain. Reverted.
+
 ## Summary
 
 - **Mining mode implemented and kept**: Dynamic aligner→miner conversion after junction saturation. Neutral in offline eval, potentially beneficial in online (more hearts for recapture). Sentinel aligner exemption preserved for online resilience.
-- **Offline ceiling confirmed**: 9 experiments this session + 55+ prior = 64+ experiments total. The 3A/5M baseline at ~1189 avg is essentially optimal for this map. The +3.9% ceiling from prior sessions remains the best improvement.
+- **Offline ceiling confirmed**: 13 experiments this session + 55+ prior = 68+ experiments total. The 3A/5M baseline at ~1189 avg is essentially optimal for this map. The +3.9% ceiling from prior sessions remains the best improvement.
 - **Key bottleneck**: Steps 54-162 where aligners are heartless waiting for miner deposits. This is a timing constraint (first miner deposit at ~step 100), not a design flaw.
-- **All parameter variations regress**: return_load, stuck_threshold, heart_cap changes all hurt. Default values are well-calibrated.
+- **All parameter variations regress**: return_load, stuck_threshold, heart_cap, deposit stagger, edge priority changes all hurt. Default values are well-calibrated.
 
 2026-05-21T07:25Z: Committing mining mode code + experiment logs
