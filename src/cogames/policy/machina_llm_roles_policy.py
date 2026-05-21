@@ -601,7 +601,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
         # Navigation shake: after 5 consecutive blocked moves, every 5th step try a random direction
         # This breaks BFS deadlocks caused by agent-occupied cells
-        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 5 == 0:
+        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
             action, state = self._unstuck(state)
             state.skill_steps += 1
             return action, state
