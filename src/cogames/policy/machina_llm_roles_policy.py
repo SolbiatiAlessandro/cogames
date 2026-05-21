@@ -62,6 +62,9 @@ class LLMAlignerState(AlignerState):
     # HP monitoring
     max_hp_seen: int = 0
     retreating: bool = False
+    # Patrol: track recently visited junctions to cycle between them
+    patrol_visited: set[tuple[int, int]] = field(default_factory=set)
+    patrol_target: tuple[int, int] | None = None
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -143,8 +146,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         return self._starter._closest_tag_location(obs, self._hub_tags) is not None
 
     def _known_alignable_junctions(self, state: LLMAlignerState) -> set[tuple[int, int]]:
-        # Combine neutral and enemy junctions — recapturing enemy is a +2 swing
-        return {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+        return {j for j in state.known_neutral_junctions
                 if self._is_alignable(j, state) and j not in state.blacklisted_junctions}
 
     def _update_progress(self, obs: AgentObservation, state: LLMAlignerState) -> None:
@@ -314,6 +316,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             elif known_alignable_junctions:
                 reason = f"overrode get_heart to align_neutral ({heart_count} hearts held)"
                 skill = "align_neutral"
+            elif state.known_friendly_junctions:
+                reason = "overrode get_heart to defend (heart held, patrol friendly junctions)"
+                skill = "defend"
             else:
                 reason = "overrode get_heart to explore (heart already held, no target known)"
                 skill = "explore"
@@ -329,6 +334,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and was_stuck:
             reason = "overrode explore to unstuck after stuck exit (try escape moves to find junctions)"
             skill = "unstuck"
+        # Patrol friendly junctions instead of exploring when no targets remain (reduces death spiral)
+        if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and state.known_friendly_junctions:
+            reason = "overrode explore to defend (patrol friendly junctions, no alignable targets)"
+            skill = "defend"
         # Break consecutive unstuck loops: after 2+ unstuck in a row, force explore to find new routes
         if skill == "unstuck":
             state.consecutive_unstuck += 1
@@ -389,13 +398,20 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     sm.hub_hearts_withdrawn += newly_withdrawn
                     sm.agents_getting_hearts.discard(obs.agent_id)
                 state.current_skill = None
+        elif state.current_skill == "defend" and has_heart and has_aligner:
+            known_alignable = self._known_alignable_junctions(state)
+            if known_alignable:
+                self._event(state, f"defend ended: {len(known_alignable)} alignable junction(s) detected while patrolling")
+                state.patrol_visited.clear()
+                state.patrol_target = None
+                state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
             self._event(state, "defend ended: acquired heart while defending")
             state.get_heart_timeouts = 0
             state.current_skill = None
         elif state.current_skill == "defend" and state.skill_steps >= self._stuck_threshold * 50:
             self._event(state, "defend ended: trying get_heart again")
-            state.get_heart_timeouts = 0  # reset to allow another get_heart attempt
+            state.get_heart_timeouts = 0
             state.current_skill = None
         elif state.current_skill == "align_neutral" and not has_heart and state.skill_steps > 0:
             self._event(state, "align_neutral completed after spending heart")
@@ -466,8 +482,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             return False
         hp_fraction = hp / state.max_hp_seen
         if hp_fraction < _HP_RETREAT_THRESHOLD and not state.retreating:
-            logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) retreating to friendly territory",
-                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100)
+            _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
+            _retreat_targets = _retreat_hubs | state.known_friendly_junctions
+            if _retreat_targets:
+                _nearest = min(_retreat_targets, key=lambda t: abs(t[0] - current_abs[0]) + abs(t[1] - current_abs[1]))
+                _dist = abs(_nearest[0] - current_abs[0]) + abs(_nearest[1] - current_abs[1])
+            else:
+                _dist = -1
+            logger.info("agent=%s HP_LOW hp=%d/%d (%.0f%%) dist_to_safety=%d retreating",
+                        obs.agent_id, hp, state.max_hp_seen, hp_fraction * 100, _dist)
             self._event(state, f"HP low ({hp}/{state.max_hp_seen}), retreating")
             state.retreating = True
         if state.retreating:
@@ -554,27 +577,47 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 else:
                     action, base_state = self._align_neutral(obs, state, current_abs)
                 bl = state.blacklisted_junctions
-                alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+                alignable = {j for j in state.known_neutral_junctions
                             if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
                 sm.aligner_targets[obs.agent_id] = self._cascade_priority_target(current_abs, alignable, state)
             else:
                 action, base_state = self._align_neutral(obs, state, current_abs)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "defend":
-            # Navigate to nearest friendly junction and hold position
             current_abs = self._spawn_offset(obs)
+            hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+            hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
+            safe_junctions = set()
+            if hub:
+                for fj in state.known_friendly_junctions:
+                    if abs(fj[0] - hub[0]) + abs(fj[1] - hub[1]) <= 25:
+                        safe_junctions.add(fj)
+            else:
+                safe_junctions = set(state.known_friendly_junctions)
             if current_abs in state.known_friendly_junctions:
-                # Already on junction - stand and defend (noop)
-                action = self._starter._action("noop")
-            elif state.known_friendly_junctions:
-                target = self._nearest_known(current_abs, state.known_friendly_junctions)
+                state.patrol_visited.add(current_abs)
+            unvisited = safe_junctions - state.patrol_visited
+            if not unvisited:
+                state.patrol_visited.clear()
+                unvisited = safe_junctions - {current_abs}
+            if unvisited:
+                target = min(unvisited, key=lambda j: abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1]))
+                state.patrol_target = target
                 direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
                 if direction:
                     action = self._starter._action(f"move_{direction}")
                     state.last_move_target = self._move_target(current_abs, direction)
                 else:
-                    action, base_state = self._explore(obs, state)
+                    action, base_state = self._safe_wander(state, current_abs)
                     state = self._copy_with(state, base_state)
+            elif safe_junctions:
+                target = min(safe_junctions, key=lambda j: abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1]))
+                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                if direction:
+                    action = self._starter._action(f"move_{direction}")
+                    state.last_move_target = self._move_target(current_abs, direction)
+                else:
+                    action = self._starter._action("noop")
             else:
                 action, base_state = self._explore(obs, state)
                 state = self._copy_with(state, base_state)
@@ -674,8 +717,11 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         else:
             ns_str = str(num_scouts).lower()
             n_scouts = 0 if ns_str == "auto" else int(num_scouts)
-            self._scout_ids = frozenset()
-        logger.info("num_scouts=%d (n_agents=%d, raw=%s)", len(self._scout_ids), n_agents, num_scouts)
+            if n_scouts > 0:
+                self._scout_ids = frozenset(range(n_agents - n_scouts, n_agents))
+            else:
+                self._scout_ids = frozenset()
+        logger.info("num_scouts=%d scout_ids=%s (n_agents=%d, raw=%s)", len(self._scout_ids), self._scout_ids, n_agents, num_scouts)
 
         self._planner = LLMMinerPlannerClient(
             api_url=llm_api_url,
