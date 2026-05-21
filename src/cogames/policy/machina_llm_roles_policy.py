@@ -62,6 +62,10 @@ class LLMAlignerState(AlignerState):
     # HP monitoring
     max_hp_seen: int = 0
     retreating: bool = False
+    # Junction saturation: switch to mining after all junctions captured
+    mining_mode: bool = False
+    mining_mode_steps: int = 0
+    consecutive_explore_no_junctions: int = 0
 
 
 class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState]):
@@ -353,6 +357,21 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.hearts_at_get_heart_start = self._inventory_count(obs, "heart")
         if skill == "explore":
             state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
+        # Junction saturation detection: if no alignable junctions exist and we've
+        # had multiple fruitless explores, enter mining mode to produce more hearts
+        if skill == "explore" and not known_alignable_junctions and len(state.known_friendly_junctions) >= 20:
+            state.consecutive_explore_no_junctions += 1
+        else:
+            state.consecutive_explore_no_junctions = 0
+        _MIN_ALIGNER_AGENT_ID = min(
+            (aid for aid, role in (self._shared_map.agent_gears.items() if self._shared_map else {})
+             if role == "aligner"),
+            default=obs.agent_id,
+        )
+        if state.consecutive_explore_no_junctions >= 3 and obs.agent_id != _MIN_ALIGNER_AGENT_ID:
+            state.mining_mode = True
+            logger.info("agent=%s MINING_MODE_ACTIVATED friendly=%d after %d fruitless explores",
+                        obs.agent_id, len(state.known_friendly_junctions), state.consecutive_explore_no_junctions)
         state.current_skill = skill
         state.current_reason = reason
         state.skill_steps = 0
@@ -480,6 +499,53 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.retreating = False
         return False
 
+    def _mining_mode_step(self, obs: AgentObservation, state: LLMAlignerState, current_abs: tuple[int, int]) -> tuple[Action, LLMAlignerState]:
+        sm = self._shared_map
+        gear = self._current_gear(obs)
+
+        if gear != "miner":
+            miner_stations = sm.known_miner_stations if sm else set()
+            if miner_stations:
+                target = self._nearest_known(current_abs, miner_stations)
+                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                if direction:
+                    action = self._starter._action(f"move_{direction}")
+                    state.last_move_target = self._move_target(current_abs, direction)
+                    return action, state
+            action, base_state = self._explore(obs, state)
+            state = self._copy_with(state, base_state)
+            return action, state
+
+        carried = sum(
+            self._inventory_count(obs, elem)
+            for elem in ("carbon", "oxygen", "germanium", "silicon")
+        )
+
+        if carried >= 20:
+            hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+            if hub_set:
+                target = self._nearest_known(current_abs, hub_set)
+                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                if direction:
+                    action = self._starter._action(f"move_{direction}")
+                    state.last_move_target = self._move_target(current_abs, direction)
+                    return action, state
+
+        extractors = sm.known_extractors if sm else set()
+        depleted = sm.depleted_extractors if sm else set()
+        active = extractors - depleted
+        if active:
+            target = self._nearest_known(current_abs, active)
+            direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+            if direction:
+                action = self._starter._action(f"move_{direction}")
+                state.last_move_target = self._move_target(current_abs, direction)
+                return action, state
+
+        action, base_state = self._explore(obs, state)
+        state = self._copy_with(state, base_state)
+        return action, state
+
     def step_with_state(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         try:
             return self._step_impl(obs, state)
@@ -522,6 +588,19 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             # No known retreat target: wander safely
             action, state = self._safe_wander(state, current_abs)
             return action, state
+
+        # ── Mining mode: after junction saturation, mine to produce more hearts ──
+        if state.mining_mode:
+            known_alignable = self._known_alignable_junctions(state)
+            if known_alignable:
+                state.mining_mode = False
+                state.mining_mode_steps = 0
+                state.consecutive_explore_no_junctions = 0
+                state.current_skill = None
+                logger.info("agent=%s MINING_MODE_DEACTIVATED new_alignable=%d", obs.agent_id, len(known_alignable))
+            else:
+                state.mining_mode_steps += 1
+                return self._mining_mode_step(obs, state, current_abs)
 
         self._maybe_finish_skill(obs, state)
         if state.current_skill is None:

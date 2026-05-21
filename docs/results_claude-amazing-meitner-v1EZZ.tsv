@@ -1,1 +1,10 @@
 commit	mission_reward	secondary_rewards	steps	status	description
+baseline	1189.22	hearts=66,junctions=53	3000	baseline	3A/5M merged dz2Gf
+mining_mode_v1	1189.22	hearts=66,junctions=53	3000	neutral	aligner→miner after junction saturation
+4A4M	1116.30	hearts=71,junctions=57	3000	discard	4 aligners / 4 miners (-6.1%)
+return_load_20	1116.00	-	3000	discard	return_load=20 (-6.2%)
+stuck_10	1146.65	-	3000	discard	stuck_threshold=10 (-3.6%)
+stuck_20	1191.52	-	3000	neutral	stuck_threshold=20 (+0.2%)
+heart_cap_8	1153.77	-	3000	discard	heart accumulation cap=8 (-3.0%)
+fast_first_deposit	1176.42	-	3000	discard	miner rush at 28 load (-1.1%)
+no_sentinel	1172.77	-	3000	neutral	all aligners convert (-0.1%, 6-seed)
