@@ -694,3 +694,38 @@ Increased explore cap from `stuck_threshold * 2` (30 steps) to `stuck_threshold 
 3. **Optimize for 10K steps specifically**: Competition runs 10K, current tuning is for 3K
 4. **Consider RL hybrid**: Use RL for movement decisions + scripted skill selection
 5. **Cherry-pick RAxer critical bugs**: The `hub_hearts_withdrawn` overcount (bug #1 from issue #77) might help on non-braveheart variants
+
+---
+
+## Session 15: Scrambler Role (2026-05-21)
+
+### 2026-05-21T00:00: Scrambler role hypothesis
+
+**Core insight**: 59% of aligner planning events have `alignable=0` — agents have hearts but no targets. Late game shows ~77 of ~140 junctions undiscovered, but 24-25 enemy junctions exist that could be neutralized by a scrambler to create new alignment targets.
+
+**Hypothesis**: Replace 1 aligner with a scrambler (6A1S1M) to reclaim enemy junctions, creating targets for idle aligners.
+
+### 2026-05-21T00:01: Scrambler implementation
+
+Built scrambler as a mode of the existing aligner agent:
+- `scrambler_mode=True` flag changes gear to scrambler, targets enemy junctions
+- Reuses cascade scoring, BFS navigation, HP retreat, all existing infrastructure
+- New `_scramble_enemy()` method mirrors `_align_neutral()` but for enemy targets
+- Role assignment: scramblers assigned first, then proportional aligner/miner split
+
+### 2026-05-21T00:02: Scrambler validation results
+
+**6A1S1M (6 aligners, 1 scrambler, 1 miner) — 6-seed avg: 19.29 (+6.3% vs 18.14 baseline)**
+
+| Seed | 7A1M (baseline) | 6A1S1M (scrambler) | Delta |
+|------|-----|------|-------|
+| 42 | 17.60 | 18.97 | +7.8% |
+| 43 | 17.61 | 16.15 | -8.3% |
+| 44 | 19.17 | 21.54 | +12.4% |
+| 45 | 17.81 | 20.66 | +16.0% |
+| 46 | 19.22 | 19.74 | +2.7% |
+| 47 | 17.42 | 18.67 | +7.2% |
+
+Seed 43 regressed but all others improved, with strong wins on seeds 44-45. New best: **19.29/cog** (commit 36f0e28).
+
+Next: tune scrambler count (5A2S1M? 6A1S0M?), test at 10K steps.
