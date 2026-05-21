@@ -86,3 +86,6 @@ eea1b24	14.51	hearts=n/a	3000	keep	[POST-REBASE] cascade-scoring+blacklist-fix: 
 36f0e28	18.99	hearts=n/a	3000	discard	5A3S0M: 3-seed avg 18.99 (42:19.01, 43:18.38, 44:19.58) too many scramblers
 36f0e28	18.54	hearts=n/a	3000	discard	scrambler-friendly-scoring: 6-seed avg 18.54 (42:17.81, 43:20.17, 44:20.35, 45:16.58, 46:18.03, 47:18.33) -4.6%. near-friendly bias sends scrambler to controlled areas
 36f0e28	19.11	hearts=n/a	3000	discard	scrambler-no-alignable-check: 6-seed avg 19.11 (42:20.62, 43:19.19, 44:21.38, 45:19.47, 46:15.63, 47:18.37) -1.7%. distant targets waste travel time
+36f0e28	19.55	hearts=n/a	3000	discard	scrambler-hearts3: 3-seed avg 19.55 identical to baseline. scrambler rarely lingers at hub
+36f0e28	19.64	hearts=n/a	3000	discard	explore-bias-0.5: 6-seed avg 19.64 (42:18.90, 43:20.31, 44:23.26, 45:17.99, 46:19.18, 47:18.20) +1.0% stronger bias
+2db0846	19.72	hearts=n/a	3000	keep	explore-bias-0.3: 6-seed avg 19.72 (42:23.57, 43:18.95, 44:18.68, 45:19.07, 46:18.93, 47:19.11) +1.4% directional explore per agent
