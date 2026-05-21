@@ -300,6 +300,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             else:
                 reason = f"overrode {skill} to align_neutral because an alignable neutral junction is already known"
                 skill = "align_neutral"
+        # Preemptive resupply: with only 1 heart and 2+ others aligning, get more hearts first
+        if has_aligner and skill == "align_neutral" and self._shared_map is not None and not was_stuck:
+            heart_count = self._inventory_count(obs, "heart")
+            sm = self._shared_map
+            others_aligning = sum(1 for aid, t in sm.aligner_targets.items()
+                                  if aid != obs.agent_id and t is not None)
+            if heart_count <= 1 and others_aligning >= 2 and state.known_hubs:
+                skill = "get_heart"
+                reason = f"preemptive resupply: {heart_count} heart(s), {others_aligning} others aligning"
         # After stuck/timeout with gear+heart+junction: try unstuck to escape navigation deadlock
         if has_aligner and has_heart and known_alignable_junctions and skill == "align_neutral" and was_stuck:
             reason = "overrode align_neutral to unstuck after stuck exit (escape navigation deadlock near junction)"

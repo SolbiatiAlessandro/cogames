@@ -130,3 +130,38 @@ The alignment fix alone gives +129.5%. The scrambler is now net negative because
 3. Replacing 1 miner with scrambler reduces heart production
 
 **Keeping the fix. Scrambler becomes useful only when neutral junctions are exhausted.**
+
+## Session 3 (2026-05-21)
+
+### Exp 22-28: Neutral-only explore completion variants
+Investigated changing explore completion to only trigger on neutral junction discovery (not enemy). Pure neutral-only gave +8.0% avg (9.32) BUT seed 43 collapsed to 2.21 (-70.4%) — a deterministic death spiral.
+
+Root cause diagnosis (via per-agent logging): neutral-only explore causes all 3 aligners to discover 23 neutral junctions simultaneously (vs 13 in baseline), triggering synchronized heart depletion. Between steps 700-900, all agents burn 11 hearts aligning, then ALL need resupply. Clips scramble freely during this window → by step 2300, friendly=0.
+
+Variants tested:
+| Variant | Seed 43 | 6-seed avg | Status |
+|---------|---------|-----------|--------|
+| Pure neutral-only | 2.21 | 9.32 | unstable |
+| 3-step enemy fallback | 8.95 | 8.72 (+1.0%) | marginal |
+| 7-step enemy fallback | 4.56 | 8.21 (-4.9%) | regresses |
+| Halved explore timeout | 6.43 | 8.59 (-0.5%) | regresses |
+| Saturated-mode fallback | 2.21 | 8.63 (0.0%) | no effect |
+| + preemptive resupply | 3.57 | — | insufficient |
+| + both fixes | 6.54 | — | insufficient |
+
+**All neutral-only explore variants DISCARDED** — fundamental instability from synchronized agent behavior.
+
+### Exp 29: Preemptive heart resupply (standalone)
+When an aligner has ≤1 heart and 2+ other aligners are actively targeting junctions, redirect to get_heart. Prevents synchronized heart depletion death spiral.
+
+| Seed | Baseline | Experiment | Change |
+|------|----------|------------|--------|
+| 42 | 10.70 | 10.03 | -6.3% |
+| 43 | 7.47 | 7.47 | 0.0% |
+| 44 | 7.05 | 10.41 | +47.7% |
+| 45 | 7.60 | 7.37 | -3.0% |
+| 46 | 8.82 | 9.30 | +5.4% |
+| 47 | 10.13 | 10.32 | +1.9% |
+| **avg** | **8.63** | **9.15** | **+6.0%** |
+
+**KEEP.** Deterministic, confirmed across 3 runs on key seeds. Largest single-seed gain: seed 44 +47.7% (from 7.05 to 10.41).
