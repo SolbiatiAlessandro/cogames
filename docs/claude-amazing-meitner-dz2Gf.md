@@ -157,3 +157,36 @@ Also cleaned up dead mining mode code from machina_llm_roles_policy.py.
 7. Distance progress early exit (blacklist target if no distance improvement for 40 steps): counter-productive blacklisting removes useful junction knowledge. -1.2% to -2.2%
 
 **Conclusion**: The +3.3% cumulative improvement remains the ceiling. 25+ experiments across 5 sessions have been exhaustively tested. The bottleneck is structural: aligners spend 68% exploring because junctions are scattered across the map and alignment frontier shrinks as territory is explored. Further gains require fundamentally different approaches (RL-trained policy, LLM-guided exploration, or online-specific enemy adaptation).
+
+## 2026-05-21: session 6 — bug fixes + hub_dist removal + 10 more failed experiments
+
+**Bug fixes committed (correctness, zero reward impact)**:
+1. **BFS SharedMap corruption**: `_bfs_without_cooldowns` used `-=` and `|=` on SharedMap sets, mutating shared state for ALL agents. Fixed by creating new temporary sets (`saved_blocked - cooldown_cells`) instead of in-place mutation. Ported from RAxer commit 002e564.
+2. **Progress tracking order**: `state.last_has_heart` / `state.last_friendly_junctions` updated BEFORE `made_progress` check, making get_heart and align_neutral progress always False. Fixed by moving updates after the check. Ported from RAxer commit faa6433.
+
+**Kept**: Remove hub_dist bias from junction target scoring (+0.6%)
+
+**Hypothesis**: `_cascade_priority_target` scored junctions as `travel + hub_dist * 0.2`, biasing toward hub-closer junctions. This caused aligners to skip nearby junctions in favor of hub-proximate ones, adding unnecessary travel time.
+
+**Fix**: Simplified scoring to pure Manhattan distance: `return abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])`. Important: must use `def score(j): return travel` form, NOT `lambda j: (travel, j)` — the tuple tiebreaker changes set iteration order for equidistant junctions and produces worse results (seed 42 drops from 1138.3 to 1109.0).
+
+**Results** (6-seed 42-47):
+- Baseline: 1167.9 avg → **New: 1174.6 avg (+0.6%)**
+- Seed 42: 1138.3 (+2.7%), Seed 43: 1160.5 (+0.1%), Seed 44: 1272.7 (+1.8%)
+- Seed 45: 1237.4 (-0.8%), Seed 46: 1129.2 (+1.8%), Seed 47: 1109.6 (-2.0%)
+
+**Tried and failed** (10 experiments):
+1. 5A3M: fewer miners → fewer hearts crafted, net negative
+2. 6A2M: even worse — heart production collapses
+3. 8A0M: 141.5 total (−87%). Hub starts with only 5 hearts (INITIAL_HEARTS=5 × wealth=1), no miners = no crafted hearts. Disproves "all aligners" hypothesis.
+4. All-scouts configurations: scouts don't align junctions
+5. Spread-aware explore (0.3 weight): forces aligners away from nearest frontier, hurts individual efficiency
+6. Spread-aware explore (0.15 weight): same issue, smaller magnitude
+7. Cascade unlock scoring (prefer unlockable junctions): adds complexity without improvement
+8. stuck_threshold sweep (10, 12, 20): 15 is optimal; lower = premature exits, higher = too much wasted time
+9. JUNCTION_ALIGN_DISTANCE=30: beyond useful planning horizon, aligners navigate to unreachable junctions
+10. Negative hub_dist weight (prefer frontier junctions): hurts early game when hub-proximate junctions matter
+
+**Cumulative improvement**: +3.3% (sessions 1-5) + 0.6% (session 6) = **+3.9% vs original baseline**
+
+New baseline: 3-seed avg 1152.0, 6-seed avg 1174.6
