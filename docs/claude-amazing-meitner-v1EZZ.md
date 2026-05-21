@@ -89,3 +89,17 @@ Nearest-first selection (base class default) is optimal. Frontier bias causes al
 - **All parameter variations regress**: return_load, stuck_threshold, heart_cap, deposit stagger, edge priority changes all hurt. Default values are well-calibrated.
 
 2026-05-21T07:25Z: Committing mining mode code + experiment logs
+
+## Session 2 (2026-05-21)
+
+2026-05-21T09:00Z: autoresearch continuing. Issue #77 comment from session 15 (krCLo branch) shows a scrambler role achieving +7.2% with 7A1S0M config. Key insight: 59% of aligner planning events had alignable=0 — agents with hearts but no targets. Enemy junctions (~24-25) can be neutralized by a scrambler, creating new targets for idle aligners.
+
+### Exp 20: Scrambler role (3A/1S/4M)
+Implemented `LLMScramblerPolicyImpl` — a new agent role that:
+1. Gears up at scrambler station (cost: 1C, 3O, 1G, 1S)
+2. Gets hearts from hub (scramble cost = 1 heart per junction)
+3. Navigates to enemy junctions and scrambles them (removes enemy net: tag → neutral)
+4. Aligners then re-align the now-neutral junctions
+
+**3-seed preliminary results**: 42=5.63, 43=2.49, 44=4.27, avg=4.13 vs baseline 2.93 (**+40.9%**)
+Very high variance — seed 43 actually regressed. Running 6-seed evaluation...

@@ -110,6 +110,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             move_blocked_cells=sm.move_blocked_cells if sm else set(base.move_blocked_cells),
             known_hubs=sm.known_hubs if sm else set(base.known_hubs),
             known_aligner_stations=sm.known_aligner_stations if sm else set(base.known_aligner_stations),
+            known_scrambler_stations=sm.known_scrambler_stations if sm else set(base.known_scrambler_stations),
             known_neutral_junctions=sm.known_neutral_junctions if sm else set(base.known_neutral_junctions),
             known_friendly_junctions=sm.known_friendly_junctions if sm else set(base.known_friendly_junctions),
             known_enemy_junctions=sm.known_enemy_junctions if sm else set(base.known_enemy_junctions),
@@ -678,6 +679,298 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         return action, state
 
 
+class LLMScramblerPolicyImpl(LLMAlignerPolicyImpl):
+    """Scrambler role: gear up as scrambler, get hearts, scramble enemy junctions."""
+
+    def _current_gear(self, obs):
+        return self._starter._current_gear(self._starter._inventory_items(obs))
+
+    def _has_scrambler_gear(self, obs):
+        return self._current_gear(obs) == "scrambler"
+
+    def _scramblable_junctions(self, state: LLMAlignerState) -> set[tuple[int, int]]:
+        return {j for j in state.known_enemy_junctions
+                if j not in state.blacklisted_junctions}
+
+    def _plan_skill(self, obs, state: LLMAlignerState) -> None:
+        has_scrambler = self._has_scrambler_gear(obs)
+        has_heart = self._inventory_count(obs, "heart") > 0
+        scramblable = self._scramblable_junctions(state)
+        step_num = self._aligner_step_counts.get(obs.agent_id, 0)
+        logger.info("agent=%s step=%d role=scrambler has_scrambler=%s has_heart=%s scramblable=%d enemy=%d",
+                     obs.agent_id, step_num, has_scrambler, has_heart, len(scramblable), len(state.known_enemy_junctions))
+
+        was_stuck = bool(state.recent_events and ("exited as stuck" in state.recent_events[-1] or "exited as stale" in state.recent_events[-1] or "timed out after" in state.recent_events[-1]))
+        skill = None
+        reason = "scrambler scripted"
+
+        if not has_scrambler:
+            skill = "explore" if was_stuck else "gear_up"
+        elif not has_heart and state.known_hubs and not was_stuck:
+            skill = "get_heart"
+        elif scramblable and has_heart and not was_stuck:
+            skill = "scramble_enemy"
+        else:
+            skill = "explore"
+
+        if not has_scrambler and skill == "gear_up" and was_stuck:
+            skill = "explore"
+            reason = "explore after stuck exit (find path to scrambler station)"
+        if not has_scrambler and skill not in {"gear_up", "unstuck", "explore"}:
+            skill = "explore" if was_stuck else "gear_up"
+        if has_scrambler and not has_heart and skill != "explore":
+            skill = "get_heart"
+            reason = "need heart for scramble"
+        if has_scrambler and has_heart and scramblable and skill in {"explore", "get_heart"} and not was_stuck:
+            heart_count = self._inventory_count(obs, "heart")
+            current_abs = self._spawn_offset(obs)
+            _vh = state.verified_hubs if state.verified_hubs else state.known_hubs
+            near_hub = any(abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2 for h in _vh)
+            if skill == "get_heart" and heart_count < 3 and near_hub:
+                pass
+            else:
+                skill = "scramble_enemy"
+                reason = f"scramble enemy junction ({heart_count} hearts, {len(scramblable)} targets)"
+        if has_scrambler and has_heart and scramblable and skill == "scramble_enemy" and was_stuck:
+            skill = "unstuck"
+            reason = "unstuck after stuck exit near enemy junction"
+        if has_scrambler and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1:
+            skill = "explore"
+            reason = f"explore after {state.get_heart_timeouts} get_heart timeouts"
+        if skill == "unstuck":
+            state.consecutive_unstuck += 1
+        else:
+            state.consecutive_unstuck = 0
+        if state.consecutive_unstuck >= 2 and skill == "unstuck":
+            skill = "explore"
+            reason = f"explore after {state.consecutive_unstuck} consecutive unstuck"
+            state.consecutive_unstuck = 0
+        if skill == "get_heart" and self._shared_map is not None:
+            self._shared_map.agents_getting_hearts.add(obs.agent_id)
+        if skill == "get_heart":
+            state.hearts_at_get_heart_start = self._inventory_count(obs, "heart")
+        if skill == "explore":
+            state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
+
+        state.current_skill = skill
+        state.current_reason = reason
+        state.skill_steps = 0
+        state.no_move_steps = 0
+        state.no_progress_on_target_steps = 0
+        self._event(state, f"planner selected {skill}: {reason}")
+
+    def _gear_up_scrambler(self, obs, state: LLMAlignerState, current_abs):
+        self._log_mode(obs, state, "gear_up_scrambler")
+        visible_target = self._starter._closest_tag_location(obs, self._scrambler_station_tags)
+        if visible_target is not None:
+            target_abs = self._visible_abs_cell(current_abs, visible_target)
+            state.known_scrambler_stations.add(target_abs)
+            state.verified_scrambler_stations.add(target_abs)
+            direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+            if direction is not None:
+                return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+            action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
+            return action, replace(next_state, last_mode=state.last_mode)
+        target_abs = self._nearest_known(current_abs, state.verified_scrambler_stations) if state.verified_scrambler_stations else None
+        if target_abs is None:
+            hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
+            if hub_set:
+                hub_center = self._nearest_known(current_abs, hub_set)
+                expected_station = (hub_center[0] - 3, hub_center[1] + 4)
+                direction = self._navigate_to_station(state, current_abs, expected_station, avoid_hazards=True)
+                if direction is not None:
+                    return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+            return self._explore(obs, state)
+        direction = self._navigate_to_station(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
+        return action, replace(next_state, last_mode=state.last_mode)
+
+    def _scramble_enemy(self, obs, state: LLMAlignerState, current_abs):
+        self._log_mode(obs, state, "scramble_enemy")
+        bl = state.blacklisted_junctions
+        scramblable = {j for j in state.known_enemy_junctions if j not in bl}
+        target_abs = self._nearest_known(current_abs, scramblable) if scramblable else None
+        if target_abs is None:
+            return self._explore(obs, state)
+        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
+        if direction is None:
+            direction = self._bfs_without_cooldowns(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
+        return action, replace(next_state, last_mode=state.last_mode)
+
+    def _maybe_finish_skill(self, obs, state: LLMAlignerState) -> None:
+        has_heart = self._inventory_count(obs, "heart") > 0
+        has_scrambler = self._has_scrambler_gear(obs)
+        if state.current_skill == "gear_up" and has_scrambler and state.skill_steps > 0:
+            self._event(state, "gear_up completed after acquiring scrambler gear")
+            state.current_skill = None
+        elif state.current_skill == "get_heart" and has_heart and state.skill_steps > 0:
+            heart_count = self._inventory_count(obs, "heart")
+            current_abs = self._spawn_offset(obs)
+            _vh = state.verified_hubs if state.verified_hubs else state.known_hubs
+            near_hub = any(abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2 for h in _vh)
+            if heart_count < 3 and near_hub and state.no_progress_on_target_steps < 3:
+                pass
+            else:
+                newly_withdrawn = max(0, heart_count - state.hearts_at_get_heart_start)
+                self._event(state, f"get_heart completed with {heart_count} heart(s)")
+                state.get_heart_timeouts = 0
+                sm = self._shared_map
+                if sm is not None:
+                    sm.hub_hearts_withdrawn += newly_withdrawn
+                    sm.agents_getting_hearts.discard(obs.agent_id)
+                state.current_skill = None
+        elif state.current_skill == "scramble_enemy" and not has_heart and state.skill_steps > 0:
+            self._event(state, "scramble_enemy completed after spending heart")
+            state.current_skill = None
+        elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
+            self._event(state, f"explore capped after {state.skill_steps} steps")
+            state.current_skill = None
+        elif state.current_skill == "explore" and (
+            len(state.known_enemy_junctions - state.blacklisted_junctions) > state.explore_start_junctions
+        ):
+            self._event(state, "explore completed after discovering new enemy junctions")
+            state.current_skill = None
+        elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
+            self._event(state, "unstuck finished")
+            state.current_skill = None
+        elif state.current_skill == "gear_up" and state.skill_steps >= self._stuck_threshold * 10:
+            self._event(state, f"gear_up timed out after {state.skill_steps} steps")
+            state.current_skill = None
+        elif state.current_skill in {"get_heart", "scramble_enemy"} and state.skill_steps >= self._stuck_threshold * 5:
+            if state.current_skill == "scramble_enemy":
+                state.align_neutral_timeouts += 1
+                if state.align_neutral_timeouts >= 1:
+                    current_abs = self._spawn_offset(obs)
+                    non_bl = state.known_enemy_junctions - state.blacklisted_junctions
+                    if non_bl:
+                        stuck_j = self._nearest_known(current_abs, non_bl)
+                        if stuck_j is not None:
+                            state.blacklisted_junctions.add(stuck_j)
+                            state.known_enemy_junctions.discard(stuck_j)
+                            self._event(state, f"blacklisted stuck enemy junction at {stuck_j}")
+                            state.align_neutral_timeouts = 0
+            elif state.current_skill == "get_heart":
+                state.get_heart_timeouts += 1
+            self._event(state, f"{state.current_skill} timed out after {state.skill_steps} steps")
+            state.current_skill = None
+        elif state.current_skill not in {None, "gear_up"} and state.no_move_steps >= self._stuck_threshold:
+            self._event(state, f"{state.current_skill} exited as stuck after {state.no_move_steps} blocked steps")
+            state.current_skill = None
+        elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
+            self._event(state, f"{state.current_skill} exited as stale after {state.no_progress_on_target_steps} steps")
+            state.current_skill = None
+
+    def _update_progress(self, obs, state: LLMAlignerState) -> None:
+        has_heart = self._inventory_count(obs, "heart") > 0
+        heart_count = self._inventory_count(obs, "heart")
+        enemy_count = len(state.known_enemy_junctions)
+
+        heart_increased = state.current_skill == "get_heart" and heart_count > state.last_heart_count
+        last_action_move = self._feature_value(obs, "last_action_move")
+        made_progress = (
+            (state.current_skill == "get_heart" and (heart_increased or (has_heart and not state.last_has_heart)))
+            or (state.current_skill == "scramble_enemy" and not has_heart and state.last_has_heart)
+            or (state.current_skill == "gear_up" and self._has_scrambler_gear(obs))
+        )
+        state.last_has_heart = has_heart
+        state.last_heart_count = heart_count
+
+        _hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
+        current_abs = self._spawn_offset(obs)
+        near_hub = any(abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 1 for h in _hubs)
+        near_scrambler_station = any(
+            abs(current_abs[0] - s[0]) + abs(current_abs[1] - s[1]) <= 1
+            for s in state.known_scrambler_stations
+        )
+        stationary_on_valid_target = (
+            (state.current_skill == "get_heart" and near_hub)
+            or (state.current_skill == "scramble_enemy" and current_abs in state.known_enemy_junctions)
+            or (state.current_skill == "gear_up" and near_scrambler_station)
+        )
+        if made_progress:
+            state.no_move_steps = 0
+            state.no_progress_on_target_steps = 0
+        elif stationary_on_valid_target and not made_progress:
+            state.no_move_steps = 0
+            state.no_progress_on_target_steps += 1
+        elif state.current_skill is not None and last_action_move == 0:
+            state.no_move_steps += 1
+            state.no_progress_on_target_steps = 0
+        else:
+            state.no_move_steps = 0
+            state.no_progress_on_target_steps = 0
+
+    def _step_impl(self, obs, state: LLMAlignerState):
+        current_abs = self._update_map_memory(obs, state)
+        self._update_progress(obs, state)
+
+        aid = obs.agent_id
+        self._aligner_step_counts[aid] = self._aligner_step_counts.get(aid, 0) + 1
+
+        sm = self._shared_map
+        if sm is not None:
+            sm.agent_positions[obs.agent_id] = current_abs
+            sm.agent_gears[obs.agent_id] = self._current_gear(obs)
+            if state.current_skill != "get_heart":
+                sm.agents_getting_hearts.discard(obs.agent_id)
+
+        if self._check_hp(obs, state, current_abs):
+            _retreat_hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
+            retreat_targets = _retreat_hubs | state.known_friendly_junctions
+            if retreat_targets:
+                target = self._nearest_known(current_abs, retreat_targets)
+                direction = self._navigate_to_station(state, current_abs, target, avoid_hazards=False)
+                if direction:
+                    action = self._starter._action(f"move_{direction}")
+                    state.last_move_target = self._move_target(current_abs, direction)
+                    state.skill_steps += 1
+                    return action, state
+            action, state = self._safe_wander(state, current_abs)
+            return action, state
+
+        self._maybe_finish_skill(obs, state)
+        if state.current_skill is None:
+            self._plan_skill(obs, state)
+
+        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
+            action, state = self._unstuck(state)
+            state.skill_steps += 1
+            return action, state
+
+        if state.current_skill == "gear_up":
+            action, base_state = self._gear_up_scrambler(obs, state, current_abs)
+            state = self._copy_with(state, base_state)
+        elif state.current_skill == "get_heart":
+            action, base_state = self._get_heart(obs, state, current_abs)
+            state = self._copy_with(state, base_state)
+        elif state.current_skill == "scramble_enemy":
+            action, base_state = self._scramble_enemy(obs, state, current_abs)
+            state = self._copy_with(state, base_state)
+        elif state.current_skill == "explore":
+            action, base_state = self._explore(obs, state)
+            state = self._copy_with(state, base_state)
+        else:
+            action, state = self._unstuck(state)
+
+        state.skill_steps += 1
+        action_name = action.name if hasattr(action, "name") else ""
+        if action_name.startswith("move_"):
+            state.last_move_target = self._move_target(current_abs, action_name[len("move_"):])
+        return action, state
+
+
 class MachinaLLMRolesPolicy(MultiAgentPolicy):
     short_names = ["machina_llm_roles", "llm_team3"]
 
@@ -687,6 +980,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         device: str = "cpu",
         num_aligners: int | str = "auto",
         aligner_ids: str = "",
+        num_scramblers: int | str = "auto",
         num_scouts: int | str = "auto",
         scout_ids: str = "",
         return_load: int | str = 40,
@@ -757,6 +1051,11 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             self._scout_ids = frozenset()
         logger.info("num_scouts=%d (n_agents=%d, raw=%s)", len(self._scout_ids), n_agents, num_scouts)
 
+        ns_scr_str = str(num_scramblers).lower()
+        self._num_scramblers = 0 if ns_scr_str == "auto" else int(num_scramblers)
+        self._n_scramblers_assigned = 0
+        logger.info("num_scramblers=%d (n_agents=%d, raw=%s)", self._num_scramblers, n_agents, num_scramblers)
+
         self._planner = LLMMinerPlannerClient(
             api_url=llm_api_url,
             model=llm_model,
@@ -776,14 +1075,23 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         if agent_id in self._scout_ids:
             return "scout"
         if self._static_aligner_ids is not None:
-            return "aligner" if agent_id in self._static_aligner_ids else "miner"
+            role = "aligner" if agent_id in self._static_aligner_ids else "miner"
+            if role == "miner" and self._n_scramblers_assigned < self._num_scramblers:
+                self._n_scramblers_assigned += 1
+                self._assigned_roles[agent_id] = "scrambler"
+                return "scrambler"
+            self._assigned_roles[agent_id] = role
+            return role
         if agent_id in self._assigned_roles:
             return self._assigned_roles[agent_id]
-        total = self._n_aligners_assigned + self._n_miners_assigned
+        total = self._n_aligners_assigned + self._n_miners_assigned + self._n_scramblers_assigned
         target_aligners = round(self._aligner_fraction * (total + 1))
         if self._n_aligners_assigned < target_aligners:
             role = "aligner"
             self._n_aligners_assigned += 1
+        elif self._n_scramblers_assigned < self._num_scramblers:
+            role = "scrambler"
+            self._n_scramblers_assigned += 1
         else:
             role = "miner"
             self._n_miners_assigned += 1
@@ -803,6 +1111,16 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     unstuck_horizon=self._unstuck_horizon,
                     shared_map=self._shared_map,
                     scripted=self._scripted_aligners,
+                )
+            elif role == "scrambler":
+                impl = LLMScramblerPolicyImpl(
+                    self._policy_env_info,
+                    agent_id,
+                    planner=self._planner,
+                    stuck_threshold=self._stuck_threshold,
+                    unstuck_horizon=self._unstuck_horizon,
+                    shared_map=self._shared_map,
+                    scripted=True,
                 )
             elif role == "scout":
                 # Scouts are offset across the grid so multiple scouts cover

@@ -49,6 +49,7 @@ class SharedMap:
         # Structures (static — once seen, remembered forever)
         self.known_hubs: set[Coord] = set()
         self.known_aligner_stations: set[Coord] = set()
+        self.known_scrambler_stations: set[Coord] = set()
         self.known_miner_stations: set[Coord] = set()
         self.known_hazard_stations: set[Coord] = set()
         self.known_extractors: set[Coord] = set()
@@ -91,11 +92,13 @@ class AlignerState(StarterCogState):
     blocked_cells: set[Coord] = field(default_factory=set)
     known_hubs: set[Coord] = field(default_factory=set)
     known_aligner_stations: set[Coord] = field(default_factory=set)
+    known_scrambler_stations: set[Coord] = field(default_factory=set)
     known_neutral_junctions: set[Coord] = field(default_factory=set)
     known_friendly_junctions: set[Coord] = field(default_factory=set)
     known_enemy_junctions: set[Coord] = field(default_factory=set)
     known_hazard_stations: set[Coord] = field(default_factory=set)
     verified_aligner_stations: set[Coord] = field(default_factory=set)
+    verified_scrambler_stations: set[Coord] = field(default_factory=set)
     verified_hubs: set[Coord] = field(default_factory=set)
     # Track last attempted move to detect impassable objects on move failure
     last_pos: Coord | None = None
@@ -125,6 +128,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         self._hub_tags = self._starter._resolve_tag_ids(["hub"])
         self._junction_tags = self._starter._resolve_tag_ids(["junction"])
         self._aligner_station_tags = self._starter._resolve_tag_ids(self._gear_station_names(policy_env_info.tags))
+        self._scrambler_station_tags = self._starter._resolve_tag_ids(self._scrambler_station_names(policy_env_info.tags))
         self._hazard_station_tags = self._resolve_non_aligner_station_tags(policy_env_info)
         self._wall_tags = self._starter._resolve_tag_ids(["wall"])
         # Issue-36 v8: track extractors as blocked for navigation (they block movement)
@@ -142,6 +146,16 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 continue
             object_name = tag_name.removeprefix("type:")
             if object_name == "aligner" or object_name.endswith(":aligner"):
+                names.add(object_name)
+        return sorted(names)
+
+    def _scrambler_station_names(self, all_tags: list[str]) -> list[str]:
+        names = {"scrambler_station"}
+        for tag_name in all_tags:
+            if not tag_name.startswith("type:"):
+                continue
+            object_name = tag_name.removeprefix("type:")
+            if object_name == "scrambler" or object_name.endswith(":scrambler"):
                 names.add(object_name)
         return sorted(names)
 
@@ -168,6 +182,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         state.move_blocked_cells = sm.move_blocked_cells
         state.known_hubs = sm.known_hubs
         state.known_aligner_stations = sm.known_aligner_stations
+        state.known_scrambler_stations = sm.known_scrambler_stations
         state.known_neutral_junctions = sm.known_neutral_junctions
         state.known_friendly_junctions = sm.known_friendly_junctions
         state.known_enemy_junctions = sm.known_enemy_junctions
@@ -487,6 +502,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         blocked_now: set[Coord] = set()
         hubs_now: set[Coord] = set()
         stations_now: set[Coord] = set()
+        scrambler_stations_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
 
         extractors_now: set[Coord] = set()
@@ -501,6 +517,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 hubs_now.add(abs_cell)
             if token.value in self._aligner_station_tags:
                 stations_now.add(abs_cell)
+            if token.value in self._scrambler_station_tags:
+                scrambler_stations_now.add(abs_cell)
             if token.value in self._hazard_station_tags:
                 hazard_stations_now.add(abs_cell)
             if token.value in self._extractor_tags:
@@ -509,6 +527,8 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             if token.value in self._hub_tags:
                 blocked_now.add(abs_cell)
             if token.value in self._aligner_station_tags:
+                blocked_now.add(abs_cell)
+            if token.value in self._scrambler_station_tags:
                 blocked_now.add(abs_cell)
             if token.value in self._hazard_station_tags:
                 blocked_now.add(abs_cell)
@@ -542,6 +562,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if hubs_now:
             state.verified_hubs.update(hubs_now)
         self._remember_static_objects(state.known_aligner_stations, stations_now)
+        self._remember_static_objects(state.known_scrambler_stations, scrambler_stations_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         if self._shared_map is not None and extractors_now:
             self._shared_map.known_extractors.update(extractors_now)
