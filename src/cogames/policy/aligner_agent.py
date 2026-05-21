@@ -621,6 +621,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             return self._safe_wander(state, current_abs)
         return self._move_to(state, current_abs, best_frontier)
 
+    _EXPLORE_BIASES = [
+        (0, -1), (0, 1), (-1, 0), (1, 0),
+        (-1, -1), (-1, 1), (1, -1), (1, 1),
+    ]
+
     def _explore_frontier(
         self,
         obs: AgentObservation,
@@ -634,7 +639,14 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                 if neighbor in state.blocked_cells or neighbor in state.known_free_cells or neighbor in state.known_hazard_stations:
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        target_abs = self._nearest_known(current_abs, frontier_cells)
+        bias = self._EXPLORE_BIASES[self._agent_id % len(self._EXPLORE_BIASES)]
+        def biased_distance(cell):
+            dx = cell[0] - current_abs[0]
+            dy = cell[1] - current_abs[1]
+            dist = abs(dx) + abs(dy)
+            bias_bonus = dx * bias[0] + dy * bias[1]
+            return dist - bias_bonus * 0.3
+        target_abs = min(frontier_cells, key=biased_distance) if frontier_cells else None
         action, next_state = self._move_to(state, current_abs, target_abs)
         return action, replace(next_state, last_mode=state.last_mode)
 
