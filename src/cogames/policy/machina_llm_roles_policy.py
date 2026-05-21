@@ -10,6 +10,7 @@ from typing import Callable
 from cogames.policy.aligner_agent import (
     AlignerPolicyImpl, AlignerState, SharedMap, _FRIENDLY_TERRITORY_DISTANCE, _HP_RETREAT_THRESHOLD,
 )
+from cogames.policy.starter_agent import StarterCogPolicyImpl
 from cogames.policy.llm_aligner_prompt import ALIGNER_SKILL_DESCRIPTIONS, build_llm_aligner_prompt
 from cogames.policy.llm_miner_policy import LLMMinerPlannerClient, LLMMinerPolicyImpl, LLMMinerState
 from cogames.policy.scout_agent import ScoutExplorerPolicyImpl, ScoutState
@@ -53,6 +54,7 @@ class LLMAlignerState(AlignerState):
     last_has_heart: bool = False
     last_heart_count: int = 0
     last_friendly_junctions: int = 0
+    last_enemy_junctions: int = 0
     consecutive_unstuck: int = 0
     explore_start_junctions: int = 0
     align_neutral_timeouts: int = 0
@@ -75,12 +77,46 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         unstuck_horizon: int,
         shared_map: SharedMap | None = None,
         scripted: bool = False,
+        scrambler_mode: bool = False,
     ) -> None:
         super().__init__(policy_env_info, agent_id, shared_map=shared_map)
         self._planner = planner
         self._stuck_threshold = stuck_threshold
         self._unstuck_horizon = unstuck_horizon
         self._scripted = scripted
+        self._scrambler_mode = scrambler_mode
+        if scrambler_mode:
+            self._gear_role = "scrambler"
+            self._starter = StarterCogPolicyImpl(policy_env_info, agent_id, preferred_gear="scrambler")
+            self._aligner_station_tags = self._starter._resolve_tag_ids(
+                self._scrambler_station_names(policy_env_info.tags)
+            )
+            self._hazard_station_tags = self._resolve_non_scrambler_station_tags(policy_env_info)
+        else:
+            self._gear_role = "aligner"
+
+    def _scrambler_station_names(self, all_tags: list[str]) -> list[str]:
+        names = {"scrambler_station"}
+        for tag_name in all_tags:
+            if not tag_name.startswith("type:"):
+                continue
+            object_name = tag_name.removeprefix("type:")
+            if object_name == "scrambler" or object_name.endswith(":scrambler"):
+                names.add(object_name)
+        return sorted(names)
+
+    def _resolve_non_scrambler_station_tags(self, policy_env_info) -> set[int]:
+        other_gear = ("aligner", "miner", "scout")
+        names: set[str] = set()
+        for gear in other_gear:
+            names.add(f"{gear}_station")
+            for tag_name in policy_env_info.tags:
+                if not tag_name.startswith("type:"):
+                    continue
+                object_name = tag_name.removeprefix("type:")
+                if object_name.endswith(f":{gear}") or object_name == gear:
+                    names.add(object_name)
+        return self._starter._resolve_tag_ids(sorted(names))
 
     def initial_agent_state(self) -> LLMAlignerState:
         base = super().initial_agent_state()
@@ -142,7 +178,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         return self._starter._closest_tag_location(obs, self._hub_tags) is not None
 
     def _known_alignable_junctions(self, state: LLMAlignerState) -> set[tuple[int, int]]:
-        # Combine neutral and enemy junctions — recapturing enemy is a +2 swing
+        if self._scrambler_mode:
+            return {j for j in state.known_enemy_junctions
+                    if self._is_alignable(j, state) and j not in state.blacklisted_junctions}
         return {j for j in (state.known_neutral_junctions)
                 if self._is_alignable(j, state) and j not in state.blacklisted_junctions}
 
@@ -150,21 +188,29 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         has_heart = self._inventory_count(obs, "heart") > 0
         heart_count = self._inventory_count(obs, "heart")
         friendly_count = len(state.known_friendly_junctions)
+        enemy_count = len(state.known_enemy_junctions)
         current_abs = self._spawn_offset(obs)
         if state.current_skill == "get_heart" and has_heart and not state.last_has_heart:
             self._event(state, "acquired a heart")
-        if state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions:
+        if state.current_skill == "align_neutral" and not self._scrambler_mode and friendly_count > state.last_friendly_junctions:
             self._event(state, f"friendly junction count increased from {state.last_friendly_junctions} to {friendly_count}")
+        if state.current_skill == "align_neutral" and self._scrambler_mode and enemy_count < state.last_enemy_junctions:
+            self._event(state, f"enemy junction scrambled: {state.last_enemy_junctions} -> {enemy_count}")
 
         heart_increased = state.current_skill == "get_heart" and heart_count > state.last_heart_count
         state.last_has_heart = has_heart
         state.last_heart_count = heart_count
         state.last_friendly_junctions = friendly_count
+        state.last_enemy_junctions = enemy_count
         last_action_move = self._feature_value(obs, "last_action_move")
+        align_progress = (
+            (not self._scrambler_mode and friendly_count > state.last_friendly_junctions)
+            or (self._scrambler_mode and enemy_count < state.last_enemy_junctions)
+        )
         made_progress = (
             (state.current_skill == "get_heart" and (heart_increased or (has_heart and not state.last_has_heart)))
-            or (state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions)
-            or (state.current_skill == "gear_up" and self._current_gear(obs) == "aligner")
+            or (state.current_skill == "align_neutral" and align_progress)
+            or (state.current_skill == "gear_up" and self._current_gear(obs) == self._gear_role)
         )
         # Hub cells are blocked objects — agents stand adjacent, never on the hub cell itself.
         # Use Manhattan distance ≤ 1 for get_heart so navigation-shake doesn't fire while waiting.
@@ -177,9 +223,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             abs(current_abs[0] - s[0]) + abs(current_abs[1] - s[1]) <= 1
             for s in state.known_aligner_stations
         )
+        on_target_junction = (
+            current_abs in self._known_alignable_junctions(state) if not self._scrambler_mode
+            else current_abs in state.known_enemy_junctions
+        )
         stationary_on_valid_target = (
             (state.current_skill == "get_heart" and near_hub)
-            or (state.current_skill == "align_neutral" and current_abs in self._known_alignable_junctions(state))
+            or (state.current_skill == "align_neutral" and on_target_junction)
             or (state.current_skill == "gear_up" and near_aligner_station)
             or (state.current_skill == "defend" and current_abs in state.known_friendly_junctions)
         )
@@ -197,7 +247,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             state.no_progress_on_target_steps = 0
 
     def _plan_skill(self, obs: AgentObservation, state: LLMAlignerState) -> None:
-        has_aligner = self._current_gear(obs) == "aligner"
+        has_aligner = self._current_gear(obs) == self._gear_role
         has_heart = self._inventory_count(obs, "heart") > 0
         known_alignable_junctions = self._known_alignable_junctions(state)
 
@@ -205,8 +255,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             # Skip LLM call entirely — use deterministic rule-based planner
             skill = None
             reason = "scripted mode"
-            logger.info("agent=%s role=aligner scripted_plan has_aligner=%s has_heart=%s alignable=%d",
-                        obs.agent_id, has_aligner, has_heart, len(known_alignable_junctions))
+            logger.info("agent=%s role=%s scripted_plan has_gear=%s has_heart=%s alignable=%d",
+                        obs.agent_id, self._gear_role, has_aligner, has_heart, len(known_alignable_junctions))
         else:
             prompt = build_llm_aligner_prompt(
                 has_aligner=has_aligner,
@@ -358,13 +408,13 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
 
     def _maybe_finish_skill(self, obs: AgentObservation, state: LLMAlignerState) -> None:
         has_heart = self._inventory_count(obs, "heart") > 0
-        has_aligner = self._current_gear(obs) == "aligner"
+        has_aligner = self._current_gear(obs) == self._gear_role
         if not has_aligner and state.current_skill not in {None, "gear_up", "unstuck", "explore"}:
             self._event(state, f"gear lost during {state.current_skill} — switching to gear_up")
             state.current_skill = None
             return
         if state.current_skill == "gear_up" and has_aligner and state.skill_steps > 0:
-            self._event(state, "gear_up completed after acquiring aligner gear")
+            self._event(state, f"gear_up completed after acquiring {self._gear_role} gear")
             state.current_skill = None
         elif state.current_skill == "get_heart" and has_heart and state.skill_steps > 0:
             heart_count = self._inventory_count(obs, "heart")
@@ -442,6 +492,29 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill not in {None, "gear_up"} and state.no_progress_on_target_steps >= self._stuck_threshold:
             self._event(state, f"{state.current_skill} exited as stale on target after {state.no_progress_on_target_steps} steps without progress")
             state.current_skill = None
+
+    def _scramble_enemy(self, obs, state: LLMAlignerState, current_abs):
+        bl = state.blacklisted_junctions
+        targets = {j for j in state.known_enemy_junctions
+                   if self._is_alignable(j, state) and j not in bl}
+        target_abs = self._cascade_priority_target(current_abs, targets, state)
+        if target_abs is None:
+            return self._explore_for_alignment(obs, state)
+        self._log_mode(obs, state, "scramble_enemy")
+        direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
+        if direction is None:
+            direction = self._bfs_without_cooldowns(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
+        if direction is None:
+            direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
+        return action, replace(next_state, last_mode=state.last_mode)
 
     def _unstuck(self, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         state.last_mode = "unstuck"
@@ -526,9 +599,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if state.current_skill is None:
             self._plan_skill(obs, state)
 
-        # Navigation shake: after 5 consecutive blocked moves, every 3rd step try a random direction
+        # Navigation shake: after 5 consecutive blocked moves, every 5th step try a random direction
         # This breaks BFS deadlocks caused by agent-occupied cells
-        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 3 == 0:
+        if state.current_skill not in {None, "unstuck"} and state.no_move_steps >= 5 and state.no_move_steps % 5 == 0:
             action, state = self._unstuck(state)
             state.skill_steps += 1
             return action, state
@@ -540,7 +613,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             action, base_state = self._get_heart(obs, state, current_abs)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "align_neutral":
-            # Junction coordination: avoid targeting same junction as other aligner
             sm = self._shared_map
             if sm is not None:
                 targeted_by_others = {
@@ -550,17 +622,29 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 if targeted_by_others:
                     saved_bl = set(state.blacklisted_junctions)
                     state.blacklisted_junctions |= targeted_by_others
-                    action, base_state = self._align_neutral(obs, state, current_abs)
+                    if self._scrambler_mode:
+                        action, base_state = self._scramble_enemy(obs, state, current_abs)
+                    else:
+                        action, base_state = self._align_neutral(obs, state, current_abs)
                     state.blacklisted_junctions = saved_bl
                 else:
-                    action, base_state = self._align_neutral(obs, state, current_abs)
-                # Record our predicted target (excluding others' targets)
+                    if self._scrambler_mode:
+                        action, base_state = self._scramble_enemy(obs, state, current_abs)
+                    else:
+                        action, base_state = self._align_neutral(obs, state, current_abs)
                 bl = state.blacklisted_junctions
-                alignable = {j for j in (state.known_neutral_junctions)
-                            if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
-                sm.aligner_targets[obs.agent_id] = self._cascade_priority_target(current_abs, alignable, state)
+                if self._scrambler_mode:
+                    targets = {j for j in state.known_enemy_junctions
+                               if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
+                else:
+                    targets = {j for j in state.known_neutral_junctions
+                               if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
+                sm.aligner_targets[obs.agent_id] = self._cascade_priority_target(current_abs, targets, state)
             else:
-                action, base_state = self._align_neutral(obs, state, current_abs)
+                if self._scrambler_mode:
+                    action, base_state = self._scramble_enemy(obs, state, current_abs)
+                else:
+                    action, base_state = self._align_neutral(obs, state, current_abs)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "defend":
             # Navigate to nearest friendly junction and hold position
@@ -613,6 +697,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
         aligner_ids: str = "",
         num_scouts: int | str = "auto",
         scout_ids: str = "",
+        num_scramblers: int | str = 0,
         return_load: int | str = 40,
         stuck_threshold: int | str = 15,
         unstuck_horizon: int | str = 4,
@@ -666,12 +751,14 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                 self._aligner_fraction = 7.0 / 8.0
             else:
                 self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
+        self._num_scramblers = int(num_scramblers)
         self._assigned_roles: dict[int, str] = {}
         self._n_aligners_assigned = 0
         self._n_miners_assigned = 0
-        logger.info("role_assignment mode=%s aligner_fraction=%.3f (n_agents=%d)",
+        self._n_scramblers_assigned = 0
+        logger.info("role_assignment mode=%s aligner_fraction=%.3f num_scramblers=%d (n_agents=%d)",
                      "static" if self._static_aligner_ids else "proportional",
-                     self._aligner_fraction, n_agents)
+                     self._aligner_fraction, self._num_scramblers, n_agents)
 
         # Resolve scout IDs: "auto" means 0 scouts (scouts are fragile)
         parsed_scout_ids = tuple(int(p.strip()) for p in scout_ids.split(",") if p.strip())
@@ -705,14 +792,18 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             return "aligner" if agent_id in self._static_aligner_ids else "miner"
         if agent_id in self._assigned_roles:
             return self._assigned_roles[agent_id]
-        total = self._n_aligners_assigned + self._n_miners_assigned
-        target_aligners = round(self._aligner_fraction * (total + 1))
-        if self._n_aligners_assigned < target_aligners:
-            role = "aligner"
-            self._n_aligners_assigned += 1
+        total = self._n_aligners_assigned + self._n_miners_assigned + self._n_scramblers_assigned
+        if self._n_scramblers_assigned < self._num_scramblers:
+            role = "scrambler"
+            self._n_scramblers_assigned += 1
         else:
-            role = "miner"
-            self._n_miners_assigned += 1
+            target_aligners = round(self._aligner_fraction * (total + 1 - self._num_scramblers))
+            if self._n_aligners_assigned < target_aligners:
+                role = "aligner"
+                self._n_aligners_assigned += 1
+            else:
+                role = "miner"
+                self._n_miners_assigned += 1
         self._assigned_roles[agent_id] = role
         return role
 
@@ -729,6 +820,17 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
                     unstuck_horizon=self._unstuck_horizon,
                     shared_map=self._shared_map,
                     scripted=self._scripted_aligners,
+                )
+            elif role == "scrambler":
+                impl = LLMAlignerPolicyImpl(
+                    self._policy_env_info,
+                    agent_id,
+                    planner=self._planner,
+                    stuck_threshold=self._stuck_threshold,
+                    unstuck_horizon=self._unstuck_horizon,
+                    shared_map=self._shared_map,
+                    scripted=True,
+                    scrambler_mode=True,
                 )
             elif role == "scout":
                 # Scouts are offset across the grid so multiple scouts cover
