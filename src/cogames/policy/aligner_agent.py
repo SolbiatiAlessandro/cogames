@@ -29,7 +29,10 @@ _JUNCTION_ALIGN_DISTANCE = 25
 # to reach hub (1 HP/step drain). If hub is >49 cells away, they die.
 # At 70%, agents have 69 steps to reach hub, which is much more forgiving.
 _HP_RETREAT_THRESHOLD = 0.70
-# Distance from hub/friendly junction to be considered "in friendly territory"
+# Territory uses Euclidean distance: radius = strength/decay.
+# Hub: strength=20, Junction: strength=10 (from CvCConfig.TERRITORY_CONTROL_RADIUS=10)
+_HUB_TERRITORY_RADIUS = 20
+_JUNCTION_TERRITORY_RADIUS = 10
 _FRIENDLY_TERRITORY_DISTANCE = 15
 
 
@@ -567,10 +570,14 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _in_friendly_territory(self, current_abs: Coord, state: AlignerState) -> bool:
         """Check if agent is near hub or a friendly junction (safe from HP drain)."""
         for hub in state.known_hubs:
-            if abs(current_abs[0] - hub[0]) + abs(current_abs[1] - hub[1]) <= _FRIENDLY_TERRITORY_DISTANCE:
+            dx = current_abs[0] - hub[0]
+            dy = current_abs[1] - hub[1]
+            if dx * dx + dy * dy <= _HUB_TERRITORY_RADIUS * _HUB_TERRITORY_RADIUS:
                 return True
         for fj in state.known_friendly_junctions:
-            if abs(current_abs[0] - fj[0]) + abs(current_abs[1] - fj[1]) <= _FRIENDLY_TERRITORY_DISTANCE:
+            dx = current_abs[0] - fj[0]
+            dy = current_abs[1] - fj[1]
+            if dx * dx + dy * dy <= _JUNCTION_TERRITORY_RADIUS * _JUNCTION_TERRITORY_RADIUS:
                 return True
         return False
 

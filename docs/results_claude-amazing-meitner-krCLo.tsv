@@ -66,3 +66,7 @@ eea1b24	14.51	hearts=n/a	3000	keep	[POST-REBASE] cascade-scoring+blacklist-fix: 
 20d7a09	14.42	hearts=n/a	3000	discard	unstuck-horizon-2: 6-seed avg 14.42 (-2.6%). unstuck rarely fires — only seeds 42/47 affected
 20d7a09	12.34	hearts=n/a	3000	discard	6A-2M: 6-seed avg 12.34 (-16.6%). losing one aligner for exploration not worth it
 20d7a09	15.54	hearts=n/a	10000	keep	10K-baseline: 3-seed avg 15.54 (42:17.76, 43:14.38, 44:14.49) at competition length
+4fe00d2	18.10	hearts=n/a	3000	keep	enemy-junction-exclusion: 6-seed avg 18.10 (42:17.87, 43:17.65, 44:18.95, 45:17.73, 46:18.82, 47:17.59) +22.3% vs 14.80 baseline
+4fe00d2	16.65	hearts=n/a	3000	discard	junction-align-dist-15: 6-seed avg 16.65 (42:14.24, 43:16.58, 44:18.26, 45:16.54, 46:16.87, 47:17.42) -8.0%. tighter distance removes cascade pre-positioning
+4fe00d2	16.93	hearts=n/a	3000	discard	dual-distance (align=15,explore=25): 4-seed avg 16.93 (42:15.72, 43:15.02, 44:19.17, 45:17.81) -6.5%. even fixing only _is_alignable hurts
+4fe00d2	18.14	hearts=n/a	3000	keep	territory-euclidean (hub=20,junction=10): 6-seed avg 18.14 (42:17.60, 43:17.61, 44:19.17, 45:17.81, 46:19.22, 47:17.42) +0.2% neutral, correctness fix
