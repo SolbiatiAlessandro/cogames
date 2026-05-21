@@ -62,70 +62,79 @@ Dynamic: license-file
 
 <!-- LEADERBOARD_START -->
 ## Research Leaderboard
-_Updated by Director: 2026-04-14 (Session 8)_
+_Updated by Director: 2026-05-20 (Session 36)_
 
-### Online Tournament (beta-cvc, 10k steps, 8 agents)
+### Online Tournament (beta-cvc, cooperative scoring)
 
 | Rank | Score | Policy | Notes |
 |------|-------|--------|-------|
-| **#291/363** | **3.12** | `lessandro-fast-llm-v1:v1` | Best online; stale — predates ALL session 7-8 improvements |
-| #305/363 | 2.71 | `cross_role_full_10s_v8:v1` | All agents die before 10k; heart.withdrawn=5 |
-| _(ref)_ | 27.21 | `dinky:v27` (top-1) | 220 junctions, 56 hearts/agent, 98.5% move success |
+| #1 | **45.29** | `Softy:v103` | RL |
+| #2 | 43.58 | `Softy:v111` | RL |
+| #3 | 42.48 | `Softy:v107` | RL |
+| #4 | 41.86 | `Softy:v96` | RL |
+| **#5** | **41.85** | **`evyIm-73a-stuck15:v1`** | **OUR BEST — scripted, stuck_threshold=15** |
+| #6 | 41.59 | `Softy:v100` | RL |
+| #7 | 41.28 | `slanky:v171` | RL competitor |
+| #8 | 41.22 | `Softy:v101` | RL |
+| #9 | 41.20 | `Softy:v102` | RL |
+| #10 | 41.10 | `Paz-Bot-9000:v47` | competitor |
+| **#11** | **40.85** | **`ax5wp-74a-hubl2-def-enemy:v1`** | hub L2 fix + defend + enemy |
+| #12 | 40.82 | `Gryffindor:v11` | new competitor |
+| **#18** | **40.49** | **`lessandro-navfix-cd3:v1`** | navigation fix baseline |
 
-**CRITICAL: No new submission since April 12.** Offline improvements (+65% at 10k) have not been uploaded.
+_5 policies in top 20, 30+ in top 100. Gap to #1: 3.44 pts (7.6%). Leaderboard FROZEN — auth expired, can't submit._
 
-### Offline Best Results (3-agent, post-V20 merge)
+### BLOCKER: Auth Token Expired (#78)
 
-| Rank | Reward | Config | Steps | Deaths | Notes |
-|------|--------|--------|-------|--------|-------|
-| 1 | **3.15 total** | 2A1M V20 stack | 10000 | **0** | seed 44 — **NEW BEST**; all 3 survive 10k |
-| 2 | 2.70 total | 2A1M V20 stack | 10000 | 0 | seed 43; 14 junctions gained |
-| 3 | 1.85 total | 2A1M V20 stack | 10000 | 0 | seed 42; stable linear growth |
-| 4 | 1.19/agent | 2A1M V20 stack | 1000 | 0 | seed 44; +59% over V6 |
+**No online submissions possible.** Token expired for 5+ consecutive sessions. Owner must run `cogames auth login` from a machine with a browser. This blocks ALL online progress — scripted improvements AND RL validation.
 
-### Offline Best Results (8-agent, pre-V20)
+### Offline Best Results (scripted, 8-agent, 3000 steps)
 
-| Rank | Reward | Config | Steps | Notes |
-|------|--------|--------|-------|-------|
-| 1 | 7.96 total (0.996/agent) | 3A5M stuck=28 hazard-free | 1000 | Session 7 priority branch; best single seed |
-| 2 | 0.825/agent | 4A4M issue-25 | 1000 | 118 experiments, stuck at plateau — V20 may break it |
+| Rank | Reward | Commit | Config | Notes |
+|------|--------|--------|--------|-------|
+| 1 | **1153** | `c3f6e8a` | 3A5M + hearts5 + progress fix (krCLo) | **NEW** +4.4% vs baseline, 6-seed avg |
+| 2 | 1130 | `1045689` | 3A5M split (krCLo) | +6.6% vs 4A4M |
+| 3 | 1060 | `4531257` | 4A4M baseline (d922520) | previous best config |
 
-### Gap Analysis (us vs top-1 `dinky:v27`)
+_Note: reward units differ from prior sessions — krCLo uses raw junction held ticks at 3000 steps, not normalized mission_reward._
+
+### RL Training Progress
+
+| Phase | max_distance | Result | Status |
+|-------|-------------|--------|--------|
+| Phase 1 flat | 6 (close) | 7541 held ticks (peak) | DONE |
+| Phase 2 compmap | 6 (patched) | 21K+ held in training, 0.31 at 3K eval | IN PROGRESS |
+| Real-map direct | 15 (competition) | held ticks 246→793, 1-3 junctions | EARLY, MOST PROMISING |
+
+Distribution shift is the core RL problem: max_dist=6/10 models don't transfer to competition (max_dist=15). Direct real-map training is the correct approach. All checkpoints on competition eval still score 0.05 (alive reward only). Scripted at 10K: 3.74/agent — still 3-4x better.
+
+### Key Findings (Session 36)
+
+1. **Auth expired for 5+ sessions** — #1 blocker. No online submissions possible. Created #78.
+2. **Merged krCLo to main** — 3A5M role split + hearts5 + progress fix = +4.4% offline. Ready to submit as `lessandro-ohm-mani-padme-hum` once auth is fixed.
+3. **RAxer bugs mostly N/A** — Of 4 "critical" bugs, only 1 applies to current code (dead cooldown), with zero measurable effect. No cherry-pick needed.
+4. **RL checkpoints lost** — longep3k_e20 (1.394/agent) was never committed to git. All current competition-map models score 0.05.
+5. **RL online reality check** — softy-rl:v1 scores 12.26 online, sal-* RL scores 10-12. RL-to-online gap is massive. Temper expectations.
+6. **Leaderboard stable** — No movement in top 10 since session 35. Gryffindor:v11 entered #12.
+
+### Progress Trajectory
 
 ```
-Metric                    Us (best offline)  dinky (best)    Gap       Status
-─────────────────────────────────────────────────────────────────────────────────
-Agent survival (10k)      ALL survive (V20)  survive 10k     CLOSED    ✅ FIXED by V20
-Hearts (10k)              25+/agent (V20)    56.6/agent      2.3x     improved (was ∞)
-Move success              88.3% (offline)    98.5%           1.1x     nearly closed
-Online score              3.12 (STALE)       27.21           8.7x     STALE — need submission
-Element balance           fixed (V15)        balanced        CLOSED    ✅ FIXED by V15
-Heart stealing            fixed (V7 hub)     N/A             CLOSED    ✅ FIXED by V7
+Session 30 (#40, 36.15)  →  Session 34 (#5, 41.85)  →  Session 36 (#5, 41.85, FROZEN)
+Offline: 1060 (4A4M) → 1130 (3A5M) → 1153 (hearts5+fix) = +8.8% cumulative
+RL: 0.05 on comp map (all checkpoints). Real-map training just starting.
 ```
 
-**Current bottleneck**: **Stale online submission (#37)**. The merged V20 code fixes agent mortality (0 deaths at 10k), heart stealing, element imbalance, and move failures — but none of this is online yet. Submitting the merged policy is the single highest-leverage action.
+### Current Priority Stack
 
-**Next up**: #37 (submit + 8-agent validation) → #36 (online confirmation) → #25 (8-agent with V20)
-
-**Research tree:**
 ```
-SPAWN NEXT:
-  #37 Submit V20 + 8-Agent Validation (priority:1) ← HIGHEST LEVERAGE
-
-AWAITING ONLINE CONFIRMATION:
-  #36 Agent Mortality (priority:2) — V20 merged, 0 deaths offline, needs online test
-
-CLOSED THIS SESSION:
-  #34 Heart Pipeline — CLOSED: subsumed by #36 V7-V20
-  #35 Move Failure Rate — CLOSED: 53%→17.4% online, 88.3% offline
-  #29 10k Eval Alignment — CLOSED: 10k is standard practice now
-
-ACTIVE:
-  #24 Mining Strategy (priority:2) | #27 Andre Von Huck (priority:2)
-
-DEPRIORITIZED:
-  #25 8-Agent Scaling (priority:3) — 118 exp plateau; retry with V20 via #37
-  #30 Self-Play (priority:3) | #31 change_vibe (priority:3) | #32 Partner (priority:3)
+priority:1  #78  AUTH TOKEN EXPIRED                                   <- BLOCKER, owner action needed
+priority:2  #76  Submit RL checkpoint to beta-cvc                     <- blocked on #78
+priority:2  #77  RAxer bug fixes (krCLo merged, needs submission)     <- blocked on #78
+priority:2  #75  RL Curriculum Training Phase 2+3                     <- slow progress, needs more training
+priority:2  #41  RL policy training (parent)                          <- RL-online gap is large
+priority:2  #74  Scripted ceiling at ~42                              <- documented
+priority:3  #73, #71, #70, #53, #27, #26, #23-17, #12, #11, #10     <- low priority / researched
 ```
 <!-- LEADERBOARD_END -->
 

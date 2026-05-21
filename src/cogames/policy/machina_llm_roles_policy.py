@@ -272,7 +272,7 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             else:
                 reason = "overrode gear_up to explore because aligner gear is already equipped"
                 skill = "explore"
-        if has_aligner and not has_heart and state.known_hubs and skill == "explore" and not was_stuck:
+        if has_aligner and not has_heart and state.known_hubs and skill == "explore" and not was_stuck and state.get_heart_timeouts == 0:
             reason = f"overrode {skill} to get_heart because aligner gear is equipped and a hub is known"
             skill = "get_heart"
         if has_aligner and not has_heart and skill == "align_neutral":
@@ -321,10 +321,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         if has_aligner and not has_heart and skill == "get_heart" and was_stuck and state.known_hubs:
             reason = "overrode get_heart to unstuck after stuck exit (escape navigation deadlock near hub)"
             skill = "unstuck"
-        # Hub likely depleted: after 1+ get_heart timeout, defend friendly junctions instead
-        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1 and state.known_friendly_junctions:
-            reason = f"overrode get_heart to defend after {state.get_heart_timeouts} timeouts (hub likely empty)"
-            skill = "defend"
+        # Hub likely depleted: after 1+ get_heart timeout, explore to discover more junctions
+        if has_aligner and not has_heart and skill == "get_heart" and state.get_heart_timeouts >= 1:
+            reason = f"overrode get_heart to explore after {state.get_heart_timeouts} timeouts (hub likely empty, discover junctions)"
+            skill = "explore"
         # Break explore→stuck loop when agent has gear+heart but no known junctions: try unstuck
         if has_aligner and has_heart and not known_alignable_junctions and skill == "explore" and was_stuck:
             reason = "overrode explore to unstuck after stuck exit (try escape moves to find junctions)"
@@ -408,8 +408,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"explore completed after discovering {new_total} new alignable junction(s)")
             state.current_skill = None
         elif state.current_skill == "explore" and state.skill_steps >= self._stuck_threshold * 2:
-            # Cap explore duration to prevent long idle periods when no junctions nearby
             self._event(state, f"explore capped after {state.skill_steps} steps without finding junctions")
+            if state.get_heart_timeouts > 0:
+                state.get_heart_timeouts = 0
             state.current_skill = None
         elif state.current_skill == "unstuck" and state.skill_steps >= self._unstuck_horizon:
             self._event(state, "unstuck finished its bounded horizon")
