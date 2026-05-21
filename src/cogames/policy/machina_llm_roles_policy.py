@@ -57,6 +57,7 @@ class LLMAlignerState(AlignerState):
     explore_start_junctions: int = 0
     align_neutral_timeouts: int = 0
     get_heart_timeouts: int = 0
+    hearts_at_get_heart_start: int = 0
     recent_events: list[str] = field(default_factory=list)
     # HP monitoring
     max_hp_seen: int = 0
@@ -157,15 +158,15 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"friendly junction count increased from {state.last_friendly_junctions} to {friendly_count}")
 
         heart_increased = state.current_skill == "get_heart" and heart_count > state.last_heart_count
-        state.last_has_heart = has_heart
-        state.last_heart_count = heart_count
-        state.last_friendly_junctions = friendly_count
         last_action_move = self._feature_value(obs, "last_action_move")
         made_progress = (
             (state.current_skill == "get_heart" and (heart_increased or (has_heart and not state.last_has_heart)))
             or (state.current_skill == "align_neutral" and friendly_count > state.last_friendly_junctions)
             or (state.current_skill == "gear_up" and self._current_gear(obs) == "aligner")
         )
+        state.last_has_heart = has_heart
+        state.last_heart_count = heart_count
+        state.last_friendly_junctions = friendly_count
         # Hub cells are blocked objects — agents stand adjacent, never on the hub cell itself.
         # Use Manhattan distance ≤ 1 for get_heart so navigation-shake doesn't fire while waiting.
         _hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
@@ -205,8 +206,9 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             # Skip LLM call entirely — use deterministic rule-based planner
             skill = None
             reason = "scripted mode"
-            logger.info("agent=%s role=aligner scripted_plan has_aligner=%s has_heart=%s alignable=%d",
-                        obs.agent_id, has_aligner, has_heart, len(known_alignable_junctions))
+            step_num = self._aligner_step_counts.get(obs.agent_id, 0)
+            logger.info("agent=%s step=%d role=aligner scripted_plan has_aligner=%s has_heart=%s alignable=%d friendly=%d",
+                        obs.agent_id, step_num, has_aligner, has_heart, len(known_alignable_junctions), len(state.known_friendly_junctions))
         else:
             prompt = build_llm_aligner_prompt(
                 has_aligner=has_aligner,
@@ -347,6 +349,8 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 reason = f"heart queue: {already_getting} aligners en route, ~{available_hearts} hearts avail — exploring instead"
         if skill == "get_heart" and self._shared_map is not None:
             self._shared_map.agents_getting_hearts.add(obs.agent_id)
+        if skill == "get_heart":
+            state.hearts_at_get_heart_start = self._inventory_count(obs, "heart")
         if skill == "explore":
             state.explore_start_junctions = len(state.known_neutral_junctions) + len(state.known_enemy_junctions)
         state.current_skill = skill
@@ -370,14 +374,19 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                 abs(current_abs[0] - h[0]) + abs(current_abs[1] - h[1]) <= 2
                 for h in _vh3
             )
-            if heart_count < 5 and near_hub and state.no_progress_on_target_steps < 3:
+            early_game_cap = 5
+            sm = self._shared_map
+            if sm is not None and sm.hearts_crafted_estimate == 0:
+                early_game_cap = 2
+            if heart_count < early_game_cap and near_hub and state.no_progress_on_target_steps < 3:
                 pass
             else:
-                self._event(state, f"get_heart completed with {heart_count} heart(s)")
+                newly_withdrawn = max(0, heart_count - state.hearts_at_get_heart_start)
+                self._event(state, f"get_heart completed with {heart_count} heart(s) (withdrew {newly_withdrawn})")
                 state.get_heart_timeouts = 0
                 sm = self._shared_map
                 if sm is not None:
-                    sm.hub_hearts_withdrawn += heart_count
+                    sm.hub_hearts_withdrawn += newly_withdrawn
                     sm.agents_getting_hearts.discard(obs.agent_id)
                 state.current_skill = None
         elif state.current_skill == "defend" and has_heart:
@@ -411,7 +420,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill in {"get_heart", "align_neutral"} and state.skill_steps >= self._stuck_threshold * 5:
             if state.current_skill == "align_neutral":
                 state.align_neutral_timeouts += 1
-                # After 1+ timeout, forget the nearest stuck junction to try a different target
                 if state.align_neutral_timeouts >= 1:
                     current_abs = self._spawn_offset(obs)
                     non_blacklisted_neutral = state.known_neutral_junctions - state.blacklisted_junctions
@@ -424,7 +432,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                             self._event(state, f"blacklisted stuck neutral junction at {stuck_junction} after {state.align_neutral_timeouts} timeouts")
                             state.align_neutral_timeouts = 0
                     elif non_blacklisted_enemy:
-                        # Also blacklist stuck enemy junctions
                         stuck_junction = self._nearest_known(current_abs, non_blacklisted_enemy)
                         if stuck_junction is not None:
                             state.blacklisted_junctions.add(stuck_junction)
@@ -479,14 +486,20 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             logger.warning("agent=%s role=aligner step_error=%s — returning noop", obs.agent_id, e)
             return self._starter._action("noop"), state
 
+    _aligner_step_counts: dict[int, int] = {}
+
     def _step_impl(self, obs: AgentObservation, state: LLMAlignerState) -> tuple[Action, LLMAlignerState]:
         current_abs = self._update_map_memory(obs, state)
         self._update_progress(obs, state)
+
+        aid = obs.agent_id
+        self._aligner_step_counts[aid] = self._aligner_step_counts.get(aid, 0) + 1
 
         # ── Team coordination: sync shared state ──
         sm = self._shared_map
         if sm is not None:
             sm.agent_positions[obs.agent_id] = current_abs
+            sm.agent_gears[obs.agent_id] = self._current_gear(obs)
             if state.current_skill != "align_neutral":
                 sm.aligner_targets.pop(obs.agent_id, None)
             if state.current_skill != "get_heart":
@@ -527,7 +540,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             action, base_state = self._get_heart(obs, state, current_abs)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "align_neutral":
-            # Junction coordination: avoid targeting same junction as other aligner
             sm = self._shared_map
             if sm is not None:
                 targeted_by_others = {
@@ -541,7 +553,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     state.blacklisted_junctions = saved_bl
                 else:
                     action, base_state = self._align_neutral(obs, state, current_abs)
-                # Record our predicted target (excluding others' targets)
                 bl = state.blacklisted_junctions
                 alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
                             if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
@@ -571,8 +582,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             if self._inventory_count(obs, "heart") > 0:
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_friendly_junctions:
-                # Heartless aligner with friendly junctions: explore alignment frontier
-                # to discover new junctions for when hearts become available
                 action, base_state = self._explore_for_alignment(obs, state)
             elif state.known_hubs:
                 action, base_state = self._explore_near_hub(obs, state)

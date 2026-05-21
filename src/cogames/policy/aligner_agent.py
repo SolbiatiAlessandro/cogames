@@ -81,6 +81,7 @@ class SharedMap:
         self.extractors_by_element: dict[str, set[Coord]] = {
             e: set() for e in ("carbon", "oxygen", "germanium", "silicon")
         }
+        self.depleted_extractors: set[Coord] = set()
 
 
 @dataclass
@@ -109,6 +110,7 @@ class AlignerState(StarterCogState):
     # Issue-65: cells where gear contamination occurred — added to BFS avoid set
     contamination_avoid_cells: set[Coord] = field(default_factory=set)
     gear_contamination_count: int = 0
+    hub_approach_rotation: int = 0
 
 
 class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
@@ -170,6 +172,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         state.known_friendly_junctions = sm.known_friendly_junctions
         state.known_enemy_junctions = sm.known_enemy_junctions
         state.known_hazard_stations = sm.known_hazard_stations
+        state.known_miner_stations = sm.known_miner_stations
 
     def initial_agent_state(self) -> AlignerState:
         starter_state = self._starter.initial_agent_state()
@@ -261,13 +264,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         cooldown_cells = set(state.move_cooldowns.keys())
         if not cooldown_cells:
             return None
-        original_blocked = set(state.blocked_cells)
-        original_free = set(state.known_free_cells)
-        state.blocked_cells -= cooldown_cells
-        state.known_free_cells |= cooldown_cells
+        saved_blocked = state.blocked_cells
+        saved_free = state.known_free_cells
+        state.blocked_cells = saved_blocked - cooldown_cells
+        state.known_free_cells = saved_free | cooldown_cells
         direction = self._bfs_first_direction(state, start, goal, avoid_hazards=avoid_hazards)
-        state.blocked_cells = original_blocked
-        state.known_free_cells = original_free
+        state.blocked_cells = saved_blocked
+        state.known_free_cells = saved_free
         return direction
 
     def _bfs_optimistic_direction(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True, max_cells: int = 20000) -> str | None:
@@ -732,9 +735,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if hub is None:
             return self._nearest_known(current_abs, candidates)
         def score(j: Coord) -> float:
-            travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
-            hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
-            return travel + hub_dist * 0.2
+            return abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:
@@ -755,10 +756,6 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         if target_abs is None:
             return self._explore_for_alignment(obs, state)
         self._log_mode(obs, state, "align_neutral")
-        # Prefer a hazard-free path to the junction; only allow crossing scout/scrambler
-        # stations when the clean path is unreachable. Walking through a wrong-role station
-        # auto-equips that gear and drops aligner, which has been the dominant
-        # mid-episode contamination path on seeds 43/44 (issue #12).
         direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=True)
         if direction is None:
             direction = self._bfs_first_direction(state, current_abs, target_abs, avoid_hazards=False)
@@ -766,14 +763,11 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
             direction = self._bfs_without_cooldowns(state, current_abs, target_abs, avoid_hazards=True)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # BFS failed: try optimistic BFS (treat unknown cells as traversable)
         direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=True)
         if direction is None:
             direction = self._bfs_optimistic_direction(state, current_abs, target_abs, avoid_hazards=False)
         if direction is not None:
             return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
-        # Last resort: greedy absolute navigation toward known junction position,
-        # still refusing to step onto known hazard stations.
         action, next_state = self._greedy_move_toward_abs(state, current_abs, target_abs, avoid_hazards=True)
         return action, replace(next_state, last_mode=state.last_mode)
 

@@ -39,6 +39,8 @@ def main():
     parser.add_argument("--cogs", type=int, default=8)
     parser.add_argument("--mission", type=str, default="basic")
     parser.add_argument("--num-aligners", type=int, default=None)
+    parser.add_argument("--num-scouts", type=int, default=None)
+    parser.add_argument("--scout-ids", type=str, default=None)
     parser.add_argument("--return-load", type=int, default=None)
     parser.add_argument("--stuck-threshold", type=int, default=None)
     args = parser.parse_args()
@@ -67,6 +69,10 @@ def main():
     }
     if args.num_aligners is not None:
         policy_kwargs["num_aligners"] = args.num_aligners
+    if args.num_scouts is not None:
+        policy_kwargs["num_scouts"] = args.num_scouts
+    if args.scout_ids is not None:
+        policy_kwargs["scout_ids"] = args.scout_ids
     if args.return_load is not None:
         policy_kwargs["return_load"] = args.return_load
     if args.stuck_threshold is not None:

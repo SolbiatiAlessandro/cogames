@@ -129,6 +129,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         # Share per-element extractor locations so all miners know where each element is
         if hasattr(sm, "extractors_by_element"):
             state.extractors_by_element = sm.extractors_by_element
+        if hasattr(sm, "depleted_extractors"):
+            state.depleted_extractors = sm.depleted_extractors
 
     def initial_agent_state(self) -> MinerSkillState:
         starter_state = self._starter.initial_agent_state()
@@ -578,7 +580,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             logger.info("agent=%s mode=gear_up", obs.agent_id)
             state.last_mode = "gear_up"
         current_abs = self._current_abs(obs)
-        preferred_side = state.gear_up_approach_rotation % 4 if state.gear_contamination_count > 0 else None
+        preferred_side = (obs.agent_id + state.gear_up_approach_rotation) % 4
         visible_target = self._closest_visible_location(obs, self._miner_station_tags)
         if visible_target is not None:
             target_abs = self._visible_abs_cell(current_abs, visible_target)
@@ -946,12 +948,13 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
 
         carried = self._carried_total(obs)
 
+        # Issue-44: detect depleted extractors (must run BEFORE updating last_carried_total
+        # so that the gain comparison is accurate)
+        self._check_extractor_depletion(obs, state)
+
         if carried != state.last_carried_total:
             state.steps_in_current_mode = 0
             state.last_carried_total = carried
-
-        # Issue-44: detect depleted extractors
-        self._check_extractor_depletion(obs, state)
 
         if state.stuck_explore_remaining > 0:
             state.stuck_explore_remaining -= 1
