@@ -190,3 +190,29 @@ Also cleaned up dead mining mode code from machina_llm_roles_policy.py.
 **Cumulative improvement**: +3.3% (sessions 1-5) + 0.6% (session 6) = **+3.9% vs original baseline**
 
 New baseline: 3-seed avg 1152.0, 6-seed avg 1174.6
+
+## 2026-05-21: session 7 — 16 experiments, all neutral-to-negative
+
+**Key discovery**: Map is only 50×50 (40×40 playable) with 13×13 observation grid (radius=6). With 118 junctions Poisson-distributed in 1600 cells, junction density is high. The alignment frontier filter has ZERO effect because junction_search_radius (31) covers almost the entire playable map.
+
+**Tried and failed** (16 experiments):
+1. Hearts accumulation cap 5→3: -3.0% (too many hub trips outweigh faster departure)
+2. Hearts accumulation cap 5→4: -5.1% (same issue, worse)
+3. Keep blacklisted junctions in shared map: -0.1% (neutral)
+4. Team scarce threshold 5→2: no effect on any seed
+5. Team scarce threshold 5→1: no effect on any seed
+6. Port RAxer get_heart_timeouts increment on stuck/stale: -24.8% (catastrophic — causes premature redirect to defend mode, which does noop on friendly junctions)
+7. Adaptive align timeout (dist×3, min 30 steps): -2.5%
+8. Adaptive align timeout (dist×4, min 45 steps): -4.5%
+9. Multi-target BFS for align_neutral: -3.3% (BFS overhead + wrong strategic choices)
+10. Remove junction coordination: -2.8% (aligners compete for same junctions)
+11. Explore cap 30→20: -2.0%
+12. Explore cap 30→25: -3.1%
+13. HP retreat disabled: no effect (never triggers in offline mode)
+14. Sticky explore targets (15-step commitment): -5.5% (frontier changes too fast)
+15. Cascade unlock scoring (weight=3): -2.9%, (weight=1): no effect
+16. Remove alignment frontier filter: no effect (50×50 map too small for filter to matter)
+
+**Near-miss**: Nav-shake threshold 5→3 helped seed 47 (+2.8%) but hurt seed 7 (-0.3%), net inconsistent. Return_load 30: -14%, return_load 50: catastrophic.
+
+**Conclusion**: 55+ experiments across 7 sessions. The +3.9% improvement is the confirmed ceiling for incremental scripted optimization. The map size (50×50) means most coordination/exploration optimizations are neutralized — agents naturally cover the small map efficiently. Further gains would require either RL training, online-specific enemy adaptation, or fundamental policy architecture changes.

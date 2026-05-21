@@ -420,7 +420,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
         elif state.current_skill in {"get_heart", "align_neutral"} and state.skill_steps >= self._stuck_threshold * 5:
             if state.current_skill == "align_neutral":
                 state.align_neutral_timeouts += 1
-                # After 1+ timeout, forget the nearest stuck junction to try a different target
                 if state.align_neutral_timeouts >= 1:
                     current_abs = self._spawn_offset(obs)
                     non_blacklisted_neutral = state.known_neutral_junctions - state.blacklisted_junctions
@@ -541,7 +540,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             action, base_state = self._get_heart(obs, state, current_abs)
             state = self._copy_with(state, base_state)
         elif state.current_skill == "align_neutral":
-            # Junction coordination: avoid targeting same junction as other aligner
             sm = self._shared_map
             if sm is not None:
                 targeted_by_others = {
@@ -555,7 +553,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
                     state.blacklisted_junctions = saved_bl
                 else:
                     action, base_state = self._align_neutral(obs, state, current_abs)
-                # Record our predicted target (excluding others' targets)
                 bl = state.blacklisted_junctions
                 alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
                             if self._is_alignable(j, state) and j not in bl and j not in targeted_by_others}
