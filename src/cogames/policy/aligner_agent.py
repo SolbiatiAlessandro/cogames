@@ -732,7 +732,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
         if hub is None:
             return self._nearest_known(current_abs, candidates)
-        not_yet_aligned = (state.known_neutral_junctions | state.known_enemy_junctions) - candidates
+        not_yet_aligned = state.known_neutral_junctions - candidates
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
             hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
@@ -755,7 +755,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
-        alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+        alignable = {j for j in state.known_neutral_junctions
                      if self._is_alignable(j, state) and j not in bl}
         target_abs = self._cascade_priority_target(current_abs, alignable, state)
         if target_abs is None:
