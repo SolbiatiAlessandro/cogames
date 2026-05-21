@@ -265,13 +265,13 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
         cooldown_cells = set(state.move_cooldowns.keys())
         if not cooldown_cells:
             return None
-        original_blocked = set(state.blocked_cells)
-        original_free = set(state.known_free_cells)
-        state.blocked_cells -= cooldown_cells
-        state.known_free_cells |= cooldown_cells
+        saved_blocked = state.blocked_cells
+        saved_free = state.known_free_cells
+        state.blocked_cells = state.blocked_cells - cooldown_cells
+        state.known_free_cells = state.known_free_cells | cooldown_cells
         direction = self._bfs_first_direction(state, start, goal, avoid_hazards=avoid_hazards)
-        state.blocked_cells = original_blocked
-        state.known_free_cells = original_free
+        state.blocked_cells = saved_blocked
+        state.known_free_cells = saved_free
         return direction
 
     def _bfs_optimistic_direction(self, state: AlignerState, start: Coord, goal: Coord, avoid_hazards: bool = True, max_cells: int = 20000) -> str | None:
@@ -747,19 +747,14 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
     def _cascade_priority_target(self, current_abs: Coord, candidates: set[Coord], state: AlignerState) -> Coord | None:
         if not candidates:
             return None
-        hub_set = state.verified_hubs if state.verified_hubs else state.known_hubs
-        hub = min(hub_set, key=lambda h: abs(h[0]) + abs(h[1])) if hub_set else None
-        if hub is None:
-            return self._nearest_known(current_abs, candidates)
         not_yet_aligned = state.known_neutral_junctions - candidates
         def score(j: Coord) -> float:
             travel = abs(j[0] - current_abs[0]) + abs(j[1] - current_abs[1])
-            hub_dist = abs(j[0] - hub[0]) + abs(j[1] - hub[1])
             cascade_unlocks = sum(
                 1 for nj in not_yet_aligned
                 if abs(j[0] - nj[0]) + abs(j[1] - nj[1]) <= _JUNCTION_ALIGN_DISTANCE
             )
-            return travel + hub_dist * 0.2 - cascade_unlocks * 2
+            return travel - cascade_unlocks * 2
         return min(candidates, key=score)
 
     def _is_alignable(self, junction: Coord, state: AlignerState) -> bool:

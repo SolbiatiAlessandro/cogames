@@ -198,10 +198,6 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             self._event(state, f"enemy junction scrambled: {state.last_enemy_junctions} -> {enemy_count}")
 
         heart_increased = state.current_skill == "get_heart" and heart_count > state.last_heart_count
-        state.last_has_heart = has_heart
-        state.last_heart_count = heart_count
-        state.last_friendly_junctions = friendly_count
-        state.last_enemy_junctions = enemy_count
         last_action_move = self._feature_value(obs, "last_action_move")
         align_progress = (
             (not self._scrambler_mode and friendly_count > state.last_friendly_junctions)
@@ -212,6 +208,10 @@ class LLMAlignerPolicyImpl(AlignerPolicyImpl, StatefulPolicyImpl[LLMAlignerState
             or (state.current_skill == "align_neutral" and align_progress)
             or (state.current_skill == "gear_up" and self._current_gear(obs) == self._gear_role)
         )
+        state.last_has_heart = has_heart
+        state.last_heart_count = heart_count
+        state.last_friendly_junctions = friendly_count
+        state.last_enemy_junctions = enemy_count
         # Hub cells are blocked objects — agents stand adjacent, never on the hub cell itself.
         # Use Manhattan distance ≤ 1 for get_heart so navigation-shake doesn't fire while waiting.
         _hubs = state.verified_hubs if state.verified_hubs else state.known_hubs
