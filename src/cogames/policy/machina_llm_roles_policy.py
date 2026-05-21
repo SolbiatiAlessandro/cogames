@@ -700,7 +700,7 @@ class MachinaLLMRolesPolicy(MultiAgentPolicy):
             na_str = str(num_aligners).lower()
             self._static_aligner_ids = None
             if na_str == "auto":
-                self._aligner_fraction = 3.0 / 8.0
+                self._aligner_fraction = 4.0 / 8.0
             else:
                 self._aligner_fraction = int(num_aligners) / max(n_agents, 1)
         self._assigned_roles: dict[int, str] = {}

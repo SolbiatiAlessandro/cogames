@@ -275,3 +275,104 @@ Results (machina1, seed 42):
 - Defend skill: just does noop on friendly junction, doesn't help
 
 **Death spiral analysis**: All productive activity (alignment, mining) stops by step 3000. Junction alignments identical at 3000 and 10000 steps. Agents die → respawn without gear → can't re-gear → die again. By step 9000, all aligners have lost gear (`has_aligner=False`), only 3 friendly junctions remain (clips scrambled all 107). Territory collapses. Target: pzwh4 branch gets 3917 (vs our 50.83) — still 77× gap.
+
+## Session 10: 10 experiments on MACHINA_1 — all failed (context compaction)
+All experiments reverted. Only kept: scout bug fix (num_scouts properly populates _scout_ids) + comment removal from _known_alignable_junctions (both neutral changes, verified identical output).
+
+Key discovery: Hub territory has `strength=control_range * 2 = 20` (hub.py:53), meaning hub territory extends 20 Manhattan distance, not 10 like junctions. However `_in_friendly_territory` is defined but never called — no active code path uses it.
+
+10K baseline confirmed: seed42=50.83 d=68 j=107, seed123=25.95 d=68 j=48, seed7=36.75 d=80 j=83, avg=37.85
+
+## Session 11: Miner death/respawn false contamination fix + MACHINA_1 optimization
+
+**2026-05-21: Exp 1 — Fix miner false contamination on death**
+
+**Hypothesis**: After death, miners respawn at hub with no gear and no cargo. The `_maybe_finish_skill` check sees `has_miner=False` during "mine_until_full"/"deposit_to_hub" and falsely triggers contamination. This inflates `gear_contamination_count` to 20+ and adds spurious `contamination_avoid_cells`, causing: (1) gear_up_approach_rotation cycles through all 4 sides unnecessarily, (2) avoid_cells grows unbounded and may block valid navigation targets.
+
+**Fix**: Distinguish death (no gear + no cargo) from real contamination (no gear + still has cargo). On death: reset skill to None and clear retreating state instead of incrementing contamination counter.
+
+**Result**: REVERTED — the false contamination is actually beneficial! The inflated approach rotation and avoid_cells after death give miners different paths when re-gearing, reducing congestion at miner stations. Result: 43.12 (-4.6%) when fixed.
+
+**2026-05-21: Exp 2 — Miner HP retreat threshold sweep (35% → 40%, 45%)**
+Tested 40% and 45% miner HP retreat thresholds. 45% improved seed 42 (+18.3%) but regressed seed 123 (-31.5%). 40% regressed all seeds. Problem: higher threshold makes miners retreat too often, reducing mining output and heart production.
+
+**Key diagnostic finding**: Aligners have only 1 unrecovered retreat out of 78 HP_LOW events (99% survival). But miners have 20 unrecovered retreats out of 32 HP_LOW events (62.5% death rate). All miner deaths at HP=34 with distances 7-22 from safety. 15 of 32 miner HP_LOW events are for miners WITHOUT gear (re-dying after respawn).
+
+**2026-05-21: Exp 3 — Distance-adaptive miner retreat**
+Tried adaptive retreat: `retreat when hp < dist_to_safety + BFS_OVERHEAD`. With BFS_OVERHEAD=15, barely triggers (only 4/29 events). With BFS_OVERHEAD=25, -22.6% regression. Reverted.
+
+**2026-05-21: Exp 4 — Consolidation phase HP threshold**
+Raised aligner HP threshold to 80% after step 2000. Regressed: -4.4% at 3K, -3.9% at 10K. Aligners retreat too often, align fewer junctions.
+
+**2026-05-21: Exp 5 — Patrol defend skill + 4A4M**
+Implemented patrol behavior for aligners (cycle between friendly junctions instead of noop). Patrol never triggers because agents die before entering patrol mode. 4A4M tested — worse on average (-9.9%).
+
+**2026-05-21: Exp 6 — BREAKTHROUGH: Neutral-only alignment (issue #79)**
+
+**Hypothesis**: Aligners target enemy (clips-owned) junctions which can NEVER be aligned — the game's alignment action requires `isNot(hasTagPrefix("team:"))`. Removing enemy junctions from targets should prevent wasted hearts, steps, and deaths.
+
+**Fix** (3 lines):
+1. `aligner_agent.py:754`: Remove `| state.known_enemy_junctions` from `_align_neutral()`
+2. `machina_llm_roles_policy.py:148`: Remove from `_known_alignable_junctions()`
+3. `machina_llm_roles_policy.py:580`: Remove from aligner target tracking
+
+**MACHINA_1 3K results**:
+| Seed | Baseline | Neutral-only | Change |
+|------|----------|-------------|--------|
+| 42   | 45.23    | **80.97**   | **+79.0%** |
+| 123  | 20.36    | **46.95**   | **+130.7%** |
+| 7    | 31.15    | **37.90**   | **+21.7%** |
+| Avg  | 32.24    | **55.27**   | **+71.4%** |
+
+**MACHINA_1 10K results** (seeds 42/123 complete):
+- seed 42: 90.16 vs 50.83 (+77.4%), deaths 50 vs 68, junctions 125 vs 107
+- seed 123: 52.60 vs 25.95 (+102.7%), deaths 43 vs 68, junctions 99 vs 48
+
+**50×50 arena**: avg 1156.84 (no regression vs 1152.02 best)
+
+**Why this works**: Clips align neutral junctions to become enemy (clips-owned). Our aligners saw these enemy junctions as targets, navigated to them, tried to align, failed (game blocks alignment of enemy junctions), timed out, wasted hearts. With the fix, aligners only target neutral junctions they can actually align — more efficient use of hearts and time, more productive alignments per step.
+
+## Session 12: Post neutral-only optimization experiments
+
+**2026-05-21: Investigating `_JUNCTION_ALIGN_DISTANCE` mismatch (policy=25 vs game=15)**
+
+Policy uses `_JUNCTION_ALIGN_DISTANCE=25` but game requires junctions within 15 cells of friendly network for alignment (`JUNCTION_ALIGN_DISTANCE=15` in config.py). This means aligners target junctions 16-25 cells from network that can't be aligned.
+
+**Exp 1 — JD=15**: 6-seed 3K avg +5.5%, 3-seed 10K avg +2.2%. But extremely noisy — seed 123 regresses -30% while seed 7 improves +45%. The JD=25 "overshoot" acts as beneficial exploration heuristic — aligners navigate to slightly out-of-range junctions, discover new areas, and by arrival the network often catches up. REVERTED.
+
+**Also tried JD=15 + wider explore frontier (JD_EXPLORE=25)**: Even worse — seed 123 drops to -60%. The alignment check itself (not explore radius) drives the regression.
+
+**Exp 2 — Shorter align_neutral timeout (75→45 or 60 steps)**: Timeout*3 causes seed 42 -32%. Timeout*4 causes seed 123 -54%. Premature blacklisting of good junctions. REVERTED.
+
+**Exp 3 — Return load 20/30**: RL=20 avg -51.2%, RL=30 seed 42 -12.1%. Extra travel overhead from more frequent trips dominates any benefit from reduced cargo loss on death. REVERTED.
+
+**Exp 4 — Contested zone avoidance**: Skip neutral junctions within 15 cells of enemy junctions (clips scramble range). Avg -17.6%. Too aggressive — excludes many valid targets in the hub vicinity. REVERTED.
+
+**Exp 5 — Agent split re-evaluation (post neutral-only fix)**
+
+Previous finding (sessions 8, 11): 3A5M confirmed optimal. But the neutral-only fix makes each aligner much more efficient. Re-testing splits:
+
+| Split | 3K 3-seed avg | 3K 6-seed avg | 10K 3-seed avg |
+|-------|--------------|---------------|----------------|
+| 1A7M | 25.45 (-54%) | - | - |
+| 2A6M | 64.12 (+16%) | 60.13 (+13.4%) | *pending* |
+| 3A5M | 55.27 (baseline) | 53.03 (baseline) | 62.09 (baseline) |
+| 4A4M | 62.23 (+13%) | 56.80 (+7.1%) | 68.42 (+10.2%) |
+| 5A3M | 64.47 (seed42) | - | - |
+
+**10K results (online tournament conditions):**
+
+| Split | 10K 3-seed avg | Deaths avg | Change vs baseline |
+|-------|---------------|------------|-------------------|
+| 2A6M | 61.51 | 89.0 | -0.9% |
+| 3A5M | 62.09 (baseline) | 59.3 | — |
+| 4A4M | **68.42** | **35.3** | **+10.2%** |
+
+2A6M collapses at 10K because 6 miners die far more (89 avg deaths). 4A4M wins at 10K: more territory from 4 aligners creates more healing zones, reducing deaths by 40%. Changed default from 3/8 to 4/8 (4A4M).
+
+50×50 with 4A4M: avg 1077.40 (-6.9% regression). The split optimization is MACHINA_1-specific — on 50×50, more miners produce more hearts. For 50×50 testing, pass `--num-aligners 3`.
+
+**Also tested but failed (all reverted):**
+- Miner extractor congestion avoidance (penalty=5/10): very noisy, different penalties help different seeds. avg +4.8% to +9.2% but individual seeds swing ±50%.
+- 1A7M: avg -53.9% at 3K. One aligner is not enough — territory doesn't expand fast enough.
+- 5A3M: -20.4% at 3K (seed 42). Too few miners → not enough hearts.
