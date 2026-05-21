@@ -74,3 +74,5 @@ eea1b24	14.51	hearts=n/a	3000	keep	[POST-REBASE] cascade-scoring+blacklist-fix: 
 42755cc	17.26	hearts=n/a	3000	discard	explore-dispersion-0.5: 3-seed avg 17.26 (42:16.61, 43:17.30, 44:17.87) -5.0%. agents sent to distant frontiers
 42755cc	18.21	hearts=n/a	3000	discard	cascade-2level-lookahead: 3-seed avg 18.21 (42:18.26, 43:17.61, 44:18.75) +0.4% noise. 2-level cascade adds complexity for zero gain
 42755cc	16.93	hearts=n/a	3000	discard	cascade+retreat+miner-explore: 6-seed avg 16.93 (42:18.25, 43:17.61, 44:18.75, 45:12.78, 46:17.82, 47:16.35) -6.6%. miner pure explore kills discovery pattern
+42755cc	18.17	hearts=n/a	3000	discard	enemy-proximity-penalty: 6-seed avg 18.17 (42:18.39, 43:18.23, 44:18.17, 45:17.57, 46:19.22, 47:17.42) +0.2% noise vs 18.14
+42755cc	17.44	hearts=n/a	3000	discard	nav-shake-threshold-3: 3-seed avg 17.44 (42:17.29, 43:17.68, 44:17.34) -3.8%. too aggressive shake disrupts navigation
