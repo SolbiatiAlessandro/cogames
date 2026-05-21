@@ -102,4 +102,31 @@ Implemented `LLMScramblerPolicyImpl` — a new agent role that:
 4. Aligners then re-align the now-neutral junctions
 
 **3-seed preliminary results**: 42=5.63, 43=2.49, 44=4.27, avg=4.13 vs baseline 2.93 (**+40.9%**)
-Very high variance — seed 43 actually regressed. Running 6-seed evaluation...
+6-seed: 42=5.63, 43=2.49, 44=4.27, 45=4.48, 46=5.58, 47=7.23, avg=4.95 vs baseline 3.76 (**+31.6%**)
+
+Configs tested:
+| Config | 6-seed avg | vs baseline |
+|--------|-----------|-------------|
+| 3A/0S/5M (baseline) | 3.76 | — |
+| 3A/1S/4M | 4.95 | +31.6% |
+| 2A/1S/5M | 3.82 | +1.6% |
+| 3A/2S/3M | 2.72 | -27.7% |
+
+### Exp 21: CRITICAL BUG FIX — aligners targeting unalignable enemy junctions
+
+**Discovery**: `junction_is_alignable()` requires `isNot(hasTagPrefix("team:"))` — enemy junctions (with `team:clips`) are NOT directly alignable. They need scrambling first! But the aligner code included `known_enemy_junctions` in its alignment targets, causing aligners to navigate to enemy junctions, fail to align, time out, and waste hearts+steps.
+
+**Fix**: Changed `_known_alignable_junctions()` and `_align_neutral()` to only target neutral junctions.
+
+| Config | 6-seed avg | vs old baseline | vs new baseline |
+|--------|-----------|----------------|----------------|
+| Old baseline (3A/5M, enemy+neutral) | 3.76 | — | — |
+| **New baseline (3A/5M, neutral-only)** | **8.63** | **+129.5%** | — |
+| Scrambler (3A/1S/4M, neutral-only) | 7.61 | +102.4% | -11.8% |
+
+The alignment fix alone gives +129.5%. The scrambler is now net negative because:
+1. Aligners no longer waste hearts on enemy junctions
+2. With efficient neutral-junction targeting, hearts are the bottleneck
+3. Replacing 1 miner with scrambler reduces heart production
+
+**Keeping the fix. Scrambler becomes useful only when neutral junctions are exhausted.**

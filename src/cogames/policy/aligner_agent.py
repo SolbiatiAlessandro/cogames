@@ -771,7 +771,7 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
 
     def _align_neutral(self, obs: AgentObservation, state: AlignerState, current_abs: Coord) -> tuple[Action, AlignerState]:
         bl = state.blacklisted_junctions
-        alignable = {j for j in (state.known_neutral_junctions | state.known_enemy_junctions)
+        alignable = {j for j in state.known_neutral_junctions
                      if self._is_alignable(j, state) and j not in bl}
         target_abs = self._cascade_priority_target(current_abs, alignable, state)
         if target_abs is None:

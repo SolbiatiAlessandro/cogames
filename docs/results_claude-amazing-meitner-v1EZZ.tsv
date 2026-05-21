@@ -17,3 +17,8 @@ junction_deposit	1093.82	-	3000	discard	miners deposit at nearest friendly junct
 scarce_limit_1	1182.65	-	3000	discard	limit scarce-element explore to 1 miner (-0.6%)
 scarce_limit_2	1105.65	-	3000	discard	limit scarce-element explore to 2 miners (-2.9%)
 combo_st20_mining	1191.52	-	3000	neutral	stuck_threshold=20 + mining mode (+0.2%)
+scrambler_3A1S4M	4.95	junctions_gained=73	3000	keep	scrambler role 3A/1S/4M (+31.6% vs old baseline, 6-seed)
+scrambler_2A1S5M	3.82	-	3000	discard	2A/1S/5M scrambler (+1.6%)
+scrambler_3A2S3M	2.72	-	3000	discard	3A/2S/3M two scramblers (-27.7%)
+neutral_only_align	8.63	junctions_held=104K	3000	keep	CRITICAL: aligners only target neutral junctions (+129.5%, 6-seed)
+scrambler_neutral_fix	7.61	-	3000	discard	scrambler + neutral-only fix (-11.8% vs fixed baseline)
