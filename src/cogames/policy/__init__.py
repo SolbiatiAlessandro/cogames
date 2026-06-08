@@ -1,5 +1,3 @@
-"""Policy-related helpers."""
+"""Policy package for CoGames."""
 
-from mettagrid.policy.policy import MultiAgentPolicy
-
-__all__ = ["MultiAgentPolicy"]
+__all__: list[str] = []
