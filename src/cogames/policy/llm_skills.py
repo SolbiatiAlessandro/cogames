@@ -54,6 +54,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._hazard_station_tags = self._resolve_non_miner_station_tags(policy_env_info, miner_station_names)
         self._wall_tags = self._starter._resolve_tag_ids(["wall"])
         self._junction_tags = self._starter._resolve_tag_ids(["junction"])
+        self._aligner_station_tags = self._resolve_aligner_station_tags(policy_env_info)
         self._team_tag = self._starter._tag_name_to_id.get("team:cogs")
         self._net_tag = self._starter._tag_name_to_id.get("net:cogs")
         self._enemy_team_tag = self._starter._tag_name_to_id.get("team:clips")
@@ -76,6 +77,16 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
             if object_name.endswith(":miner") or object_name == "miner":
                 names.add(object_name)
         return sorted(names)
+
+    def _resolve_aligner_station_tags(self, policy_env_info: PolicyEnvInterface) -> set[int]:
+        names: set[str] = {"aligner_station"}
+        for tag_name in policy_env_info.tags:
+            if not tag_name.startswith("type:"):
+                continue
+            object_name = tag_name.removeprefix("type:")
+            if object_name.endswith(":aligner") or object_name == "aligner":
+                names.add(object_name)
+        return self._starter._resolve_tag_ids(sorted(names))
 
     def _resolve_non_miner_station_tags(self, policy_env_info: PolicyEnvInterface, miner_names: list[str]) -> set[int]:
         other_gear = ("aligner", "scrambler", "scout")
@@ -190,6 +201,7 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         blocked_now: set[Coord] = set()
         hubs_now: set[Coord] = set()
         miner_stations_now: set[Coord] = set()
+        aligner_stations_now: set[Coord] = set()
         extractors_now: set[Coord] = set()
         hazard_stations_now: set[Coord] = set()
         visible_tag_ids_by_cell: dict[Coord, set[int]] = {}
@@ -205,6 +217,8 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
                 hubs_now.add(abs_cell)
             if token.value in self._miner_station_tags:
                 miner_stations_now.add(abs_cell)
+            if token.value in self._aligner_station_tags:
+                aligner_stations_now.add(abs_cell)
             if token.value in self._starter._extractor_tags:
                 extractors_now.add(abs_cell)
                 # Issue-16: track which element this extractor produces
@@ -228,6 +242,11 @@ class MinerSkillImpl(StatefulPolicyImpl[MinerSkillState]):
         self._remember_static_objects(state.known_extractors, extractors_now)
         self._remember_static_objects(state.known_hazard_stations, hazard_stations_now)
         self._remember_visible_hub(obs, state)
+
+        # Share aligner station locations so aligners find gear faster
+        sm = self._shared_map
+        if sm is not None and aligner_stations_now:
+            sm.known_aligner_stations.update(aligner_stations_now)
 
         # Classify junctions and write to SharedMap so aligners can target them
         sm = self._shared_map
