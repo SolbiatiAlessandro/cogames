@@ -386,5 +386,30 @@ Key hypothesis chain to test:
   
   Risk: longer navigation paths could waste step budget and expose aligners to more
   damage. If reward drops, the distances are too aggressive.
-  Testing on seeds 42, 45, 46 (same as exp15 for comparison).
+  Testing on seeds 42, 45, 46, 47.
+- `2026-10-01T21:22Z`: **exp16 results — DISCARD, seed 47 regression catastrophic.**
+
+  | seed | exp15 (miner junc. disc.) | exp16 (+align dist.) | Δ | notes |
+  | --- | --- | --- | --- | --- |
+  | 42 | 49.92 / 6j | 52.04 / 6j | +4.2% / 0 | marginal |
+  | 45 | 72.42 / 11j | 79.62 / 13j | +9.9% / +2 | improved |
+  | 46 | 74.15 / 10j | 74.15 / 10j | 0% / 0 | no change |
+  | 47 | 92.07 / 14j | **51.80 / 7j** | **-43.7%** / -7 | catastrophic |
+
+  Seed 47 dropped from 14→7 junctions and 92→52 reward. The alignment distance
+  increase forces aligners to try reaching distant junctions, wasting step budget
+  on long navigation. On seed 47, the original distance limits already capture most
+  junctions (12/14), so expanding the radius just adds bad targets.
+  
+  On seed 45, the distance increase did help (+2 junctions) because some junctions
+  are genuinely beyond 25 Manhattan of the hub. But the seed 47 regression outweighs.
+  
+  **DISCARD.** Revert `aligner_agent.py` to original constants (25/15). The miner
+  junction discovery from exp15 remains the active best config.
+  
+  Next experiments to try:
+  1. Adaptive alignment distance (use current friendly junction count to decide)
+  2. Reduce stuck_threshold since more junctions = more targets = less stuck time
+  3. Try 4A4M with miner junction discovery (more aligners may help now that
+     junction supply is abundant)
 
