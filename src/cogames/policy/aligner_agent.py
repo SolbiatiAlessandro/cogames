@@ -523,8 +523,14 @@ class AlignerPolicyImpl(StatefulPolicyImpl[AlignerState]):
                     continue
                 return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
         target_abs = self._nearest_known(current_abs, frontier_cells)
-        action, next_state = self._move_to(state, current_abs, target_abs)
-        return action, replace(next_state, last_mode=state.last_mode)
+        if target_abs is None:
+            return self._safe_wander(state, current_abs)
+        direction = self._bfs_first_direction(state, current_abs, target_abs)
+        if direction is None:
+            direction = self._bfs_optimistic_direction(state, current_abs, target_abs)
+        if direction is not None:
+            return self._starter._action(f"move_{direction}"), replace(state, last_mode=state.last_mode)
+        return self._safe_wander(state, current_abs)
 
     def _explore(self, obs: AgentObservation, state: AlignerState) -> tuple[Action, AlignerState]:
         return self._explore_frontier(obs, state, self._frontier_cells(state))
