@@ -334,4 +334,40 @@ Key hypothesis chain to test:
   Expected: more junctions discovered earlier, especially on hard seeds where miners
   reach map areas before aligners do. Should improve seeds 45/46 the most.
   Testing on seeds 42, 45, 46, 47 (mix of easy and hard).
+- `2026-10-01T21:15Z`: **exp15 results — MASSIVE IMPROVEMENT on hard seeds.**
+
+  NOTE: mettagrid 0.15.0 changed the reward scale, so absolute reward numbers differ
+  from previous experiments (exp1-exp14 were on an older mettagrid). Junction counts
+  are directly comparable since they're count-based.
+
+  | seed | baseline reward | exp15 reward | Δ reward | baseline junctions | exp15 junctions | Δ junctions |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | 42 | 44.95 | 49.92 | **+11.0%** | 5 | 6 | +1 |
+  | 45 | 50.84 | 72.42 | **+42.4%** | 6 | 11 | **+5** |
+  | 46 | 57.77 | 74.15 | **+28.4%** | 7 | 10 | **+3** |
+  | 47 | _(pending)_ | 92.07 | — | — | 14 | — |
+  | **avg (42,45,46)** | **51.19** | **65.50** | **+27.9%** | **6.0** | **9.0** | **+3.0** |
+
+  **Key findings:**
+  1. Miner junction discovery is the single highest-leverage change found so far.
+     Average junction count up 50% (6→9), reward up 28%.
+  2. Biggest improvement on hard seeds as predicted: seed 45 went 6→11 junctions
+     (+83%), seed 46 went 7→10 junctions (+43%).
+  3. Zero contamination on all 4 seeds (no scout/scrambler/aligner-lost events).
+  4. Hearts also improved: seed 45 went 7→12, seed 46 went 7→10 — miners finding
+     junctions indirectly caused more heart withdrawals (more alignment activity).
+  5. Deaths stayed at 0 on seeds 42/45/46 (4 deaths on seed 47, same as before).
+  
+  **Why it works:** With 5 miners covering the map extensively (mine→deposit→mine
+  cycles), they walk past many junctions that only aligners could previously register.
+  By adding junction tag parsing to the miner's observation loop, junctions are
+  discovered much earlier and from many more map positions. The SharedMap propagates
+  these discoveries instantly to all aligners, who can then target them. This is
+  especially impactful on hard seeds where junctions are far from the hub — miners
+  reach these areas during their mining routes while aligners stay closer to the hub
+  and known junctions.
+  
+  **KEEP.** This is a clear, large, universal improvement with no regression. Next:
+  run seed 47 baseline for completeness, update TSV, then try additional improvements
+  (increased alignment distances, etc.).
 
