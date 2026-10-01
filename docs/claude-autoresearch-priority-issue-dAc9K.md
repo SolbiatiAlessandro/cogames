@@ -318,3 +318,20 @@ Key hypothesis chain to test:
   - Stretch target (>6.0) met on seed 47 (and would be exceeded by exp11 on
     seed 42 if we traded robustness for peak).
 
+- `2026-10-01T21:10Z`: starting new experiment loop — exp15 "miner-junction-discovery".
+  **Hypothesis:** On hard seeds (45, 46), aligners only discover 4-5 junctions total
+  because they are the only agents that recognize junction tags. The 5 scripted miners
+  roam widely across the map (mining + returning to hub) but their `_update_map_memory`
+  does not classify junctions. If we add junction tag parsing to the miner's
+  `_update_map_memory` and write the results to the SharedMap, miners will passively
+  discover junctions as they travel, giving aligners more targets to work with.
+  This is a zero-behavior-cost change: miners don't change what they do, they just
+  report what they see to the shared knowledge base.
+  Code changes in `src/cogames/policy/llm_skills.py`:
+  1. Add junction/team/enemy tag resolution to `MinerSkillImpl.__init__`
+  2. Add junction classification (neutral/friendly/enemy) to `_update_map_memory`
+  3. Write junction data to SharedMap sets (which aligners already read)
+  Expected: more junctions discovered earlier, especially on hard seeds where miners
+  reach map areas before aligners do. Should improve seeds 45/46 the most.
+  Testing on seeds 42, 45, 46, 47 (mix of easy and hard).
+
