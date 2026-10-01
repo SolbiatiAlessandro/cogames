@@ -421,6 +421,17 @@ Key hypothesis chain to test:
   burning 28 steps. The old exp5 showed that stuck=12 was too aggressive, but 20 was
   the original default and worked well pre-exp6.
   Testing on seeds 42, 45, 47.
+- `2026-10-01T21:38Z`: **exp19 results — DISCARD, worse on all seeds.**
+
+  | seed | exp15 (load=40) | exp19 (load=28) | Δ |
+  | --- | --- | --- | --- |
+  | 42 | 49.92 / 6j | 38.06 / 4j | -23.8% / -2j |
+  | 45 | 72.42 / 11j | 57.25 / 8j | -21.0% / -3j |
+  | 47 | 92.07 / 14j | 83.72 / 11j | -9.1% / -3j |
+
+  Smaller deposits cause too much travel overhead. return_load=40 is better.
+  **DISCARD.**
+
 - `2026-10-01T21:28Z`: **exp17 results — DISCARD, seed 47 regression.**
 
   | seed | exp15 (stuck=28) | exp17 (stuck=20) | Δ |
