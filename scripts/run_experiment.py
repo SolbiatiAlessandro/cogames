@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--num-scouts", type=int, default=0)
     parser.add_argument("--stuck-threshold", type=int, default=28)
     parser.add_argument("--llm-timeout", type=float, default=0.001)
+    parser.add_argument("--return-load", type=int, default=40)
     args = parser.parse_args()
 
     missions = {m.name: m for m in get_core_missions()}
@@ -42,6 +43,7 @@ def main():
             "scripted_miners": True,
             "stuck_threshold": args.stuck_threshold,
             "llm_timeout_s": args.llm_timeout,
+            "return_load": args.return_load,
         },
     )
 

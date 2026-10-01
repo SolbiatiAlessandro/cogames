@@ -455,3 +455,14 @@ Key hypothesis chain to test:
   Next: try more creative approaches — explore frontier biased toward
   miner-discovered junctions, or heart supply optimization.
 
+- `2026-10-01T21:33Z`: starting new experiment loop — exp19 "return_load=28 for faster heart production".
+  **Hypothesis:** Hearts are the secondary bottleneck after junction discovery.
+  Current `return_load=40` means miners carry 40 resources before depositing.
+  Heart cost is 7 of each of 4 elements = 28 total. A single deposit of 40
+  might produce ~1 heart if balanced. Reducing to 28 makes miners deposit
+  more frequently (more hub trips) but each deposit is exactly aligned to the
+  heart production cost. This should increase heart throughput at the cost of
+  more travel overhead per deposit. Net effect depends on whether the extra
+  hearts enable more alignments than the lost mining time.
+  Testing on seeds 42, 45, 47.
+
