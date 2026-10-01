@@ -31,3 +31,9 @@ b985510	52.039825	junction_aligned=6;hearts_gained=7;deaths=2;contam=0;max_stuck
 b985510	79.615807	junction_aligned=13;hearts_gained=14;deaths=0;contam=0;max_stuck=43	1000	discard	Exp16b align-distance-increase. Seed 45. total=79.62. Better than exp15 (72.42 +9.9%). Junctions 11→13.
 b985510	74.152016	junction_aligned=10;hearts_gained=10;deaths=0;contam=0;max_stuck=82	1000	discard	Exp16c align-distance-increase. Seed 46. total=74.15. Identical to exp15. No effect.
 b985510	51.799755	junction_aligned=7;hearts_gained=7;deaths=2;contam=0;max_stuck=94	1000	discard	Exp16d align-distance-increase. Seed 47. total=51.80. CATASTROPHIC regression vs exp15 (92.07 -43.7%). Junctions 14→7. Discard; revert distances to 25/15.
+0a2fdb7	48.136024	junction_aligned=6;hearts_gained=7;deaths=0;scout_gained=1;max_stuck=84	1000	discard	Exp17a stuck=20 redux. Seed 42. Worse than exp15 (49.92). Scout contamination. stuck=28 is still better.
+0a2fdb7	76.584198	junction_aligned=13;hearts_gained=14;deaths=0;contam=0;max_stuck=57	1000	discard	Exp17b stuck=20. Seed 45. Better than exp15 (72.42) but seed 47 regression kills it.
+0a2fdb7	57.551483	junction_aligned=7;hearts_gained=7;deaths=1;scrambler_gained=1;aligner_lost=1;max_stuck=97	1000	discard	Exp17c stuck=20. Seed 47. CATASTROPHIC regression vs exp15 (92.07 -37.5%). Contamination from premature target abandonment. Discard.
+0a2fdb7	58.287479	junction_aligned=7;hearts_gained=7;deaths=2;contam=0;max_stuck=185	1000	discard	Exp18a 4A4M. Seed 42. Better than exp15 3A5M (49.92) but contamination on other seeds kills it.
+0a2fdb7	44.608242	junction_aligned=5;hearts_gained=7;deaths=2;scout_gained=1;aligner_lost=1;max_stuck=182	1000	discard	Exp18b 4A4M. Seed 45. Much worse than exp15 3A5M (72.42 -38.4%). Gear contamination still active.
+0a2fdb7	61.655525	junction_aligned=8;hearts_gained=8;deaths=0;aligner_lost=1;max_stuck=138	1000	discard	Exp18c 4A4M. Seed 47. Much worse than exp15 3A5M (92.07 -33.0%). Aligner lost=1.

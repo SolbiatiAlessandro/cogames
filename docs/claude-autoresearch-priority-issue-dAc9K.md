@@ -421,4 +421,37 @@ Key hypothesis chain to test:
   burning 28 steps. The old exp5 showed that stuck=12 was too aggressive, but 20 was
   the original default and worked well pre-exp6.
   Testing on seeds 42, 45, 47.
+- `2026-10-01T21:28Z`: **exp17 results — DISCARD, seed 47 regression.**
+
+  | seed | exp15 (stuck=28) | exp17 (stuck=20) | Δ |
+  | --- | --- | --- | --- |
+  | 42 | 49.92 / 6j | 48.14 / 6j | -3.6% (scout contam) |
+  | 45 | 72.42 / 11j | 76.58 / 13j | +5.7% / +2j |
+  | 47 | 92.07 / 14j | **57.55 / 7j** | **-37.5%** / -7j (scrambler+aligner contam) |
+
+  Lower stuck threshold causes premature target abandonment → aligners wander
+  through hazard stations → contamination. stuck=28 remains optimal.
+  **DISCARD.**
+
+- `2026-10-01T21:28Z`: **exp18 results — DISCARD, 4A4M still worse than 3A5M.**
+
+  | seed | exp15 (3A5M) | exp18 (4A4M) | Δ |
+  | --- | --- | --- | --- |
+  | 42 | 49.92 / 6j | 58.29 / 7j | +16.8% (no contam) |
+  | 45 | 72.42 / 11j | 44.61 / 5j | **-38.4%** (contam) |
+  | 47 | 92.07 / 14j | 61.66 / 8j | **-33.0%** (contam) |
+
+  4A4M gear contamination persists even with miner junction discovery. The extra
+  aligner competes for the aligner station and routes through hazard stations.
+  3A5M remains the better split.
+  **DISCARD.**
+
+  **Current best config remains exp15:**
+  - 3A5M scripted miners, stuck_threshold=28, hazard-aware BFS, miner junction discovery
+  - 4-seed avg: 72.14 (baseline 51.19, +41%)
+  - Min seed 42: 49.92 (baseline 44.95, +11%)
+  - Max seed 47: 92.07
+
+  Next: try more creative approaches — explore frontier biased toward
+  miner-discovered junctions, or heart supply optimization.
 
