@@ -371,3 +371,20 @@ Key hypothesis chain to test:
   run seed 47 baseline for completeness, update TSV, then try additional improvements
   (increased alignment distances, etc.).
 
+- `2026-10-01T21:20Z`: starting new experiment loop — exp16 "increased alignment distances".
+  **Hypothesis:** Now that miners discover junctions across the full map, some of
+  those newly discovered junctions may be beyond the alignment distance limits and
+  thus still not targetable. The current limits are:
+  - `_HUB_ALIGN_DISTANCE = 25` (junctions within 25 Manhattan of hub are "alignable")
+  - `_JUNCTION_ALIGN_DISTANCE = 15` (junctions within 15 Manhattan of friendly junction are "alignable")
+  
+  Increasing to `_HUB_ALIGN_DISTANCE = 35` and `_JUNCTION_ALIGN_DISTANCE = 25` should
+  capture more distant junctions. The map is 88×88 = max Manhattan distance ~176, so 35
+  from hub still covers only ~20% of the map but is 40% more than before. The chain
+  distance of 25 (from already-aligned junctions) should enable much deeper expansion
+  into the map.
+  
+  Risk: longer navigation paths could waste step budget and expose aligners to more
+  damage. If reward drops, the distances are too aggressive.
+  Testing on seeds 42, 45, 46 (same as exp15 for comparison).
+
