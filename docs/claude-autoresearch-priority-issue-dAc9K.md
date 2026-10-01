@@ -413,3 +413,12 @@ Key hypothesis chain to test:
   3. Try 4A4M with miner junction discovery (more aligners may help now that
      junction supply is abundant)
 
+- `2026-10-01T21:25Z`: starting new experiment loop — exp17 "stuck_threshold=20 with miner junction discovery".
+  **Hypothesis:** stuck_threshold was tuned to 28 (from default 20) in exp6 when only
+  5-7 junctions were discoverable. With miner junction discovery now providing 9-14
+  junctions, aligners have more alternative targets. A lower threshold (back to 20)
+  should let aligners abandon doomed targets faster and try alternatives instead of
+  burning 28 steps. The old exp5 showed that stuck=12 was too aggressive, but 20 was
+  the original default and worked well pre-exp6.
+  Testing on seeds 42, 45, 47.
+
